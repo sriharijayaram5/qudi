@@ -75,16 +75,17 @@ class MicrowaveSG6000PRO(Base, MicrowaveInterface):
                                         timeout=self._visa_timeout*1000)
 
             self._visa_connection.write_termination = "\n"
-            self._visa_connection.read_termination = None
+            #self._visa_connection.read_termination = None
             self._visa_connection.baud_rate = 115200
             self._visa_connection.parity = visa.constants.Parity.none
             self._visa_connection.stop_bits = visa.constants.StopBits.one
-
 
             self.log.info('SG6000PRO: initialised and connected to hardware.')
         except:
              self.log.error('SG6000PRO: could not connect to the VISA '
                             'address "{0}".'.format(self._visa_address))
+
+        #DOTO: setup the device correctly and set all the status variable correctly
 
         self._FREQ_MAX = 6e9 # in Hz
         self._FREQ_MIN = 25e6 # in Hz
@@ -103,6 +104,14 @@ class MicrowaveSG6000PRO(Base, MicrowaveInterface):
         # FIXME: Not quite sure about this:
         self._MAX_SWEEP_ENTRIES = 10000
 
+        # need to track the mode of the device, as it cannot be asked.
+        self._mode = 'cw' # needs to be from the list: ['cw', 'list', 'sweep']
+
+        self._freq_sweep_start = None
+        self._freq_sweep_stop = None
+        self._freq_sweep_sweep = None
+        self._freq_list = []
+
 
         # get the info from the device:
         message = self._ask('*IDN?').strip().split(',')
@@ -119,7 +128,7 @@ class MicrowaveSG6000PRO(Base, MicrowaveInterface):
     def on_deactivate(self):
         """ Deinitialisation performed during deactivation of the module. """
 
-        # self.off()  # turn the device off in case it is running
+        self.off()  # turn the device off in case it is running
         # self._visa_connection.close()   # close the gpib connection
         # self.rm.close()                 # close the resource manager
         return
@@ -159,15 +168,7 @@ class MicrowaveSG6000PRO(Base, MicrowaveInterface):
         if not is_running:
             return 0
 
-        self._write(':OUTP OFF')
-
-        if mode == 'list':
-            self._write(':FREQ:MODE CW')
-
-        # check whether
-        while int(float(self._ask('OUTP:STAT?').strip())) != 0:
-            time.sleep(0.2)
-
+        self._write('OUTP:STAT OFF')
         return 0
 
     def get_status(self):
@@ -176,20 +177,14 @@ class MicrowaveSG6000PRO(Base, MicrowaveInterface):
 
         @return str, bool: mode ['cw', 'list', 'sweep'], is_running [True, False]
         """
+        state = self._ask('OUTP:STAT?').strip()
 
-        is_running = bool(int(self._ask('OUTP:STAT?')))
-        mode = self._ask(':FREQ:MODE?').strip().lower()
+        if state == 'ON':
+            is_running = True
+        else:
+            is_running = False
 
-        # The modes 'fix' and 'cw' are treated the same in the SMR device,
-        # therefore, 'fix' is converted to 'cw':
-        if mode == 'fix':
-            mode = 'cw'
-
-        # rename the mode according to the interface
-        if mode == 'swe':
-            mode = 'sweep'
-
-        return mode, is_running
+        return self._mode, is_running
 
     def get_power(self):
         """ Gets the microwave output power.
@@ -197,17 +192,7 @@ class MicrowaveSG6000PRO(Base, MicrowaveInterface):
         @return float: the power set at the device in dBm
         """
 
-        mode, dummy = self.get_status()
-
-        if 'list' in mode:
-            pow_list = self._ask(':LIST:POW?').strip().split(',')
-
-            # THIS AMBIGUITY IN THE RETURN VALUE TYPE IS NOT GOOD AT ALL!!!
-            #FIXME: Correct that as soon as possible in the interface!!!
-            return np.array([float(pow) for pow in pow_list])
-
-        else:
-            return float(self._ask(':POW?'))
+        return float(self._ask('POWER?').strip().strip('dBm'))
 
     def get_frequency(self):
         """  Gets the frequency of the microwave output.
@@ -225,19 +210,14 @@ class MicrowaveSG6000PRO(Base, MicrowaveInterface):
         mode, is_running = self.get_status()
 
         if 'cw' in mode:
-            return_val = float(self._ask(':FREQ?'))
+            return_val = float(self._ask('FREQ:CW?').strip().strip('HZ'))
         elif 'sweep' in mode:
-            start = float(self._ask(':FREQ:STAR?'))
-            stop = float(self._ask(':FREQ:STOP?'))
-            step = float(self._ask(':SWE:STEP?'))
+            start = self._freq_sweep_start
+            stop = self._freq_sweep_stop
+            step = self._freq_sweep_step
             return_val = [start+step, stop, step]
         elif 'list' in mode:
-            # Exclude first frequency entry, since that is a duplicate due to
-            # trigger issues if triggered from external sources, like NI card.
-            freq_list = self._ask(':LIST:FREQ?').strip().split(',')
-            if len(freq_list) > 1:
-                freq_list.pop()
-            return_val = np.array([float(freq) for freq in freq_list])
+            return_val = self._freq_list
         else:
             self.log.error('Mode Unknown! Cannot determine Frequency!')
         return return_val
@@ -257,7 +237,8 @@ class MicrowaveSG6000PRO(Base, MicrowaveInterface):
                 self.off()
 
         if current_mode != 'cw':
-            self._write(':FREQ:MODE CW')
+            self.off()
+            self._mode = 'cw'
 
         self._write(':OUTP:STAT ON')
         self._write('*WAI')
@@ -602,6 +583,7 @@ class MicrowaveSG6000PRO(Base, MicrowaveInterface):
 
         @return: the received answer
         """
+
         return self._visa_connection.query(question)
 
     def _write(self, command, wait=True):
@@ -612,7 +594,16 @@ class MicrowaveSG6000PRO(Base, MicrowaveInterface):
 
         @return: str: the statuscode of the write command.
         """
+
         statuscode = self._visa_connection.write(command)
+
+        # reuse the wait argument for check, whether last write statement
+        # produces any errors.
         if wait:
-            self._visa_connection.write('*WAI')
+            mess = self._ask('SYST:ERR?').strip()
+            if not mess == '0,No error':
+                self.log.error(f'The current command "{command}" is invalid! '
+                               f'The return error message is: {mess}')
+            # self._visa_connection.write('*WAI') # no wait visa implementation
+
         return statuscode
