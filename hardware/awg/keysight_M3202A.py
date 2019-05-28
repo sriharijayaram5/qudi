@@ -137,7 +137,7 @@ class M3202A(Base, PulserInterface):
         constraints.repetitions.step = 1
         constraints.repetitions.default = 0
         # ToDo: Check how many external triggers are available
-        constraints.event_triggers = ['SOFT', 'EXT', 'SOFT_CYCLE', 'EXT_CYCLE']
+        constraints.event_triggers = ['EXT', 'CYCLE']
         constraints.flags = []
 
         constraints.sequence_steps.min = 1
@@ -146,10 +146,7 @@ class M3202A(Base, PulserInterface):
         constraints.sequence_steps.default = 1
 
         activation_config = OrderedDict()
-        activation_config['all'] = {'a_ch1', 'a_ch2', 'a_ch3', 'a_ch4'}
-        activation_config['one'] = {'a_ch1'}
-        activation_config['two'] = {'a_ch1', 'a_ch2'}
-        activation_config['three'] = {'a_ch1', 'a_ch2', 'a_ch3'}
+        activation_config['all'] = frozenset({'a_ch1', 'a_ch2', 'a_ch3', 'a_ch4'})
         constraints.activation_config = activation_config
         # FIXME: additional constraint really necessary?
         constraints.dac_resolution = {'min': 14, 'max': 14, 'step': 1, 'unit': 'bit'}
@@ -571,18 +568,13 @@ class M3202A(Base, PulserInterface):
             # Set waveforms to play
             if num_tracks == len(wfm_tuple):
                 for track, waveform in enumerate(wfm_tuple, 1):
-                    # Triggers !!!
+                    # !!!
                     wfm_nr = self.written_waveforms[waveform]
-                    if seq_params['wait_for'] == 'SOFT':
-                        trig = ksd1.SD_TriggerModes.SWHVITRIG
-                        self.log.debug('Ch{} Trig SOFT'.format(track))
-                    elif seq_params['wait_for'] == 'EXT':
+                    if seq_params['wait_for'] == 'EXT':
                         trig = ksd1.SD_TriggerModes.EXTTRIG
                         self.log.debug('Ch{} Trig EXT'.format(track))
-                    elif seq_params['wait_for'] == 'SOFT_CYCLE':
-                        trig = ksd1.SD_TriggerModes.SWHVITRIG_CYCLE
-                        self.log.debug('Ch{} Trig SOFT_CYCLE'.format(track))
-                    elif seq_params['wait_for'] == 'EXT_CYCLE':
+
+                    elif seq_params['wait_for'] == 'CYCLE':
                         trig = ksd1.SD_TriggerModes.EXTTRIG_CYCLE
                         self.log.debug('Ch{} Trig EXT_CYCLE'.format(track))
                     else:
@@ -746,12 +738,15 @@ class M3202A(Base, PulserInterface):
             return ksd1.SD_Error.INVALID_VALUE
 
     def set_channel_triggers(self, active_channels, sequence_parameter_list):
-        """ Set up triggers and markers according to configuration
-
-        @param list active_channels: active aeg channels
-        @param list sequence_parameter_list: liust with all sequence elements
-
         """
+
+        :return:
+        """
+        err = self.awg.triggerIOconfig(ksd1.SD_TriggerDirections.AOU_TRG_OUT)
+        if err < 0:
+            self.log.error('Error configuring triggers: {} {}'.format(
+                err, ksd1.SD_Error.getErrorMessage(err)))
+
         for ch in active_channels:
             if self.chcfg[ch].enable_trigger:
                 trig_err = self.awg.AWGtriggerExternalConfig(
@@ -760,14 +755,6 @@ class M3202A(Base, PulserInterface):
                     self.chcfg[ch].trig_behaviour,
                     self.chcfg[ch].trig_sync
                 )
-                # io is trigger in if trigger enabled
-                if self.chcfg[ch].trig_source == 0:
-                    self.log.info('IO IN for Ch{} '.format(self.__ch_map[ch]))
-                    err = self.awg.triggerIOconfig(ksd1.SD_TriggerDirections.AOU_TRG_IN)
-                    if err < 0:
-                        self.log.error('Error configuring triggers: {} {}'.format(
-                            err, ksd1.SD_Error.getErrorMessage(err)))
-
                 self.log.info('Trig: Ch{} src: {} beh: {} sync: {}'.format(
                     self.__ch_map[ch],
                     self.chcfg[ch].trig_source,
@@ -786,18 +773,6 @@ class M3202A(Base, PulserInterface):
                 self.chcfg[ch].mark_length,
                 self.chcfg[ch].mark_delay
             )
-
-            # I/O connector is a marker *only* if it is not configured as a trigger
-            if self.chcfg[ch].mark_mode != ksd1.SD_MarkerModes.DISABLED and self.chcfg[ch].mark_io == 1:
-                self.log.info('IO OUT for Ch{} '.format(self.__ch_map[ch]))
-                if not (self.chcfg[ch].enable_trigger and self.chcfg[ch].trig_source == 0):
-                    err = self.awg.triggerIOconfig(ksd1.SD_TriggerDirections.AOU_TRG_OUT)
-                    if err < 0:
-                        self.log.error('Error configuring marker: {} {}'.format(
-                            err, ksd1.SD_Error.getErrorMessage(err)))
-                else:
-                    self.log.warning('IO Trigger cfg for ch {} overrides marker cfg!'.format(ch))
-
             self.log.info('Ch {} mm: {} pxi: {} io: {} val: {}, sync: {} len: {} delay: {} err: {}'.format(
                 self.__ch_map[ch],
                 self.chcfg[ch].mark_mode,
