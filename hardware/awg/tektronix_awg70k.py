@@ -32,6 +32,7 @@ from lxml import etree as ET
 
 from core.module import Base, ConfigOption
 from core.util.modules import get_home_dir
+from core.util.helpers import natural_sort
 from interface.pulser_interface import PulserInterface, PulserConstraints
 
 
@@ -173,12 +174,12 @@ class AWG70K(Base, PulserInterface):
         constraints.a_ch_amplitude.max = 0.5
         constraints.a_ch_amplitude.step = 0.0001
         constraints.a_ch_amplitude.default = 0.5
-        # FIXME: Enter the proper digital channel low constraints:
+
         constraints.d_ch_low.min = -1.4
         constraints.d_ch_low.max = 0.9
         constraints.d_ch_low.step = 0.1e-3
         constraints.d_ch_low.default = 0.0
-        # FIXME: Enter the proper digital channel high constraints:
+
         constraints.d_ch_high.min = -0.9
         constraints.d_ch_high.max = 1.4
         constraints.d_ch_high.step = 0.1e-3
@@ -188,8 +189,12 @@ class AWG70K(Base, PulserInterface):
 
         constraints.waveform_length.min = self.__min_waveform_length
         constraints.waveform_length.max = self.__max_waveform_length
-        constraints.waveform_length.step = 1
-        constraints.waveform_length.default = 1
+        if self.awg_model == 'AWG70002A':
+            constraints.waveform_length.step = 1
+            constraints.waveform_length.default = 1
+        elif self.awg_model == 'AWG70001A':
+            constraints.waveform_length.step = 2
+            constraints.waveform_length.default = 2
 
         # FIXME: Check the proper number for your device
         constraints.waveform_num.min = 1
@@ -336,7 +341,7 @@ class AWG70K(Base, PulserInterface):
         # determine active channels
         activation_dict = self.get_active_channels()
         active_channels = {chnl for chnl in activation_dict if activation_dict[chnl]}
-        active_analog = sorted(chnl for chnl in active_channels if chnl.startswith('a'))
+        active_analog = natural_sort(chnl for chnl in active_channels if chnl.startswith('a'))
 
         # Sanity check of channel numbers
         if active_channels != set(analog_samples.keys()).union(set(digital_samples.keys())):
@@ -435,7 +440,7 @@ class AWG70K(Base, PulserInterface):
                                'present in device memory.'.format(name, waveform_tuple))
                 return -1
 
-        active_analog = sorted(chnl for chnl in self.get_active_channels() if chnl.startswith('a'))
+        active_analog = natural_sort(chnl for chnl in self.get_active_channels() if chnl.startswith('a'))
         num_tracks = len(active_analog)
         num_steps = len(sequence_parameter_list)
 
@@ -475,12 +480,7 @@ class AWG70K(Base, PulserInterface):
                                    '"{1}".'.format(seq_step.go_to, num_steps))
                     return -1
             # Set flag states
-            if seq_step.flag_trigger != 'OFF':
-                    flag_list = [seq_step.flag_trigger]
-                    self.sequence_set_flags(name, step, flag_list, True)
-            elif seq_step.flag_high != 'OFF':
-                flag_list = [seq_step.flag_high]
-                self.sequence_set_flags(name, step, flag_list, False)
+            self.sequence_set_flags(name, step, seq_step.flag_trigger, seq_step.flag_high)
 
         # Wait for everything to complete
         while int(self.query('*OPC?')) != 1:
@@ -497,7 +497,7 @@ class AWG70K(Base, PulserInterface):
         except visa.VisaIOError:
             query_return = None
             self.log.error('Unable to read waveform list from device. VisaIOError occured.')
-        waveform_list = sorted(query_return.split(',')) if query_return else list()
+        waveform_list = natural_sort(query_return.split(',')) if query_return else list()
         return waveform_list
 
     def get_sequence_names(self):
@@ -585,7 +585,7 @@ class AWG70K(Base, PulserInterface):
 
         # Get all active channels
         chnl_activation = self.get_active_channels()
-        analog_channels = sorted(
+        analog_channels = natural_sort(
             chnl for chnl in chnl_activation if chnl.startswith('a') and chnl_activation[chnl])
 
         # Check if all channels to load to are active
@@ -627,7 +627,7 @@ class AWG70K(Base, PulserInterface):
 
         # Get all active channels
         chnl_activation = self.get_active_channels()
-        analog_channels = sorted(
+        analog_channels = natural_sort(
             chnl for chnl in chnl_activation if chnl.startswith('a') and chnl_activation[chnl])
 
         # Check if number of sequence tracks matches the number of analog channels
@@ -1372,16 +1372,16 @@ class AWG70K(Base, PulserInterface):
         self.write('SLIS:SEQ:STEP{0:d}:WINP "{1}", {2}'.format(step, sequence_name, trigger))
         return 0
 
-    def sequence_set_flags(self, sequence_name, step, flags=None, trigger=False):
+    def sequence_set_flags(self, sequence_name, step, flags_t=None, flags_h=None):
         """
         Set the flags in "flags" to HIGH (trigger=False) during the sequence step or let the flags
         send out a fixed duration trigger pulse (trigger=True). All other flags are set to LOW.
 
         @param str sequence_name: Name of the sequence to be edited
         @param int step: Sequence step to be edited
-        @param list flags: List of flag specifiers to be active during this sequence step
-        @param bool trigger: Whether the flag should be HIGH during the step (False) or send out a
-                             fixed length trigger pulse when starting to play the step (True).
+        @param list flags_t: List of flag trigger specifiers to be active during this sequence step, if both options are
+                             selected, the flag is set to trigger (PULS)
+        @param list flags_h: List of flag high specifiers to be active during this sequence step
 
         @return int: error code
         """
@@ -1391,8 +1391,10 @@ class AWG70K(Base, PulserInterface):
             return -1
 
         for flag in ('A', 'B', 'C', 'D'):
-            if flag in flags:
-                state = 'PULS' if trigger else 'HIGH'
+            if flag in flags_t:
+                state = 'PULS'
+            elif flag in flags_h:
+                state = 'HIGH'
             else:
                 state = 'LOW'
 
@@ -1460,7 +1462,7 @@ class AWG70K(Base, PulserInterface):
             for config in configs.values():
                 if len(largest_config) < len(config):
                     largest_config = config
-        return sorted(largest_config)
+        return natural_sort(largest_config)
 
     def _get_all_analog_channels(self):
         """
