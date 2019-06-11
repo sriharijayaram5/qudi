@@ -50,8 +50,8 @@ class ODMRLogic(GenericLogic):
 
     # config option
     mw_scanmode = ConfigOption(
-                    'scanmode',
-                    'LIST',
+                    name='scanmode',
+                    default='LIST',
                     missing='warn',
                     converter=lambda x: MicrowaveMode[x.upper()])
 
@@ -809,13 +809,15 @@ class ODMRLogic(GenericLogic):
     def draw_figure(self, channel_number, cbar_range=None, percentile_range=None):
         """ Draw the summary figure to save with the data.
 
-        @param: list cbar_range: (optional) [color_scale_min, color_scale_max].
+        @param int channel_number: integer starting from 0 indicating the channel number.
+
+        @param list cbar_range: (optional) [color_scale_min, color_scale_max].
                                  If not supplied then a default of data_min to data_max
                                  will be used.
 
-        @param: list percentile_range: (optional) Percentile range of the chosen cbar_range.
+        @param list percentile_range: (optional) Percentile range of the chosen cbar_range.
 
-        @return: fig fig: a matplotlib figure object to be saved to file.
+        @return fig fig: a matplotlib figure object to be saved to file.
         """
         freq_data = self.odmr_plot_x
         count_data = self.odmr_plot_y[channel_number]
@@ -949,8 +951,7 @@ class ODMRLogic(GenericLogic):
                 return {}
 
         # set all relevant parameter:
-        self.set_power(power)
-        self.set_sweep_frequencies(freq_start, freq_stop, freq_step)
+        self.set_sweep_parameters(freq_start, freq_stop, freq_step, power)
         self.set_runtime(runtime)
 
         # start the scan
