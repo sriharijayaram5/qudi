@@ -194,8 +194,8 @@ class OptimizerLogic(GenericLogic):
         """ Starts the optimization scan around initial_pos
 
             @param list initial_pos: with the structure [float, float, float]
-            @param str caller_tag:
-            @param str tag:
+            @param str caller_tag: required argument
+            @param str tag: optional
         """
         # checking if refocus corresponding to crosshair or corresponding to initial_pos
 
