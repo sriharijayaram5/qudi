@@ -21,7 +21,6 @@ top-level directory of this distribution and at <https://github.com/Ulm-IQO/qudi
 """
 
 import visa
-import numpy as np
 import time
 
 from core.module import Base, ConfigOption
@@ -57,7 +56,6 @@ class MicrowaveSG6000PRO(Base, MicrowaveInterface):
     def on_activate(self):
         """ Initialisation performed during activation of the module. """
 
-
         self._LIST_DWELL = 10e-3    # Dwell time for list mode to set how long
                                     # the device should stay at one list entry.
                                     # here dwell time can be between 1ms and 1s
@@ -89,7 +87,7 @@ class MicrowaveSG6000PRO(Base, MicrowaveInterface):
 
         self._FREQ_MAX = 6.8e9 # in Hz
         self._FREQ_MIN = 60e6 # in Hz
-        self._POWER_MAX = 10 # in dBm
+        self._POWER_MAX = 7 # in dBm
         self._POWER_MIN = -50 # in dBm
 
         # although it is the step mode, this number should be the same for the
@@ -100,8 +98,8 @@ class MicrowaveSG6000PRO(Base, MicrowaveInterface):
         self._SWEEP_FREQ_STEP_MIN = self._LIST_FREQ_STEP_MIN
         self._SWEEP_FREQ_STEP_MAX = self._LIST_FREQ_STEP_MAX
 
-        self._MAX_LIST_ENTRIES = 2000
-        # FIXME: Not quite sure about this:
+        self._MAX_LIST_ENTRIES = 100
+        # FIXED
         self._MAX_SWEEP_ENTRIES = 10000
 
         # need to track the mode of the device, as it cannot be asked.
@@ -126,6 +124,19 @@ class MicrowaveSG6000PRO(Base, MicrowaveInterface):
                       f'"{self._SERIALNUMBER}" and the firmware version '
                       f'"{self._FIRMWARE_VERSION}" successfully.')
 
+    def get_info(self):
+        self.log.info(f'The device model is "{self._MODEL}" from '
+                      f'"{self._BRAND}" with the serial number '
+                      f'"{self._SERIALNUMBER}" and the firmware version '
+                      f'"{self._FIRMWARE_VERSION}".')
+
+        model = f' The device model is "{self._MODEL}" '
+        brand = f' The Instrument brand is "{self._BRAND}"'
+        sn = f' The Serial number of the device is "{self._SERIALNUMBER}"'
+        firmware = f'The firmware of this device is "{self._FIRMWARE_VERSION}"'
+
+        return model, brand, sn, firmware
+
     def on_deactivate(self):
         """ Deinitialisation performed during deactivation of the module. """
 
@@ -141,9 +152,10 @@ class MicrowaveSG6000PRO(Base, MicrowaveInterface):
                                          of the microwave device.
         """
         limits = MicrowaveLimits()
-        limits.supported_modes = (MicrowaveMode.CW, MicrowaveMode.LIST)
+        limits.supported_modes = (MicrowaveMode.CW, MicrowaveMode.SWEEP,
+                                  MicrowaveMode.LIST)
         # the sweep mode seems not to work properly, comment it out:
-                                  #MicrowaveMode.SWEEP)
+                                  #MicrowaveMode.SWEEP , MicrowaveMode.LIST)
 
         limits.min_frequency = self._FREQ_MIN
         limits.max_frequency = self._FREQ_MAX
@@ -168,8 +180,10 @@ class MicrowaveSG6000PRO(Base, MicrowaveInterface):
         mode, is_running = self.get_status()
         if not is_running:
             return 0
-
-        self._write('OUTP:STAT OFF')
+        if (mode == 'list') or (mode == 'sweep'):
+            self._write('ABORT')
+        else:
+            self._write('OUTP:STAT OFF')
         return 0
 
     def get_status(self):
@@ -178,12 +192,17 @@ class MicrowaveSG6000PRO(Base, MicrowaveInterface):
 
         @return str, bool: mode ['cw', 'list', 'sweep'], is_running [True, False]
         """
-        state = self._ask('OUTP:STAT?').strip()
+        if self._mode == 'cw':
 
-        if state == 'ON':
-            is_running = True
+            state = self._ask('OUTP:STAT?').strip()
+
+            if state == 'ON':
+                is_running = True
+            else:
+                is_running = False
         else:
-            is_running = False
+
+            is_running = bool(int(self._ask('SWE:ACTIVE?').strip()))
 
         return self._mode, is_running
 
@@ -219,7 +238,7 @@ class MicrowaveSG6000PRO(Base, MicrowaveInterface):
             start = self._freq_sweep_start
             stop = self._freq_sweep_stop
             step = self._freq_sweep_step
-            return_val = [start+step, stop, step]
+            return_val = [start, stop, step]
         elif 'list' in mode:
             return_val = self._freq_list
         else:
@@ -245,6 +264,7 @@ class MicrowaveSG6000PRO(Base, MicrowaveInterface):
             self._mode = 'cw'   # demand just that the mode has to be cw
 
         self._write('SWE:MODE LIST')
+        time.sleep(1.0)
 
         return self._on()
 
@@ -298,13 +318,14 @@ class MicrowaveSG6000PRO(Base, MicrowaveInterface):
             else:
                 self.off()
                 self._mode = 'list'
-        else:
-            self._mode = 'list'
 
+        self._mode = 'list'
 
         self._write('SWE:MODE LIST')
+        time.sleep(1.0)
+        self.reset_listpos()
 
-        return self._on()
+        return 0
 
     def set_list(self, frequency=None, power=None):
         """
@@ -323,12 +344,6 @@ class MicrowaveSG6000PRO(Base, MicrowaveInterface):
         if is_running:
             self.off()
 
-        # Bug in the micro controller of SMR20:
-        # check the amount of entries, since the timeout is not working properly
-        # and the SMR20 overwrites for too big entries the device-internal
-        # memory such that the current firmware becomes corrupt. That is an
-        # extreme annoying bug. Therefore catch too long lists.
-
         if len(frequency) > self._MAX_LIST_ENTRIES:
             self.log.error('The frequency list exceeds the hardware limitation '
                            'of {0} list entries. Aborting creation of a list.'
@@ -336,24 +351,26 @@ class MicrowaveSG6000PRO(Base, MicrowaveInterface):
 
         else:
 
+            self._write('ABORT')
             self._write('SWE:MODE LIST')
+            time.sleep(1.0)
 
-            # It seems that we have to set a DWEL for the device, but it is not so
-            # clear why it is necessary. At least there was a hint in the manual for
-            # that and the instrument displays an error, when this parameter is not
-            # set in the list mode (even it should be set by default):
-            self._write('SWE:DWELL {0}'.format(int(self._LIST_DWELL*1000))) # in ms
-
+            #For list mode DWELL time is not required.
+            #self._write('SWE:DWELL {0}'.format(int(self._LIST_DWELL*1000))) # in ms
 
             self._write('LIST:CLEAR')
 
             for f in frequency:
-                self._write('LIST:ADD {0:d}'.format(int(f)))
+                self._write('LIST:ADD {0:d}HZ'.format(int(f)))
+
+            # The list is written in MHZ but with the possibility of changing
+            # the values into Hz if it were necessary.
 
             self._freq_list = frequency
 
+        self._mode = 'list'
+        self._write('LIST:DIR UP')
         self._write('TRIG:STEP')
-        self.reset_listpos()
 
         # THIS AMBIGUITY IN THE RETURN VALUE TYPE IS NOT GOOD AT ALL!!!
         # FIXME: Ahh this is so shitty with the return value!!!
@@ -368,8 +385,9 @@ class MicrowaveSG6000PRO(Base, MicrowaveInterface):
         @return int: error code (0:OK, -1:error)
         """
 
-        self._visa_connection.write('ABORT')    # do not use _write command to reduce the amount of calls
-
+        self._visa_connection.write('ABORT')
+        # do not use _write command to reduce the amount of calls
+        self._write('INIT:IMM')
         return 0
 
     def sweep_on(self):
@@ -383,15 +401,16 @@ class MicrowaveSG6000PRO(Base, MicrowaveInterface):
                 return 0
             else:
                 self.off()
+                self._mode = 'sweep'
 
         if mode != 'sweep':
-            self._write('SOUR:FREQ:MODE SWE')
+            self._mode = 'sweep'
+            #self._write('SWE:MODE SCAN')
 
-        self._write(':OUTP:STAT ON')
-        dummy, is_running = self.get_status()
-        while not is_running:
-            time.sleep(0.2)
-            dummy, is_running = self.get_status()
+        self._write('SWE:MODE SCAN')  # set the sweep mode.
+        time.sleep(1.0)
+        self.reset_sweeppos()
+
         return 0
 
     def set_sweep(self, start=None, stop=None, step=None, power=None):
@@ -410,18 +429,22 @@ class MicrowaveSG6000PRO(Base, MicrowaveInterface):
         if is_running:
             self.off()
 
-        if mode != 'sweep':
+        self._mode = 'sweep'
 
-            self._mode = 'sweep'
+        #self._write('ABORT')
 
-        self._write('SWE:MODE SCAN')  # set the sweep mode.
+        if power is not None:
+            self._set_power(power)
+
         self._write('SWE:DWELL {0:d}'.format(int(self._SWEEP_DWELL * 1000)))  # set the dwell time
+        self._write('LIST:DIR UP')
+        self._write('INIT:CONT 0')
 
         if (start is not None) and (stop is not None) and (step is not None):
             self._write('FREQ:START {0:d}HZ'.format(int(start)))
             self._write('FREQ:STOP {0:d}HZ'.format(int(stop)))
 
-            sweep_points = int((stop - start)/step) + 1
+            sweep_points = int((stop - start)/step)
             self._write('SWE:POINTS {0:d}'.format(sweep_points))
 
             self.log.info(f'sweeppoints: {sweep_points}')
@@ -430,17 +453,14 @@ class MicrowaveSG6000PRO(Base, MicrowaveInterface):
             self._freq_sweep_stop = stop
             self._freq_sweep_step = step
 
-        if power is not None:
-            self._set_power(power)
-
         self._write('TRIG:STEP')
-        self.reset_sweeppos()
 
         actual_power = self.get_power()
         freq_list = self.get_frequency()
-        mode, dummy = self.get_status()
 
-        self.reset_sweeppos()
+        #self.off()
+
+        mode, dummy = self.get_status()
 
         return freq_list[0], freq_list[1], freq_list[2], actual_power, mode
 
@@ -450,7 +470,8 @@ class MicrowaveSG6000PRO(Base, MicrowaveInterface):
 
         @return int: error code (0:OK, -1:error)
         """
-        self._visa_connection.write('ABORT')
+        self._write('ABORT')
+        self._write('INIT:IMM')
         return 0
 
     def set_ext_trigger(self, pol, timing):
@@ -470,17 +491,18 @@ class MicrowaveSG6000PRO(Base, MicrowaveInterface):
             self.log.warning('No valid trigger polarity passed to microwave hardware module.')
             edge = None
 
-        self._write(':TRIG1:LIST:SOUR EXT')
-        self._write(':TRIG1:SLOP NEG')
+        # self._write(':TRIG1:LIST:SOUR EXT')
+        # self._write(':TRIG1:SLOP NEG')
+        #
+        # if edge is not None:
+        #     self._write(':TRIG1:SLOP {0}'.format(edge))
+        #
+        # polarity = self._ask(':TRIG1:SLOP?')
+        # if 'NEG' in polarity:
+        #     return TriggerEdge.FALLING, timing
+        # else:
 
-        if edge is not None:
-            self._write(':TRIG1:SLOP {0}'.format(edge))
-
-        polarity = self._ask(':TRIG1:SLOP?')
-        if 'NEG' in polarity:
-            return TriggerEdge.FALLING, timing
-        else:
-            return TriggerEdge.RISING, timing
+        return TriggerEdge.RISING, timing
 
     # ================== Non interface commands: ==================
 
@@ -498,7 +520,7 @@ class MicrowaveSG6000PRO(Base, MicrowaveInterface):
 
         # break after 10 tries
         tries = 0
-        while not is_running or (tries > 10):
+        while not is_running or (tries < 10):
             time.sleep(0.2)
             dummy, is_running = self.get_status()
             tries += 1
@@ -549,9 +571,19 @@ class MicrowaveSG6000PRO(Base, MicrowaveInterface):
         time.sleep(self._FREQ_SWITCH_SPEED)  # that is the switching speed
         return 0
 
-    def reset_device(self):
+    def reset_device(self, bufr=True, bufw=False):
         """ Resets the device and sets the default values."""
-        self._write('*RST')
+
+        self._visa_connection.write('*RST')
+        time.sleep(5)
+        mask = 0
+
+        if bufr:
+            mask = mask | visa.constants.VI_READ_BUF_DISCARD
+        if bufw:
+            mask = mask | visa.constants.VI_WRITE_BUF_DISCARD
+        self.log.debug(("mask:", mask))
+        self._visa_connection.flush(mask)
         self._write('OUTP:STAT OFF')
         return 0
 
@@ -562,6 +594,8 @@ class MicrowaveSG6000PRO(Base, MicrowaveInterface):
 
         @return: the received answer
         """
+        time.sleep(0.045)
+        self._visa_connection.query(question)
         self._visa_connection.query(question)
         return self._visa_connection.query(question)
 
@@ -575,7 +609,7 @@ class MicrowaveSG6000PRO(Base, MicrowaveInterface):
         """
 
         statuscode = self._visa_connection.write(command)
-
+        time.sleep(0.03)
         # reuse the wait argument for check, whether last write statement
         # produces any errors.
         if wait:
@@ -586,3 +620,83 @@ class MicrowaveSG6000PRO(Base, MicrowaveInterface):
             # self._visa_connection.write('*WAI') # no wait visa implementation
 
         return statuscode
+
+    def _get_list(self):
+        """ Returns the array of points on list mode.
+
+        @return: the list of points as a vector.
+        """
+
+        return self._ask('LIST?')
+
+    def _get_max_points_list(self):
+        """ Returns the maximum number of points on list mode.
+
+        @return: the maximum number of points.
+        """
+
+        return int(self._ask('LIST:MAX?').strip())
+
+    def _get_list_size(self):
+        """ Returns the number of points on the list mode.
+
+        @return: the number of points on the list.
+        """
+
+        return self._ask('LIST:SIZE?')
+
+    def _get_list_direction(self):
+        """ Returns the direction where the list will sweep (UP or DOWN).
+
+        @return: the direction of sweeping of the list (UP or DOWN).
+        """
+
+        return self._ask('LIST:DIR?')
+
+    def _get_sweep_index(self):
+        """ Returns the index on sweep mode.
+
+        @return str: the idex of sweep mode, either continuous or not.
+        """
+
+        return self._ask('SWE:INDEX?')
+
+    def _get_mode(self):
+        """ Returns the mode of the device (CW, LIST, SWEEP).
+
+        @return str: the mode of the device.
+        """
+
+        return self._ask('SWE:MODE?')
+
+    def _get_dwell_time(self):
+        """ Returns the dwell time in sweep mode.
+
+        @return str: the dwell time in sweep mode.
+        """
+
+        return self._ask('SWE:DWELL?')
+
+    def _get_sweep_points(self):
+        """ Returns the number of points in sweep mode.
+
+        @return: the number of points in sweep mode.
+        """
+
+        return self._ask('SWE:POINTS?')
+
+    def _get_sweep_start_freq(self):
+        """ Returns the starting frequency in sweep mode.
+
+        @return: the starting frequency in sweep mode (in Hz).
+        """
+
+        return self._ask('FREQ:START?')
+
+    def _get_sweep_stop_freq(self):
+        """ Returns the stop frequency in sweep mode.
+
+        @return: the stop frequency in sweep mode (in Hz).
+        """
+
+        return self._ask('FREQ:STOP?')
