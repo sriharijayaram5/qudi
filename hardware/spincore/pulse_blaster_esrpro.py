@@ -1318,6 +1318,8 @@ class PulseBlasterESRPRO(Base, SwitchInterface, PulserInterface):
 
         activation_config = OrderedDict()
         activation_config['4_ch'] = frozenset({'d_ch1', 'd_ch2', 'd_ch3', 'd_ch4'})
+        activation_config['8_ch'] = frozenset({'d_ch1', 'd_ch2', 'd_ch3', 'd_ch4',
+                                               'd_ch5', 'd_ch6', 'd_ch7', 'd_ch8'})
         activation_config['all'] = frozenset({'d_ch1', 'd_ch2', 'd_ch3', 'd_ch4',
                                               'd_ch5', 'd_ch6', 'd_ch7', 'd_ch8',
                                               'd_ch9', 'd_ch10', 'd_ch11', 'd_ch12',
