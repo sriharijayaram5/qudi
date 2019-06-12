@@ -33,11 +33,11 @@ class TimeTaggerFastCounter(Base, FastCounterInterface):
 
     fastcounter_timetagger:
         module.Class: 'swabian_instruments.timetagger_fast_counter.TimeTaggerFastCounter'
-        timetagger_channel_apd_0: 0
-        timetagger_channel_apd_1: 1
-        timetagger_channel_detect: 2
-        timetagger_channel_sequence: 3
-        timetagger_sum_channels: 4
+        timetagger_channel_apd_0: 1
+        timetagger_channel_apd_1: 2
+        timetagger_channel_detect: 3
+        timetagger_channel_sequence: 4
+        timetagger_sum_channels: True   # optional
 
     """
     _modclass = 'TimeTaggerFastCounter'
@@ -140,6 +140,9 @@ class TimeTaggerFastCounter(Base, FastCounterInterface):
                     gate_length_s: the actual set gate length in seconds
                     number_of_gates: the number of gated, which are accepted
         """
+        if number_of_gates < 1:
+            number_of_gates = 1
+
         self._number_of_gates = number_of_gates
         self._bin_width = bin_width_s * 1e9
         self._record_length = 1 + int(record_length_s / bin_width_s)
