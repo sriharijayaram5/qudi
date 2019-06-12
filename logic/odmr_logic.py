@@ -998,7 +998,7 @@ class ODMRLogic(GenericLogic):
 
         return fig
 
-    def perform_odmr_measurement(self, freq_start, freq_step, freq_stop, power, runtime,
+    def perform_odmr_measurement(self, freq_start, freq_step, freq_stop, power, channel, runtime,
                                  fit_function='No Fit', save_after_meas=True, name_tag=''):
         """ An independant method, which can be called by a task with the proper input values
             to perform an odmr measurement.
@@ -1013,7 +1013,7 @@ class ODMRLogic(GenericLogic):
             if timeout <= 0:
                 self.log.error('perform_odmr_measurement failed. Logic module was still locked '
                                'and 30 sec timeout has been reached.')
-                return {}
+                return tuple()
 
         # set all relevant parameter:
         self.set_sweep_parameters(freq_start, freq_stop, freq_step, power)
@@ -1031,7 +1031,7 @@ class ODMRLogic(GenericLogic):
 
         # Perform fit if requested
         if fit_function != 'No Fit':
-            self.do_fit(fit_function)
+            self.do_fit(fit_function, channel_index=channel)
             fit_params = self.fc.current_fit_param
         else:
             fit_params = None
