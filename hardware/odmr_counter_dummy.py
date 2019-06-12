@@ -39,6 +39,14 @@ class ODMRCounterDummy(Base, ODMRCounterInterface):
 
     """
 
+    _use_custom_peak = True
+
+    used_peak1 = 30
+    used_peak2 = 70
+
+    peak1 = 30
+    peak2 = 70
+
     _modclass = 'ODMRCounterDummy'
     _modtype = 'hardware'
 
@@ -142,11 +150,19 @@ class ODMRCounterDummy(Base, ODMRCounterInterface):
 
         sigma = 3.
 
+        if self._use_custom_peak:
+            self.used_peak1 = self.peak1
+            self.used_peak2 = self.peak2
+
+        else:
+            self.used_peak1 = length/3
+            self.used_peak2 = 2*length/3
+
         params.add('l0_amplitude', value=-30000)
-        params.add('l0_center', value=length/3)
+        params.add('l0_center', value=self.used_peak1)
         params.add('l0_sigma', value=sigma)
         params.add('l1_amplitude', value=-30000)
-        params.add('l1_center', value=2*length/3)
+        params.add('l1_center', value=self.used_peak2)
         params.add('l1_sigma', value=sigma)
         params.add('offset', value=50000.)
 
