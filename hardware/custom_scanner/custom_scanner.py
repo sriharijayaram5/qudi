@@ -24,11 +24,13 @@ import ctypes
 import numpy as np
 import time
 import threading
+import copy
 
 from ctypes import c_float, c_void_p, c_int, c_char_p, c_char
 from qtpy import QtCore
 
 from core.module import Base, ConfigOption
+from core.util.mutex import Mutex
 
 class CustomScanner(Base):
     """ A simple Data generator dummy.
@@ -50,10 +52,48 @@ class CustomScanner(Base):
     _total_scan = []
     _tot_meas = []
     _scan_counter = 0
+    _threaded = True
 
-    data_present_sig = QtCore.Signal(float)
+    _semaphore = QtCore.QSemaphore()
+
+
+    MEAS_PARAMS = ['Height(Dac)','Height(Sen)','Iprobe', 'Mag', 'Phase', 
+                   'Freq', 'Nf', 'Lf', 'Ex1', 'SenX', 'SenY', 'SenZ', 
+                   'SenX2', 'SenY2', 'SenZ2']
+
+
+    #data_present_sig = QtCore.Signal(int, ctypes.POINTER(c_float))
+    data_present_sig = QtCore.Signal(int, list)
 
     _libpath = ConfigOption('libpath', missing='error')
+
+    def __init__(self, config, **kwargs):
+        """ Create CounterLogic object with connectors.
+
+        @param dict config: module configuration
+        @param dict kwargs: optional parameters
+        """
+        super().__init__(config=config, **kwargs)
+        # locking mechanism for thread safety. Use it like
+        #   self.threadlock.lock() # to lock the current thread
+        #   self.threadlock.unlock() # to unlock the current thread
+        #   self.threadlock.acquire() # to acquire a lock
+        #   self.threadlock.trylock()   # to try to lock it.
+        self.threadlock = Mutex()
+        # checking for the right configuration
+        for key in config.keys():
+            self.log.debug('{0}: {1}'.format(key, config[key]))
+
+    @QtCore.Slot(QtCore.QThread)
+    def moveToThread(self, thread):
+        super().moveToThread(thread)
+
+    def getModuleThread(self):
+        """ Get the thread associated to this module.
+
+          @return QThread: thread with qt event loop associated with this module
+        """
+        return self._manager.tm._threads['mod-logic-' + self._name].thread
 
     def on_activate(self):
 
@@ -70,8 +110,9 @@ class CustomScanner(Base):
         #self._lib.SetupScanLine.argtype = [c_float, c_float, 
         #                                   c_float, c_float,
         #                                   c_float, c_float]
-        self.data_present_sig.connect(self.do_something)
-        
+        #self.data_present_sig.connect(self.do_something)
+        self.data_present_sig.connect(self.process_data)
+
         self.end_reached = False
         self.scan_forward = True
 
@@ -157,7 +198,8 @@ class CustomScanner(Base):
         
         def print_message(num): 
             print('The number:', num) 
-            return
+            self.log.info(f'New number appeared: {num}')
+            return 0
         
         return self.set_callback(print_message)
     
@@ -182,7 +224,7 @@ class CustomScanner(Base):
         scan_callback_type = ctypes.CFUNCTYPE(ctypes.c_void_p, 
                                               ctypes.c_int, 
                                               ctypes.POINTER(ctypes.c_float))
-
+                                              
         # the trick is that capitals 'POINTER' makes a type and 
         # lowercase 'pointer' makes a pointer to existing storage. 
         # You can use byref instead of pointer, they claim it's faster. 
@@ -194,7 +236,16 @@ class CustomScanner(Base):
 
     def create_scan_print_callback(self):
         
-        def print_scan_values(size, arr):
+        def print_scan_values(size, arr_new):
+
+            #self.data_present_sig.emit(size, arr)
+
+            #size = copy.deepcopy(size_new)
+            #arr = copy.deepcopy(arr_new)
+
+            #size = copy.deepcopy(size_new)
+            #arr = [arr_new[i] for i in range(size)]
+            #self.data_present_sig.emit(size, arr)
             
             self._tot_meas.append((size, arr))
             
@@ -203,17 +254,17 @@ class CustomScanner(Base):
                 self.end_reached = True
                 self._scan_counter += 1
                 print('Count line: ', self._scan_counter)
-                self.data_present_sig.emit(float(self._scan_counter))
+                #self.data_present_sig.emit(float(self._scan_counter))
                 return 0
                 
             app_arr = [0]*size
             for index in range(size):
                 #print(f'{arr[index]:.7f}', end=" ")
                 app_arr[index] = arr[index]
-                
-                
-            #print('Data was written.')
             
+            
+            #print('Data was written.')
+        
             self._meas_arr.extend(app_arr)
 
             
@@ -221,17 +272,52 @@ class CustomScanner(Base):
 
         return self.set_scan_callback(print_scan_values)
     
+    # @QtCore.Slot(int, ctypes.POINTER(c_float))
+    @QtCore.Slot(int, list)
+    def process_data(self, size, arr):
+    
+            self._tot_meas.append((size, arr))
+            print(size, arr)
+            
+            # if size == 0:
+            #     #print('Line complete.')
+            #     self.end_reached = True
+            #     self._scan_counter += 1
+            #     print('Count line: ', self._scan_counter)
+            #     #self.data_present_sig.emit(float(self._scan_counter))
+            #     return 0
+                
+            # app_arr = [0]*size
+            # for index in range(size):
+            #     #print(f'{arr[index]:.7f}', end=" ")
+            #     app_arr[index] = arr[index]
+            
+            
+            # print('Data was written: ', size, app_arr)
+        
+            # self._meas_arr.extend(app_arr)
+
+
     def test_scan_callback(self):
         return self._lib.InitTestScanCallback()
     
-    def get_scanner_range_x(self):
+    def get_scanner_range_sample_x(self):
         return self._lib.ScannerRange(b'X')
     
-    def get_scanner_range_y(self):
+    def get_scanner_range_sample_y(self):
         return self._lib.ScannerRange(b'Y')
     
-    def get_scanner_range_z(self):
+    def get_scanner_range_sample_z(self):
         return self._lib.ScannerRange(b'Z')
+
+    def get_scanner_range_objective_x(self):
+        return self._lib.ScannerRange(b'X2')
+    
+    def get_scanner_range_objective_y(self):
+        return self._lib.ScannerRange(b'Y2')
+    
+    def get_scanner_range_objective_z(self):
+        return self._lib.ScannerRange(b'Z2')
 
     def get_signal_list(self):
         """ The function returns signal list with their entry.
@@ -353,35 +439,58 @@ class CustomScanner(Base):
         """
         return self._lib.FinitScan()
     
+    # ==========================================================================
+    #                       Higher level functions
+    # ==========================================================================
+
+    def create_meas_params(self, meas_params_list):
+
+        available_params = []
+
+        for param in meas_params_list:
+            if param in self.MEAS_PARAMS:
+                available_params.append(param)
+
+        if available_params == []:
+            self.log.error(f'The provided list "{meas_params_list}" does not '
+                           f'contain any measurement parameter which is '
+                           f'allowed from this list: {self.MEAS_PARAMS}.')
+            return []
+
+
+        names_buffers = ((c_char * 40) * len(available_params))()
+        for index, entry in enumerate(available_params):
+            names_buffers[index].value = entry.encode('utf-8')
+
+        return names_buffers
+
+
     
-    def scan_area(self, x_start, x_end, y_start, y_end, res_x, res_y, time_forward=1, time_back=1):
+    def scan_area(self, x_start, x_end, y_start, y_end, res_x, res_y, 
+                  time_forward=1, time_back=1, meas_params=['Phase']):
+
+        """
+        
+        
+        @param float x_start: start coordinate in um
+        @param float x_stop: start coordinate in um
+        @param float y_start: start coordinate in um
+        @param float y_stop: start coordinate in um
+        @param int res_x: number of points in x direction
+        @param int res_y: number of points in y direction
+        @param float time_forward: time forward during the scan
+        @param float time_back: time backward after the scan
+        @param list meas_params: list of possible strings of the measurement 
+                                 parameter. Have a look at MEAS_PARAMS to see 
+                                 the available parameters.
+        """
         
         reverse_meas = False
         self._stop_request = False
         
         scan_arr = self.create_scan_leftright2(x_start, x_end, y_start, y_end, res_y)
         
-        meas_names = [
-        #    b'Height(Dac)', 
-        #    b'Height(Sen)', 
-        #    b'Iprobe', 
-        #    b'Mag', 
-             b'Phase', 
-        #     b'Freq', 
-        #     b'Nf', 
-        #     b'Lf', 
-        #     b'Ex1', 
-        #     b'SenX', 
-        #     b'SenY', 
-        #     b'SenZ', 
-        #     b'SenX2', 
-        #     b'SenY2', 
-        #     b'SenZ2',
-        ]
-
-        names_buffers = ((c_char * 40) * len(meas_names))()
-        for index, entry in enumerate(meas_names):
-            names_buffers[index].value = entry
+        names_buffers = self.create_meas_params(meas_params)
         
         
         self.setup_scan_common(line_points=res_x, sigs_buffers=names_buffers)
@@ -503,4 +612,3 @@ class CustomScanner(Base):
     def stop_measure(self):
         self._stop_request = True
         self.finish_scan()
-
