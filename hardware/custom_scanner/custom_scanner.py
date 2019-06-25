@@ -55,10 +55,6 @@ class CustomScanner(Base):
     # Default values for measurement
     # ------------------------------
 
-    _meas_arr = []
-    _total_scan = []
-    _tot_meas = []
-
     # here are data saved from the test TScanCallback
     _test_line_scan = []
     _test_array_scan = []
@@ -125,20 +121,21 @@ class CustomScanner(Base):
         self.connect_spm()
 
         # prepare a test callback
-        test_TCallback = self.create_test_TCallback()
-        self.set_TCallback(test_TCallback)
+        self.set_callback1()
 
         # prepare a test scan callback
-        test_TScanCallback = self.create_test_TScanCallback()
-        self.set_TScanCallback(test_TScanCallback)
+        #self.set_scancallback1()
 
-        # prepare a measure scan callback 
-        #measure_TScanCallback = self.create_measure_TScanCallback()
-        #self.set_TScanCallback(measure_TScanCallback)
-        
+        # measure callbacks
+        #self.set_scancallback2()
+        self.set_scancallback3()
+
+
+
         self._prepare_library_calls()
 
-        self.sig_scan_data.connect(self.process_data)
+        #self._sig_scan_data.connect(self.process_data)
+        self._sig_scan_data.connect(self.process_data2)
 
         self.end_reached = False
         self.scan_forward = True
@@ -235,10 +232,16 @@ class CustomScanner(Base):
         
         # Very important! the reference to the callback function has to be
         # saved to prevent it from getting caught by the garbage collector
-        self._TCallback_ref_dict[func.__name__] = scan_callback_type(func)
+        self._TCallback_ref_dict[func.__name__] = callback_type(func)
 
-        return self._lib.SetCallback(self._callback_func_ref)
+        return self._lib.SetCallback(self._TCallback_ref_dict[func.__name__])
     
+    def set_callback1(self):
+
+        # prepare a test callback
+        test_TCallback = self.create_test_TCallback()
+        self.set_TCallback(test_TCallback)
+
     def test_callback(self):
         """ Perform test call of the registered TCallback.
 
@@ -282,12 +285,31 @@ class CustomScanner(Base):
         self._TScanCallback_ref_dict[func.__name__] = scan_callback_type(func)
         
         
-        return self._lib.SetScanCallback(self._scan_callback_func_ref)
+        return self._lib.SetScanCallback(self._TScanCallback_ref_dict[func.__name__])
 
     def create_test_TScanCallback(self):
         """ Create a callback function which receives a number and a float array.
 
         @return: reference to a function with simple scan_val printout.
+        """
+
+        
+        def print_scan_values(size, arr):
+            """ Scan scan values."""
+            
+            arr = [arr[entry] for entry in range(size)]
+            print(f'Received, num: {size}, arr: {arr}')
+            self.log.info(f'Received, num: {size}, arr: {arr}')
+
+            return 0
+
+        return print_scan_values
+
+    def create_measure_TScanCallback(self):
+        """ Create a callback function which receives a number and a float array.
+
+        @return: reference to a function with simple scan_val printout and save
+                 to array.
         """
 
         
@@ -301,14 +323,14 @@ class CustomScanner(Base):
                 self._test_line_scan = []
                 return 0
 
-            arr = [arr_new[entry] for i in range(size)]
+            arr = [arr_new[entry] for entry in range(size)]
             self._test_line_scan.extend(arr)
 
             return 0
 
         return save_scan_values
     
-   def create_measure_TScanCallback(self):
+    def create_measure_TScanCallback2(self):
         """ Create the actual callback function which receives a number and a 
             float array.
 
@@ -325,6 +347,27 @@ class CustomScanner(Base):
         return transfer_via_signal
 
 
+    def set_scancallback1(self):
+        
+        # prepare a test scan callback
+        test_TScanCallback = self.create_test_TScanCallback()
+        self.set_TScanCallback(test_TScanCallback)
+
+    def set_scancallback2(self):
+        
+        # prepare a measure scan callback 
+        measure_TScanCallback = self.create_measure_TScanCallback()
+        self.set_TScanCallback(measure_TScanCallback)
+
+    def set_scancallback3(self):
+        
+        # prepare a measure scan callback 
+        measure_TScanCallback = self.create_measure_TScanCallback2()
+        self.set_TScanCallback(measure_TScanCallback)
+
+    def test_scan_callback(self):
+        return self._lib.InitTestScanCallback()
+
 
     @QtCore.Slot(int, ctypes.POINTER(c_float))
     def process_data(self, size, arr):
@@ -332,15 +375,34 @@ class CustomScanner(Base):
     
         if size == 0:
             print(f'Line {self._line_counter} finished.')
+
             self.sig_line_finished.emit(self._line_counter, 
-                                        self._params_per_point
-                                        np.array(self._meas_line_scan))
+                                        self._params_per_point,
+                                        self._meas_line_scan)
             self._line_counter += 1
             self._meas_array_scan.append(self._meas_line_scan)
             self._meas_line_scan = []
+            self.end_reached = True
             return 0
 
-        arr_new = [arr[entry] for i in range(size)]
+
+
+        arr_new = [arr[entry] for entry in range(size)]
+        self._meas_line_scan.extend(arr_new)
+
+        return 0
+
+    @QtCore.Slot(int, ctypes.POINTER(c_float))
+    def process_data2(self, size, arr):
+        """ Process the received data from a signal. """
+    
+        if size == 0:
+            print(f'Line {self._line_counter} finished.')
+            self._line_counter += 1
+            self.end_reached = True
+            return 0
+
+        arr_new = [arr[entry] for entry in range(size)]
         self._meas_line_scan.extend(arr_new)
 
         return 0
@@ -348,19 +410,46 @@ class CustomScanner(Base):
 
     def slice_meas(self, num_params, meas_arr):
         """Slice the provided measurement array according to measured parameters
+
+        Create basically from a measurement matrix (where each row contains 
+        the measurement like this
+
+        [ 
+            [p1, p2, p3, p1, p2, p3],
+            [p1, p2, p3, p1, p2, p3]
+            .....
+        ]
+
+        Should give
+        [
+            [ [p1, p1],
+              [p1, p1],
+              ...
+            ],
+            [ [p2, p2],
+              [p2, p2],
+              ...
+            ],
+            [ [p3, p3],
+              [p3, p3],
+              ...
+        ]
+
         """
+
         meas_res = []
-        columns, rows = np.shape(meas_arr)
-        for index in range(num_params):
-            arr = np.zeros((columns, rows//num_params))
+        rows, columns = np.shape(meas_arr)
 
+        for num in range(num_params):
 
-        #TODO: Finalize the slizing
-        #TODO: Create method to perform point scan
+            arr = np.zeros((rows, columns//num_params))
+            for index, entry in enumerate(arr):
+                arr[index] = meas_arr[index][num::num_params]
+
+            meas_res.append(arr)
+
+        return meas_res
            
-
-    def test_scan_callback(self):
-        return self._lib.InitTestScanCallback()
     
     def get_scanner_range_sample_x(self):
         return self._lib.ScannerRange(b'X')
@@ -429,9 +518,9 @@ class CustomScanner(Base):
         if sigs_buffers is None:
             sigs_buffers = ((ctypes.c_char * 40) * 4)()
             sigs_buffers[0].value = b'Height(Dac)'
-            sigs_buffers[0].value = b'Height(Sen)'
-            sigs_buffers[0].value = b'Mag'
-            sigs_buffers[0].value = b'Phase'
+            sigs_buffers[1].value = b'Height(Sen)'
+            sigs_buffers[2].value = b'Mag'
+            sigs_buffers[3].value = b'Phase'
 
         sigsCnt = c_int(len(sigs_buffers))
 
@@ -540,7 +629,7 @@ class CustomScanner(Base):
 
     
     def scan_area_by_line(self, x_start, x_end, y_start, y_end, res_x, res_y, 
-                          time_forward=1, time_back=1, meas_params=['Phase']):
+                          time_forward=1, time_back=1, meas_params=['Height(Dac)']):
 
         """ Measurement method for a scan by line.
         
@@ -569,17 +658,16 @@ class CustomScanner(Base):
         
         self.setup_scan_common(line_points=res_x, sigs_buffers=names_buffers)
 
-        self._total_scan = []
-        self._tot_meas = []
+        self._meas_array_scan = []
         self._scan_counter = 0
         
         for scan_coords in scan_arr:
-            self._meas_arr = []
+            self._meas_line_scan = []
             self.end_reached = False
             
             self.setup_scan_line(x_start=scan_coords[0], x_stop=scan_coords[1], 
-                                y_start=scan_coords[2], y_stop=scan_coords[3], 
-                                time_forward=time_forward, time_back=time_back)
+                                 y_start=scan_coords[2], y_stop=scan_coords[3], 
+                                 time_forward=time_forward, time_back=time_back)
             self.scan_line()
             
             while True:
@@ -594,17 +682,17 @@ class CustomScanner(Base):
             self.send_log_message('Line complete.')
         
             if reverse_meas:
-                self._total_scan.append(list(reversed(self._meas_arr)))
+                self._meas_array_scan.append(list(reversed(self._meas_line_scan)))
                 reverse_meas = False
             else:
-                self._total_scan.append(self._meas_arr)
+                self._meas_array_scan.append(self._meas_line_scan)
                 reverse_meas = True
                 
         self.log.info('Scan finished. Yeehaa!')
         print('Scan finished. Yeehaa!')
         self.finish_scan()
         
-        return self._total_scan
+        return self._meas_array_scan
     
     
     def create_scan_snake(self, x_start, x_end, y_start, y_end, res_y):
@@ -684,13 +772,15 @@ class CustomScanner(Base):
         return arr 
 
     def start_measure_line(self, x_start=48, x_end=53, y_start=47, y_end=52, 
-                           res_x=40, res_y=40, time_forward=1.5, time_back=1.5):
+                           res_x=40, res_y=40, time_forward=1.5, time_back=1.5,
+                           meas_params=['Phase', 'Height(Dac)', 'Height(Sen)']):
 
         self.meas_thread = threading.Thread(target=self.scan_area_by_line, 
                                             args=(x_start, x_end, 
                                                   y_start, y_end, 
                                                   res_x, res_y, 
-                                                  time_forward, time_back), 
+                                                  time_forward, time_back,
+                                                  meas_params), 
                                             name='meas_thread')
 
         self.meas_thread.start()
@@ -702,5 +792,5 @@ class CustomScanner(Base):
 
     def scan_area_by_point(self, x_start, x_end, y_start, y_end, res_x, res_y, 
                            time_forward=1, time_back=1, meas_params=['Phase']):
-
+        pass
 
