@@ -61,7 +61,10 @@ class CustomScanner(Base):
 
     # Here are the data saved from the measurement routine
     _meas_line_scan = []
-    _meas_array_scan = [[]]
+    _meas_array_scan = []
+
+    _apd_line_scan = []
+    _apd_array_scan = []
 
     _line_counter = 0
     _params_per_point = 1    # at least 1 or more
@@ -791,6 +794,74 @@ class CustomScanner(Base):
 
 
     def scan_area_by_point(self, x_start, x_end, y_start, y_end, res_x, res_y, 
-                           time_forward=1, time_back=1, meas_params=['Phase']):
-        pass
+                          time_forward=1, time_back=1, meas_params=['Height(Dac)']):
 
+        """ Measurement method for a scan by line.
+        
+        @param float x_start: start coordinate in um
+        @param float x_stop: start coordinate in um
+        @param float y_start: start coordinate in um
+        @param float y_stop: start coordinate in um
+        @param int res_x: number of points in x direction
+        @param int res_y: number of points in y direction
+        @param float time_forward: time forward during the scan
+        @param float time_back: time backward after the scan
+        @param list meas_params: list of possible strings of the measurement 
+                                 parameter. Have a look at MEAS_PARAMS to see 
+                                 the available parameters.
+
+        @return 2D_array: measurement results in a two dimensional list. 
+        """
+        
+        reverse_meas = False
+        self._stop_request = False
+        
+        scan_arr = self.create_scan_leftright2(x_start, x_end, y_start, y_end, res_y)
+        names_buffers = self.create_meas_params(meas_params)
+        
+        
+        self.setup_scan_common(line_points=res_x, sigs_buffers=names_buffers)
+
+        # AFM signal
+        self._meas_array_scan = []
+        # APD signal
+        self._apd_array_scan = []
+        self._scan_counter = 0
+
+        for scan_coords in scan_arr:
+            
+            # AFM signal
+            self._meas_line_scan = []
+            # APD signal
+            self._apd_line_scan = []
+
+            self.end_reached = False
+            
+            self.setup_scan_line(x_start=scan_coords[0], x_stop=scan_coords[1], 
+                                 y_start=scan_coords[2], y_stop=scan_coords[3], 
+                                 time_forward=time_forward, time_back=time_back)
+            self.scan_line()
+            
+            while True:
+                if self.end_reached or self._stop_request:
+                    break
+                time.sleep(0.1)
+                
+            
+            if self._stop_request:
+                    break
+            
+            self.send_log_message('Line complete.')
+        
+            if reverse_meas:
+                self._meas_array_scan.append(list(reversed(self._meas_line_scan)))
+                reverse_meas = False
+            else:
+                self._meas_array_scan.append(self._meas_line_scan)
+                reverse_meas = True
+                
+        self.log.info('Scan finished. Yeehaa!')
+        print('Scan finished. Yeehaa!')
+        self.finish_scan()
+        
+        return self._meas_array_scan
