@@ -24,6 +24,8 @@ from core.module import Connector, StatusVar, ConfigOption
 from logic.generic_logic import GenericLogic
 from core.util.mutex import Mutex
 import threading
+import numpy as np
+import time
 
 from qtpy import QtCore
 
@@ -55,9 +57,15 @@ class CustomScannerLogic(GenericLogic):
     # AFM signal
     _meas_line_scan = []
     _meas_array_scan = []
+    _meas_array_scan_fw = []
+    _meas_array_scan_bw = []
+
+
     # APD signal
     _apd_line_scan = []
     _apd_array_scan = []
+    _apd_array_scan_fw = []
+    _apd_array_scan_bw = []
     _scan_counter = 0
     _end_reached = False
 
@@ -120,28 +128,37 @@ class CustomScannerLogic(GenericLogic):
         @return 2D_array: measurement results in a two dimensional list. 
         """
 
+        self._start = time.time()
 
         # setup the counter device:
-        self._counter.set_up_clock(clock_frequency=1/integration_time)
-        self._counter.set_up_counter()
+        ret = self._counter.set_up_clock(clock_frequency=1/integration_time)
+        if ret < 0:
+            return
+        ret = self._counter.set_up_counter()
+        if ret < 0:
+            return
 
         # set up the spm device:
         reverse_meas = False
         self._stop_request = False
-        scan_speed_per_line = 0.5  # in seconds
+        scan_speed_per_line = 0.01  # in seconds
         scan_arr = self._spm.create_scan_leftright2(x_start, x_end, 
                                                     y_start, y_end, res_y)
         names_buffers = self._spm.create_meas_params(meas_params)
+        self._spm._params_per_point = len(names_buffers)
         self._spm.setup_scan_common(line_points=res_x, 
                                     sigs_buffers=names_buffers)
 
         # AFM signal
-        self._meas_array_scan = []
+        self._meas_array_scan_fw = np.zeros((res_y, len(names_buffers)*res_x))
+        self._meas_array_scan_bw = np.zeros((res_y, len(names_buffers)*res_x))
         # APD signal
-        self._apd_array_scan = []
+        self._apd_array_scan_fw = np.zeros((res_y, res_x))
+        self._apd_array_scan_bw = np.zeros((res_y, res_x))
+
         self._scan_counter = 0
 
-        for scan_coords in scan_arr:
+        for line_num, scan_coords in enumerate(scan_arr):
             
             # AFM signal
             self._meas_line_scan = np.zeros(len(names_buffers)*res_x)
@@ -162,25 +179,28 @@ class CustomScannerLogic(GenericLogic):
 
             for index in range(res_x):
 
-                self._apd_line_scan[index] = self._counter.get_counter()[0][0]
+                #Important: Get first counts, then the SPM signal!
+                self._apd_line_scan[index] = self._counter.get_counter(1)[0][0]
                 self._meas_line_scan[index*len(names_buffers):(index+1)*len(names_buffers)] = self._spm.scan_point()
+                
                 self._scan_counter += 1
                 if self._stop_request:
                     break
 
             if reverse_meas:
-                self._meas_array_scan.append(list(reversed(self._meas_line_scan)))
+                self._meas_array_scan_bw[line_num//2] = self._meas_line_scan[::-1]
                 reverse_meas = False
             else:
-                self._meas_array_scan.append(self._meas_line_scan)
+                self._meas_array_scan_fw[line_num//2] = self._meas_line_scan
                 reverse_meas = True
 
             if self._stop_request:
                 break
 
-            self._spm. send_log_message(f'Line {index} complete.')
+            self.log.info(f'Line number {line_num} completed.')
                 
-        self.log.info('Scan finished. Yeehaa!')
+        self._stop = time.time() - self._start
+        self.log.info(f'Scan finished after {int(self._stop)}s. Yeehaa!')
 
         # clean up the counter:
         self._counter.close_counter()
@@ -188,10 +208,10 @@ class CustomScannerLogic(GenericLogic):
         # clean up the spm
         self._spm.finish_scan()
         
-        return self._meas_array_scan
+        return self._meas_array_scan_fw, self._meas_array_scan_bw
 
 
-    def start_measure_line(self, x_start=48, x_end=53, y_start=47, y_end=52, 
+    def start_measure_point(self, x_start=48, x_end=53, y_start=47, y_end=52, 
                            res_x=40, res_y=40, integration_time=0.02,
                            meas_params=['Phase', 'Height(Dac)', 'Height(Sen)']):
 
@@ -207,3 +227,6 @@ class CustomScannerLogic(GenericLogic):
 
     def stop_measure(self):
         self._stop_request = True
+        self._spm.finish_scan()
+
+    #TODO: split return array in two separate arrays for forwards and backward scan.
