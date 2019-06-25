@@ -71,7 +71,6 @@ class CustomScanner(Base):
 
 
 
-
     MEAS_PARAMS = ['Height(Dac)','Height(Sen)','Iprobe', 'Mag', 'Phase', 
                    'Freq', 'Nf', 'Lf', 'Ex1', 'SenX', 'SenY', 'SenZ', 
                    'SenX2', 'SenY2', 'SenZ2']
@@ -515,7 +514,7 @@ class CustomScanner(Base):
         
         Every Scan procedure starts with this method.
         
-        @return int: status variable with: 0 = call failed, 1 = call successfull
+        @return int: status variable with: 0 = call failed, 1 = call successful
         """
         
         if sigs_buffers is None:
@@ -569,8 +568,10 @@ class CustomScanner(Base):
         """
         return self._lib.ExecScanLine()
 
-    def scan_point(self):
+    def scan_point(self, num_params=None):
         """ After setting up the scanner perform a scan of a point. 
+
+        @param int num_params: set the expected parameters per point, minimum is 1
 
         @return list: Measured signals of the previous point. 
 
@@ -589,12 +590,15 @@ class CustomScanner(Base):
             in given scan-point.
             After scan line ends, need to call next SetupScanLine
         """
-        
+
+        if num_params is None:
+            num_params = self._params_per_point
+
         self.size_c = c_int()
-        self.vals_c = c_float()
+        self.vals_c = (c_float * num_params)() # float array
         self._lib.ExecScanPoint(ctypes.byref(self.size_c), ctypes.byref(self.vals_c))
 
-        return [self.vals_c[index] for index in range(self.size_c)]
+        return [self.vals_c[index] for index in range(self.size_c.value)]
     
     def finish_scan(self):
         """ It is correctly (but not abs necessary) to end each scan 
@@ -670,8 +674,10 @@ class CustomScanner(Base):
         scan_arr = self.create_scan_leftright2(x_start, x_end, y_start, y_end, res_y)
         names_buffers = self.create_meas_params(meas_params)
         
-        
+        self._params_per_point = len(names_buffers)
         self.setup_scan_common(line_points=res_x, sigs_buffers=names_buffers)
+
+
 
         self._meas_array_scan = []
         self._scan_counter = 0
