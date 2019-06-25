@@ -572,10 +572,22 @@ class CustomScanner(Base):
     def scan_point(self):
         """ After setting up the scanner perform a scan of a point. 
 
+        @return list: Measured signals of the previous point. 
+
         First number tells the size of the array, second variable is the pointer
         to the reference array. It is converted directly to a python list array.
 
-        @return list: Measured signals of the previous point. 
+        Explanation of the Point scan procedure:
+            The function ExecScanPoint moves to the next point of the scan line 
+            and return data measured for previous point of the line. For the 1st
+            point of the scan line, the ExecScanPoint returns just size = 0.
+            For the last point of the line need to call ExecScanPoint two times:
+                to receive the data from previous point 
+                and then from last point
+            So, when next ExecScanPoint return control, you can start to get 
+            data from some other external device, while SPM accumulating signals
+            in given scan-point.
+            After scan line ends, need to call next SetupScanLine
         """
         
         self.size_c = c_int()
@@ -793,75 +805,4 @@ class CustomScanner(Base):
         self.finish_scan()
 
 
-    def scan_area_by_point(self, x_start, x_end, y_start, y_end, res_x, res_y, 
-                          time_forward=1, time_back=1, meas_params=['Height(Dac)']):
 
-        """ Measurement method for a scan by line.
-        
-        @param float x_start: start coordinate in um
-        @param float x_stop: start coordinate in um
-        @param float y_start: start coordinate in um
-        @param float y_stop: start coordinate in um
-        @param int res_x: number of points in x direction
-        @param int res_y: number of points in y direction
-        @param float time_forward: time forward during the scan
-        @param float time_back: time backward after the scan
-        @param list meas_params: list of possible strings of the measurement 
-                                 parameter. Have a look at MEAS_PARAMS to see 
-                                 the available parameters.
-
-        @return 2D_array: measurement results in a two dimensional list. 
-        """
-        
-        reverse_meas = False
-        self._stop_request = False
-        
-        scan_arr = self.create_scan_leftright2(x_start, x_end, y_start, y_end, res_y)
-        names_buffers = self.create_meas_params(meas_params)
-        
-        
-        self.setup_scan_common(line_points=res_x, sigs_buffers=names_buffers)
-
-        # AFM signal
-        self._meas_array_scan = []
-        # APD signal
-        self._apd_array_scan = []
-        self._scan_counter = 0
-
-        for scan_coords in scan_arr:
-            
-            # AFM signal
-            self._meas_line_scan = []
-            # APD signal
-            self._apd_line_scan = []
-
-            self.end_reached = False
-            
-            self.setup_scan_line(x_start=scan_coords[0], x_stop=scan_coords[1], 
-                                 y_start=scan_coords[2], y_stop=scan_coords[3], 
-                                 time_forward=time_forward, time_back=time_back)
-            self.scan_line()
-            
-            while True:
-                if self.end_reached or self._stop_request:
-                    break
-                time.sleep(0.1)
-                
-            
-            if self._stop_request:
-                    break
-            
-            self.send_log_message('Line complete.')
-        
-            if reverse_meas:
-                self._meas_array_scan.append(list(reversed(self._meas_line_scan)))
-                reverse_meas = False
-            else:
-                self._meas_array_scan.append(self._meas_line_scan)
-                reverse_meas = True
-                
-        self.log.info('Scan finished. Yeehaa!')
-        print('Scan finished. Yeehaa!')
-        self.finish_scan()
-        
-        return self._meas_array_scan
