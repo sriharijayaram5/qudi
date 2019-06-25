@@ -23,6 +23,7 @@ top-level directory of this distribution and at <https://github.com/Ulm-IQO/qudi
 from core.module import Connector, StatusVar, ConfigOption
 from logic.generic_logic import GenericLogic
 from core.util.mutex import Mutex
+import threading
 
 from qtpy import QtCore
 
@@ -33,15 +34,13 @@ class CustomScannerLogic(GenericLogic):
     _modclass = 'CustomScannerLogic'
     _modtype = 'logic'
 
-
-    test_sig = QtCore.Signal()
-
     ## declare connectors. It is either a connector to be connected to another 
     # logic or another hardware. Hence the interface variable will take either 
     # the name of the logic class (for logic connection) or the interface class
     # which is implemented in a hardware instrument (for a hardware connection)
     spm_device = Connector(interface='CustomScanner') # hardware example
     savelogic = Connector(interface='SaveLogic')  # logic example
+    counter_device = Connector(interface='SlowCounterInterface')
 
     ## configuration parameters/options for the logic. In the config file you 
     # have to specify the parameter, here: 'conf_1'
@@ -50,6 +49,17 @@ class CustomScannerLogic(GenericLogic):
     # status variables, save status of certain parameters if object is 
     # deactivated.
     #_count_length = StatusVar('count_length', 300)
+
+
+    _stop_request = False
+    # AFM signal
+    _meas_line_scan = []
+    _meas_array_scan = []
+    # APD signal
+    _apd_line_scan = []
+    _apd_array_scan = []
+    _scan_counter = 0
+    _end_reached = False
 
 
     def __init__(self, config, **kwargs):
@@ -77,9 +87,7 @@ class CustomScannerLogic(GenericLogic):
         # Connect to hardware and save logic
         self._spm = self.spm_device()
         self._save_logic = self.savelogic()
-
-
-        self.test_sig.connect(self.perform)
+        self._counter = self.counter_device()
 
     def on_deactivate(self):
         """ Deinitializations performed during deactivation of the module. """
@@ -89,3 +97,113 @@ class CustomScannerLogic(GenericLogic):
 
     def perform(self):
         self._spm.test_another()
+
+
+
+    def scan_area_by_point(self, x_start, x_end, y_start, y_end, res_x, res_y, 
+                           integration_time, meas_params=['Height(Dac)']):
+
+        """ Measurement method for a scan by point.
+        
+        @param float x_start: start coordinate in um
+        @param float x_stop: start coordinate in um
+        @param float y_start: start coordinate in um
+        @param float y_stop: start coordinate in um
+        @param int res_x: number of points in x direction
+        @param int res_y: number of points in y direction
+        @param float time_forward: time forward during the scan
+        @param float time_back: time backward after the scan
+        @param list meas_params: list of possible strings of the measurement 
+                                 parameter. Have a look at MEAS_PARAMS to see 
+                                 the available parameters.
+
+        @return 2D_array: measurement results in a two dimensional list. 
+        """
+
+
+        # setup the counter device:
+        self._counter.set_up_clock(clock_frequency=1/integration_time)
+        self._counter.set_up_counter()
+
+        # set up the spm device:
+        reverse_meas = False
+        self._stop_request = False
+        scan_speed_per_line = 0.5  # in seconds
+        scan_arr = self._spm.create_scan_leftright2(x_start, x_end, 
+                                                    y_start, y_end, res_y)
+        names_buffers = self._spm.create_meas_params(meas_params)
+        self._spm.setup_scan_common(line_points=res_x, 
+                                    sigs_buffers=names_buffers)
+
+        # AFM signal
+        self._meas_array_scan = []
+        # APD signal
+        self._apd_array_scan = []
+        self._scan_counter = 0
+
+        for scan_coords in scan_arr:
+            
+            # AFM signal
+            self._meas_line_scan = np.zeros(len(names_buffers)*res_x)
+            # APD signal
+            self._apd_line_scan = np.zeros(res_x)
+            
+            self._spm.setup_scan_line(x_start=scan_coords[0], 
+                                      x_stop=scan_coords[1], 
+                                      y_start=scan_coords[2], 
+                                      y_stop=scan_coords[3], 
+                                      time_forward=scan_speed_per_line, 
+                                      time_back=scan_speed_per_line)
+            
+            vals = self._spm.scan_point()  # these are points to throw away
+
+            if len(vals) > 0:
+                self.log.error("The scanner range was not correctly set up!")
+
+            for index in range(res_x):
+
+                self._apd_line_scan[index] = self._counter.get_counter()[0][0]
+                self._meas_line_scan[index*len(names_buffers):(index+1)*len(names_buffers)] = self._spm.scan_point()
+                self._scan_counter += 1
+                if self._stop_request:
+                    break
+
+            if reverse_meas:
+                self._meas_array_scan.append(list(reversed(self._meas_line_scan)))
+                reverse_meas = False
+            else:
+                self._meas_array_scan.append(self._meas_line_scan)
+                reverse_meas = True
+
+            if self._stop_request:
+                break
+
+            self._spm. send_log_message(f'Line {index} complete.')
+                
+        self.log.info('Scan finished. Yeehaa!')
+
+        # clean up the counter:
+        self._counter.close_counter()
+        self._counter.close_clock()
+        # clean up the spm
+        self._spm.finish_scan()
+        
+        return self._meas_array_scan
+
+
+    def start_measure_line(self, x_start=48, x_end=53, y_start=47, y_end=52, 
+                           res_x=40, res_y=40, integration_time=0.02,
+                           meas_params=['Phase', 'Height(Dac)', 'Height(Sen)']):
+
+        self.meas_thread = threading.Thread(target=self.scan_area_by_point, 
+                                            args=(x_start, x_end, 
+                                                  y_start, y_end, 
+                                                  res_x, res_y, 
+                                                  integration_time,
+                                                  meas_params), 
+                                            name='meas_thread')
+
+        self.meas_thread.start()
+
+    def stop_measure(self):
+        self._stop_request = True
