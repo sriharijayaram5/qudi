@@ -31,8 +31,7 @@ on an interpolated function
 * Changed ProcessInterface and ProcessControlInterface to use underscore case instead of CamelCase
 * Added an optional parameter to connectors so that dependencies can be optional
 * Made ODMR logic an optional dependency in SpectrumLogic
-* Removed additional scaling from sampling functions. They now return samples as as expected. 
-The entire normalization to pulse generator analog voltage range (Vpp) is done during sampling.
+* Made some changes in the AWG70k file for sorting integers without natural sort
 
 Config changes:
 
