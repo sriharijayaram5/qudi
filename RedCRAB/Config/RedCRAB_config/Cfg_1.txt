@@ -1,0 +1,67 @@
+-----Main_Settings-----
+
+STARTPHYSPARS
+TT := 0.0000000500
+Nt := 1000
+ENDPHYSPARS
+
+STARTALGPARS
+FomFactor2Maximization := 1.0000000000
+MaxNumSI := 2
+MaxFunctEvSI1 := 10
+MaxFunctEvSI22n := 5
+StdAvailable := 0
+GuessPulsesAvailable := 0
+IsPureParaOpti := 0
+IndividualOutput := 1
+ENDALGPARS
+
+STARTFLAGS
+FLAGVARIABLET := 0
+FLAGSPECIFYREEVALSTEPS := 0
+FLAGISREMOTE := 1
+FLAGISNONEREMOTE := 0
+ENDFLAGS
+
+STARTFLAGGED
+TransmissionMethod := 1
+ENDFLAGGED
+
+-----Pulse1-----
+
+STARTPULSE
+
+STARTPHYSPARS
+AmpLimits := [-50.0000000000, 50.0000000000]
+ENDPHYSPARS
+
+STARTFLAGS
+SelectBasis := 1
+ReasonableAmplVar := 1
+FrequencyRange := 1
+InitGuessAvail := 1
+AnalyticGuessInput := 1
+NumericGuessInput := 0
+ENDFLAGS
+
+STARTFLAGGED
+BasisChoice := 'fourier'
+ENDFLAGGED
+
+STARTFLAGGED
+AmplVar := 0.5000000000
+ENDFLAGGED
+
+STARTFLAGGED
+FreqRange := [0.1000000000, 2.0000000000]
+ENDFLAGGED
+
+STARTFLAGGED
+GuessScaleType := 'abs'
+ENDFLAGGED
+
+STARTFLAGGED
+ContrAmplTime := 'lambda t: 5'
+ENDFLAGGED
+
+ENDPULSE
