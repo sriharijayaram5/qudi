@@ -132,6 +132,13 @@ else:
 try:
     from zmq.eventloop import ioloop
     ioloop.install()
+
+    # The previous command is deprecated and no event loop is required for the 
+    # startup. Consider either to use this, or to remove the event loop 
+    # installation completely. 
+    # import zmq.asyncio
+    # zmq.asyncio.install()
+
 except:
     logger.error('Preparing ZMQ failed, probably no IPython possible!')
 
