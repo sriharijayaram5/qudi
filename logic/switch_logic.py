@@ -19,6 +19,7 @@ Copyright (c) the Qudi Developers. See the COPYRIGHT.txt file at the
 top-level directory of this distribution and at <https://github.com/Ulm-IQO/qudi/>
 """
 
+from core.module import Connector
 from logic.generic_logic import GenericLogic
 from collections import OrderedDict
 
@@ -28,6 +29,9 @@ class SwitchLogic(GenericLogic):
     """
     _modclass = 'switch'
     _modtype = 'logic'
+
+    # declare connectors
+    switcher1 = Connector(interface='mwsourceinterface')
 
     def __init__(self, config, **kwargs):
         """ Create logic object
