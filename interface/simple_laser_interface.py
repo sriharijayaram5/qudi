@@ -28,6 +28,8 @@ class ControlMode(Enum):
     MIXED = 0
     POWER = 1
     CURRENT = 2
+    MODULATION_DIGITAL = 3
+    MODULATION_ANALOG = 4
 
 class ShutterState(Enum):
     CLOSED = 0
