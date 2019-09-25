@@ -28,6 +28,7 @@ import numpy as np
 import os
 import sys
 import time
+from qtpy import QtCore
 
 from collections import OrderedDict
 from core.module import ConfigOption
@@ -128,6 +129,8 @@ class SaveLogic(GenericLogic):
     _unix_data_dir = ConfigOption('unix_data_directory', 'Data')
     log_into_daily_directory = ConfigOption('log_into_daily_directory', False, missing='warn')
 
+    sigSaveData = QtCore.Signal(object, object, object, object, object, object, object, object, object, object)
+
     # Matplotlib style definition for saving plots
     mpl_qd_style = {
         'axes.prop_cycle': cycler(
@@ -208,6 +211,8 @@ class SaveLogic(GenericLogic):
         else:
             self._daily_loghandler = None
 
+        self.sigSaveData.connect(self._save_data)
+
     def on_deactivate(self):
         if self._daily_loghandler is not None:
             # removes the log handler logging into the daily directory
@@ -229,6 +234,12 @@ class SaveLogic(GenericLogic):
         self._daily_loghandler.setLevel(level)
 
     def save_data(self, data, filepath=None, parameters=None, filename=None, filelabel=None,
+                  timestamp=None, filetype='text', fmt='%.15e', delimiter='\t', plotfig=None):
+
+        self.sigSaveData.emit(data, filepath, parameters, filename, filelabel, timestamp, filetype, fmt, delimiter, plotfig)
+
+
+    def _save_data(self, data, filepath=None, parameters=None, filename=None, filelabel=None,
                   timestamp=None, filetype='text', fmt='%.15e', delimiter='\t', plotfig=None):
         """
         General save routine for data.
@@ -572,7 +583,7 @@ class SaveLogic(GenericLogic):
                            comments=comments)
         return
 
-    def get_daily_directory(self):
+    def get_daily_directory(self, root_dir=None):
         """
         Creates the daily directory.
 
@@ -587,21 +598,24 @@ class SaveLogic(GenericLogic):
         returned.
         """
 
+        if root_dir is None:
+            root_dir = self.get_root_directory()
+
         # First check if the directory exists and if not then the default
         # directory is taken.
-        if not os.path.exists(self.data_dir):
+        if not os.path.exists(root_dir):
                 # Check if the default directory does exist. If yes, there is
                 # no need to create it, since it will overwrite the existing
                 # data there.
-                if not os.path.exists(self.data_dir):
-                    os.makedirs(self.data_dir)
+                if not os.path.exists(root_dir):
+                    os.makedirs(root_dir)
                     self.log.warning('The specified Data Directory in the '
                             'config file does not exist. Using default for '
                             '{0} system instead. The directory {1} was '
-                            'created'.format(self.os_system, self.data_dir))
+                            'created'.format(self.os_system, root_dir))
 
         # That is now the current directory:
-        current_dir = os.path.join(self.data_dir, time.strftime("%Y"), time.strftime("%m"))
+        current_dir = os.path.join(root_dir, time.strftime("%Y"), time.strftime("%m"))
 
         folder_exists = False   # Flag to indicate that the folder does not exist.
         if os.path.exists(current_dir):
@@ -624,7 +638,12 @@ class SaveLogic(GenericLogic):
             # Details at http://stackoverflow.com/questions/12468022/python-fileexists-error-when-making-directory
             os.makedirs(current_dir, exist_ok=True)
 
-        return current_dir
+        # make the return output consistent
+        return os.path.abspath(current_dir)
+
+
+    def get_root_directory(self):
+        return self.data_dir
 
     def get_path_for_module(self, module_name):
         """
