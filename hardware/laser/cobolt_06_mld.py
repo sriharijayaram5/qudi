@@ -28,7 +28,7 @@ import time
 import math
 import random
 
-from core.module import Base
+from core.module import Base, ConfigOption
 from interface.simple_laser_interface import ControlMode
 from interface.simple_laser_interface import ShutterState
 from interface.simple_laser_interface import LaserState
@@ -59,7 +59,7 @@ class CoboltLaserMLD(Base, SimpleLaserInterface):
 
 
     def on_activate(self):
-        self._dev = CoboltLaserStandalone()
+        self._dev = CoboltLaserStandalone(self._com_port)
 
         self.shutter = ShutterState.CLOSED
         self.power_setpoint = 0
@@ -83,22 +83,34 @@ class CoboltLaserMLD(Base, SimpleLaserInterface):
         return (0, 0.080)
 
     def get_power(self):
-        """ Return laser power
+        """ Return laser power independent of the mode.
 
-        @return float: Actual laser power in watts
+        @return float: Actual laser power in Watts (W).
         """
-        return self._dev.get_power()
+        
+        if self.mode.value == 1:  
+            return self._dev.get_power()
+
+        if self.mode.value == 3:
+            return self._dev.get_modulation_power()
 
     def set_power(self, power):
-        """ Set laer power ins watts
+        """ Set laser power in watts
 
         @param float power: laser power setpoint in watts
 
         @return float: laser power setpoint in watts
         """
-        self.power_setpoint = power
-        self.power_setpoint = self._dev.set_power(power)
-        return self.power_setpoint
+        
+        if self.mode.value == 1:
+            self.power_setpoint = power
+            self.power_setpoint = self._dev.set_power(power)
+
+        if self.mode.value == 3:
+            self.power_setpoint = power
+            self.power_setpoint = self._dev.set_modulation_power(power)
+        
+        return self.get_power()
 
     def get_power_setpoint(self):
         """ Return laser power setpoint
@@ -150,7 +162,7 @@ class CoboltLaserMLD(Base, SimpleLaserInterface):
 
         @return list: list with enum control modes
         """
-        return [ControlMode.POWER, ControlMode.CURRENT]
+        return [ControlMode.POWER, ControlMode.CURRENT, ControlMode.MODULATION_DIGITAL, ControlMode.MODULATION_ANALOG]
 
     def get_control_mode(self):
         """ Get control mode of laser
@@ -171,6 +183,23 @@ class CoboltLaserMLD(Base, SimpleLaserInterface):
 
             if control_mode in self.allowed_control_modes():
                 self.mode = control_mode
+
+                if self.mode.value == 1: 
+                    self._dev.enter_constant_power()
+
+                if self.mode.value == 2:
+                    self._dev.enter_constant_current()
+
+                if self.mode.value == 3:
+                    self._dev.enter_modulation_mode()
+                    self._dev.set_analog_modulation(0)
+                    self._dev.set_digital_modulation(1)
+
+                if self.mode.value == 4:
+                    self._dev.enter_modulation_mode()
+                    self._dev.set_digital_modulation(0)
+                    self._dev.set_analog_modulation(1)
+
             else:
                 self.log.error(f'Cannot set to desired control mode'
                                f'"{control_mode}". It is not an allowed mode!')
@@ -187,8 +216,8 @@ class CoboltLaserMLD(Base, SimpleLaserInterface):
         @return enum LaserState: actual laser state
         """
         
-        self._dev.get_laser_output(bool(LaserState.ON.value))   
-        return self.get_state()
+        self._dev.set_laser_output(LaserState.ON.value)   
+        return self.get_laser_state()
 
     def off(self):
         """ Turn off laser. Does not close shutter if one is present.
@@ -197,18 +226,15 @@ class CoboltLaserMLD(Base, SimpleLaserInterface):
         """
 
         #FIXME: Is this waiting time really required???
-        self._dev.get_laser_output(bool(LaserState.OFF.value))
-        return self.get_state()
+        self._dev.set_laser_output(LaserState.OFF.value)
+        return self.get_laser_state()
 
     def get_laser_state(self):
         """ Get laser state.
         
         @return enum LaserState: laser state
         """
-
-
-
-        if self._dev.get_laser_state():
+        if int(self._dev.get_laser_output()):
             self.lstate = LaserState.ON
         else:
             self.lstate = LaserState.OFF
@@ -223,10 +249,8 @@ class CoboltLaserMLD(Base, SimpleLaserInterface):
         
         @return enum LaserState: actual laser state
         """
-
-        time.sleep(1)
         self.lstate = state
-        return self._dev.set_state(state)
+        return self._dev.set_laser_output(state)
 
     def get_shutter_state(self):
         """ Get shutter state. Has a state for no shutter present.
@@ -242,8 +266,6 @@ class CoboltLaserMLD(Base, SimpleLaserInterface):
         
         @return enum ShutterState: actual shutter state
         """
-
-        time.sleep(1)
         self.shutter = state
         return self.shutter
 
@@ -303,7 +325,6 @@ class CoboltLaserStandalone():
 
         @param str comport: the name of the comport, e.g. 'ASRL3::INSTR' or 'COM3'
         """
-
         self.rm = visa.ResourceManager()
         self.connect_laser(comport)
         
@@ -316,10 +337,10 @@ class CoboltLaserStandalone():
 
         self.SERIAL_NUM = self.get_serialnumber()
 
-        self.extra_info = {'brand': self._dev.BRAND, 'model': self._dev.MODEL, 
-                           'serial_number': self._dev.SERIAL_NUM, 
-                           'required OD goggles': self._dev.OD_NUM,
-                           'laser_class': self._dev.LASER_CLASS}
+        self.extra_info = {'brand': self.BRAND, 'model': self.MODEL, 
+                           'serial_number': self.SERIAL_NUM, 
+                           'required OD goggles': self.OD_NUM,
+                           'laser_class': self.LASER_CLASS}
 
         self.log.info(f'Initialized Laser from {self.BRAND} of model '
                       f'{self.MODEL} with S/N: {self.SERIAL_NUM}.\n'
@@ -355,13 +376,13 @@ class CoboltLaserStandalone():
     def get_laser_output(self):
         """ Ask whether laser output is on. 
 
-        @return bool: True=laser is on, False=laser is off."""
-        return bool(int(self.query("l?").strip()))
+        @return int: 0=laser is off, 1=laser is on."""
+        return int(self.query("l?").strip())
     
     def set_laser_output(self, state):
         """ Switch the output of the laser on or off.
 
-        @param bool state: False=OFF, True=ON
+        @param int state: 0=OFF, 1=ON
         """
         self.write("l{0}".format(int(state)))
         return self.get_laser_output()
@@ -382,44 +403,163 @@ class CoboltLaserStandalone():
         return int(self.query("gom?").strip())
 
     def restart_laser(self):
+        """ Method for restarting the laser, which forces the laser
+            to be on without checking if autostart is enabled. 
+        """
         self.write("@cob1")
         
     def get_operatinghours(self):
+        """Method for getting the operating hours of the laser. 
+        
+        @return float: the indicated operating hours.
+        """
         return float(self.query("hrs?"))
     
     def get_power(self):
+        """Method for getting the setpoint power of the laser. 
+        
+        @return float: the indicated power in Watts (W).
+        """
         return float(self.query("p?").strip())
 
     def get_outputpower(self):
+        """Method for getting the output power of the laser. 
+        
+        @return float: the indicated output power in Watts (W).
+        """
         return float (self.query("pa?"))
     
     def set_power(self, power):
+        """Method for setting the power of the laser. 
+        
+        @param float power: The power shall be a float in Watts (W).
+        
+        @return float: the indicated power in Watts (W).
+        """
         self.write("p {0}".format(power))
         return self.get_power()
     
     def get_current(self):
+        """Method for getting the current of the laser. 
+        
+        @return float: the indicated current in milliAmps (mA).
+        """
         return float(self.query("i?"))
     
     def set_current(self,current):
+        """Method for setting the current of the laser. 
+        
+        @param float current: The current shall be a float in milliAmps (mA).
+        
+        @return float: the indicated current in milliAmps (mA).
+        """
         self.write("slc {0}".format(current))
         return self.get_current()
     
-    def set_constant_power(self):
+    def enter_constant_power(self):
+        """ Method for entering constant power mode.  
+        """
         self.write("cp")
         
-    def set_constant_current(self):
+    def enter_constant_current(self):
+        """ Method for entering constant current mode.  
+        """
         self.write("ci")
     
-    def get_interlock(self):
-        return bool(int(self.query("ilk?").strip()))
+    def get_interlock_state(self):
+        """Method for obtaining the interlock state. 
+        
+         @return int: with the following meaning:
+                        True = interlock closed
+                        False = interlock open
+        """
+        return bool( not int(self.query("ilk?").strip()))
 
     def get_autostart(self):
+        """Method for obtaining the autostart state. 
+        
+         @return bool: with the following meaning:
+                        FALSE = OFF
+                        TRUE = ON
+        """
         return bool(int(self._device.query("@cobas?").strip()))
     
     def set_autostart(self, state):
+        """Method for setting the autostart state. 
+        
+         @param bool: with the following meaning:
+                        FALSE = OFF
+                        TRUE = ON
+        """
         self.write(f"@cobas {int(state)}")
 
     def get_serialnumber(self):
+        """Method for obtaining the serial number of the laser. 
+        
+         @return int: 32-bit unassigned integer.
+        """
         return int(self.query("gsn?").strip())
+
+    def enter_modulation_mode(self):
+        """Method for entering modulation mode. 
+        """
+        self.write("em")
+
+    def set_digital_modulation(self,state):
+        """Method for setting the state of the digital modulation mode. 
+        
+        @param int state: with the following meaning:
+                        0 = disable
+                        1 = enable
+        """
+        self.write("sdmes {0}".format(state))
+        return self.get_digital_modulation()
+
+    def get_digital_modulation(self):
+        """Method for setting the state of the digital modulation mode. 
+        
+        @return int state: with the following meaning:
+                        0 = disable
+                        1 = enable
+        """
+        return int(self.query("gdmes?").strip())
+    
+    def set_analog_modulation(self, state):
+        """Method for setting the state of the analog modulation mode. 
+        
+        @param int state: with the following meaning:
+                        0 = disable
+                        1 = enable
+        """
+        self.write("sames {0}".format(state))
+        return self.get_analog_modulation()
+
+    def get_analog_modulation(self):
+        """Method for setting the state of the analog modulation mode. 
+        
+        @return int state: with the following meaning:
+                        0 = disable
+                        1 = enable
+        """
+        return int(self.query("games?").strip())
+
+    def set_modulation_power(self, power):
+        """Method for setting the power of the laser in modulation mode. 
+        
+        @param float power: The power shall be a float in Watts (W).
+        
+        @return float: the indicated power in Watts (W).
+        """
+        power = power*1000
+        self.write("slmp {0}".format(power))
+
+        return self.get_modulation_power()
+
+    def get_modulation_power(self):
+        """Method for getting the setpoint power of the laser in modulation mode. 
+        
+        @return float: the indicated power in Watts (W).
+        """
+        return float(self.query("glmp?").strip())/1000
 
 
