@@ -41,15 +41,21 @@ class SwitchGui(GUIBase):
         """
         self._mw = SwitchMainWindow()
         lsw = self.switchlogic()
+
+
         # For each switch that the logic has, add a widget to the GUI to show its state
         for hw in lsw.switches:
+
             frame = QtWidgets.QGroupBox(hw, self._mw.scrollAreaWidgetContents)
+
             frame.setAlignment(QtCore.Qt.AlignLeft)
             frame.setFlat(False)
             self._mw.layout.addWidget(frame)
             layout = QtWidgets.QVBoxLayout(frame)
-            for switch in lsw.switches[hw]:
+            for index, switch in enumerate(lsw.switches[hw]):
                 swidget = SwitchWidget(switch, lsw.switches[hw][switch])
+
+                setattr(self._mw, f'SwitchWidget_{index}', swidget)
                 layout.addWidget(swidget)
 
         self.restoreWindowPos(self._mw)
@@ -102,7 +108,8 @@ class SwitchWidget(QtWidgets.QWidget):
         uic.loadUi(ui_file, self)
 
         # get switch states from the logic and put them in the GUI elements
-        self.switch = switch
+        self.switch = switch # is the switch state, either 0 or 1
+
         self.hw = hwobject
         self.SwitchButton.setChecked( self.hw.getSwitchState(self.switch) )
         self.calOffVal.setValue( self.hw.getCalibration(self.switch, 'Off') )
