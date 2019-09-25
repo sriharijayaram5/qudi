@@ -1036,16 +1036,11 @@ class ConfocalLogic(GenericLogic):
         """ Create a 2-D color map figure of the scan image.
 
         @param: array data: The NxM array of count values from a scan with NxM pixels.
-
         @param: list image_extent: The scan range in the form [hor_min, hor_max, ver_min, ver_max]
-
         @param: list axes: Names of the horizontal and vertical axes in the image
-
         @param: list cbar_range: (optional) [color_scale_min, color_scale_max].  If not supplied then a default of
                                  data_min to data_max will be used.
-
         @param: list percentile_range: (optional) Percentile range of the chosen cbar_range.
-
         @param: list crosshair_pos: (optional) crosshair position as [hor, vert] in the chosen image axes.
 
         @return: fig fig: a matplotlib figure object to be saved to file.
