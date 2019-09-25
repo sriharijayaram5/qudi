@@ -48,7 +48,8 @@ class ColorBar(pg.GraphicsObject):
 
         self.refresh_colorbar(cb_min, cb_max)
 
-    def refresh_colorbar(self, cb_min, cb_max, width = None, height = None, xMin = None, yMin = None):
+    def refresh_colorbar(self, cb_min, cb_max, width=None, height=None,
+                         xMin=None, yMin=None):
         """ Refresh the appearance of the colorbar for a changed count range.
 
         @param float cb_min: The minimal count value should be passed here.

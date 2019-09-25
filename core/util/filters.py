@@ -35,9 +35,11 @@ def scan_blink_correction(image, axis=1):
     This filter will completely remove single-pixel (along given axis) brightness spikes from the
     image but will cause the image to be more "blocky"/less smooth.
     Of course you need to ensure that the image features of interest are larger than
+    a pixel size.
 
     @param numpy.ndarray image: A 2D numpy array to be filtered (e.g. image data)
     @param int axis: The axis along which to apply the 1D filter
+
     @return numpy.ndarray: The filtered image. Same dimensions as input image
     """
 
