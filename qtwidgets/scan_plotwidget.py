@@ -46,6 +46,11 @@ class ScanImageItem(ImageItem):
         return
 
     def set_image_extent(self, extent):
+        """ Set (and thereby scale) the extent of the image.
+
+        @param tuple extent: with the following representation:
+                             ([x_min, x_max], [y_min, y_max])
+        """
         if len(extent) != 2:
             raise TypeError('Image extent must be iterable of length 2.')
         if len(extent[0]) != 2 or len(extent[1]) != 2:
@@ -54,6 +59,48 @@ class ScanImageItem(ImageItem):
         y_min, y_max = sorted(extent[1])
         self.setRect(QtCore.QRectF(x_min, y_min, x_max - x_min, y_max - y_min))
         return
+
+    def get_image_extent(self):
+        """ Obtain the current extend of the image.
+
+        @return tuple: ([x_min, x_max], [y_min, y_max])
+        """
+
+        vb = self.getViewBox()
+        rect = vb.itemBoundingRect(self)
+        return [rect.x(), rect.x()+rect.width()], [rect.y(), rect.y()+rect.height()]
+
+    def get_view(self):
+        """ Get the current displayed view.
+
+        @return tuplet: ([x_min, x_max], [y_min, y_max])
+
+        Alternative way:
+        vb = self.getViewBox()
+        return vb.viewRange()
+        """
+        # return is a Rect object, with x,y, width, height parameters
+        rect = self.mapRectToView(self.viewRect())
+        return [rect.x(), rect.x()+rect.width()], [rect.y(), rect.y()+rect.height()]
+
+    def set_view(self, xy_view):
+        """ Set the view of the display.
+
+        @param tuple xy_view: with the following representation:
+                             ([x_min, x_max], [y_min, y_max])
+
+        Note that the view is set in such a way in order to maintain the aspect
+        ratio, and that the largest view range is maintained. The other range
+        will be increased accordingly to maintain aspect ratio.
+        """
+
+        if len(xy_view) != 2:
+            raise TypeError('Image view must be iterable of length 2.')
+        if len(xy_view[0]) != 2 or len(xy_view[1]) != 2:
+            raise TypeError('Image view for each axis must be iterable of length 2.')
+
+        vb = self.getViewBox()
+        vb.setRange(xRange=tuple(xy_view[0]), yRange=tuple(xy_view[1]))
 
     def activate_blink_correction(self, set_active, axis=0):
         """
