@@ -22,15 +22,17 @@ top-level directory of this distribution and at <https://github.com/Ulm-IQO/qudi
 
 import numpy as np
 import re
+import time
 
 import PyDAQmx as daq
 
-from core.module import Base, ConfigOption
+from core.module import Base, ConfigOption, Connector
 from interface.slow_counter_interface import SlowCounterInterface
 from interface.slow_counter_interface import SlowCounterConstraints
 from interface.slow_counter_interface import CountingMode
 from interface.odmr_counter_interface import ODMRCounterInterface
 from interface.confocal_scanner_interface import ConfocalScannerInterface
+from interface.switch_interface import SwitchInterface
 
 
 class NationalInstrumentsXSeries(Base, SlowCounterInterface, ConfocalScannerInterface, ODMRCounterInterface):
@@ -125,6 +127,16 @@ class NationalInstrumentsXSeries(Base, SlowCounterInterface, ConfocalScannerInte
     _RWTimeout = ConfigOption('read_write_timeout', default=10)
     _counting_edge_rising = ConfigOption('counting_edge_rising', default=True)
 
+    # Switcher names and states
+    switch_states = {'d_ch0': False,'d_ch1': False,'d_ch2': False,'d_ch3': False,
+                     'd_ch4': False,'d_ch5': False,'d_ch6': False,'d_ch7': False,
+                     'd_ch8': False,'d_ch9': False}
+
+    device_names = {'d_ch0': '/Dev1/port0/line0', 'd_ch1': '/Dev1/port0/line1', 'd_ch2': '/Dev1/port0/line2',
+                    'd_ch3': '/Dev1/port0/line3', 'd_ch4': '/Dev1/port0/line4', 'd_ch5': '/Dev1/port0/line5',
+                    'd_ch6': '/Dev1/port0/line6', 'd_ch7': '/Dev1/port0/line7', 'd_ch8': '/Dev1/port0/line8',
+                    'd_ch9': '/Dev1/port0/line9'}
+
     def on_activate(self):
         """ Starts up the NI Card at activation.
         """
@@ -142,6 +154,7 @@ class NationalInstrumentsXSeries(Base, SlowCounterInterface, ConfocalScannerInte
         self._odmr_pulser_daq_task = None
         self._oversampling = 0
         self._lock_in_active = False
+        self.digital_out_task = None
 
         # handle all the parameters given by the config
         self._current_position = np.zeros(len(self._scanner_ao_channels))
@@ -160,6 +173,7 @@ class NationalInstrumentsXSeries(Base, SlowCounterInterface, ConfocalScannerInte
 
         # Analog output is always needed and it does not interfere with the
         # rest, so start it always and leave it running
+        
         if self._start_analog_output() < 0:
             self.log.error('Failed to start analog output.')
             raise Exception('Failed to start NI Card module due to analog output failure.')
@@ -2192,7 +2206,7 @@ class NationalInstrumentsXSeries(Base, SlowCounterInterface, ConfocalScannerInte
         can as an example be used to switch on or off the AOM driver or apply a single
         trigger for ODMR.
         @param str channel_name: Name of the channel which should be controlled
-                                    for example ('/Dev1/PFI9')
+                                    for example ('/Dev1/PFI9' or '/Dev1/port0/line0')
         @param bool mode: specifies if the voltage output of the chosen channel should be turned on or off
 
         @return int: error code (0:OK, -1:error)
@@ -2202,11 +2216,18 @@ class NationalInstrumentsXSeries(Base, SlowCounterInterface, ConfocalScannerInte
             return -1
         else:
 
+            if self.digital_out_task is not None:
+                #daq.DAQmxStopTask(self.digital_out_task)
+                daq.DAQmxClearTask(self.digital_out_task)
+                self.digital_out_task = None
+
             self.digital_out_task = daq.TaskHandle()
+
             if mode:
                 self.digital_data = daq.c_uint32(0xffffffff)
             else:
                 self.digital_data = daq.c_uint32(0x0)
+
             self.digital_read = daq.c_int32()
             self.digital_samples_channel = daq.c_int32(1)
             daq.DAQmxCreateTask('DigitalOut', daq.byref(self.digital_out_task))
@@ -2220,4 +2241,101 @@ class NationalInstrumentsXSeries(Base, SlowCounterInterface, ConfocalScannerInte
             daq.DAQmxClearTask(self.digital_out_task)
             return 0
 
+    # ======================== Switching control  ==========================
+
+    def getNumberOfSwitches(self):
+        """ Gives the number of switches connected to this hardware.
+        """
+        return len(self.switch_states)
+
+    def getSwitchState(self, switchNumber):
+        """ Gives state of switch.
+
+        @param int switchNumber: number of switch, numbering starts with 0
+
+        @return bool: True if on, False if off, None on error
+        """
+
+        return self.switch_states['d_ch{0}'.format(switchNumber)]
+
+    def getCalibration(self, switchNumber, switch_state):
+        """ Get calibration parameter for switch.
+
+        @param int switchNumber: number of switch for which to get calibration
+                                 parameter
+        @param str switch_state: state ['On', 'Off'] for which to get
+                                calibration parameter
+
+        @return str: calibration parameter for switch and state.
+        """
+
+        # There is no possibility to calibrate the voltage values for the
+        # Switcher, either it is on at 5.0V or off at 0.0V.
+        
+        possible_states = {'On': 5.0, 'Off': 0.0}
+        return possible_states[switch_state]
+
+
+    def setCalibration(self, switchNumber, switch_state, value):
+        """ Set calibration parameter for switch.
+
+          @param int switchNumber: number of switch for which to get calibration
+                                   parameter
+          @param str switch_state: state ['On', 'Off'] for which to get
+                                   calibration parameter
+          @param int value: calibration parameter to be set.
+
+          @return bool: True if succeeds, False otherwise
+        """
+        self.log.warning('Not possible to set a Switch Voltage for '
+                         'using Ni Card Devices. Command ignored.')
+        return True
+
+    def switchOn(self, switchNumber):
+        """ Switch on.
+
+        @param int switchNumber: number of switch to be switched, number starts
+                               from 0.
+
+        @return bool: True if succeeds, False otherwise
+        """
+
+        self.switch_states[f'd_ch{switchNumber}'] = True
+
+        channel_name = self.device_names[f'd_ch{switchNumber}']
+        self.digital_channel_switch(channel_name, mode=True)
+
+        self.log.info('{0} switch {1} : On'.format(channel_name,switchNumber))
+
+        return self.switch_states[f'd_ch{switchNumber}']
+
+    def switchOff(self, switchNumber):
+        """ Switch off.
+
+        @param int switchNumber: number of switch to be switched, number starts
+                               from 0.
+
+        @return bool: True if succeeds, False otherwise
+        """
+
+        self.switch_states['d_ch{0}'.format(switchNumber)] = False
+        channel_name = self.device_names['d_ch{0}'.format(switchNumber)] 
+        self.digital_channel_switch(channel_name, mode= False)
+
+        self.log.info('{0} switch {1} : Off'.format(channel_name,switchNumber))
+
+        return self.switch_states['d_ch{0}'.format(switchNumber)]
+
+    def getSwitchTime(self, switchNumber):
+        """ Give switching time for switch.
+
+        @param int switchNumber: number of switch
+
+        @return float: time needed for switch state change
+        """
+
+        # switch time is limited to communication speed to the device,
+        # therefore set the average communication time of 1ms as the limitation.
+
+        return 0.001
 
