@@ -49,6 +49,8 @@ class TimeTaggerFastCounter(Base, FastCounterInterface):
     _channel_sequence = ConfigOption('timetagger_channel_sequence', missing='error')
     _sum_channels = ConfigOption('timetagger_sum_channels', True, missing='warn')
 
+    _corr_obj = None
+
     def on_activate(self):
         """ Connect and configure the access to the FPGA.
         """
@@ -239,4 +241,34 @@ class TimeTaggerFastCounter(Base, FastCounterInterface):
         """ Returns the width of a single timebin in the timetrace in seconds. """
         width_in_seconds = self._bin_width * 1e-9
         return width_in_seconds
+
+    def _perform_correlation(self,channel_APD1,channel_APD2,bindwidth,datapoints):
+        """
+
+        """
+
+
+
+        self._corr_obj = tt.Correlation(self._tagger,channel_APD1,channel_APD2,bindwidth,datapoints)
+
+    def get_correlationData(self):
+        """ Returns the correlation data after a certain time period
+
+        """
+
+        if self._corr_obj is None:
+            self.log.warning('No correlation started!!')
+            return np.zeros(datapoints)
+
+        correlation_data = self._corr_obj.getData()
+
+        return correlation_data
+
+    def get_correlationDataNormalized(self):
+        """ Returns the correlation data after a certain time period
+
+        """
+        correlation_data_norm = self._corr_obj.getDataNormalized()
+
+        return correlation_data_norm
 
