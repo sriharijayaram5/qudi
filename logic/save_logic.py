@@ -130,6 +130,7 @@ class SaveLogic(GenericLogic):
     log_into_daily_directory = ConfigOption('log_into_daily_directory', False, missing='warn')
 
     sigSaveData = QtCore.Signal(object, object, object, object, object, object, object, object, object, object)
+    sigSaveFinished = QtCore.Signal(int)
 
     # Matplotlib style definition for saving plots
     mpl_qd_style = {
@@ -177,10 +178,10 @@ class SaveLogic(GenericLogic):
         # directory was not found in the config:
         if sys.platform in ('linux', 'darwin'):
             self.os_system = 'unix'
-            self.data_dir = self._unix_data_dir
+            self.data_dir = os.path.abspath(self._unix_data_dir)
         elif 'win32' in sys.platform or 'AMD64' in sys.platform:
             self.os_system = 'win'
-            self.data_dir = self._win_data_dir
+            self.data_dir = os.path.abspath(self._win_data_dir)
         else:
             raise Exception('Identify the operating system.')
 
@@ -353,6 +354,7 @@ class SaveLogic(GenericLogic):
                 except:
                     self.log.error('Casting data array of type "{0}" into numpy.ndarray failed. '
                                    'Could not save data.'.format(type(data[keyname])))
+                    self.sigSaveFinished.emit(-1)
                     return -1
 
             # determine dimensions
@@ -371,6 +373,7 @@ class SaveLogic(GenericLogic):
                     max_row_num += 1
             else:
                 self.log.error('Found data array with dimension >2. Unable to save data.')
+                self.sigSaveFinished.emit(-1)
                 return -1
 
             # determine array data types
@@ -384,6 +387,7 @@ class SaveLogic(GenericLogic):
             self.log.error('Passed data dictionary contains 1D AND 2D arrays. This is not allowed. '
                            'Either fit all data arrays into a single 2D array or pass multiple 1D '
                            'arrays only. Saving data failed!')
+            self.sigSaveFinished.emit(-1)
             return -1
 
         # try to trace back the functioncall to the class which was calling it.
@@ -421,6 +425,7 @@ class SaveLogic(GenericLogic):
             self.log.error('Length of list of format specifiers and number of data items differs. '
                            'Saving not possible. Please pass exactly as many format specifiers as '
                            'data arrays.')
+            self.sigSaveFinished.emit(-1)
             return -1
 
         # Create header string for the file
@@ -565,6 +570,8 @@ class SaveLogic(GenericLogic):
             plt.close(plotfig)
             self.log.debug('Time needed to save data: {0:.2f}s'.format(time.time()-start_time))
             #----------------------------------------------------------------------------------
+
+        self.sigSaveFinished.emit(0)
 
     def save_array_as_text(self, data, filename, filepath='', fmt='%.15e', header='',
                            delimiter='\t', comments='#', append=False):
