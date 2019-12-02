@@ -32,7 +32,6 @@ from qtpy import QtWidgets
 from qtpy import uic
 
 
-
 class CounterMainWindow(QtWidgets.QMainWindow):
 
     """ Create the Main Window based on the *.ui file. """
@@ -220,13 +219,14 @@ class CounterGui(GUIBase):
         self._mw.restore_default_view_Action.triggered.disconnect()
         self.sigStartCounter.disconnect()
         self.sigStopCounter.disconnect()
-        self._counting_logic.sigCounterUpdated.disconnect()
-        self._counting_logic.sigCountingSamplesChanged.disconnect()
-        self._counting_logic.sigCountLengthChanged.disconnect()
-        self._counting_logic.sigCountFrequencyChanged.disconnect()
-        self._counting_logic.sigSavingStatusChanged.disconnect()
-        self._counting_logic.sigCountingModeChanged.disconnect()
-        self._counting_logic.sigCountStatusChanged.disconnect()
+
+        self._counting_logic.sigCounterUpdated.disconnect(self.updateData)
+        self._counting_logic.sigCountingSamplesChanged.disconnect(self.update_oversampling_SpinBox)
+        self._counting_logic.sigCountLengthChanged.disconnect(self.update_count_length_SpinBox)
+        self._counting_logic.sigCountFrequencyChanged.disconnect(self.update_count_freq_SpinBox)
+        self._counting_logic.sigSavingStatusChanged.disconnect(self.update_saving_Action)
+        self._counting_logic.sigCountingModeChanged.disconnect(self.update_counting_mode_ComboBox)
+        self._counting_logic.sigCountStatusChanged.disconnect(self.update_count_status_Action)
 
         self._mw.close()
         return

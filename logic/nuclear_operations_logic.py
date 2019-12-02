@@ -187,6 +187,10 @@ class NuclearOperationsLogic(GenericLogic):
     def on_deactivate(self):
         """ Deactivate the module properly.
         """
+        self.sigNextMeasPoint.disconnect()
+        self.sigCurrMeasPointUpdated.disconnect()
+        self.sigMeasurementStopped.disconnect()
+        self.sigMeasStarted.disconnect()
         return
 
     def initialize_x_axis(self):

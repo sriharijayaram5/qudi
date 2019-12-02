@@ -66,7 +66,6 @@ class CounterLogic(GenericLogic):
     _count_frequency = StatusVar('count_frequency', 50)
     _saving = StatusVar('saving', False)
 
-
     def __init__(self, config, **kwargs):
         """ Create CounterLogic object with connectors.
 
@@ -137,7 +136,16 @@ class CounterLogic(GenericLogic):
         if self.module_state() == 'locked':
             self._stopCount_wait()
 
+        self.sigCounterUpdated.disconnect()
         self.sigCountDataNext.disconnect()
+        self.sigGatedCounterFinished.disconnect()
+        self.sigGatedCounterContinue.disconnect()
+        self.sigCountingSamplesChanged.disconnect()
+        self.sigCountLengthChanged.disconnect()
+        self.sigCountFrequencyChanged.disconnect()
+        self.sigSavingStatusChanged.disconnect()
+        self.sigCountStatusChanged.disconnect()
+        self.sigCountingModeChanged.disconnect()
         return
 
     def get_hardware_constraints(self):

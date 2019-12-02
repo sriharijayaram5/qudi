@@ -138,6 +138,18 @@ class OptimizerLogic(GenericLogic):
 
         @return int: error code (0:OK, -1:error)
         """
+        self._sigScanNextXyLine.disconnect()
+        self._sigScanZLine.disconnect()
+        self._sigCompletedXyOptimizerScan.disconnect()
+        self._sigDoNextOptimizationStep.disconnect()
+        self._sigFinishedAllOptimizationSteps.disconnect()
+        self.sigImageUpdated.disconnect()
+        self.sigRefocusStarted.disconnect()
+        self.sigRefocusXySizeChanged.disconnect()
+        self.sigRefocusZSizeChanged.disconnect()
+        self.sigRefocusFinished.disconnect()
+        self.sigClockFrequencyChanged.disconnect()
+        self.sigPositionChanged.disconnect()
         return 0
 
     def check_optimization_sequence(self):

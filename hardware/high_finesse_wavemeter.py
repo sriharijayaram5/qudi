@@ -46,11 +46,10 @@ class HardwarePull(QtCore.QObject):
         # remember the reference to the parent class to access functions ad settings
         self._parentclass = parentclass
 
-
     def handle_timer(self, state_change):
         """ Threaded method that can be called by a signal from outside to start the timer.
 
-        @param bool state: (True) starts timer, (False) stops it.
+        @param bool state_change: (True) starts timer, (False) stops it.
         """
 
         if state_change:
@@ -75,8 +74,7 @@ class HardwarePull(QtCore.QObject):
             self.sig_wavelength.emit(temp1, temp2)
 
 
-
-class HighFinesseWavemeter(Base,WavemeterInterface):
+class HighFinesseWavemeter(Base, WavemeterInterface):
     """ Hardware class to controls a High Finesse Wavemeter.
 
     Example config for copy-paste:
@@ -104,17 +102,15 @@ class HighFinesseWavemeter(Base,WavemeterInterface):
     _cReturnWavelangthAir        = ctypes.c_long(0x0001)
     _cReturnWavelangthVac        = ctypes.c_long(0x0000)
 
-
     def __init__(self, config, **kwargs):
         super().__init__(config=config, **kwargs)
 
-        #locking for thread safety
+        # locking for thread safety
         self.threadlock = Mutex()
 
         # the current wavelength read by the wavemeter in nm (vac)
         self._current_wavelength = 0.0
         self._current_wavelength2 = 0.0
-
 
     def on_activate(self):
         #############################################
@@ -171,7 +167,6 @@ class HighFinesseWavemeter(Base,WavemeterInterface):
         # start the event loop for the hardware
         self.hardware_thread.start()
 
-
     def on_deactivate(self):
         if self.module_state() != 'idle' and self.module_state() != 'deactivated':
             self.stop_acqusition()
@@ -184,9 +179,7 @@ class HighFinesseWavemeter(Base,WavemeterInterface):
             del self._wavemeterdll
             return 0
         except:
-            self.log.error('Could not unload the wlmData.dll of the '
-                    'wavemeter.')
-
+            self.log.error('Could not unload the wlmData.dll of the wavemeter.')
 
     #############################################
     # Methods of the main class
@@ -210,7 +203,6 @@ class HighFinesseWavemeter(Base,WavemeterInterface):
         if self.module_state() == 'running':
             self.log.error('Wavemeter busy')
             return -1
-
 
         self.module_state.run()
         # actually start the wavemeter
@@ -249,8 +241,11 @@ class HighFinesseWavemeter(Base,WavemeterInterface):
         @return float: wavelength (or negative value for errors)
         """
         if kind in "air":
-            # for air we need the convert the current wavelength. The Wavemeter DLL already gives us a nice tool do do so.
-            return float(self._wavemeterdll.ConvertUnit(self._current_wavelength,self._cReturnWavelangthVac,self._cReturnWavelangthAir))
+            # for air we need the convert the current wavelength.
+            # The Wavemeter DLL already gives us a nice tool do do so.
+            return float(self._wavemeterdll.ConvertUnit(self._current_wavelength,
+                                                        self._cReturnWavelangthVac,
+                                                        self._cReturnWavelangthAir))
         if kind in "vac":
             # for vacuum just return the current wavelength
             return float(self._current_wavelength)
@@ -264,8 +259,11 @@ class HighFinesseWavemeter(Base,WavemeterInterface):
         @return float: wavelength (or negative value for errors)
         """
         if kind in "air":
-            # for air we need the convert the current wavelength. The Wavemeter DLL already gives us a nice tool do do so.
-            return float(self._wavemeterdll.ConvertUnit(self._current_wavelength2,self._cReturnWavelangthVac,self._cReturnWavelangthAir))
+            # for air we need the convert the current wavelength.
+            # The Wavemeter DLL already gives us a nice tool do do so.
+            return float(self._wavemeterdll.ConvertUnit(self._current_wavelength2,
+                                                        self._cReturnWavelangthVac,
+                                                        self._cReturnWavelangthAir))
         if kind in "vac":
             # for vacuum just return the current wavelength
             return float(self._current_wavelength2)
@@ -287,4 +285,3 @@ class HighFinesseWavemeter(Base,WavemeterInterface):
         """
         self._measurement_timing=float(timing)
         return 0
-

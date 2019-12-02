@@ -354,6 +354,23 @@ class ConfocalLogic(GenericLogic):
         for state in reversed(self.history):
             self._statusVariables['history_{0}'.format(histindex)] = state.serialize()
             histindex += 1
+
+        self.signal_start_scanning.disconnect()
+        self.signal_continue_scanning.disconnect()
+        self.signal_stop_scanning.disconnect()
+        self.signal_scan_lines_next.disconnect()
+        self.signal_xy_image_updated.disconnect()
+        self.signal_depth_image_updated.disconnect()
+        self.signal_change_position.disconnect()
+        self.signal_xy_data_saved.disconnect()
+        self.signal_depth_data_saved.disconnect()
+        self.signal_tilt_correction_active.disconnect()
+        self.signal_tilt_correction_update.disconnect()
+        self.signal_draw_figure_completed.disconnect()
+        self.signal_position_changed.disconnect()
+        self.sigImageXYInitialized.disconnect()
+        self.sigImageDepthInitialized.disconnect()
+        self.signal_history_event.disconnect()
         return 0
 
     def switch_hardware(self, to_on=False):

@@ -22,6 +22,7 @@ top-level directory of this distribution and at <https://github.com/Ulm-IQO/qudi
 import ctypes
 import numpy as np
 import time
+import os
 from qtpy import QtCore
 
 from core.module import Base
@@ -102,7 +103,7 @@ class PicoHarp300(Base, SlowCounterInterface, FastCounterInterface):
         
     """
 
-    _deviceID = ConfigOption('deviceID', 0, missing='warn') # a device index from 0 to 7.
+    _deviceID = ConfigOption('deviceID', 0, missing='warn')  # a device index from 0 to 7.
     _mode = ConfigOption('mode', 0, missing='warn')
 
     sigReadoutPicoharp = QtCore.Signal()
@@ -118,8 +119,7 @@ class PicoHarp300(Base, SlowCounterInterface, FastCounterInterface):
         # the library can communicate with 8 devices:
         self.connected_to_device = False
 
-        #FIXME: Check which architecture the host PC is and choose the dll
-        # according to that!
+        # FIXME: Check which architecture the host PC is and choose the dll according to that!
 
         # Load the picoharp library file phlib64.dll from the folder
         # <Windows>/System32/
@@ -127,14 +127,13 @@ class PicoHarp300(Base, SlowCounterInterface, FastCounterInterface):
 
         # Just some default values:
         self._bin_width_ns = 3000
-        self._record_length_ns = 100 *1e9
+        self._record_length_ns = 100 * 1e9
 
-        self._photon_source2 = None #for compatibility reasons with second APD
+        self._photon_source2 = None # for compatibility reasons with second APD
         self._count_channel = 1
 
-        #locking for thread safety
+        # locking for thread safety
         self.threadlock = Mutex()
-
 
     def on_activate(self):
         """ Activate and establish the connection to Picohard and initialize.
@@ -143,9 +142,9 @@ class PicoHarp300(Base, SlowCounterInterface, FastCounterInterface):
         self.initialize(self._mode)
         self.calibrate()
 
-        #FIXME: These are default values determined from the measurement
+        # FIXME: These are default values determined from the measurement
         # One need still to include this in the config.
-        self.set_input_CFD(1,10,7)
+        self.set_input_CFD(1, 10, 7)
 
         # the signal has one argument of type object, which should allow
         # anything to pass through:
@@ -155,12 +154,12 @@ class PicoHarp300(Base, SlowCounterInterface, FastCounterInterface):
         self.sigAnalyzeData.connect(self.analyze_received_data, QtCore.Qt.QueuedConnection)
         self.result = []
 
-
     def on_deactivate(self):
         """ Deactivates and disconnects the device.
         """
 
         self.close_connection()
+        self.sigStart.disconnect()
         self.sigReadoutPicoharp.disconnect()
         self.sigAnalyzeData.disconnect()
 
@@ -409,7 +408,6 @@ class PicoHarp300(Base, SlowCounterInterface, FastCounterInterface):
 
         self.check(self._dll.PH_SetInputCFD(self._deviceID, channel, level, zerocross))
 
-
     def set_sync_div(self, div):
         """ Synchronize the devider of the device.
 
@@ -443,7 +441,6 @@ class PicoHarp300(Base, SlowCounterInterface, FastCounterInterface):
                 self.SYNCOFFSMIN, self.SYNCOFFSMAX, offset))
         else:
             self.check(self._dll.PH_SetSyncOffset(self._deviceID, offset))
-
 
     def set_stop_overflow(self, stop_ovfl, stopcount):
         """ Stop the measurement if maximal amount of counts is reached.
@@ -792,7 +789,7 @@ class PicoHarp300(Base, SlowCounterInterface, FastCounterInterface):
         self.check(self._dll.PH_SetMarkerEnable(self._deviceID, me0,
                                                 me1, me2, me3))
 
-    def tttr_set_marker_holdofftime(self, holfofftime):
+    def tttr_set_marker_holdofftime(self, holdofftime):
         """ Set the holdofftime for the markers.
 
         @param int holdofftime: holdofftime in ns. Maximal value is HOLDOFFMAX.
@@ -800,8 +797,8 @@ class PicoHarp300(Base, SlowCounterInterface, FastCounterInterface):
         This setting can be used to clean up glitches on the marker signals.
         When set to X ns then after detecting a first marker edge the next
         marker will not be accepted before x ns. Observe that the internal
-        granularity of this time is only about 50ns. The holdoff time is set
-        equally for all marker inputs but the holdoff logic acts on each
+        granularity of this time is only about 50ns. The holdofftime time is set
+        equally for all marker inputs but the holdofftime logic acts on each
         marker independently.
         """
 
@@ -809,9 +806,9 @@ class PicoHarp300(Base, SlowCounterInterface, FastCounterInterface):
             self.log.error('PicoHarp: Holdofftime could not be set.\n'
                            'Value of holdofftime must be within the range '
                            '[0,{0}], but a value of {1} was passed.'
-                           ''.format(self.HOLDOFFMAX, holfofftime))
+                           ''.format(self.HOLDOFFMAX, holdofftime))
         else:
-            self.check(self._dll.PH_SetMarkerHoldofftime(self._deviceID, holfofftime))
+            self.check(self._dll.PH_SetMarkerHoldofftime(self._deviceID, holdofftime))
 
     # =========================================================================
     #  Special functions for Routing Devices
@@ -955,7 +952,6 @@ class PicoHarp300(Base, SlowCounterInterface, FastCounterInterface):
     #  Higher Level function, which should be called directly from Logic
     # =========================================================================
 
-
     # =========================================================================
     #  Functions for the SlowCounter Interface
     # =========================================================================
@@ -985,7 +981,7 @@ class PicoHarp300(Base, SlowCounterInterface, FastCounterInterface):
         return 0
 
     def set_up_counter(self, counter_channels=1, sources=None,
-                       clock_channel = None):
+                       clock_channel=None):
         """ Ensure Interface compatibility. The counter allows no set up.
 
         @param string counter_channel: Set the actual channel which you want to
@@ -1020,7 +1016,7 @@ class PicoHarp300(Base, SlowCounterInterface, FastCounterInterface):
         constraints.max_detectors = 1
         constraints.min_count_frequency = 1e-3
         constraints.max_count_frequency = 10e9
-        conetraints.counting_mode = [CountingMode.CONTINUOUS]
+        constraints.counting_mode = [CountingMode.CONTINUOUS]
         return constraints
 
     def get_counter(self, samples=None):
@@ -1055,7 +1051,7 @@ class PicoHarp300(Base, SlowCounterInterface, FastCounterInterface):
     #  Functions for the FastCounter Interface
     # =========================================================================
 
-    #FIXME: The interface connection to the fast counter must be established!
+    # FIXME: The interface connection to the fast counter must be established!
 
     def configure(self, bin_width_ns, record_length_ns, number_of_gates = 0):
         """
@@ -1099,7 +1095,6 @@ class PicoHarp300(Base, SlowCounterInterface, FastCounterInterface):
                 return 2
             else:
                 return 1
-
 
     def pause_measure(self):
         """
@@ -1150,7 +1145,6 @@ class PicoHarp300(Base, SlowCounterInterface, FastCounterInterface):
     #  Test routine for continuous readout
     # =========================================================================
 
-
     def start_measure(self):
         """
         Starts the fast counter.
@@ -1167,7 +1161,6 @@ class PicoHarp300(Base, SlowCounterInterface, FastCounterInterface):
     def stop_measure(self):
         """ By setting the Flag, the measurement should stop.  """
         self.meas_run = False
-
 
     def get_fresh_data_loop(self):
         """ This method will be run infinitely until the measurement stops. """
@@ -1188,8 +1181,6 @@ class PicoHarp300(Base, SlowCounterInterface, FastCounterInterface):
         print('get new data.')
         # get the next data:
         self.sigReadoutPicoharp.emit()
-
-
 
     def analyze_received_data(self, arr_data, actual_counts):
         """ Analyze the actual data obtained from the TTTR mode of the device.

@@ -156,6 +156,11 @@ class ODMRLogic(GenericLogic):
         self._mw_device.off()
         # Disconnect signals
         self.sigNextLine.disconnect()
+        self.sigParameterUpdated.disconnect()
+        self.sigOutputStateUpdated.disconnect()
+        self.sigOdmrPlotsUpdated.disconnect()
+        self.sigOdmrFitUpdated.disconnect()
+        self.sigOdmrElapsedTimeUpdated.disconnect()
 
     @fc.constructor
     def sv_set_fits(self, val):

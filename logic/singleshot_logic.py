@@ -96,13 +96,16 @@ class SingleShotLogic(GenericLogic):
         self.trace = None
         self.sigMeasurementFinished.connect(self.ssr_measurement_analysis)
 
-
     def on_deactivate(self):
         """ Deinitialisation performed during deactivation of the module.
 
         @param object e: Event class object from Fysom. A more detailed
                          explanation can be found in method activation.
         """
+
+        self.sigHistogramUpdated.disconnect()
+        self.sigMeasurementFinished.disconnect()
+        self.sigTraceUpdated.disconnect()
         return
 
     # =========================================================================
