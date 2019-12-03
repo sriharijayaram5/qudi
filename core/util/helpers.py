@@ -31,6 +31,7 @@ import atexit
 import importlib
 import logging
 import numpy as np
+from qtpy import QtCore
 
 # use setuptools parse_version if available and use distutils LooseVersion as
 # fallback
@@ -101,6 +102,16 @@ def exit(exitcode=0):
         close_fd(fd_set)
 
     os._exit(exitcode)
+
+
+def disconnect_signals(signal, slot=None):
+    if isinstance(signal, QtCore.pyqtBoundSignal):
+        try:
+            signal.disconnect(slot)
+        except TypeError:
+            print('Warning: disconnect failed for signal "{0}" and slot "{1}"'.format(signal, slot), file=sys.stderr)
+    else:
+        print('Warning: signal "{0}" your trying to disconnect is not a type signal'.format(signal), file=sys.stderr)
 
 
 def close_fd(fd_set):

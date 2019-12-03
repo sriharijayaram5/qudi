@@ -24,6 +24,7 @@ import numpy as np
 import os
 import pyqtgraph as pg
 
+from core.util.helpers import disconnect_signals
 from core.connector import Connector
 from gui.colordefs import QudiPalettePale as palette
 from gui.guibase import GUIBase
@@ -217,16 +218,16 @@ class CounterGui(GUIBase):
         self._mw.trace_3_checkbox.stateChanged.disconnect()
         self._mw.trace_4_checkbox.stateChanged.disconnect()
         self._mw.restore_default_view_Action.triggered.disconnect()
-        self.sigStartCounter.disconnect()
-        self.sigStopCounter.disconnect()
 
-        self._counting_logic.sigCounterUpdated.disconnect(self.updateData)
-        self._counting_logic.sigCountingSamplesChanged.disconnect(self.update_oversampling_SpinBox)
-        self._counting_logic.sigCountLengthChanged.disconnect(self.update_count_length_SpinBox)
-        self._counting_logic.sigCountFrequencyChanged.disconnect(self.update_count_freq_SpinBox)
-        self._counting_logic.sigSavingStatusChanged.disconnect(self.update_saving_Action)
-        self._counting_logic.sigCountingModeChanged.disconnect(self.update_counting_mode_ComboBox)
-        self._counting_logic.sigCountStatusChanged.disconnect(self.update_count_status_Action)
+        disconnect_signals(self.sigStartCounter)
+        disconnect_signals(self.sigStopCounter)
+        disconnect_signals(self._counting_logic.sigCounterUpdated, self.updateData)
+        disconnect_signals(self._counting_logic.sigCountingSamplesChanged, self.update_oversampling_SpinBox)
+        disconnect_signals(self._counting_logic.sigCountLengthChanged, self.update_count_length_SpinBox)
+        disconnect_signals(self._counting_logic.sigCountFrequencyChanged, self.update_count_freq_SpinBox)
+        disconnect_signals(self._counting_logic.sigSavingStatusChanged, self.update_saving_Action)
+        disconnect_signals(self._counting_logic.sigCountingModeChanged, self.update_counting_mode_ComboBox)
+        disconnect_signals(self._counting_logic.sigCountStatusChanged, self.update_count_status_Action)
 
         self._mw.close()
         return

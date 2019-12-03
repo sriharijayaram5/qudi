@@ -25,6 +25,7 @@ import numpy as np
 import time
 import matplotlib.pyplot as plt
 
+from core.util.helpers import disconnect_signals
 from core.connector import Connector
 from core.statusvariable import StatusVar
 from logic.generic_logic import GenericLogic
@@ -136,16 +137,16 @@ class CounterLogic(GenericLogic):
         if self.module_state() == 'locked':
             self._stopCount_wait()
 
-        self.sigCounterUpdated.disconnect()
-        self.sigCountDataNext.disconnect()
-        self.sigGatedCounterFinished.disconnect()
-        self.sigGatedCounterContinue.disconnect()
-        self.sigCountingSamplesChanged.disconnect()
-        self.sigCountLengthChanged.disconnect()
-        self.sigCountFrequencyChanged.disconnect()
-        self.sigSavingStatusChanged.disconnect()
-        self.sigCountStatusChanged.disconnect()
-        self.sigCountingModeChanged.disconnect()
+        disconnect_signals(self.sigCounterUpdated)
+        disconnect_signals(self.sigCountDataNext)
+        disconnect_signals(self.sigGatedCounterFinished)
+        disconnect_signals(self.sigGatedCounterContinue)
+        disconnect_signals(self.sigCountingSamplesChanged)
+        disconnect_signals(self.sigCountLengthChanged)
+        disconnect_signals(self.sigCountFrequencyChanged)
+        disconnect_signals(self.sigSavingStatusChanged)
+        disconnect_signals(self.sigCountStatusChanged)
+        disconnect_signals(self.sigCountingModeChanged)
         return
 
     def get_hardware_constraints(self):
