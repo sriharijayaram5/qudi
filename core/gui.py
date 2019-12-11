@@ -19,39 +19,78 @@ Copyright (c) the Qudi Developers. See the COPYRIGHT.txt file at the
 top-level directory of this distribution and at <https://github.com/Ulm-IQO/qudi/>
 """
 
+import os
 import platform
-from qtpy.QtCore import QObject
-from qtpy.QtWidgets import QApplication
-from qtpy.QtGui import QIcon
-from qtpy.QtCore import QSize
+from qtpy import QtCore, QtGui, QtWidgets
 
 
-class Gui(QObject):
+class SystemTrayIcon(QtWidgets.QSystemTrayIcon):
+    """Tray icon class subclassing QSystemTrayIcon for custom functionality.
+    """
+    def __init__(self, artwork_dir):
+        """Tray icon constructor.
+        Adds all the appropriate menus and actions.
+        """
+        QtWidgets.QSystemTrayIcon.__init__(self)
+        self.setIcon(QtWidgets.QApplication.instance().windowIcon())
+        self.right_menu = QtWidgets.QMenu('Quit')
+        self.left_menu = QtWidgets.QMenu('Manager')
+        iconpath = os.path.join(artwork_dir, 'icons', 'oxygen', '22x22')
+        self.managericon = QtGui.QIcon()
+        self.managericon.addFile(os.path.join(iconpath, 'go-home.png'), QtCore.QSize(16, 16))
+        self.exiticon = QtGui.QIcon()
+        self.exiticon.addFile(os.path.join(iconpath, 'application-exit.png'), QtCore.QSize(16, 16))
+        self.quitAction = QtWidgets.QAction(self.exiticon, 'Quit', self.right_menu)
+        self.managerAction = QtWidgets.QAction(self.managericon, 'Manager', self.left_menu)
+        self.left_menu.addAction(self.managerAction)
+        self.right_menu.addAction(self.quitAction)
+        self.setContextMenu(self.right_menu)
+        self.activated.connect(self.handle_activation)
+
+    @QtCore.Slot(QtWidgets.QSystemTrayIcon.ActivationReason)
+    def handle_activation(self, reason):
+        """ Click handler.
+        This method is called when the tray icon is left-clicked.
+        It opens a menu at the position of the left click.
+
+        @param reason: reason that caused the activation
+        """
+        if reason == self.Trigger:
+            self.left_menu.exec_(QtGui.QCursor.pos())
+
+
+class Gui(QtCore.QObject):
     """ Set up all necessary GUI elements, like application icons, themes, etc.
     """
 
-    def __init__(self):
+    def __init__(self, artwork_dir):
         super().__init__()
-        QApplication.instance().setQuitOnLastWindowClosed(False)
+        QtWidgets.QApplication.instance().setQuitOnLastWindowClosed(False)
+
+        self._artwork_dir = artwork_dir
+
+        self.setAppIcon()
+
+        self.system_tray_icon = SystemTrayIcon(artwork_dir)
+        self.show_system_tray_icon()
 
     def setAppIcon(self):
         """ Set up the Qudi application icon.
         """
-        iconpath = 'artwork/logo/logo-qudi-'
-        self.appIcon = QIcon()
-        self.appIcon.addFile('{0}16x16.png'.format(iconpath), QSize(16, 16))
-        self.appIcon.addFile('{0}24x24.png'.format(iconpath), QSize(24, 24))
-        self.appIcon.addFile('{0}32x32.png'.format(iconpath), QSize(32, 32))
-        self.appIcon.addFile('{0}48x48.png'.format(iconpath), QSize(48, 48))
-        self.appIcon.addFile('{0}256x256.png'.format(iconpath),
-                             QSize(256, 256))
-        QApplication.instance().setWindowIcon(self.appIcon)
+        iconpath = os.path.join(self._artwork_dir, 'logo')
+        self.appIcon = QtGui.QIcon()
+        self.appIcon.addFile(os.path.join(iconpath, 'logo-qudi-16x16.png'), QtCore.QSize(16, 16))
+        self.appIcon.addFile(os.path.join(iconpath, 'logo-qudi-24x24.png'), QtCore.QSize(24, 24))
+        self.appIcon.addFile(os.path.join(iconpath, 'logo-qudi-32x32.png'), QtCore.QSize(32, 32))
+        self.appIcon.addFile(os.path.join(iconpath, 'logo-qudi-48x48.png'), QtCore.QSize(48, 48))
+        self.appIcon.addFile(
+            os.path.join(iconpath, 'logo-qudi-256x256.png'), QtCore.QSize(256, 256))
+        QtWidgets.QApplication.instance().setWindowIcon(self.appIcon)
 
-    def setTheme(self, theme, path):
+    def setTheme(self, theme):
         """ Set icon theme for qudi app.
             
             @param str theme: Qudi theme name
-            @param str path: search path for qudi icons
         """
         # Make icons work on non-X11 platforms, set custom theme
         # if not sys.platform.startswith('linux') and not sys.platform.startswith('freebsd'):
@@ -59,10 +98,10 @@ class Gui(QObject):
         # To enable the use of custom action icons, for now the above if statement has been
         # removed and the QT theme is being set to our artwork/icons folder for
         # all OSs.
-        themepaths = QIcon.themeSearchPaths()
-        themepaths.append(path)
-        QIcon.setThemeSearchPaths(themepaths)
-        QIcon.setThemeName(theme)
+        themepaths = QtGui.QIcon.themeSearchPaths()
+        themepaths.append(os.path.join(self._artwork_dir, 'icons'))
+        QtGui.QIcon.setThemeSearchPaths(themepaths)
+        QtGui.QIcon.setThemeName(theme)
 
     def setStyleSheet(self, stylesheetpath):
         """ Set qss style sheet for application.
@@ -83,9 +122,44 @@ class Gui(QObject):
             }
             '''
             stylesheet += mac_fix
-        QApplication.instance().setStyleSheet(stylesheet)
+        QtWidgets.QApplication.instance().setStyleSheet(stylesheet)
 
     def closeWindows(self):
         """ Close all application windows.
         """
-        QApplication.instance().closeAllWindows()
+        QtWidgets.QApplication.instance().closeAllWindows()
+
+    def show_system_tray_icon(self):
+        """ Show system tray icon
+        """
+        self.system_tray_icon.show()
+
+    def hide_system_tray_icon(self):
+        """ Hide system tray icon
+        """
+        self.system_tray_icon.hide()
+
+    def close_system_tray_icon(self):
+        """
+        Kill and delete system tray icon. Tray icon will be lost until Gui.__init__ is called again.
+        """
+        self.hide_system_tray_icon()
+        self.system_tray_icon.quitAction.disconnect()
+        self.system_tray_icon.managerAction.disconnect()
+        self.system_tray_icon = None
+
+    def system_tray_notification_bubble(self, title, message, time=None, icon=None):
+        """
+        Helper method to invoke balloon messages in the system tray by calling
+        QSystemTrayIcon.showMessage.
+
+        @param str title: The notification title of the balloon
+        @param str message: The message to be shown in the balloon
+        @param float time: optional, The lingering time of the balloon in seconds
+        @param QIcon icon: optional, an icon to be used in the balloon. "None" will use OS default.
+        """
+        if icon is None:
+            icon = QtGui.QIcon()
+        if time is None:
+            time = 15
+        self.system_tray_icon.showMessage(title, message, icon, int(round(time * 1000)))
