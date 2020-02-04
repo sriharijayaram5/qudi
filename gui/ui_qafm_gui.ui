@@ -1,0 +1,1058 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>MainWindow</class>
+ <widget class="QMainWindow" name="MainWindow">
+  <property name="enabled">
+   <bool>true</bool>
+  </property>
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>966</width>
+    <height>739</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>ProteusQ</string>
+  </property>
+  <widget class="QWidget" name="centralwidget">
+   <property name="enabled">
+    <bool>true</bool>
+   </property>
+  </widget>
+  <widget class="QMenuBar" name="menubar">
+   <property name="geometry">
+    <rect>
+     <x>0</x>
+     <y>0</y>
+     <width>966</width>
+     <height>21</height>
+    </rect>
+   </property>
+   <widget class="QMenu" name="menuMenu">
+    <property name="title">
+     <string>Menu</string>
+    </property>
+    <addaction name="action_curr_pos_to_target"/>
+   </widget>
+   <widget class="QMenu" name="menuView">
+    <property name="title">
+     <string>View</string>
+    </property>
+    <addaction name="actionDefault_Display"/>
+    <addaction name="actionSplit_Display"/>
+    <addaction name="actionCombine_Display"/>
+    <addaction name="actionSave_Display"/>
+    <addaction name="actionLoad_Display"/>
+   </widget>
+   <widget class="QMenu" name="menuSettings">
+    <property name="title">
+     <string>Settings</string>
+    </property>
+    <addaction name="action_optimizer_settings"/>
+   </widget>
+   <widget class="QMenu" name="menuMeasurements">
+    <property name="title">
+     <string>Measurements</string>
+    </property>
+    <addaction name="action_Quantitative_Measure"/>
+   </widget>
+   <addaction name="menuMenu"/>
+   <addaction name="menuView"/>
+   <addaction name="menuMeasurements"/>
+   <addaction name="menuSettings"/>
+  </widget>
+  <widget class="QStatusBar" name="statusbar"/>
+  <widget class="QDockWidget" name="dockWidget_objective">
+   <property name="sizePolicy">
+    <sizepolicy hsizetype="Fixed" vsizetype="Preferred">
+     <horstretch>0</horstretch>
+     <verstretch>0</verstretch>
+    </sizepolicy>
+   </property>
+   <property name="minimumSize">
+    <size>
+     <width>260</width>
+     <height>467</height>
+    </size>
+   </property>
+   <property name="maximumSize">
+    <size>
+     <width>260</width>
+     <height>524287</height>
+    </size>
+   </property>
+   <property name="layoutDirection">
+    <enum>Qt::LeftToRight</enum>
+   </property>
+   <property name="windowTitle">
+    <string>Objective Parameters</string>
+   </property>
+   <attribute name="dockWidgetArea">
+    <number>1</number>
+   </attribute>
+   <widget class="QWidget" name="dockWidgetContents">
+    <property name="layoutDirection">
+     <enum>Qt::LeftToRight</enum>
+    </property>
+    <layout class="QGridLayout" name="gridLayout">
+     <property name="sizeConstraint">
+      <enum>QLayout::SetMinimumSize</enum>
+     </property>
+     <item row="4" column="0" colspan="2">
+      <widget class="QGroupBox" name="groupBox">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <property name="title">
+        <string>Objective Scan Parameter</string>
+       </property>
+       <layout class="QGridLayout" name="gridLayout_2">
+        <item row="3" column="0">
+         <widget class="QLabel" name="label_3">
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+          <property name="text">
+           <string>Z</string>
+          </property>
+         </widget>
+        </item>
+        <item row="0" column="3">
+         <widget class="QLabel" name="label_4">
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+          <property name="text">
+           <string>Points</string>
+          </property>
+         </widget>
+        </item>
+        <item row="1" column="1">
+         <widget class="ScienDSpinBox" name="obj_x_min_DSpinBox">
+          <property name="minimumSize">
+           <size>
+            <width>70</width>
+            <height>0</height>
+           </size>
+          </property>
+         </widget>
+        </item>
+        <item row="1" column="0">
+         <widget class="QLabel" name="label">
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+          <property name="minimumSize">
+           <size>
+            <width>0</width>
+            <height>0</height>
+           </size>
+          </property>
+          <property name="text">
+           <string>X</string>
+          </property>
+         </widget>
+        </item>
+        <item row="2" column="0">
+         <widget class="QLabel" name="label_2">
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+          <property name="text">
+           <string>Y</string>
+          </property>
+         </widget>
+        </item>
+        <item row="1" column="2">
+         <widget class="ScienDSpinBox" name="obj_x_max_DSpinBox">
+          <property name="minimumSize">
+           <size>
+            <width>70</width>
+            <height>0</height>
+           </size>
+          </property>
+         </widget>
+        </item>
+        <item row="0" column="1" colspan="2">
+         <widget class="QLabel" name="label_5">
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+          <property name="text">
+           <string>Range</string>
+          </property>
+          <property name="alignment">
+           <set>Qt::AlignCenter</set>
+          </property>
+         </widget>
+        </item>
+        <item row="1" column="3">
+         <widget class="ScienSpinBox" name="obj_x_num_SpinBox">
+          <property name="minimumSize">
+           <size>
+            <width>50</width>
+            <height>0</height>
+           </size>
+          </property>
+          <property name="minimum">
+           <number>30</number>
+          </property>
+          <property name="maximum">
+           <number>10000</number>
+          </property>
+         </widget>
+        </item>
+        <item row="2" column="1">
+         <widget class="ScienDSpinBox" name="obj_y_min_DSpinBox"/>
+        </item>
+        <item row="2" column="2">
+         <widget class="ScienDSpinBox" name="obj_y_max_DSpinBox"/>
+        </item>
+        <item row="3" column="1">
+         <widget class="ScienDSpinBox" name="obj_z_min_DSpinBox"/>
+        </item>
+        <item row="3" column="2">
+         <widget class="ScienDSpinBox" name="obj_z_max_DSpinBox"/>
+        </item>
+        <item row="2" column="3">
+         <widget class="ScienSpinBox" name="obj_y_num_SpinBox">
+          <property name="minimum">
+           <number>30</number>
+          </property>
+          <property name="maximum">
+           <number>10000</number>
+          </property>
+         </widget>
+        </item>
+        <item row="3" column="3">
+         <widget class="ScienSpinBox" name="obj_z_num_SpinBox">
+          <property name="minimum">
+           <number>100</number>
+          </property>
+          <property name="maximum">
+           <number>10000</number>
+          </property>
+         </widget>
+        </item>
+       </layout>
+      </widget>
+     </item>
+     <item row="5" column="0" colspan="2">
+      <widget class="QGroupBox" name="groupBox_2">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <property name="title">
+        <string>Current Objective Position</string>
+       </property>
+       <property name="checkable">
+        <bool>false</bool>
+       </property>
+       <layout class="QGridLayout" name="gridLayout_3">
+        <item row="0" column="0">
+         <widget class="QLabel" name="label_6">
+          <property name="text">
+           <string>X</string>
+          </property>
+         </widget>
+        </item>
+        <item row="0" column="2">
+         <widget class="QLabel" name="label_8">
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+          <property name="text">
+           <string>Z</string>
+          </property>
+         </widget>
+        </item>
+        <item row="0" column="1">
+         <widget class="QLabel" name="label_7">
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+          <property name="text">
+           <string>Y</string>
+          </property>
+         </widget>
+        </item>
+        <item row="1" column="1">
+         <widget class="ScienDSpinBox" name="obj_cur_y_DSpinBox">
+          <property name="readOnly">
+           <bool>true</bool>
+          </property>
+          <property name="buttonSymbols">
+           <enum>QAbstractSpinBox::NoButtons</enum>
+          </property>
+         </widget>
+        </item>
+        <item row="1" column="0">
+         <widget class="ScienDSpinBox" name="obj_cur_x_DSpinBox">
+          <property name="readOnly">
+           <bool>true</bool>
+          </property>
+          <property name="buttonSymbols">
+           <enum>QAbstractSpinBox::NoButtons</enum>
+          </property>
+         </widget>
+        </item>
+        <item row="1" column="2">
+         <widget class="ScienDSpinBox" name="obj_cur_z_DSpinBox">
+          <property name="readOnly">
+           <bool>true</bool>
+          </property>
+          <property name="buttonSymbols">
+           <enum>QAbstractSpinBox::NoButtons</enum>
+          </property>
+         </widget>
+        </item>
+       </layout>
+      </widget>
+     </item>
+     <item row="6" column="0" colspan="2">
+      <widget class="QGroupBox" name="groupBox_3">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <property name="title">
+        <string>Target Objective Position</string>
+       </property>
+       <layout class="QGridLayout" name="gridLayout_4">
+        <item row="0" column="0">
+         <widget class="QLabel" name="label_9">
+          <property name="text">
+           <string>X</string>
+          </property>
+         </widget>
+        </item>
+        <item row="0" column="2">
+         <widget class="QLabel" name="label_11">
+          <property name="text">
+           <string>Z</string>
+          </property>
+         </widget>
+        </item>
+        <item row="0" column="1">
+         <widget class="QLabel" name="label_10">
+          <property name="text">
+           <string>Y</string>
+          </property>
+         </widget>
+        </item>
+        <item row="1" column="0">
+         <widget class="ScienDSpinBox" name="obj_target_x_DSpinBox">
+          <property name="decimals">
+           <number>2</number>
+          </property>
+          <property name="value">
+           <double>0.000000000000000</double>
+          </property>
+         </widget>
+        </item>
+        <item row="1" column="1">
+         <widget class="ScienDSpinBox" name="obj_target_y_DSpinBox"/>
+        </item>
+        <item row="1" column="2">
+         <widget class="ScienDSpinBox" name="obj_target_z_DSpinBox"/>
+        </item>
+       </layout>
+      </widget>
+     </item>
+     <item row="0" column="0" colspan="2">
+      <widget class="QGroupBox" name="groupBox_7">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <property name="title">
+        <string>Save Tag Objective Data</string>
+       </property>
+       <layout class="QGridLayout" name="gridLayout_9">
+        <item row="1" column="1">
+         <widget class="QCheckBox" name="save_obj_xz_CheckBox">
+          <property name="text">
+           <string>XZ Scan</string>
+          </property>
+         </widget>
+        </item>
+        <item row="0" column="0" colspan="3">
+         <widget class="QLineEdit" name="obj_save_LineEdit"/>
+        </item>
+        <item row="1" column="2">
+         <widget class="QCheckBox" name="save_obj_yz_CheckBox">
+          <property name="text">
+           <string>YZ Scan</string>
+          </property>
+         </widget>
+        </item>
+        <item row="1" column="0">
+         <widget class="QCheckBox" name="save_obj_xy_CheckBox">
+          <property name="text">
+           <string>XY Scan</string>
+          </property>
+         </widget>
+        </item>
+       </layout>
+      </widget>
+     </item>
+    </layout>
+   </widget>
+  </widget>
+  <widget class="QDockWidget" name="dockWidget_afm">
+   <property name="sizePolicy">
+    <sizepolicy hsizetype="Fixed" vsizetype="Preferred">
+     <horstretch>0</horstretch>
+     <verstretch>0</verstretch>
+    </sizepolicy>
+   </property>
+   <property name="windowTitle">
+    <string>AFM Parameters</string>
+   </property>
+   <attribute name="dockWidgetArea">
+    <number>2</number>
+   </attribute>
+   <widget class="QWidget" name="dockWidgetContents_2">
+    <layout class="QGridLayout" name="gridLayout_5">
+     <item row="1" column="0">
+      <widget class="QGroupBox" name="groupBox_4">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <property name="title">
+        <string/>
+       </property>
+       <layout class="QGridLayout" name="gridLayout_6">
+        <item row="1" column="0">
+         <widget class="QLabel" name="label_12">
+          <property name="text">
+           <string>X</string>
+          </property>
+         </widget>
+        </item>
+        <item row="2" column="0">
+         <widget class="QLabel" name="label_13">
+          <property name="text">
+           <string>Y</string>
+          </property>
+         </widget>
+        </item>
+        <item row="2" column="1">
+         <widget class="ScienDSpinBox" name="afm_y_min_DSpinBox">
+          <property name="minimumSize">
+           <size>
+            <width>70</width>
+            <height>0</height>
+           </size>
+          </property>
+         </widget>
+        </item>
+        <item row="1" column="1">
+         <widget class="ScienDSpinBox" name="afm_x_min_DSpinBox">
+          <property name="minimumSize">
+           <size>
+            <width>70</width>
+            <height>0</height>
+           </size>
+          </property>
+         </widget>
+        </item>
+        <item row="1" column="2">
+         <widget class="ScienDSpinBox" name="afm_x_max_DSpinBox">
+          <property name="minimumSize">
+           <size>
+            <width>70</width>
+            <height>0</height>
+           </size>
+          </property>
+          <property name="value">
+           <double>1.000000000000000</double>
+          </property>
+         </widget>
+        </item>
+        <item row="2" column="2">
+         <widget class="ScienDSpinBox" name="afm_y_max_DSpinBox">
+          <property name="minimumSize">
+           <size>
+            <width>70</width>
+            <height>0</height>
+           </size>
+          </property>
+          <property name="value">
+           <double>1.000000000000000</double>
+          </property>
+         </widget>
+        </item>
+        <item row="1" column="3">
+         <widget class="ScienSpinBox" name="afm_x_num_SpinBox">
+          <property name="minimumSize">
+           <size>
+            <width>50</width>
+            <height>0</height>
+           </size>
+          </property>
+          <property name="minimum">
+           <number>2</number>
+          </property>
+          <property name="maximum">
+           <number>10000</number>
+          </property>
+          <property name="value">
+           <number>20</number>
+          </property>
+         </widget>
+        </item>
+        <item row="2" column="3">
+         <widget class="ScienSpinBox" name="afm_y_num_SpinBox">
+          <property name="minimumSize">
+           <size>
+            <width>50</width>
+            <height>0</height>
+           </size>
+          </property>
+          <property name="minimum">
+           <number>2</number>
+          </property>
+          <property name="maximum">
+           <number>10000</number>
+          </property>
+          <property name="value">
+           <number>20</number>
+          </property>
+         </widget>
+        </item>
+        <item row="0" column="1" colspan="2">
+         <widget class="QLabel" name="label_14">
+          <property name="text">
+           <string>Range</string>
+          </property>
+          <property name="alignment">
+           <set>Qt::AlignCenter</set>
+          </property>
+         </widget>
+        </item>
+        <item row="0" column="3">
+         <widget class="QLabel" name="label_15">
+          <property name="text">
+           <string>Points</string>
+          </property>
+         </widget>
+        </item>
+       </layout>
+      </widget>
+     </item>
+     <item row="4" column="0">
+      <widget class="QGroupBox" name="scan_param_groupBox">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <property name="title">
+        <string>Scan Parameter</string>
+       </property>
+       <layout class="QGridLayout" name="gridLayout_scan_params"/>
+      </widget>
+     </item>
+     <item row="2" column="0">
+      <widget class="QGroupBox" name="groupBox_5">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <property name="title">
+        <string>Current AFM Position</string>
+       </property>
+       <layout class="QGridLayout" name="gridLayout_7">
+        <item row="1" column="1">
+         <widget class="ScienDSpinBox" name="afm_curr_y_DSpinBox">
+          <property name="readOnly">
+           <bool>true</bool>
+          </property>
+          <property name="buttonSymbols">
+           <enum>QAbstractSpinBox::NoButtons</enum>
+          </property>
+         </widget>
+        </item>
+        <item row="1" column="0">
+         <widget class="ScienDSpinBox" name="afm_curr_x_DSpinBox">
+          <property name="readOnly">
+           <bool>true</bool>
+          </property>
+          <property name="buttonSymbols">
+           <enum>QAbstractSpinBox::NoButtons</enum>
+          </property>
+         </widget>
+        </item>
+        <item row="0" column="1">
+         <widget class="QLabel" name="label_17">
+          <property name="text">
+           <string>Y</string>
+          </property>
+         </widget>
+        </item>
+        <item row="0" column="0">
+         <widget class="QLabel" name="label_16">
+          <property name="text">
+           <string>X</string>
+          </property>
+         </widget>
+        </item>
+       </layout>
+      </widget>
+     </item>
+     <item row="3" column="0">
+      <widget class="QGroupBox" name="groupBox_6">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <property name="title">
+        <string>Target AFM Position</string>
+       </property>
+       <layout class="QGridLayout" name="gridLayout_8">
+        <item row="0" column="1">
+         <widget class="QLabel" name="label_19">
+          <property name="text">
+           <string>Y</string>
+          </property>
+         </widget>
+        </item>
+        <item row="0" column="0">
+         <widget class="QLabel" name="label_18">
+          <property name="text">
+           <string>X</string>
+          </property>
+         </widget>
+        </item>
+        <item row="1" column="0">
+         <widget class="ScienDSpinBox" name="afm_target_x_DSpinBox"/>
+        </item>
+        <item row="1" column="1">
+         <widget class="ScienDSpinBox" name="afm_target_y_DSpinBox"/>
+        </item>
+       </layout>
+      </widget>
+     </item>
+     <item row="0" column="0">
+      <widget class="QGroupBox" name="groupBox_8">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <property name="title">
+        <string>Save Tag AFM Data</string>
+       </property>
+       <layout class="QGridLayout" name="gridLayout_10">
+        <item row="2" column="0">
+         <widget class="QLineEdit" name="probename_LineEdit">
+          <property name="toolTip">
+           <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Type here the name of the Quantilever (also known as the probe) for the ProteusQ.&lt;br/&gt;The data will be saved into this folder.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+          </property>
+         </widget>
+        </item>
+        <item row="1" column="1">
+         <widget class="QLabel" name="label_21">
+          <property name="text">
+           <string>Samplename</string>
+          </property>
+         </widget>
+        </item>
+        <item row="1" column="0">
+         <widget class="QLabel" name="label_20">
+          <property name="text">
+           <string>Probename</string>
+          </property>
+         </widget>
+        </item>
+        <item row="2" column="1">
+         <widget class="QLineEdit" name="samplename_LineEdit">
+          <property name="toolTip">
+           <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Type here the name of the Sample, which is investigated wit the ProteusQ.&lt;br/&gt;The data will be saved into this folder.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+          </property>
+         </widget>
+        </item>
+        <item row="2" column="2">
+         <widget class="QCheckBox" name="daily_folder_CheckBox">
+          <property name="toolTip">
+           <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Indicate, whether you what to save the measurements in a daily folder.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+          </property>
+          <property name="layoutDirection">
+           <enum>Qt::LeftToRight</enum>
+          </property>
+          <property name="autoFillBackground">
+           <bool>false</bool>
+          </property>
+          <property name="text">
+           <string/>
+          </property>
+         </widget>
+        </item>
+        <item row="0" column="0" colspan="3">
+         <widget class="QLineEdit" name="qafm_save_LineEdit"/>
+        </item>
+        <item row="1" column="2">
+         <widget class="QLabel" name="label_22">
+          <property name="text">
+           <string>Daily folder</string>
+          </property>
+         </widget>
+        </item>
+       </layout>
+      </widget>
+     </item>
+    </layout>
+   </widget>
+  </widget>
+  <widget class="QToolBar" name="toolBar">
+   <property name="windowTitle">
+    <string>toolBar</string>
+   </property>
+   <property name="iconSize">
+    <size>
+     <width>28</width>
+     <height>30</height>
+    </size>
+   </property>
+   <attribute name="toolBarArea">
+    <enum>TopToolBarArea</enum>
+   </attribute>
+   <attribute name="toolBarBreak">
+    <bool>false</bool>
+   </attribute>
+   <addaction name="actionOptimize_Pos"/>
+   <addaction name="actionSaveOptiData"/>
+  </widget>
+  <widget class="QToolBar" name="toolBar_2">
+   <property name="windowTitle">
+    <string>toolBar_2</string>
+   </property>
+   <property name="iconSize">
+    <size>
+     <width>26</width>
+     <height>28</height>
+    </size>
+   </property>
+   <attribute name="toolBarArea">
+    <enum>TopToolBarArea</enum>
+   </attribute>
+   <attribute name="toolBarBreak">
+    <bool>false</bool>
+   </attribute>
+   <addaction name="actionGo_To_Obj_pos"/>
+   <addaction name="actionStart_Obj_XY_scan"/>
+   <addaction name="actionStart_Obj_XZ_scan"/>
+   <addaction name="actionStart_Obj_YZ_scan"/>
+   <addaction name="actionSaveObjData"/>
+  </widget>
+  <widget class="QToolBar" name="toolBar_4">
+   <property name="windowTitle">
+    <string>toolBar_4</string>
+   </property>
+   <property name="iconSize">
+    <size>
+     <width>26</width>
+     <height>26</height>
+    </size>
+   </property>
+   <attribute name="toolBarArea">
+    <enum>TopToolBarArea</enum>
+   </attribute>
+   <attribute name="toolBarBreak">
+    <bool>false</bool>
+   </attribute>
+   <addaction name="actionStop_Scan"/>
+  </widget>
+  <widget class="QToolBar" name="toolBar_5">
+   <property name="windowTitle">
+    <string>toolBar_5</string>
+   </property>
+   <property name="iconSize">
+    <size>
+     <width>26</width>
+     <height>28</height>
+    </size>
+   </property>
+   <attribute name="toolBarArea">
+    <enum>TopToolBarArea</enum>
+   </attribute>
+   <attribute name="toolBarBreak">
+    <bool>false</bool>
+   </attribute>
+   <addaction name="actionGo_To_AFM_pos"/>
+   <addaction name="actionStart_QAFM_Scan"/>
+   <addaction name="actionSaveDataQAFM"/>
+  </widget>
+  <action name="actionStart_QAFM_Scan">
+   <property name="icon">
+    <iconset>
+     <normaloff>../artwork/icons/66/scan-xy-afm-start.png</normaloff>../artwork/icons/66/scan-xy-afm-start.png</iconset>
+   </property>
+   <property name="text">
+    <string>Start QAFM Scan</string>
+   </property>
+   <property name="toolTip">
+    <string>Start a fresh QAFM Scan</string>
+   </property>
+  </action>
+  <action name="actionStop_Scan">
+   <property name="icon">
+    <iconset>
+     <normaloff>../artwork/icons/66/scan-stop.png</normaloff>../artwork/icons/66/scan-stop.png</iconset>
+   </property>
+   <property name="text">
+    <string>Stop Scan</string>
+   </property>
+   <property name="toolTip">
+    <string>Stop scanning XY or depth and return to &quot;ready&quot; state</string>
+   </property>
+  </action>
+  <action name="actionSplit_Display">
+   <property name="text">
+    <string>Split Display</string>
+   </property>
+  </action>
+  <action name="actionCombine_Display">
+   <property name="text">
+    <string>Combine Display</string>
+   </property>
+  </action>
+  <action name="actionStart_Obj_XY_scan">
+   <property name="icon">
+    <iconset>
+     <normaloff>../artwork/icons/66/scan-xy-start.png</normaloff>../artwork/icons/66/scan-xy-start.png</iconset>
+   </property>
+   <property name="text">
+    <string>Start_Obj_XY_scan</string>
+   </property>
+   <property name="toolTip">
+    <string>Start a XY scan with the objective</string>
+   </property>
+  </action>
+  <action name="actionStart_Obj_XZ_scan">
+   <property name="icon">
+    <iconset>
+     <normaloff>../artwork/icons/66/scan-xz-start.png</normaloff>../artwork/icons/66/scan-xz-start.png</iconset>
+   </property>
+   <property name="text">
+    <string>Start_Obj_XZ_scan</string>
+   </property>
+   <property name="toolTip">
+    <string>Start a XZ objective scan.</string>
+   </property>
+  </action>
+  <action name="actionStart_Obj_YZ_scan">
+   <property name="icon">
+    <iconset>
+     <normaloff>../artwork/icons/66/scan-yz-start.png</normaloff>../artwork/icons/66/scan-yz-start.png</iconset>
+   </property>
+   <property name="text">
+    <string>Start_Obj_YZ_scan</string>
+   </property>
+   <property name="toolTip">
+    <string>Start a YZ scan with objective</string>
+   </property>
+  </action>
+  <action name="actionGo_To_AFM_pos">
+   <property name="icon">
+    <iconset>
+     <normaloff>../artwork/icons/66/goto_afm.png</normaloff>../artwork/icons/66/goto_afm.png</iconset>
+   </property>
+   <property name="text">
+    <string>Go To AFM pos</string>
+   </property>
+   <property name="toolTip">
+    <string>Go to target AFM Position</string>
+   </property>
+  </action>
+  <action name="actionGo_To_Obj_pos">
+   <property name="icon">
+    <iconset>
+     <normaloff>../artwork/icons/66/goto_obj_pos.png</normaloff>../artwork/icons/66/goto_obj_pos.png</iconset>
+   </property>
+   <property name="text">
+    <string>Go To Obj pos</string>
+   </property>
+   <property name="toolTip">
+    <string>Go to target Objective position</string>
+   </property>
+  </action>
+  <action name="actionOptimize_Pos">
+   <property name="checkable">
+    <bool>false</bool>
+   </property>
+   <property name="icon">
+    <iconset>
+     <normaloff>../artwork/icons/66/optimize-position.png</normaloff>../artwork/icons/66/optimize-position.png</iconset>
+   </property>
+   <property name="text">
+    <string>Optimize Pos</string>
+   </property>
+   <property name="toolTip">
+    <string>Optimize Objective Position around NV</string>
+   </property>
+  </action>
+  <action name="action_optimizer_settings">
+   <property name="checkable">
+    <bool>false</bool>
+   </property>
+   <property name="text">
+    <string>Optimizer Settings</string>
+   </property>
+  </action>
+  <action name="action_curr_pos_to_target">
+   <property name="text">
+    <string>Current Position to Target</string>
+   </property>
+   <property name="toolTip">
+    <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Set the current position to the target position. Useful if the program is restarted.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+   </property>
+  </action>
+  <action name="actionSaveObjData">
+   <property name="icon">
+    <iconset>
+     <normaloff>../artwork/icons/66/save_objective.png</normaloff>../artwork/icons/66/save_objective.png</iconset>
+   </property>
+   <property name="text">
+    <string>SaveObjData</string>
+   </property>
+   <property name="toolTip">
+    <string>Save the selected data from the objective scan</string>
+   </property>
+  </action>
+  <action name="actionSaveOptiData">
+   <property name="enabled">
+    <bool>true</bool>
+   </property>
+   <property name="icon">
+    <iconset>
+     <normaloff>../artwork/icons/66/save_opti.png</normaloff>../artwork/icons/66/save_opti.png</iconset>
+   </property>
+   <property name="text">
+    <string>SaveOptiData</string>
+   </property>
+   <property name="toolTip">
+    <string>Save the data from the optimizer scan</string>
+   </property>
+  </action>
+  <action name="actionSaveDataQAFM">
+   <property name="icon">
+    <iconset>
+     <normaloff>../artwork/icons/66/save_afm_red.png</normaloff>../artwork/icons/66/save_afm_red.png</iconset>
+   </property>
+   <property name="text">
+    <string>SaveDataQAFM</string>
+   </property>
+   <property name="toolTip">
+    <string>Save the currently displayed data from the QAFM measurement</string>
+   </property>
+  </action>
+  <action name="actionDefault_Display">
+   <property name="text">
+    <string>Default Display</string>
+   </property>
+  </action>
+  <action name="actionSave_Display">
+   <property name="text">
+    <string>Save Display</string>
+   </property>
+  </action>
+  <action name="actionLoad_Display">
+   <property name="text">
+    <string>Load Display</string>
+   </property>
+  </action>
+  <action name="action_Quantitative_Measure">
+   <property name="text">
+    <string>Open Quantitative Measure</string>
+   </property>
+   <property name="toolTip">
+    <string>Open Quantitative Measurement Window</string>
+   </property>
+  </action>
+ </widget>
+ <customwidgets>
+  <customwidget>
+   <class>ScienDSpinBox</class>
+   <extends>QDoubleSpinBox</extends>
+   <header>qtwidgets.scientific_spinbox.h</header>
+  </customwidget>
+  <customwidget>
+   <class>ScienSpinBox</class>
+   <extends>QSpinBox</extends>
+   <header>qtwidgets.scientific_spinbox</header>
+  </customwidget>
+ </customwidgets>
+ <tabstops>
+  <tabstop>obj_x_min_DSpinBox</tabstop>
+  <tabstop>obj_x_max_DSpinBox</tabstop>
+  <tabstop>obj_x_num_SpinBox</tabstop>
+  <tabstop>obj_y_min_DSpinBox</tabstop>
+  <tabstop>obj_y_max_DSpinBox</tabstop>
+  <tabstop>obj_y_num_SpinBox</tabstop>
+  <tabstop>obj_z_min_DSpinBox</tabstop>
+  <tabstop>obj_z_max_DSpinBox</tabstop>
+  <tabstop>obj_z_num_SpinBox</tabstop>
+  <tabstop>obj_cur_x_DSpinBox</tabstop>
+  <tabstop>obj_cur_y_DSpinBox</tabstop>
+  <tabstop>obj_cur_z_DSpinBox</tabstop>
+  <tabstop>obj_target_x_DSpinBox</tabstop>
+  <tabstop>obj_target_y_DSpinBox</tabstop>
+  <tabstop>obj_target_z_DSpinBox</tabstop>
+  <tabstop>afm_x_min_DSpinBox</tabstop>
+  <tabstop>afm_x_max_DSpinBox</tabstop>
+  <tabstop>afm_x_num_SpinBox</tabstop>
+  <tabstop>afm_y_min_DSpinBox</tabstop>
+  <tabstop>afm_y_max_DSpinBox</tabstop>
+  <tabstop>afm_y_num_SpinBox</tabstop>
+  <tabstop>afm_curr_x_DSpinBox</tabstop>
+  <tabstop>afm_curr_y_DSpinBox</tabstop>
+  <tabstop>afm_target_x_DSpinBox</tabstop>
+  <tabstop>afm_target_y_DSpinBox</tabstop>
+ </tabstops>
+ <resources/>
+ <connections/>
+</ui>

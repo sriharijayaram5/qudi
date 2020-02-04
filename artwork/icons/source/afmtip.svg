@@ -1,0 +1,85 @@
+<?xml version="1.0"?>
+<svg xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns="http://www.w3.org/2000/svg" xmlns:cc="http://creativecommons.org/ns#" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:svg="http://www.w3.org/2000/svg" id="svg2" viewBox="0 0 414.5 529.84" version="1.1">
+  <defs id="defs4">
+    <linearGradient id="linearGradient3869">
+      <stop id="stop3871" stop-color="#008080" offset="0"/>
+      <stop id="stop3873" stop-color="#008080" stop-opacity="0" offset="1"/>
+    </linearGradient>
+    <linearGradient id="linearGradient3974" y2="664.89" gradientUnits="userSpaceOnUse" x2="613.33" gradientTransform="translate(-31.429 -6.4286)" y1="674.18" x1="489.55">
+      <stop id="stop3913" stop-color="#ff7f2a" offset="0"/>
+      <stop id="stop3915" stop-color="#ff7f2a" stop-opacity="0" offset="1"/>
+    </linearGradient>
+    <linearGradient id="linearGradient3998" y2="575.9" xlink:href="#linearGradient3869" gradientUnits="userSpaceOnUse" x2="244.04" gradientTransform="matrix(.99690 .078626 -.078626 .99690 117.12 251.3)" y1="578.76" x1="120.96"/>
+    <linearGradient id="linearGradient4004" y2="575.9" xlink:href="#linearGradient3869" gradientUnits="userSpaceOnUse" x2="349.1" gradientTransform="matrix(.99690 .078626 -.078626 .99690 117.12 251.3)" y1="578.76" x1="120.96"/>
+    <linearGradient id="linearGradient4006" y2="579.04" xlink:href="#linearGradient3869" gradientUnits="userSpaceOnUse" x2="471.99" gradientTransform="matrix(.99690 .078626 -.078626 .99690 117.12 251.3)" y1="578.76" x1="120.96"/>
+    <linearGradient id="linearGradient4008" y2="590.08" xlink:href="#linearGradient3869" gradientUnits="userSpaceOnUse" x2="399.88" gradientTransform="matrix(.99690 .078626 -.078626 .99690 117.12 251.3)" y1="578.76" x1="120.96"/>
+    <linearGradient id="linearGradient4015" y2="664.83" gradientUnits="userSpaceOnUse" x2="361.97" y1="665.42" x1="255.75">
+      <stop id="stop3813" stop-color="#008080" offset="0"/>
+      <stop id="stop3815" stop-color="#008080" stop-opacity="0" offset="1"/>
+    </linearGradient>
+    <linearGradient id="linearGradient4017" y2="652.44" gradientUnits="userSpaceOnUse" x2="277.77" y1="652.44" x1="236.62">
+      <stop id="stop3799" stop-color="#008080" offset="0"/>
+      <stop id="stop3801" stop-color="#008080" stop-opacity="0" offset="1"/>
+    </linearGradient>
+  </defs>
+  <g id="layer1" transform="translate(-167.4 -176.05)">
+    <g id="g3831" transform="matrix(.92035 -.39110 .39110 .92035 -80.56 57.534)">
+      <path id="path3805" d="m278.57 622.36c-22.857 88.571-24.286 87.143-24.286 87.143 98.571-60 100-60 100-60z" fill="none"/>
+      <path id="path3807" d="m278.57 622.36-42.86-25.71 18.75 112.32" fill="none"/>
+      <path id="path3809" d="m255.75 707.68c0.40232-1.0484 1.7938-7.5526 2.921-11.42 3.4438-11.816 10.73-36.319 17.21-61.207l3.099-11.904 1.3458 0.48699c0.74019 0.26784 29.439 8.0383 49.593 13.133 35.511 8.9768 29.451 10.22 28.98 10.464-3.1848 1.6468-38.984 21.772-69.281 40.139-12.719 7.7104-25.566 15.498-28.55 17.305-2.984 1.8073-7.701 2.1714-5.3172 3.0039z" fill="url(#linearGradient4015)"/>
+      <path id="path3819" d="m245.63 652.48c-4.9942-29.912-6.0739-63.244-6.0345-63.283 0.0625-0.0625 37.921 33.186 38.17 33.434 0.18217 0.18218-10.603 41.119-15.465 58.701-3.27 11.825-7.3257 25.539-7.5513 25.535-0.0213-0.0004-4.1249-24.474-9.1192-54.387z" fill="url(#linearGradient4017)"/>
+    </g>
+    <g id="g3855" fill-rule="evenodd">
+      <path id="path3867" d="m212.25 439.93 291.5 70.31-83.973 12.927-231.13-79.603z" fill="url(#linearGradient3998)"/>
+      <path id="path3857" d="m206.32 427.4-24.254 3.7337 6.5769 12.432 23.607-3.6341z" fill="url(#linearGradient3998)"/>
+      <path id="path3859" d="m206.32 427.4 305.29 42.277-7.8677 40.564-291.5-70.31z" fill="url(#linearGradient3998)"/>
+      <path id="path3865" d="m182.06 431.13 236.77 52.825 0.93334 39.209-231.13-79.603z" fill="url(#linearGradient4004)"/>
+      <path id="path3863" d="m511.61 469.67-92.774 14.282 0.93334 39.209 83.973-12.927z" fill="url(#linearGradient4006)"/>
+      <path id="path3861" d="m206.32 427.4 305.29 42.27-92.78 14.29-236.77-52.83z" fill="url(#linearGradient4008)"/>
+    </g>
+    <path id="path3909" fill="url(#linearGradient3974)" d="m167.42 704.28c0.20943-16.55 2.1906-69.444 2.6152-69.822 0.91154-0.81106 18.478-6.9219 25.579-8.8979 21.242-5.9114 35.964-7.8631 59.286-7.8596 19.841 0.003 27.031 0.72872 42.662 4.3061 12.82 2.934 27.785 8.5836 31.981 12.073 1.7255 1.4351 13.237 5.3148 22.5 7.5833 12.682 3.1057 23.302 4.3398 37.5 4.3577 28.734 0.0361 53.736-6.2754 82.347-20.787 23.832-12.088 42.585-16.099 62.653-13.399 13.535 1.8207 24.945 5.8217 38.242 13.409l5.0278 2.869 1.6328 31.923c0.89806 17.558 1.818 35.057 2.0444 38.887l0.41155 6.9643h-414.5l0.0203-1.6071z"/>
+    <g id="g3927" fill-opacity=".83721" transform="translate(-12.857 28.571)" fill="#f00">
+      <rect id="rect3921" transform="matrix(.68684 -.72681 .32827 .94458 0 0)" ry="2.2401" width="18.827" y="395.37" x="290.79" height="295.07"/>
+      <rect id="rect3925" transform="matrix(-.68054 -.73271 -.32323 .94632 0 0)" ry="2.201" height="289.92" width="18.383" y="-314.56" x="-624.49"/>
+    </g>
+  </g>
+  <metadata>
+    <rdf:RDF>
+      <cc:Work>
+        <dc:format>image/svg+xml</dc:format>
+        <dc:type rdf:resource="http://purl.org/dc/dcmitype/StillImage"/>
+        <cc:license rdf:resource="http://creativecommons.org/licenses/publicdomain/"/>
+        <dc:publisher>
+          <cc:Agent rdf:about="http://openclipart.org/">
+            <dc:title>Openclipart</dc:title>
+          </cc:Agent>
+        </dc:publisher>
+        <dc:title>AFM Tip</dc:title>
+        <dc:date>2012-01-26T05:00:35</dc:date>
+        <dc:description>This is a concept drawing of an Atomic force microscope cantilever. </dc:description>
+        <dc:source>http://openclipart.org/detail/167466/afm-tip-by-andresmp</dc:source>
+        <dc:creator>
+          <cc:Agent>
+            <dc:title>andresmp</dc:title>
+          </cc:Agent>
+        </dc:creator>
+        <dc:subject>
+          <rdf:Bag>
+            <rdf:li>ATM</rdf:li>
+            <rdf:li>Science</rdf:li>
+            <rdf:li>atomic force microscope</rdf:li>
+            <rdf:li>cantilever</rdf:li>
+            <rdf:li>clip art</rdf:li>
+            <rdf:li>clipart</rdf:li>
+            <rdf:li>probe</rdf:li>
+          </rdf:Bag>
+        </dc:subject>
+      </cc:Work>
+      <cc:License rdf:about="http://creativecommons.org/licenses/publicdomain/">
+        <cc:permits rdf:resource="http://creativecommons.org/ns#Reproduction"/>
+        <cc:permits rdf:resource="http://creativecommons.org/ns#Distribution"/>
+        <cc:permits rdf:resource="http://creativecommons.org/ns#DerivativeWorks"/>
+      </cc:License>
+    </rdf:RDF>
+  </metadata>
+</svg>

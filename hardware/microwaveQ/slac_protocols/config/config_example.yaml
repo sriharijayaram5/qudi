@@ -1,0 +1,10 @@
+rssi:
+  useChecksum: True
+  maxOutstandingSegments: 8
+  maxSegmentSize: 1400
+  retransmissionTimeout_s: .005
+  cumAckTimeout_s: .002
+  nullTimeout_s: 1
+  maxRetransmissions: 15
+  maxCumAcks: 2
+  minusLog10timeoutUnit: 3
