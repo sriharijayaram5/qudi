@@ -30,6 +30,7 @@ import os
 import time
 import datetime
 import matplotlib.pyplot as plt
+import math
 
 from deprecation import deprecated
 
@@ -4207,8 +4208,263 @@ class AFMConfocalLogic(GenericLogic):
     def get_save_counter(self):
         return self.__data_to_be_saved
 
-    def draw_all_qafm_figures(self):
-        pass
+    def save_all_qafm_figures(self, tag=None, probe_name=None, sample_name=None,
+                       use_qudi_savescheme=False, root_path=None, 
+                       daily_folder=True):
+
+        scan_params = self.get_curr_scan_params()
+        
+        #scan_params = ['counts_fw','counts_bw','Height(Sen)_fw','Height(Sen)_bw'] #Tests for data obtained from .dat file
+
+        if scan_params == []:
+            self.log.warning('Nothing measured to be saved for the QAFM measurement. Save routine skipped.')
+            self.sigQAFMDataSaved.emit()
+            return
+
+        save_path =  self.get_qafm_save_directory(use_qudi_savescheme=use_qudi_savescheme,
+                                             root_path=root_path,
+                                             daily_folder=daily_folder,
+                                             probe_name=probe_name,
+                                             sample_name=sample_name)
+
+        data = self.get_qafm_data()
+
+        timestamp = datetime.datetime.now()
+
+        fig = self.draw_all_qafm_figures(data)
+
+        for entry in scan_params:
+            parameters = {}
+            parameters.update(data[entry]['params'])
+            nice_name = data[entry]['nice_name']
+            unit = data[entry]['si_units']
+
+            parameters['Name of measured signal'] = nice_name
+            parameters['Units of measured signal'] = unit
+
+            figure_data = data[entry]['data']
+            image_extent = [data[entry]['coord0_arr'][0],
+                            data[entry]['coord0_arr'][-1],
+                            data[entry]['coord1_arr'][0],
+                            data[entry]['coord1_arr'][-1]]
+
+            axes = ['X', 'Y']
+
+            cbar_range = data[entry]['display_range']
+
+            parameters['display_range'] = cbar_range
+
+            image_data = {}
+            image_data[f'QAFM XY scan image of a {nice_name} measurement without axis.\n'
+                       'The upper left entry represents the signal at the upper left pixel position.\n'
+                       'A pixel-line in the image corresponds to a row '
+                       f'of entries where the Signal is in {unit}:'] = figure_data
+
+            filelabel = f'QAFM_{entry}'
+
+            if tag is not None:
+                filelabel = f'{tag}_{filelabel}'
+
+            fig = self._save_logic.save_data(image_data,
+                                       filepath=save_path,
+                                       timestamp=timestamp,
+                                       parameters=parameters,
+                                       filelabel=filelabel,
+                                       fmt='%.6e',
+                                       delimiter='\t',
+                                       plotfig=fig)
+
+            # prepare the full raw data in an OrderedDict:
+
+            signal_name = data[entry]['nice_name']
+            units_signal = data[entry]['si_units']
+
+            raw_data = {}
+            raw_data['X position (m)'] = np.tile(data[entry]['coord0_arr'], len(data[entry]['coord0_arr']))
+            raw_data['Y position (m)'] = np.repeat(data[entry]['coord1_arr'], len(data[entry]['coord1_arr']))
+            raw_data[f'{signal_name} ({units_signal})'] = data[entry]['data'].flatten()
+
+            filelabel = filelabel + '_raw'
+
+            self._save_logic.save_data(raw_data,
+                                       filepath=save_path,
+                                       timestamp=timestamp,
+                                       parameters=parameters,
+                                       filelabel=filelabel,
+                                       fmt='%.6e',
+                                       delimiter='\t')
+            self.increase_save_counter()
+
+
+    def draw_all_qafm_figures(self, qafm_data, scan_axis=None, cbar_range=None,
+                    percentile_range=None, signal_name='', signal_unit=''):
+        
+        data = qafm_data #typically just get_qafm_data()
+
+        #Starting the count to see how many images will be plotted and in which arrangement.
+        nrows = 0
+        ncols = 0
+        counter = 0
+
+        for entry in data:
+            if np.mean(data[entry]['data']) != 0:
+                counter = counter + 1
+
+        if counter == 1:
+            print('Try using draw_fig')
+            pass
+
+        #Simple arrangement, <3 images is 1 row, <7 images is 2, <13 images is 3 rows else 4 rows
+        #Can be changed for any arrangement here.  
+        if counter <= 2:
+            nrows = 1
+            ncols = counter
+        else:
+            if counter > 2 and counter <= 6:
+                nrows = 2
+                ncols = math.ceil(counter/nrows)
+            else:
+                if counter <= 12:
+                    nrows = 3
+                    ncols = math.ceil(counter/nrows)
+                else:
+                    nrows = 4
+                    ncols = math.ceil(counter/nrows)
+
+        fig, axs = plt.subplots(nrows = nrows, ncols = ncols, dpi=300, squeeze = True)
+
+        plt.style.use(self._save_logic.mpl_qd_style)
+
+        #Variable used to eliminate the empty subplots created in the figure. 
+        axis_position_comparison = []
+        for i in range(nrows):
+            for j in range(ncols):
+                axis_position_comparison.append([i,j])
+
+        counter_rows = 0
+        counter_cols = 0
+        axis_position = []
+        axis_position_container = []
+
+        for entry in data:
+            if '_fw' in entry or '_bw' in entry:
+                data_entry = data[entry]
+                image_data = data_entry['data']
+                
+                if np.mean(image_data) != 0:
+                    
+                    image_extent = [data_entry['coord0_arr'][0],
+                                    data_entry['coord0_arr'][-1],
+                                    data_entry['coord1_arr'][0],
+                                    data_entry['coord1_arr'][-1]]
+                    scan_axis = ['X','Y']
+                    cbar_range = data_entry['display_range']
+                    signal_name = data_entry['nice_name']
+                    signal_unit = data_entry['si_units']
+                    
+                    # Scale color values using SI prefix
+                    prefix = ['p', 'n', r'$\mathrm{\mu}$', 'm', '', 'k', 'M', 'G']
+                    scale_fac = 1000**4 # since it starts from p
+                    prefix_count = 0
+
+                    draw_cb_range = np.array(cbar_range)*scale_fac
+                    image_dimension = image_extent.copy()
+
+                    if abs(draw_cb_range[0]) > abs(draw_cb_range[1]):
+                        while abs(draw_cb_range[0]) > 1000:
+                            scale_fac = scale_fac / 1000
+                            draw_cb_range = draw_cb_range / 1000
+                            prefix_count = prefix_count + 1
+                    else:
+                        while abs(draw_cb_range[1]) > 1000:
+                            scale_fac = scale_fac/1000
+                            draw_cb_range = draw_cb_range/1000
+                            prefix_count = prefix_count + 1
+
+                    scaled_data = image_data*scale_fac
+                    c_prefix = prefix[prefix_count]
+
+                    # Scale axes values using SI prefix
+                    axes_prefix = ['', 'm',r'$\mathrm{\mu}$', 'n']  # mu = r'$\mathrm{\mu}$'
+                    x_prefix_count = 0
+                    y_prefix_count = 0
+
+                    while np.abs(image_dimension[1] - image_dimension[0]) < 1:
+                        image_dimension[0] = image_dimension[0] * 1000.
+                        image_dimension[1] = image_dimension[1] * 1000.
+                        x_prefix_count = x_prefix_count + 1
+
+                    while np.abs(image_dimension[3] - image_dimension[2]) < 1:
+                        image_dimension[2] = image_dimension[2] * 1000.
+                        image_dimension[3] = image_dimension[3] * 1000.
+                        y_prefix_count = y_prefix_count + 1
+
+                    x_prefix = axes_prefix[x_prefix_count]
+                    y_prefix = axes_prefix[y_prefix_count]
+                    
+                    #If there are only 2 images to plot, there is only 1 row, which makes the imaging 
+                    #have only 1 axes making the creation of the image different than if there were more. 
+                    if counter == 2:
+                        
+                        cfimage = axs[counter_cols].imshow(scaled_data,cmap=plt.get_cmap('inferno'),
+                                                            origin='lower', vmin= draw_cb_range[0],
+                                                            vmax=draw_cb_range[1],interpolation='none',
+                                                            extent=image_dimension)
+                        
+                        axs[counter_cols].set_aspect(1)
+                        axs[counter_cols].set_xlabel(scan_axis[0] + ' position (' + x_prefix + 'm)')
+                        axs[counter_cols].set_ylabel(scan_axis[1] + ' position (' + y_prefix + 'm)')
+                        axs[counter_cols].spines['bottom'].set_position(('outward', 10))
+                        axs[counter_cols].spines['left'].set_position(('outward', 10))
+                        axs[counter_cols].spines['top'].set_visible(False)
+                        axs[counter_cols].spines['right'].set_visible(False)
+                        axs[counter_cols].get_xaxis().tick_bottom()
+                        axs[counter_cols].get_yaxis().tick_left()
+
+                        cbar = plt.colorbar(cfimage, ax=axs[counter_cols], shrink=0.8)
+                        cbar.set_label(f'{signal_name} ({c_prefix}{signal_unit})')
+                    
+                    else:
+            
+                        cfimage = axs[counter_rows][counter_cols].imshow(scaled_data,cmap=plt.get_cmap('inferno'),
+                                                                        origin='lower', vmin= draw_cb_range[0],
+                                                                        vmax=draw_cb_range[1],interpolation='none',
+                                                                        extent=image_dimension)
+                        
+                        #Required since the qudi default font is too big for all of the subplots.
+                        plt.rcParams.update({'font.size': 8})
+                        axs[counter_rows][counter_cols].set_aspect(1)
+                        axs[counter_rows][counter_cols].set_xlabel(scan_axis[0] + ' position (' + x_prefix + 'm)')
+                        axs[counter_rows][counter_cols].set_ylabel(scan_axis[1] + ' position (' + y_prefix + 'm)')
+                        axs[counter_rows][counter_cols].spines['bottom'].set_position(('outward', 10))
+                        axs[counter_rows][counter_cols].spines['left'].set_position(('outward', 10))
+                        axs[counter_rows][counter_cols].spines['top'].set_visible(False)
+                        axs[counter_rows][counter_cols].spines['right'].set_visible(False)
+                        axs[counter_rows][counter_cols].get_xaxis().tick_bottom()
+                        axs[counter_rows][counter_cols].get_yaxis().tick_left()
+
+                        cbar = plt.colorbar(cfimage, ax=axs[counter_rows][counter_cols], shrink=0.8)
+                        cbar.set_label(f'{signal_name} ({c_prefix}{signal_unit})')
+                    
+                    axis_position = [counter_rows,counter_cols]
+                    axis_position_container.append(axis_position)
+                    
+                    counter_cols = counter_cols + 1
+                    
+                    #Used to make sure the counters for columns and rows work correctly.
+                    if counter_cols == ncols:
+                        counter_rows = counter_rows + 1
+                        counter_cols = 0
+        
+        #Removing the empty axis figures created at the end of all plotting.
+        if counter > 2:
+            for position in axis_position_comparison:
+                if position not in axis_position_container:
+                    axs[position[0]][position[1]].remove()
+
+        plt.tight_layout()
+
+        return fig
 
     def save_obj_data(self, obj_name_list, tag=None, probe_name=None, sample_name=None,
                       use_qudi_savescheme=False, root_path=None, 
