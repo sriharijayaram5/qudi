@@ -30,7 +30,7 @@ import struct
 from core.module import Base, ConfigOption
 from core.util.mutex import Mutex
 from interface.slow_counter_interface import SlowCounterInterface, SlowCounterConstraints, CountingMode
-from .microwaveq_py.microwaveQ import microwaveQ
+from .microwaveQ.microwaveq_py.microwaveQ import microwaveQ
 
 from interface.microwave_interface import MicrowaveInterface
 from interface.microwave_interface import MicrowaveLimits
@@ -550,6 +550,15 @@ class MicrowaveQ(Base, SlowCounterInterface):
 
         return 0
 
+    def use_iso_b(self, freq, gain):
+        """FIXME: Quick and dirty method to enable single iso-b. """
+        self._use_iso_b = True
+        self._iso_b_freq = freq
+        self._iso_b_gain = gain
+
+    def deactive_iso_b(self):
+        """FIXME: Quick and dirty method to disable the single iso-b. """
+        self._use_iso_b = False
 
     def arm_device(self, pulses=100):
 
