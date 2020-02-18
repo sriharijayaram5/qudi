@@ -35,6 +35,7 @@
      <string>Menu</string>
     </property>
     <addaction name="action_curr_pos_to_target"/>
+    <addaction name="action_center_pos_to_target"/>
    </widget>
    <widget class="QMenu" name="menuView">
     <property name="title">
@@ -1011,6 +1012,14 @@
    </property>
    <property name="toolTip">
     <string>Open Quantitative Measurement Window</string>
+   </property>
+  </action>
+  <action name="action_center_pos_to_target">
+   <property name="text">
+    <string>Center Position to Target</string>
+   </property>
+   <property name="toolTip">
+    <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Set target position of every axis to half of its maximal value. This is very helpful to load a new tip.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
    </property>
   </action>
  </widget>

@@ -262,6 +262,7 @@ class ProteusQGUI(GUIBase):
         self.retrieve_status_var()
 
         self._mw.action_curr_pos_to_target.triggered.connect(self.set_current_pos_to_target)
+        self._mw.action_center_pos_to_target.triggered.connect(self.set_center_pos_to_target)
 
 
         self.initQuantiUI()
@@ -1312,6 +1313,15 @@ class ProteusQGUI(GUIBase):
         self._mw.obj_target_y_DSpinBox.setValue(y_target)
         z_target = self._mw.obj_cur_z_DSpinBox.value()
         self._mw.obj_target_z_DSpinBox.setValue(z_target)
+
+    def set_center_pos_to_target(self):
+        """ Set the target position to the middle of all scan ranges. """
+
+        #FIXME: Make this nicer by obtaining the maximal traveling range and 
+        #       take half of it.
+        self._mw.obj_target_x_DSpinBox.setValue(15e-6)
+        self._mw.obj_target_y_DSpinBox.setValue(15e-6)
+        self._mw.obj_target_z_DSpinBox.setValue(5e-6)
 
     #FIXME: THIS IS A QUICKFIX, NEEDS TO BE REMOVED AS SOON AS POSSIBLE!!!!
     def _check_counter_running(self):
