@@ -62,6 +62,7 @@ class TScanMode(CtypesEnum):
     POINT_SCAN = 1
 
 
+
 class SmartSPM(Base):
     """ Smart SPM wrapper for the communication with the module.
 
@@ -924,20 +925,29 @@ class SmartSPM(Base):
     def _set_scanner_axes(self, valid_axis_dict, move_time):
         """ General method without checks to set axis position. 
 
-        This method takes always the shortest path to the target position and 
-        does not set the coordinates one by one.
+        @param dict valid_axis_dict: dictionary with valid axis with associated 
+                                     absolute position in m. The axis labels are
+                                     capitalized or lower case, possible keys:
+                                        ['X', 'x', 'Y', 'y', 'Z', 'z']
+                                     and postfixed with a '1' (sample scanner) 
+                                     or a '2' (objective scanner). Example for 
+                                     moving X1 and Y1 simultaneously:
+                                        {'X1': 15e-6, 'Y1': 20e-6}
+
+        Note1: this is an internal method and should not be used for production 
+               use.
+        Note2: This method takes always the shortest path to the target 
+               position and does not set the coordinates one by one.
         """
 
         sweepTime = c_float(move_time)
         axesCnt = c_int(len(valid_axis_dict))
 
         if axesCnt == 1:
-
             axis_label = list(valid_axis_dict)[0]
-            pos_val = c_float(valid_axis_dict[axis_label]*1e6) # position is set in um
-            ret = self._lib.SetAxisPosition(axis_label.encode(), 
-                                            byref(pos_val), 
-                                            sweepTime)
+            pos_val = valid_axis_dict[axis_label]
+            ret = self._set_scanner_axis(axis_label, pos_val, move_time)
+            
         else:
 
             # create zero terminated strings according to the positions, 
@@ -968,6 +978,28 @@ class SmartSPM(Base):
         return ret
 
 
+    def _set_scanner_axis(self, valid_axis, pos, move_time):
+        """ Set just one axis of the scanner and move to this point.
+
+        @param str valid_axis: a valid name for one of the axis. The axis labels
+                               are capitalized or lower case, possible strings
+                                        ['X', 'x', 'Y', 'y', 'Z', 'z']
+                               and postfixed with a '1' (sample scanner) or a 
+                               '2' (objective scanner). 
+        @param float pos: the actual position where to move in m.
+        @param float move_time: time for the movement process in seconds.
+
+        @return: boolean value if call was successful or not.
+
+        Example call:  _set_scanner_axis('X1', 5e-6, 0.5)
+
+        """
+
+        pos_val = c_float(pos*1e6) # position is set in um
+        sweepTime = c_float(move_time)
+        return self._lib.SetAxisPosition(valid_axis.encode(), 
+                                         byref(pos_val), 
+                                         sweepTime)
 
     def _obtain_axis_setpoint(self, axes):
         """ Obtain the future/next value in the callback for the selected axes.
@@ -1316,6 +1348,7 @@ class SmartSPM(Base):
     #TODO: think about to move this checking routine to logic level and not hardware level
     def _check_spm_scan_params(self, x_afm_start=None, x_afm_stop=None,  
                               y_afm_start=None, y_afm_stop=None,
+                              z_afm_start=None, z_afm_stop=None, 
                               x_obj_start=None, x_obj_stop=None,
                               y_obj_start=None, y_obj_stop=None,
                               z_obj_start=None, z_obj_stop=None):
