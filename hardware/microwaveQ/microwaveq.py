@@ -30,7 +30,7 @@ import struct
 from core.module import Base, ConfigOption
 from core.util.mutex import Mutex
 from interface.slow_counter_interface import SlowCounterInterface, SlowCounterConstraints, CountingMode
-from .microwaveQ.microwaveq_py.microwaveQ import microwaveQ
+from .microwaveq_py.microwaveQ import microwaveQ
 
 from interface.microwave_interface import MicrowaveInterface
 from interface.microwave_interface import MicrowaveLimits
