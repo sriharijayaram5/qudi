@@ -534,7 +534,7 @@ class NationalInstrumentsXSeries(Base, SlowCounterInterface, ConfocalScannerInte
             return np.ones((len(self.get_counter_channels()), samples), dtype=np.uint32) * -1
 
         if samples is None:
-            samples = int(self._samples_number)
+            samples = int(self._default_samples_number)
         else:
             samples = int(samples)
         try:
@@ -2111,7 +2111,7 @@ class NationalInstrumentsXSeries(Base, SlowCounterInterface, ConfocalScannerInte
                                              is full.
         """
         if samples is None:
-            samples = int(self._samples_number)
+            samples = int(self._default_samples_number)
         else:
             samples = int(samples)
 

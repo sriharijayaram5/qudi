@@ -658,3 +658,16 @@ class CounterLogic(GenericLogic):
                 self.log.error('Stopping the counter timed out after {0}s'.format(timeout))
                 return -1
         return 0
+
+
+    def get_last_counts(self, samples=1):
+        """ Get the last count values from the array.
+        
+        @param int samples: number of last samples
+        """
+
+        if samples > self.get_count_length():
+            self.log.error("Cannot give you more counts, they are simply not available.")
+            samples = self.get_count_length()
+
+        return self.countdata[:, -samples:]
