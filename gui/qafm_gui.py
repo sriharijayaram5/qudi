@@ -35,6 +35,29 @@ Implementation Steps/TODOs:
 """
 
 
+class SettingsDialog(QtWidgets.QDialog):
+    """ Create the SettingsDialog window, based on the corresponding *.ui file."""
+
+    def __init__(self):
+        # Get the path to the *.ui file
+        this_dir = os.path.dirname(__file__)
+        ui_file = os.path.join(this_dir, 'ui_qafm_settings.ui')
+
+        # Load it
+        super(SettingsDialog, self).__init__()
+        uic.loadUi(ui_file, self)
+
+        buttons = self.buttonBox.buttons()
+        self._ok_button = buttons[0]
+        self._cancel_button = buttons[1]
+        self._apply_button = buttons[2]
+
+    def accept(self):
+        """ Reimplement the accept method to get rid of closing upon enter press."""
+        if self._ok_button.hasFocus():
+            super(SettingsDialog, self).accept()
+
+
 class QuantitativeMeasurementWindow(QtWidgets.QWidget):
     """ Create the SettingsDialog window, based on the corresponding *.ui file."""
 
@@ -168,8 +191,6 @@ class ProteusQGUI(GUIBase):
     _obj_range_z_max = StatusVar('obj_range_z_max', default=10e-6)  # in m
     _obj_range_z_num = StatusVar('obj_range_z_num', default=40)
 
-    _int_time = StatusVar('integration_time', default=0.01)  # in s
-
     _save_obj_xy = StatusVar('save_obj_xy', default=False)
     _save_obj_xz = StatusVar('save_obj_xz', default=False)
     _save_obj_yz = StatusVar('save_obj_yz', default=False)
@@ -277,12 +298,17 @@ class ProteusQGUI(GUIBase):
         self._qm.Continue_QM_PushButton.clicked.connect(self.disable_scan_actions_quanti)
         self._qafm_logic.sigQuantiScanFinished.connect(self.enable_scan_actions_quanti)
 
+
+        # initialize the settings stuff
+        self.initSettingsUI()
+
     def on_deactivate(self):
         """ Deactivate the module properly.
         """
         self.store_status_var()
         self._mw.close()
         self._qm.close()
+        self._sd.close()
 
     def show(self):
         """Make window visible and put it above all other windows.
@@ -325,6 +351,85 @@ class ProteusQGUI(GUIBase):
         self._update_opti_data('opti_z')
 
         self._initialize_inputs()
+
+    def initSettingsUI(self):
+        """ Initialize and set up the Settings Dialog. """
+
+        self._sd = SettingsDialog()
+
+        self._mw.action_open_settings.triggered.connect(self.show_settings_window)
+
+        self._sd.accepted.connect(self.update_qafm_settings)
+        self._sd.rejected.connect(self.keep_former_qafm_settings)
+        self._sd.buttonBox.button(QtWidgets.QDialogButtonBox.Apply).clicked.connect(self.update_qafm_settings)
+
+        # write the configuration to the settings window of the GUI.
+        self.keep_former_qafm_settings()
+
+        # react on setting changes by the logic
+        self._qafm_logic.sigSettingsUpdated.connect(self.keep_former_qafm_settings)
+
+
+    def update_qafm_settings(self):
+        
+        # create a settings dict
+        sd = {}
+
+        # general settings
+        sd['idle_move_target_sample'] = self._sd.idle_move_target_sample_DoubleSpinBox.value()
+        sd['idle_move_target_obj'] = self._sd.idle_move_target_obj_DoubleSpinBox.value()
+        # scanning settings
+        sd['idle_move_scan_sample'] = self._sd.idle_move_scan_sample_DoubleSpinBox.value()
+        sd['idle_move_scan_obj'] = self._sd.idle_move_scan_obj_DoubleSpinBox.value()
+        sd['int_time_sample_scan'] = self._sd.int_time_sample_scan_DoubleSpinBox.value()
+        sd['int_time_obj_scan'] = self._sd.int_time_obj_scan_DoubleSpinBox.value()
+        # save settings
+        sd['root_folder_name'] = self._sd.rootfolder_name_LineEdit.text()
+        sd['create_summary_pic'] = self._sd.create_summary_pic_CheckBox.isChecked()
+        # optimizer settings
+        sd['optimizer_x_range'] = self._sd.optimizer_x_range_DoubleSpinBox.value()
+        sd['optimizer_x_res'] = self._sd.optimizer_x_res_SpinBox.value()
+        sd['optimizer_y_range'] = self._sd.optimizer_y_range_DoubleSpinBox.value()
+        sd['optimizer_y_res'] = self._sd.optimizer_y_res_SpinBox.value()
+        sd['optimizer_z_range'] = self._sd.optimizer_z_range_DoubleSpinBox.value()
+        sd['optimizer_z_res'] = self._sd.optimizer_z_res_SpinBox.value()
+        sd['optimizer_int_time'] = self._sd.optimizer_int_time_DoubleSpinBox.value()
+        sd['optimizer_period'] = self._sd.optimizer_period_DoubleSpinBox.value()
+        self._qafm_logic.set_qafm_settings(sd)
+
+
+    def keep_former_qafm_settings(self):
+        """ Keep the old settings and restores them in the gui from logic. """
+        
+        sd = self._qafm_logic.get_qafm_settings()
+
+        # general settings
+        self._sd.idle_move_target_sample_DoubleSpinBox.setValue(sd['idle_move_target_sample'])
+        self._sd.idle_move_target_obj_DoubleSpinBox.setValue(sd['idle_move_target_obj'])
+        # scanning settings
+        self._sd.idle_move_scan_sample_DoubleSpinBox.setValue(sd['idle_move_scan_sample'])
+        self._sd.idle_move_scan_obj_DoubleSpinBox.setValue(sd['idle_move_scan_obj'])
+        self._sd.int_time_sample_scan_DoubleSpinBox.setValue(sd['int_time_sample_scan'])
+        self._sd.int_time_obj_scan_DoubleSpinBox.setValue(sd['int_time_obj_scan'])
+        # save settings
+        self._sd.rootfolder_name_LineEdit.setText(sd['root_folder_name'])
+        self._sd.create_summary_pic_CheckBox.setChecked(sd['create_summary_pic'])
+        # optimizer settings
+        self._sd.optimizer_x_range_DoubleSpinBox.setValue(sd['optimizer_x_range'])
+        self._sd.optimizer_x_res_SpinBox.setValue(sd['optimizer_x_res'])
+        self._sd.optimizer_y_range_DoubleSpinBox.setValue(sd['optimizer_y_range'])
+        self._sd.optimizer_y_res_SpinBox.setValue(sd['optimizer_y_res'])
+        self._sd.optimizer_z_range_DoubleSpinBox.setValue(sd['optimizer_z_range'])
+        self._sd.optimizer_z_res_SpinBox.setValue(sd['optimizer_z_res'])
+        self._sd.optimizer_int_time_DoubleSpinBox.setValue(sd['optimizer_int_time'])
+        self._sd.optimizer_period_DoubleSpinBox.setValue(sd['optimizer_period'])      
+
+
+    def show_settings_window(self):
+        """ Show and open the settings window. """
+
+        self._sd.show()
+
 
     def retrieve_status_var(self):
         self._mw.obj_x_min_DSpinBox.setValue(self._obj_range_x_min)
@@ -1355,7 +1460,6 @@ class ProteusQGUI(GUIBase):
         y_stop = self._mw.afm_y_max_DSpinBox.value()
         res_x = self._mw.afm_x_num_SpinBox.value()
         res_y = self._mw.afm_y_num_SpinBox.value()
-        int_time = self._int_time
 
         meas_params = ['counts']
         for entry in self._checkbox_container:
@@ -1369,7 +1473,6 @@ class ProteusQGUI(GUIBase):
                                                             coord1_start=y_start,
                                                             coord1_stop=y_stop,
                                                             coord1_num=res_y,
-                                                            integration_time=int_time,
                                                             plane='XY',
                                                             meas_params=meas_params)
 
@@ -1389,17 +1492,13 @@ class ProteusQGUI(GUIBase):
         y_stop = self._mw.obj_y_max_DSpinBox.value()
         res_x = self._mw.obj_x_num_SpinBox.value()
         res_y = self._mw.obj_y_num_SpinBox.value()
-        int_time = self._int_time
 
-        #FIXME: Remove after tests!
-        #self._qafm_logic.start_scan_area_obj_by_point
         self._qafm_logic.start_scan_area_obj_by_line(coord0_start=x_start,
                                                       coord0_stop=x_stop,
                                                       coord0_num=res_x,
                                                       coord1_start=y_start, 
                                                       coord1_stop=y_stop,
                                                       coord1_num=res_y,
-                                                      integration_time=int_time,
                                                       plane='X2Y2', 
                                                       continue_meas=False)
 
@@ -1418,17 +1517,13 @@ class ProteusQGUI(GUIBase):
         z_stop = self._mw.obj_z_max_DSpinBox.value()
         res_x = self._mw.obj_x_num_SpinBox.value()
         res_z = self._mw.obj_z_num_SpinBox.value()
-        int_time = 0.01
 
-        # FIXME: Remove after tests!
-        #self._qafm_logic.start_scan_area_obj_by_point
         self._qafm_logic.start_scan_area_obj_by_line(coord0_start=x_start,
                                                       coord0_stop=x_stop,
                                                       coord0_num=res_x,
                                                       coord1_start=z_start, 
                                                       coord1_stop=z_stop,
                                                       coord1_num=res_z,
-                                                      integration_time=int_time,
                                                       plane='X2Z2', 
                                                       continue_meas=False)
 
@@ -1450,17 +1545,13 @@ class ProteusQGUI(GUIBase):
         z_stop = self._mw.obj_z_max_DSpinBox.value()
         res_y = self._mw.obj_y_num_SpinBox.value()
         res_z = self._mw.obj_z_num_SpinBox.value()
-        int_time = self._int_time
 
-        # FIXME: Remove after tests!
-        # self._qafm_logic.start_scan_area_obj_by_point
         self._qafm_logic.start_scan_area_obj_by_line(coord0_start=y_start,
                                                       coord0_stop=y_stop,
                                                       coord0_num=res_y,
                                                       coord1_start=z_start, 
                                                       coord1_stop=z_stop,
                                                       coord1_num=res_z,
-                                                      integration_time=int_time,
                                                       plane='Y2Z2', 
                                                       continue_meas=False)
 
@@ -1478,26 +1569,11 @@ class ProteusQGUI(GUIBase):
         y_target = self._mw.obj_target_y_DSpinBox.value()
         z_target = self._mw.obj_target_z_DSpinBox.value()
 
-        #FIXME: These values should be used from the settings window!
+        # settings of optimizer can be set in its setting window
 
-        x_range = 1e-6
-        y_range = 1e-6
-        z_range = 2e-6
-
-        x_res = 15
-        y_res = 15
-        z_res = 100
-
-        self._qafm_logic.set_optimizer_parameter(x_target=x_target, 
-                                                 y_target=y_target, 
-                                                 z_target=z_target, 
-                                                 x_range=x_range, 
-                                                 y_range=y_range, 
-                                                 z_range=z_range, 
-                                                 x_res=x_res, 
-                                                 y_res=y_res, 
-                                                 z_res=z_res, 
-                                                 int_time=self._int_time)
+        self._qafm_logic.set_optimizer_target(x_target=x_target, 
+                                              y_target=y_target, 
+                                              z_target=z_target)
 
         ret_val = self._qafm_logic.set_optimize_request(True)
         # if the request is valid, then True will be returned, if not False
