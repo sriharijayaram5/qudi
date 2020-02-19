@@ -51,7 +51,7 @@
     <property name="title">
      <string>Settings</string>
     </property>
-    <addaction name="action_optimizer_settings"/>
+    <addaction name="action_open_settings"/>
    </widget>
    <widget class="QMenu" name="menuMeasurements">
     <property name="title">
@@ -936,12 +936,12 @@
     <string>Optimize Objective Position around NV</string>
    </property>
   </action>
-  <action name="action_optimizer_settings">
+  <action name="action_open_settings">
    <property name="checkable">
     <bool>false</bool>
    </property>
    <property name="text">
-    <string>Optimizer Settings</string>
+    <string>Open Settings Window</string>
    </property>
   </action>
   <action name="action_curr_pos_to_target">
