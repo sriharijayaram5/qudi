@@ -93,6 +93,9 @@ class AWGM8190A(Base, PulserInterface):
                 ))
 
         if use_default_dir:
+            homedir = get_home_dir()
+            self._pulsed_file_dir = os.path.join(homedir, 'pulsed_files')
+
             self.log.warning('Either no config parameter "pulsed_file_dir" was '
                              'specified in the config for AWGM8195A class as '
                              'directory for the pulsed files or the directory '
@@ -100,8 +103,6 @@ class AWGM8190A(Base, PulserInterface):
                              '{0}\nfor pulsed files will be taken instead.'
                              ''.format(self._pulsed_file_dir))
 
-            homedir = get_home_dir()
-            self._pulsed_file_dir = os.path.join(homedir, 'pulsed_files')
             if not os.path.exists(self._pulsed_file_dir):
                 try:
                     os.mkdir(self._pulsed_file_dir)
