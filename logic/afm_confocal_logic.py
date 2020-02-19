@@ -209,21 +209,6 @@ class AFMConfocalLogic(GenericLogic):
     #optimizer: x_max, y_max, c_max, z_max, c_max_z
     _opt_val = [0, 0, 0, 0, 0]
 
-    # Optimizer Settings
-    _optimize_request = False
-    _periodic_optimizer = False
-    _optimize_period = 60
-    _optimizer_x_target_pos = 15e-6
-    _optimizer_x_range = 1.0e-6
-    _optimizer_x_res = 15
-    _optimizer_y_target_pos = 15e-6
-    _optimizer_y_range = 1.0e-6
-    _optimizer_y_res = 15
-    _optimizer_z_target_pos = 5e-6
-    _optimizer_z_range = 2.0e-6
-    _optimizer_z_res = 50
-    _optimizer_int_time = 0.01
-
     # make a dummy worker thread:
     _worker_thread = WorkerThread(print)
 
@@ -234,6 +219,38 @@ class AFMConfocalLogic(GenericLogic):
     ZFS = 2.87e9    # Zero-field-splitting
     E_FIELD = 0.0   # strain field
 
+    # Move Settings
+    _sg_idle_move_target_sample = StatusVar(default=0.5)
+    _sg_idle_move_target_obj = StatusVar(default=0.5)
+
+    # Scan Settings
+    _sg_idle_move_scan_sample = StatusVar(default=0.1)
+    _sg_idle_move_scan_obj = StatusVar(default=0.1)
+    _sg_int_time_sample_scan = StatusVar(default=0.01)
+    _sg_int_time_obj_scan = StatusVar(default=0.01)
+
+    # Save Settings
+    _sg_root_folder_name = StatusVar(default='')
+    _sg_create_summary_pic = StatusVar(default=True)
+
+    # Optimizer Settings
+    _sg_optimizer_x_range = StatusVar(default=1.0e-6)
+    _sg_optimizer_x_res = StatusVar(default=15)
+    _sg_optimizer_y_range = StatusVar(default=1.0e-6)
+    _sg_optimizer_y_res = StatusVar(default=15)
+    _sg_optimizer_z_range = StatusVar(default=2.0e-6)
+    _sg_optimizer_z_res = StatusVar(default=50)    
+    _sg_optimizer_int_time = StatusVar(default=0.01)
+    _sg_periodic_optimizer = False  # do not safe this a status var
+    _sg_optimizer_period = StatusVar(default=60)
+    _optimize_request = False
+
+    # target positions of the optimizer
+    _optimizer_x_target_pos = 15e-6
+    _optimizer_y_target_pos = 15e-6
+    _optimizer_z_target_pos = 5e-6
+
+    sigSettingsUpdated = QtCore.Signal()
 
     def __init__(self, config, **kwargs):
         """ Create CounterLogic object with connectors.
@@ -472,7 +489,70 @@ class AFMConfocalLogic(GenericLogic):
 
         return scan_param
 
-    #FIXME: There is an error occuring if no SPM measurement parameters are specified. Fix this!
+
+    def get_qafm_settings(self, setting_list=None):
+        """ Obtain all the settings for the qafm in a dict container. 
+
+        @param list setting_list: optional, if specific settings are required, 
+                                  and not all of them, then you can specify 
+                                  those in this list.  
+
+        @return dict: with all requested or available settings for qafm.
+        """
+
+
+        # settings dictionary
+        sd = {}
+        # Move Settings
+        sd['idle_move_target_sample'] = self._sg_idle_move_target_sample
+        sd['idle_move_target_obj'] = self._sg_idle_move_target_obj
+        # Scan Settings
+        sd['idle_move_scan_sample'] = self._sg_idle_move_scan_sample
+        sd['idle_move_scan_obj'] = self._sg_idle_move_scan_obj
+        sd['int_time_sample_scan'] = self._sg_int_time_sample_scan
+        sd['int_time_obj_scan'] = self._sg_int_time_obj_scan
+        # Save Settings
+        sd['root_folder_name'] = self._sg_root_folder_name
+        sd['create_summary_pic'] = self._sg_create_summary_pic
+        # Optimizer Settings
+        sd['optimizer_x_range'] = self._sg_optimizer_x_range
+        sd['optimizer_x_res'] = self._sg_optimizer_x_res
+        sd['optimizer_y_range'] = self._sg_optimizer_y_range
+        sd['optimizer_y_res'] = self._sg_optimizer_y_res
+        sd['optimizer_z_range'] = self._sg_optimizer_z_range
+        sd['optimizer_z_res'] = self._sg_optimizer_z_res
+
+        sd['optimizer_int_time'] = self._sg_optimizer_int_time
+        sd['optimizer_period'] = self._sg_optimizer_period
+
+        if setting_list is None:
+            return sd
+        else:
+            ret_sd = {}
+            for entry in setting_list:
+                item = sd.get(entry, default=None)
+                if item is not None:
+                    ret_sd[entry] = item
+            return ret_sd
+
+    def set_qafm_settings(self, set_dict):
+        """ Set the current qafm settings. 
+
+        @params dict set_dict: a dictionary containing all the settings which 
+                               needs to be set. For an empty dict, nothing will
+                               happen. 
+                               Hint: use the get_qafm_settings method to obtain
+                                     a full list of available items.
+        """
+        
+        for entry in set_dict:
+            attr_name = f'_sg_{entry}'
+            if hasattr(self, attr_name):
+                setattr(self, attr_name, set_dict[entry])
+
+        self.sigSettingsUpdated.emit()
+
+    #FIXME: There is an error occurring if no SPM measurement parameters are specified. Fix this!
     def scan_area_qafm_bw_fw_by_line(self, coord0_start, coord0_stop, coord0_num,
                                      coord1_start, coord1_stop, coord1_num,
                                      integration_time, plane='XY',
@@ -498,6 +578,9 @@ class AFMConfocalLogic(GenericLogic):
         @return 2D_array: measurement results in a two dimensional list.
         """
 
+        if integration_time is None:
+            integration_time = self._sg_int_time_sample_scan
+
         self.module_state.lock()
 
         # set up the spm device:
@@ -505,9 +588,8 @@ class AFMConfocalLogic(GenericLogic):
         self._stop_request = False
 
 
-        # FIXME: Make this a setting value
-        time_idle_move = 0.1 # in seconds, time in which the stage is just
-                             # moving without measuring
+        # time in which the stage is just moving without measuring
+        time_idle_move = self._sg_idle_move_scan_sample
 
         scan_speed_per_line = integration_time * coord0_num
         scan_arr = self._spm.create_scan_leftright2(coord0_start, coord0_stop,
@@ -595,7 +677,7 @@ class AFMConfocalLogic(GenericLogic):
                                       corr1_start=scan_coords[2],
                                       corr1_stop=scan_coords[3],
                                       time_forward=scan_speed_per_line,
-                                      time_back=scan_speed_per_line)
+                                      time_back=time_idle_move)
 
             self._spm.scan_line()  # start the scan line
 
@@ -679,7 +761,7 @@ class AFMConfocalLogic(GenericLogic):
         return self._qafm_scan_array
 
     def start_scan_area_qafm_bw_fw_by_line(self, coord0_start=48*1e-6, coord0_stop=53*1e-6, coord0_num=40,
-                            coord1_start=47*1e-6, coord1_stop=52*1e-6, coord1_num=40, integration_time=0.02,
+                            coord1_start=47*1e-6, coord1_stop=52*1e-6, coord1_num=40, integration_time=None,
                             plane='XY', meas_params=['counts', 'Phase', 'Height(Dac)', 'Height(Sen)'],
                             continue_meas=False):
 
@@ -2048,6 +2130,8 @@ class AFMConfocalLogic(GenericLogic):
 
         @return 2D_array: measurement results in a two dimensional list.
         """
+        if integration_time is None:
+            integration_time = self._sg_int_time_obj_scan
 
         self.module_state.lock()
 
@@ -2069,9 +2153,8 @@ class AFMConfocalLogic(GenericLogic):
         reverse_meas = False
         self._stop_request = False
 
-        # FIXME: Make this a setting value
-        time_idle_move = 0.1 # in seconds, time in which the stage is just
-                             # moving without measuring
+        # time in which the stage is just moving without measuring
+        time_idle_move = self._sg_idle_move_scan_obj
 
         if self._counter.get_device_mode() != 'pixel':
             self._counter.prepare_pixelclock()
@@ -2213,7 +2296,7 @@ class AFMConfocalLogic(GenericLogic):
 
     def start_scan_area_obj_by_line(self, coord0_start=48*1e-6, coord0_stop=53*1e-6, coord0_num=40,
                                      coord1_start=47*1e-6, coord1_stop=52*1e-6, coord1_num=40,
-                                     integration_time=0.02, plane='X2Y2',
+                                     integration_time=None, plane='X2Y2',
                                      continue_meas=False):
 
         if self.check_thread_active():
@@ -2769,10 +2852,18 @@ class AFMConfocalLogic(GenericLogic):
 #   Optimize position routine
 # ==============================================================================
 
-    def set_optimizer_parameter(self, x_target=None, y_target=None, z_target=None, 
-                                x_range=None, y_range=None, z_range=None, 
-                                x_res=None, y_res=None, z_res=None, 
-                                int_time=None):
+    def get_optimizer_target(self):
+        """ Obtain the current target position for the optimizer. 
+
+        @return tuple: with (x, y, z) as the target position in m.
+        """
+
+        return (self._optimizer_x_target_pos, 
+                self._optimizer_y_target_pos,
+                self._optimizer_z_target_pos)
+
+    def set_optimizer_target(self, x_target=None, y_target=None, z_target=None):
+        """ Set the target position for the optimizer around which optimization happens. """
 
         if x_target is not None:
             self._optimizer_x_target_pos = x_target 
@@ -2781,26 +2872,13 @@ class AFMConfocalLogic(GenericLogic):
         if z_target is not None:
             self._optimizer_z_target_pos = z_target 
 
-
-        if x_range is not None:
-            self._optimizer_x_range = x_range 
-        if y_range is not None:
-            self._optimizer_y_range = y_range 
-        if z_range is not None:
-            self._optimizer_z_range = z_range 
-
-        if x_res is not None:
-            self._optimizer_x_res = x_res 
-        if y_res is not None:
-            self._optimizer_y_res = y_res 
-        if z_res is not None:
-            self._optimizer_z_res = z_res 
-
-        if int_time is not None:
-            self._optimizer_int_time = int_time
+        #FIXME: Think about a general method and a generic return for this method
+        #       to obtain the currently set target positions.
 
 
-    #FIXME: Check, whether optimizer can get out of scan range, and if yes, react to this!
+
+    #FIXME: Check, whether optimizer can get out of scan range, and if yes, 
+    #       react to this!
     def default_optimize(self, run_in_thread=False):
         """ Note, this is a blocking method for optimization! """
         pos = self.get_obj_pos()
@@ -2808,21 +2886,21 @@ class AFMConfocalLogic(GenericLogic):
         _optimize_period = 60
 
         # make step symmetric
-        x_step = self._optimizer_x_range/2
-        y_step = self._optimizer_y_range / 2
-        z_step = self._optimizer_z_range / 2
+        x_step = self._sg_optimizer_x_range/2
+        y_step = self._sg_optimizer_y_range / 2
+        z_step = self._sg_optimizer_z_range / 2
 
         x_start = self._optimizer_x_target_pos - x_step
         x_stop = self._optimizer_x_target_pos + x_step
-        res_x = self._optimizer_x_res
+        res_x = self._sg_optimizer_x_res
         y_start = self._optimizer_y_target_pos - y_step
         y_stop = self._optimizer_y_target_pos + y_step
-        res_y = self._optimizer_y_res
+        res_y = self._sg_optimizer_y_res
         z_start = self._optimizer_z_target_pos - z_step
         z_stop = self._optimizer_z_target_pos + z_step
-        res_z = self._optimizer_z_res
-        int_time_xy = self._optimizer_int_time
-        int_time_z = self._optimizer_int_time
+        res_z = self._sg_optimizer_z_res
+        int_time_xy = self._sg_optimizer_int_time
+        int_time_z = self._sg_optimizer_int_time
 
         if run_in_thread:
             self.start_optimize_pos(x_start, x_stop, res_x, y_start, y_stop,
@@ -3813,8 +3891,7 @@ class AFMConfocalLogic(GenericLogic):
 
         return self._afm_pos
 
-    #FIXME: Check all methods, which depend on this method!
-    def set_obj_pos(self, pos_dict, move_time=0.1):
+    def set_obj_pos(self, pos_dict, move_time=None):
         """ Set the objective position.
 
         @param dict pos_dict: a position dictionary containing keys as 'x', 'y'
@@ -3825,6 +3902,9 @@ class AFMConfocalLogic(GenericLogic):
         @return dict: the actual set position within the position dict. The full
                       position dict is returned.
         """
+
+        if move_time is None:
+            move_time = self._sg_idle_move_target_obj
 
         target_pos_dict = {}
         for entry in pos_dict:
@@ -3842,7 +3922,7 @@ class AFMConfocalLogic(GenericLogic):
 
         return self._obj_pos
 
-    def set_afm_pos(self, pos_dict, move_time=0.1):
+    def set_afm_pos(self, pos_dict, move_time=None):
         """ Set the AFM position.
 
         @param dict pos_dict: a position dictionary containing keys as 'x' and
@@ -3853,6 +3933,9 @@ class AFMConfocalLogic(GenericLogic):
         @return dict: the actual set position within the position dict. The full
                       position dict is returned.
         """
+
+        if move_time is None:
+            move_time = self._sg_idle_move_target_sample
 
         target_pos_dict = {}
         for entry in pos_dict:
