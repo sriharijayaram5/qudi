@@ -312,6 +312,7 @@ class AFMConfocalLogic(GenericLogic):
         #FIXME: Introduce a state variable to prevent redundant configuration calls of the hardware.
         self._counter.prepare_pixelclock()
 
+        # safety precaution in case the meas path does not exist
         if not os.path.exists(self._meas_path):
             self._meas_path = self._save_logic.get_path_for_module(module_name='ProteusQ')
 
@@ -389,6 +390,7 @@ class AFMConfocalLogic(GenericLogic):
 
             meas_dict[name] = {'data': np.zeros((num_rows, num_columns, esr_num)),
                                'data_std': np.zeros((num_rows, num_columns, esr_num)),
+                               'data_fit': np.zeros((num_rows, num_columns, esr_num)),
                                'coord0_arr': np.linspace(coord0_start, coord0_stop, num_columns, endpoint=True),
                                'coord1_arr': np.linspace(coord1_start, coord1_stop, num_rows, endpoint=True),
                                'coord2_arr': np.linspace(esr_start, esr_stop, esr_num, endpoint=True),
@@ -1180,11 +1182,16 @@ class AFMConfocalLogic(GenericLogic):
 
                 try:
 
+                    # just for safety reasons (allocate already some data for it)
+                    esr_data_fit = np.zeros(len(esr_meas_mean))
+
                     # perform analysis and fit for the measured data:
                     if single_res:
                         res = self._fitlogic.make_lorentzian_fit(freq_list,
                                                                  esr_meas_mean,
                                                                  estimator=self._fitlogic.estimate_lorentzian_dip)
+                        esr_data_fit = res.best_fit
+
                         res_freq = res.params['center'].value
                         #FIXME: use Tesla not Gauss, right not, this is just for display purpose
                         mag_field =  self.calc_mag_field_single_res(res_freq, 
@@ -1196,6 +1203,7 @@ class AFMConfocalLogic(GenericLogic):
                         res = self._fitlogic.make_lorentziandouble_fit(freq_list, 
                                                                        esr_meas_mean,
                                                                        estimator=self._fitlogic.estimate_lorentziandouble_dip)
+                        esr_data_fit = res.best_fit
 
                         res_freq_low = res.params['l0_center'].value
                         res_freq_high = res.params['l1_center'].value
@@ -1225,6 +1233,8 @@ class AFMConfocalLogic(GenericLogic):
                     # insert number from the back
                     self._esr_scan_array['esr_bw']['data'][line_num// 2][coord0_num-index-1] = esr_meas_mean
                     self._esr_scan_array['esr_bw']['data_std'][line_num//2][coord0_num-index-1] = esr_meas_std
+
+                    self._esr_scan_array['esr_bw']['data_fit'][line_num//2][coord0_num-index-1] = esr_data_fit
  
                 else:
 
@@ -1235,6 +1245,8 @@ class AFMConfocalLogic(GenericLogic):
 
                     self._esr_scan_array['esr_fw']['data'][line_num//2][index] = esr_meas_mean
                     self._esr_scan_array['esr_fw']['data_std'][line_num//2][index] = esr_meas_std
+
+                    self._esr_scan_array['esr_fw']['data_fit'][line_num//2][coord0_num-index-1] = esr_data_fit
 
 
                 self.log.info(f'Point: {line_num * coord0_num + index + 1} out of {coord0_num*coord1_num*2}, {(line_num * coord0_num + index +1)/(coord0_num*coord1_num*2) * 100:.2f}% finished.')
@@ -1523,11 +1535,17 @@ class AFMConfocalLogic(GenericLogic):
 
                 try:
 
+                    # just for safety reasons (allocate already some data for it)
+                    esr_data_fit = np.zeros(len(esr_meas_mean))
+
                     # perform analysis and fit for the measured data:
                     if single_res:
                         res = self._fitlogic.make_lorentzian_fit(freq_list,
                                                                  esr_meas_mean,
                                                                  estimator=self._fitlogic.estimate_lorentzian_dip)
+
+                        esr_data_fit = res.best_fit
+
                         res_freq = res.params['center'].value
                         #FIXME: use Tesla not Gauss, right not, this is just for display purpose
                         mag_field =  self.calc_mag_field_single_res(res_freq, 
@@ -1539,6 +1557,8 @@ class AFMConfocalLogic(GenericLogic):
                         res = self._fitlogic.make_lorentziandouble_fit(freq_list, 
                                                                        esr_meas_mean,
                                                                        estimator=self._fitlogic.estimate_lorentziandouble_dip)
+
+                        esr_data_fit = res.best_fit
 
                         res_freq_low = res.params['l0_center'].value
                         res_freq_high = res.params['l1_center'].value
@@ -1566,6 +1586,7 @@ class AFMConfocalLogic(GenericLogic):
 
                 self._esr_scan_array['esr_fw']['data'][line_num][index] = esr_meas_mean
                 self._esr_scan_array['esr_fw']['data_std'][line_num][index] = esr_meas_std
+                self._esr_scan_array['esr_fw']['data_fit'][line_num][index] = esr_data_fit
 
                 # For debugging, display status text:
                 progress_text = f'Point: {line_num * coord0_num + index + 1} out of {coord0_num * coord1_num }, {(line_num * coord0_num + index + 1) / (coord0_num * coord1_num ) * 100:.2f}% finished.'
@@ -3846,6 +3867,9 @@ class AFMConfocalLogic(GenericLogic):
     def get_opti_data(self):
         return self._opti_scan_array
 
+    def get_esr_data(self):
+        return self._esr_scan_array
+
     def get_obj_pos(self, pos_list=['x', 'y', 'z']):
         """ Get objective position.
 
@@ -3989,7 +4013,7 @@ class AFMConfocalLogic(GenericLogic):
 
     def get_probe_path(self, use_qudi_savescheme=False, root_path=None, probe_name=None):
 
-        return_path = self._get_root_dir(root_path, use_qudi_savescheme)
+        return_path = self._get_root_dir(use_qudi_savescheme, root_path)
 
         # if probe name is provided, make the folder for it
         if probe_name is not None or probe_name != '':
@@ -4036,11 +4060,20 @@ class AFMConfocalLogic(GenericLogic):
 
             if root_path is None or root_path == '' or not os.path.exists(root_path):
 
-                return_path = self._meas_path
+                # check if a root folder name is specified.
 
-                self.log.debug(f'The provided rootpath "{root_path}" for '
-                                 f'save operation does not exist! Take '
-                                 f'default one: "{return_path}"')
+                if self._sg_root_folder_name == '': 
+                    return_path = self._meas_path
+                else:
+
+                    return_path = os.path.join(self._meas_path, self._sg_root_folder_name)
+                    if not os.path.exists(return_path):
+                        os.makedirs(return_path)
+
+                # self.log.debug(f'The provided rootpath "{root_path}" for '
+                #                  f'save operation does not exist! Take '
+                #                  f'default one: "{return_path}"')
+
             else:
                 if os.path.exists(root_path):
                     return_path = self._meas_path
@@ -4163,6 +4196,11 @@ class AFMConfocalLogic(GenericLogic):
                                        delimiter='\t')
             self.increase_save_counter()
 
+        # this method will be anyway skipped, if no data are present.
+        self.save_quantitative_data(tag=tag, probe_name=probe_name, sample_name=sample_name,
+                                    use_qudi_savescheme=use_qudi_savescheme, root_path=root_path, 
+                                    daily_folder=daily_folder, timestamp=timestamp)
+
     def draw_figure(self, image_data, image_extent, scan_axis=None, cbar_range=None,
                     percentile_range=None, signal_name='', signal_unit=''):
 
@@ -4256,9 +4294,142 @@ class AFMConfocalLogic(GenericLogic):
         return fig
 
 
-    def save_quantitative_data(self):
-        pass
+    def save_quantitative_data(self, tag=None, probe_name=None, sample_name=None,
+                               use_qudi_savescheme=False, root_path=None, 
+                               daily_folder=True, timestamp=None):
 
+        save_path =  self.get_qafm_save_directory(use_qudi_savescheme=use_qudi_savescheme,
+                                                  root_path=root_path,
+                                                  daily_folder=daily_folder,
+                                                  probe_name=probe_name,
+                                                  sample_name=sample_name)
+
+        if timestamp is None:
+            timestamp = datetime.datetime.now()
+
+        data = self.get_esr_data()
+
+        # go basically through the esr_fw and esr_bw scans.
+        for entry in data:
+            parameters = {}
+            parameters.update(data[entry]['params'])
+            nice_name = data[entry]['nice_name']
+            unit = data[entry]['si_units']
+
+            parameters['Name of measured signal'] = nice_name
+            parameters['Units of measured signal'] = unit
+
+            figure_data = data[entry]['data']
+            std_err_data = data[entry]['data_std']
+            fit_data = data[entry]['data_fit']
+
+
+            # check whether figure has only zeros as data, skip this then
+            if not np.any(figure_data):
+                self.log.debug(f'The data array "{entry}" contains only zeros and will be not saved.')
+                continue
+
+            # parameters['Data arrangement note'] =  'The save data contain directly the fluorescence\n'\
+            #                                        f'signals of the esr spectrum in {unit}. Each i-th spectrum\n' \
+            #                                        'was taken at position (x_i, y_k), where the top\n' \
+            #                                        'most data correspond to (x_0, y_0) position \n' \
+            #                                        '(the left lower corner of the image). For the\n'\
+            #                                        'next spectrum the x_i index will be incremented\n'\
+            #                                        'until it reaches the end of the line. Then y_k\n' \
+            #                                        'is incremented and x_i starts again from the \n' \
+            #                                        'beginning.'
+
+            rows, columns, entries = figure_data.shape
+
+
+            image_data = {}
+            # reshape the image before sending out to save logic.
+            image_data[f'ESR scan measurements with {nice_name} signal without axis.\n'
+                        'The save data contain directly the fluorescence\n'
+                       f'signals of the esr spectrum in {unit}. Each i-th spectrum\n'
+                        'was taken at position (x_i, y_k), where the top\n' 
+                        'most data correspond to (x_0, y_0) position \n'
+                        '(the left lower corner of the image). For the\n'
+                        'next spectrum the x_i index will be incremented\n'
+                        'until it reaches the end of the line. Then y_k\n'
+                        'is incremented and x_i starts again from the \n'
+                        'beginning.'] = figure_data.reshape(rows*columns, entries)
+
+            filelabel = f'esr_data_{entry}'
+
+            if tag is not None:
+                filelabel = f'{tag}_{filelabel}'
+
+            fig = self._save_logic.save_data(image_data,
+                                       filepath=save_path,
+                                       timestamp=timestamp,
+                                       parameters=parameters,
+                                       filelabel=filelabel,
+                                       fmt='%.6e',
+                                       delimiter='\t',
+                                       plotfig=None)
+
+            self.increase_save_counter()
+
+
+
+            image_data = {}
+            # reshape the image before sending out to save logic.
+            image_data[f'ESR scan std measurements with {nice_name} signal without axis.\n'
+                        'The save data contain directly the fluorescence\n'
+                       f'signals of the esr spectrum in {unit}. Each i-th spectrum\n'
+                        'was taken at position (x_i, y_k), where the top\n' 
+                        'most data correspond to (x_0, y_0) position \n'
+                        '(the left lower corner of the image). For the\n'
+                        'next spectrum the x_i index will be incremented\n'
+                        'until it reaches the end of the line. Then y_k\n'
+                        'is incremented and x_i starts again from the \n'
+                        'beginning.'] = std_err_data.reshape(rows*columns, entries)
+
+            filelabel = f'esr_data_std_{entry}'
+
+            if tag is not None:
+                filelabel = f'{tag}_{filelabel}'
+
+            fig = self._save_logic.save_data(image_data,
+                                       filepath=save_path,
+                                       timestamp=timestamp,
+                                       parameters=parameters,
+                                       filelabel=filelabel,
+                                       fmt='%.6e',
+                                       delimiter='\t',
+                                       plotfig=None)
+
+            self.increase_save_counter()
+
+            image_data = {}
+            # reshape the image before sending out to save logic.
+            image_data[f'ESR scan fits with {nice_name} signal without axis.\n'
+                        'The save data contain directly the fluorescence\n'
+                       f'signals of the esr spectrum in {unit}. Each i-th spectrum\n'
+                        'was taken at position (x_i, y_k), where the top\n' 
+                        'most data correspond to (x_0, y_0) position \n'
+                        '(the left lower corner of the image). For the\n'
+                        'next spectrum the x_i index will be incremented\n'
+                        'until it reaches the end of the line. Then y_k\n'
+                        'is incremented and x_i starts again from the \n'
+                        'beginning.'] = fit_data.reshape(rows*columns, entries)
+
+            filelabel = f'esr_data_fit_{entry}'
+
+            if tag is not None:
+                filelabel = f'{tag}_{filelabel}'
+
+            fig = self._save_logic.save_data(image_data,
+                                       filepath=save_path,
+                                       timestamp=timestamp,
+                                       parameters=parameters,
+                                       filelabel=filelabel,
+                                       fmt='%.6e',
+                                       delimiter='\t',
+                                       plotfig=None)
+
+            self.increase_save_counter()
 
 
     def increase_save_counter(self, ret_val=0):
