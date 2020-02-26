@@ -307,6 +307,8 @@ class CameraGUI(GUIBase):
         '''The ROI coord. dict. is emitted to update the camera of the coorect ROI, starts image updation by
         calling the image_clicked function and repositons the ROI to fit the new ROIed imaged.
         '''
+        if self.roi.saveState()['size'] < (2,2):
+            return
         self.sigROISet.emit(self.roi.saveState())
         self.start_image_clicked()
         self.roi.setSize(self.roi.saveState()['size'])
