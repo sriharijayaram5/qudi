@@ -100,7 +100,7 @@ class Prime95B(Base, CameraInterface):
 
         @return bool: Success ?
         """
-        self.cam.start_live()  # exp_time = self.exp_time
+        self.cam.start_live()  
         self._live = True
 
         return True
@@ -110,7 +110,6 @@ class Prime95B(Base, CameraInterface):
 
         @return bool: Success ?
         """
-        self.cam.exp_mode = "Ext Trig Internal"
         return True
 
     def stop_acquisition(self):

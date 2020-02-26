@@ -100,9 +100,7 @@ class ODMRLogic(GenericLogic):
 
         # Get hardware constraints
         limits = self.get_hw_constraints()
-        # Initializing camera hopefully
-        self._camera.on_activate()
-
+        
         # Set/recall microwave source parameters
         self.cw_mw_frequency = limits.frequency_in_range(self.cw_mw_frequency)
         self.cw_mw_power = limits.power_in_range(self.cw_mw_power)
@@ -791,6 +789,7 @@ class ODMRLogic(GenericLogic):
                 self.mw_off()
                 self._stop_odmr_counter()
                 self.module_state.unlock()
+                self._camera.set_trigger_seq("Ext Trig Internal")
                 return
 
             # if during the scan a clearing of the ODMR data is needed:
