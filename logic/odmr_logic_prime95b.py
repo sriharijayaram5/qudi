@@ -139,7 +139,7 @@ class ODMRLogic(GenericLogic):
         )
         # The array for images of the entire sweep is intialized.
         self.sweep_images = np.zeros(
-            (self.odmr_plot_x.size, *self._camera.get_size())
+            (self.odmr_plot_x.size, *np.flip(self._camera.get_size(), axis=0))
         )
         # Switch off microwave and set CW frequency and power
         self.mw_off()
@@ -713,7 +713,7 @@ class ODMRLogic(GenericLogic):
             )
             # Sweep images are set to zero at every new scan
             self.sweep_images = np.zeros(
-                (self.odmr_plot_x.size, *self._camera.get_size())
+                (self.odmr_plot_x.size, *np.flip(self._camera.get_size(), axis=0))
             )
             self.sigNextLine.emit()
             return 0
@@ -797,7 +797,7 @@ class ODMRLogic(GenericLogic):
             if self._clearOdmrData:
                 self.elapsed_sweeps = 0
                 self.sweep_images = np.zeros(
-                    (self.odmr_plot_x.size, *self._camera.get_size())
+                    (self.odmr_plot_x.size, *np.flip(self._camera.get_size(), axis=0))
                 )
                 self._startTime = time.time()
 
