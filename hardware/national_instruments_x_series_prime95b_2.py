@@ -482,20 +482,12 @@ class NationalInstrumentsXSeries(Base, ODMRCounterInterface):
                 my_idle,
                 # initial delay
                 delay,
-                # pulse frequency, divide by 2 such that length of semi period = count_interval
                 my_clock_frequency / 2,
-                # duty cycle of pulses, 0.5 such that high and low duration are both
-                # equal to count_interval
                 0.5)
 
-            # Configure Implicit Timing.
-            # Set timing to continuous, i.e. set only the number of samples to
-            # acquire or generate without specifying timing:
             daq.DAQmxCfgImplicitTiming(
                 # Define task
                 my_clock_daq_task,
-                # Sample Mode: set the task to generate a continuous amount of
-                # running samples
                 daq.DAQmx_Val_ContSamps,
                 # buffer length which stores temporarily the number of
                 # generated samples
@@ -652,25 +644,14 @@ class NationalInstrumentsXSeries(Base, ODMRCounterInterface):
 
         @return int: error code (0:OK, -1:error)
         """
-        # if self._scanner_counter_channels and len(self._scanner_counter_daq_tasks) < 1:
-        #     self.log.error('No counter is running, cannot do ODMR without one.')
-        #     return -1
-
-        # if self._scanner_ai_channels and self._scanner_analog_daq_task is None:
-        #     self.log.error('No analog task is running, cannot do ODMR without one.')
-        #     return -1
-        # Times 2 because twice as many frame. Need to check consequences
         self._odmr_length = length
         try:
-            # set timing for odmr clock task to the number of pixel.
             daq.DAQmxCfgImplicitTiming(
                 # define task
                 self._scanner_clock_daq_task,
-                # only a limited number of counts
                 daq.DAQmx_Val_FiniteSamps,
-                # count twice for each voltage +1 for starting this task.
-                # This first pulse will start the count task.
-                self._odmr_length + 1)
+                self._odmr_length)
+                # + 1)
 
         except BaseException:
             self.log.exception('Error while setting up ODMR counter.')
@@ -700,15 +681,6 @@ class NationalInstrumentsXSeries(Base, ODMRCounterInterface):
             daq.DAQmxStartTask(self._smiq_clock_daq_task)
             daq.DAQmxStartTask(self._switch_clock_daq_task)
             daq.DAQmxStartTask(self._cam_clock_daq_task)
-            # Try to start camera sequence acquisition
-            # self._camera.get_sequence(self._odmr_length)
-
-            # # wait for the scanner clock to finish
-            # daq.DAQmxWaitUntilTaskDone(
-            #     # define task
-            #     self._scanner_clock_daq_task,
-            #     # maximal timeout for the counter times the positions
-            #     self._RWTimeout * 2 * self._odmr_length)
 
             # return False, all_data
             return False, np.full((len(self.get_odmr_channels()), 1), [-1.])
@@ -754,7 +726,6 @@ class NationalInstrumentsXSeries(Base, ODMRCounterInterface):
             self.log.exception('Error while disconnecting ODMR clock channel.')
             retval = -1
 
-        retval = 0
         return retval
 
     def close_clock(self, scanner=False):

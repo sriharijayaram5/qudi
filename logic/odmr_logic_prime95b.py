@@ -822,7 +822,7 @@ class ODMRLogic(GenericLogic):
             # Remove for actual mesurements
             new_counts = frames[1::2] - np.full_like(frames[0::2], 1)
             # The sweep images are added up and the new counts are taken as the mean of the image which is what
-            # ends up being plotted as odmr_plot_y(?)
+            # ends up being plotted as odmr_plot_y
             self.sweep_images += new_counts
             new_counts = np.mean(new_counts, axis=(1, 2))
 
