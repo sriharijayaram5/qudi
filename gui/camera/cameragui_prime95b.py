@@ -307,12 +307,21 @@ class CameraGUI(GUIBase):
         '''The ROI coord. dict. is emitted to update the camera of the coorect ROI, starts image updation by
         calling the image_clicked function and repositons the ROI to fit the new ROIed imaged.
         '''
+        was_enabled = False
         if self.roi.saveState()['size'] < (2,2):
             return
+        if self._logic.enabled:
+            self._mw.start_video_Action.setText('Start Video')
+            self.sigVideoStop.emit()
+            was_enabled = True
         self.sigROISet.emit(self.roi.saveState())
         self.start_image_clicked()
         self.roi.setSize(self.roi.saveState()['size'])
         self.roi.setPos((self.roi_p1, self.roi_p2))
+        if was_enabled:
+            self._mw.start_video_Action.setText('Stop Video')
+            self.sigVideoStart.emit()
+            was_enabled = False
 
 
 # color bar functions
