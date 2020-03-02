@@ -189,8 +189,9 @@ class CameraLogic(GenericLogic):
 
         @param str: mode
         """
+        self.enabled = False
+        self._hardware.stop_acquisition()
         self._hardware.set_exposure_mode(mode)
-        # self._hardware.set_exposure_mode()
 
     def start_trigger_seq(self, num_frames):
         """Start the sequnce of frame collection. Used currently to collect frames after setting the edge trigger

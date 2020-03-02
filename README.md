@@ -10,6 +10,7 @@ Originally built around a confocal fluorescence microscope experiments, it has g
   * Tracking of fluorescent spots
   * Tektronix AWG 5000 7000 and 70000 support for pulsed microwave experiments
   * Anritsu MG37022A, MG3696B and MG3961C, R&S SMIQ and SMR support for ODMR measurements
+  * Photometrics Prime95B support for ODMR
   * Getting spectra from the WinSpec32 spectroscopy software
   * Thorlabs APT motor control
   * Magnetic field alignment for NV- in diamond via fluorescence, ODMR and nuclear spin
