@@ -909,7 +909,7 @@ class ODMRLogic(GenericLogic):
         '''The coords for finding the pixel spectrum are determined here from the mouse click callback.
         '''
         if (event == cv2.EVENT_LBUTTONDOWN):
-            self.coord = (x * 2, y * 2)
+            self.coord = (y, x)
             cv2.destroyAllWindows()
 
     def do_pixel_spectrum(self, frames):
@@ -919,11 +919,8 @@ class ODMRLogic(GenericLogic):
         The coords of selected point are then found by mouse callback and the spectrum made into the new odmr_plot_y
         data as seen in do_fit()
         '''
-        width = np.shape(frames)[1]
-        height = np.shape(frames)[2]
         # So as to have a smaller images. Hence the times 2 in the print_coords
         # function to get actual coords.
-        dim = (int(width / 2), int(height / 2))
         frame = np.sum(frames, axis=(0)) / np.shape(frames)[0]
         frame = frame.astype(np.uint16)
         # Needed because cv2 can handle only uint8(?) images.
@@ -933,7 +930,6 @@ class ODMRLogic(GenericLogic):
             alpha=0,
             beta=65535,
             norm_type=cv2.NORM_MINMAX)
-        frame = cv2.resize(frame, dim)
         cv2.imshow(f'Sweep Image : {np.shape(frames)[0]}', frame)
         cv2.setMouseCallback(
             f'Sweep Image : {np.shape(frames)[0]}',
@@ -955,6 +951,10 @@ class ODMRLogic(GenericLogic):
         self.coord = None
         if pixel_fit and np.count_nonzero(self.sweep_images) != 0:
             frames = self.sweep_images / self.elapsed_sweeps
+            frames[:] = [cv2.flip(frame, 0) for frame in frames]
+            frames1 = np.zeros((np.shape(frames)[0], 600, 600))
+            frames1[:] = [cv2.resize(frame, (600,600), interpolation=cv2.INTER_AREA) for frame in frames]
+            frames = frames1
             self.do_pixel_spectrum(frames)
             # If no mouse click happens the odmr_plot_y data is not updated and stays the same.
             # This ends up allowing us to have a preview of the entire sweep as
