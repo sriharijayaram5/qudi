@@ -100,7 +100,7 @@ class ODMRLogic(GenericLogic):
 
         # Get hardware constraints
         limits = self.get_hw_constraints()
-        
+
         # Set/recall microwave source parameters
         self.cw_mw_frequency = limits.frequency_in_range(self.cw_mw_frequency)
         self.cw_mw_power = limits.power_in_range(self.cw_mw_power)
@@ -953,7 +953,9 @@ class ODMRLogic(GenericLogic):
             frames = self.sweep_images / self.elapsed_sweeps
             frames[:] = [cv2.flip(frame, 0) for frame in frames]
             frames1 = np.zeros((np.shape(frames)[0], 600, 600))
-            frames1[:] = [cv2.resize(frame, (600,600), interpolation=cv2.INTER_AREA) for frame in frames]
+            frames1[:] = [
+                cv2.resize(
+                    frame, (600, 600), interpolation=cv2.INTER_AREA) for frame in frames]
             frames = frames1
             self.do_pixel_spectrum(frames)
             # If no mouse click happens the odmr_plot_y data is not updated and stays the same.
@@ -1075,13 +1077,14 @@ class ODMRLogic(GenericLogic):
             # The files is saved as a compressed .npz file which can be looaed by np.load('.npz')['sweep_images']
             # Provides best possible compression for array storage. Saved with almost the same timestamp
             # as used in save_logic
+            if len(tag) > 0:
+                tag = '_' + tag
+            loc = filepath + '/' + \
+                timestamp.strftime("%Y%m%d-%H%M-%S") + tag + '_sweep_images'
             np.savez_compressed(
-                filepath +
-                '/' +
-                time.strftime("%Y%m%d-%H%M-%S") +
-                '_ImageSweep',
-                sweep_images=self.sweep_images /
-                self.elapsed_sweeps)
+                loc,
+                sweep_images=(self.sweep_images /
+                              self.elapsed_sweeps).astype(np.uint16))
             self.log.info('ODMR data saved to:\n{0}'.format(filepath))
         return
 
