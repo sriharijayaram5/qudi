@@ -45,47 +45,15 @@ class NationalInstrumentsXSeries(Base, ODMRCounterInterface):
 
     Example config for copy-paste:
 
-    nicard_6343:
-        module.Class: 'national_instruments_x_series.NationalInstrumentsXSeries'
-        photon_sources:
-            - '/Dev1/PFI8'
-        #    - '/Dev1/PFI9'
-        clock_channel: '/Dev1/Ctr0'
-        default_clock_frequency: 100 # optional, in Hz
-        counter_channels:
-            - '/Dev1/Ctr1'
-        counter_ai_channels:
-            - '/Dev1/AI0'
-        default_scanner_clock_frequency: 100 # optional, in Hz
-        scanner_clock_channel: '/Dev1/Ctr2'
-        pixel_clock_channel: '/Dev1/PFI6'
-        scanner_ao_channels:
-            - '/Dev1/AO0'
-            - '/Dev1/AO1'
-            - '/Dev1/AO2'
-            - '/Dev1/AO3'
-        scanner_ai_channels:
-            - '/Dev1/AI1'
-        scanner_counter_channels:
-            - '/Dev1/Ctr3'
-        scanner_voltage_ranges:
-            - [-10, 10]
-            - [-10, 10]
-            - [-10, 10]
-            - [-10, 10]
-        scanner_position_ranges:
-            - [0e-6, 200e-6]
-            - [0e-6, 200e-6]
-            - [-100e-6, 100e-6]
-            - [-10, 10]
-
-        odmr_trigger_channel: '/Dev1/PFI7'
-
-        gate_in_channel: '/Dev1/PFI9'
-        default_samples_number: 50
-        max_counts: 3e7
-        read_write_timeout: 10
-        counting_edge_rising: True
+    nicard_6323:
+        module.Class: 'national_instruments_x_series_prime95b_2.NationalInstrumentsXSeries'
+        clock_frequency: 5
+        clock_channel: '/Dev1/Ctr1'
+        smiq_channel: '/Dev1/Ctr3'
+        switch_channel: '/Dev1/Ctr2'
+        cam_channel: '/Dev1/Ctr0'
+        scanner_clock_channel:
+            '/Dev1/Ctr1'
 
     """
 
