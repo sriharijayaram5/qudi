@@ -59,10 +59,6 @@ class Prime95B(Base, CameraInterface):
         self.cam.open()
         self.cam.exp_mode = "Ext Trig Internal"
         self.cam.exp_res = 0
-        # min_exp_time = self.cam.get_param(const.PARAM_EXPOSURE_TIME, const.ATTR_MIN)
-        # max_exp_time = self.cam.get_param(const.PARAM_EXPOSURE_TIME, const.ATTR_MAX)
-        # mycamera.cam.get_param(mycamera.const.PARAM_EXPOSURE_TIME, mycamera.const.ATTR_MAX)
-        # print(min_exp_time,max_exp_time)
         self.exp_time = self.cam.exp_time = 1
         nx_px, ny_px = self._get_detector()
         self._width, self._height = nx_px, ny_px
