@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-
+# pylint: disable=no-member
 """
 This file contains the Qudi Logic module base class.
 
@@ -254,7 +254,7 @@ class ODMRLogic(GenericLogic):
             frequency = frequency / self._oversampling
 
         if self.module_state() != 'locked':
-            self.mw_trigger_pol, triggertime = self._mw_device.set_ext_trigger(
+            self.mw_trigger_pol, _ = self._mw_device.set_ext_trigger(
                 trigger_pol, 1 / frequency)
         else:
             self.log.warning('set_trigger failed. Logic is locked.')

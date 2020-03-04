@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-
+# pylint: disable=no-member
 """
 This hardware module is written to integrate the Photometrics Prime 95B camera. It uses a python wrapper PyVcam
 to wrap over the PVCAM SDK.
@@ -32,6 +32,7 @@ from interface.odmr_counter_interface import ODMRCounterInterface
 
 # Python wrapper for wrapping over the PVCAM SDK. Functions can be found
 # in PyVCAM/camera.py
+# pylint: disable=no-name-in-module
 from pyvcam import pvc
 from pyvcam.camera import Camera
 from pyvcam import constants as const

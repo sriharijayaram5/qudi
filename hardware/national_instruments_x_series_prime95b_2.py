@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-
+# pylint: disable=no-member
 """
 This file contains the Qudi Hardware module NICard class for use with a CMOS camera ODMR measurements.
 
