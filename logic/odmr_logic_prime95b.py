@@ -177,7 +177,7 @@ class ODMRLogic(GenericLogic):
     def sv_set_fits(self, val):
         # Setup fit container
         fc = self.fitlogic().make_fit_container('ODMR sum', '1d')
-        fc.set_units(['Hz', 'c/s'])
+        fc.set_units(['Hz', 'c'])
         if isinstance(val, dict) and len(val) > 0:
             fc.load_from_dict(val)
         else:
@@ -1031,8 +1031,8 @@ class ODMRLogic(GenericLogic):
             data = OrderedDict()
             data2 = OrderedDict()
             data['frequency (Hz)'] = self.odmr_plot_x
-            data['count data (counts/s)'] = self.odmr_plot_y[nch]
-            data2['count data (counts/s)'] = self.odmr_raw_data[:self.elapsed_sweeps, nch, :]
+            data['mean pixel value data'] = self.odmr_plot_y[nch]
+            data2['mean pixel value data'] = self.odmr_raw_data[:self.elapsed_sweeps, nch, :]
 
             parameters = OrderedDict()
             parameters['Microwave CW Power (dBm)'] = self.cw_mw_power
@@ -1158,7 +1158,7 @@ class ODMRLogic(GenericLogic):
         if max(fit_count_vals) > 0:
             ax_mean.plot(fit_freq_vals, fit_count_vals, marker='None')
 
-        ax_mean.set_ylabel('Fluorescence (' + counts_prefix + 'c/s)')
+        ax_mean.set_ylabel('Mean pixel value (' + counts_prefix + 'counts)')
         ax_mean.set_xlim(np.min(freq_data), np.max(freq_data))
 
         matrixplot = ax_matrix.imshow(
@@ -1186,7 +1186,7 @@ class ODMRLogic(GenericLogic):
 
         # Draw colorbar
         cbar = fig.colorbar(matrixplot, cax=cbar_ax)
-        cbar.set_label('Fluorescence (' + cbar_prefix + 'c/s)')
+        cbar.set_label('Mean pixel value (' + cbar_prefix + 'counts)')
 
         # remove ticks from colorbar for cleaner image
         cbar.ax.tick_params(which=u'both', length=0)

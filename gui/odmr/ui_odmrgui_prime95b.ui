@@ -14,7 +14,7 @@
    <enum>Qt::DefaultContextMenu</enum>
   </property>
   <property name="windowTitle">
-   <string>qudi: ODMR</string>
+   <string>qudi: Prime95B ODMR</string>
   </property>
   <widget class="QWidget" name="centralwidget">
    <layout class="QHBoxLayout" name="horizontalLayout">
@@ -77,7 +77,7 @@
          <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
         </property>
         <property name="suffix">
-         <string>c/s</string>
+         <string>c</string>
         </property>
         <property name="minimum">
          <double>-10.000000000000000</double>
@@ -168,7 +168,7 @@
          <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
         </property>
         <property name="suffix">
-         <string>c/s</string>
+         <string>c</string>
         </property>
         <property name="minimum">
          <double>-10.000000000000000</double>

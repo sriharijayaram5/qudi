@@ -187,7 +187,7 @@ class ODMRGui(GUIBase):
         # in the UI file.
         self._mw.odmr_PlotWidget.addItem(self.odmr_image)
         self._mw.odmr_PlotWidget.setLabel(
-            axis='left', text='Counts', units='Counts/s')
+            axis='left', text='Mean pixel value', units='counts')
         self._mw.odmr_PlotWidget.setLabel(
             axis='bottom', text='Frequency', units='Hz')
         self._mw.odmr_PlotWidget.showGrid(x=True, y=True, alpha=0.8)
@@ -212,7 +212,7 @@ class ODMRGui(GUIBase):
         self._mw.odmr_cb_PlotWidget.hideAxis('bottom')
         self._mw.odmr_cb_PlotWidget.hideAxis('left')
         self._mw.odmr_cb_PlotWidget.setLabel(
-            'right', 'Fluorescence', units='counts/s')
+            'right', 'Mean pixel value', units='counts')
 
         #######################################################################
         #          Configuration of the various display Widgets                #
