@@ -951,11 +951,10 @@ class ODMRLogic(GenericLogic):
         self.coord = None
         if pixel_fit and np.count_nonzero(self.sweep_images) != 0:
             frames = self.sweep_images / self.elapsed_sweeps
-            frames[:] = [cv2.flip(frame, 0) for frame in frames]
             frames1 = np.zeros((np.shape(frames)[0], 600, 600))
             frames1[:] = [
                 cv2.resize(
-                    frame, (600, 600), interpolation=cv2.INTER_AREA) for frame in frames]
+                    cv2.flip(frame, 0), (600, 600), interpolation=cv2.INTER_AREA) for frame in frames]
             frames = frames1
             self.do_pixel_spectrum(frames)
             # If no mouse click happens the odmr_plot_y data is not updated and stays the same.
