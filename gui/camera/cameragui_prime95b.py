@@ -308,7 +308,7 @@ class CameraGUI(GUIBase):
         calling the image_clicked function and repositons the ROI to fit the new ROIed imaged.
         '''
         was_enabled = False
-        if self.roi.saveState()['size'] < (2,2):
+        if self.roi.saveState()['size'] < (3,3):
             return
         if self._logic.enabled:
             self._mw.start_video_Action.setText('Start Video')
