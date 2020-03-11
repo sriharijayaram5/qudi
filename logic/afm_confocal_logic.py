@@ -92,7 +92,7 @@ class AFMConfocalLogic(GenericLogic):
     _modclass = 'AFMConfocalLogic'
     _modtype = 'logic'
 
-    __version__ = '0.1.4' # version number 
+    __version__ = '0.1.5' # version number 
 
     _meas_path = ConfigOption('meas_path', default='', missing='warn')
 
@@ -160,6 +160,10 @@ class AFMConfocalLogic(GenericLogic):
     _esr_line_array = {} # the current esr scan and its matrix is stored here
     _saturation_array = {} # all saturation related data here
 
+    # Single Iso-B settings
+    _single_iso_b_frequency = StatusVar(default=500e6)
+    _single_iso_b_gain = StatusVar(default=0.0)
+
     # Signals:
     # ========
 
@@ -200,6 +204,9 @@ class AFMConfocalLogic(GenericLogic):
 
     # Quantitative Scan (Full B Scan)
     sigQuantiScanFinished = QtCore.Signal()
+
+    # Single IsoB Parameter
+    sigIsoBParamsUpdated = QtCore.Signal()
 
     _obj_pos = {'x': 0.0, 'y': 0.0, 'z': 0.0}
     _afm_pos = {'x': 0.0, 'y': 0.0}
@@ -244,6 +251,9 @@ class AFMConfocalLogic(GenericLogic):
     _sg_periodic_optimizer = False  # do not safe this a status var
     _sg_optimizer_period = StatusVar(default=60)
     _optimize_request = False
+
+    # iso-b settings
+    _sg_single_iso_b_operation = False    # indicate whether iso-b is on
 
     # target positions of the optimizer
     _optimizer_x_target_pos = 15e-6
@@ -527,6 +537,8 @@ class AFMConfocalLogic(GenericLogic):
         sd['optimizer_int_time'] = self._sg_optimizer_int_time
         sd['optimizer_period'] = self._sg_optimizer_period
 
+        sd['single_iso_b_operation'] = self._sg_single_iso_b_operation
+
         if setting_list is None:
             return sd
         else:
@@ -553,6 +565,30 @@ class AFMConfocalLogic(GenericLogic):
                 setattr(self, attr_name, set_dict[entry])
 
         self.sigSettingsUpdated.emit()
+
+
+    def set_state_single_iso_b(self, state):
+        """ switch on single iso b """
+        self.set_qafm_settings({'single_iso_b_operation': state})
+        
+
+    def get_state_single_iso_b(self):
+        """ Check whether single iso-b is switched on. """
+        return self._sg_single_iso_b_operation
+
+    def set_single_iso_b_params(self, freq=None, gain=None):
+
+        if freq is not None:
+            self._single_iso_b_frequency = freq
+        if gain is not None:
+            self._single_iso_b_gain = gain
+
+        self.sigIsoBParamsUpdated.emit()
+
+    def get_single_iso_b_params(self):
+        """ return the frequency and gain"""
+        return self._single_iso_b_frequency, self._single_iso_b_gain
+
 
     #FIXME: There is an error occurring if no SPM measurement parameters are specified. Fix this!
     def scan_area_qafm_bw_fw_by_line(self, coord0_start, coord0_stop, coord0_num,
@@ -608,7 +644,10 @@ class AFMConfocalLogic(GenericLogic):
             self._spm.enable_point_trigger()
             curr_scan_params.insert(0, 'counts')  # insert the fluorescence parameter
             
-            if self._counter.get_device_mode() != 'pixel':
+            if self._sg_single_iso_b_operation == True:
+                self._counter.prepare_pixelclock_single_iso_b(self._single_iso_b_frequency, 
+                                                              self._single_iso_b_gain)
+            else:
                 self._counter.prepare_pixelclock()
             
             spm_start_idx = 1 # start index of the temporary scan for the spm parameters
@@ -997,7 +1036,7 @@ class AFMConfocalLogic(GenericLogic):
 
         gyro_nv = 28e9  # gyromagnetic ratio of the NV in Hz/T (would be 28 GHz/T)
 
-        return np.sqrt((res_freq_low+res_freq_high - res_freq_low*res_freq_high - zero_field**2)/3 - e_field**2) / gyro_nv
+        return np.sqrt((res_freq_low**2 +res_freq_high**2 - res_freq_low*res_freq_high - zero_field**2)/3 - e_field**2) / gyro_nv
 
 
     def scan_area_quanti_qafm_fw_bw_by_point(self, coord0_start, coord0_stop,
