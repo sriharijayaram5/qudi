@@ -55,7 +55,7 @@ class MicrowaveQ(Base, SlowCounterInterface):
     _modclass = 'MicrowaveQ'
     _modtype = 'hardware'
 
-    __version__ = '0.1.1'
+    __version__ = '0.1.2'
 
     _CLK_FREQ_FPGA = 153.6e6 # is used to obtain the correct mapping of signals.
 
@@ -78,7 +78,7 @@ class MicrowaveQ(Base, SlowCounterInterface):
     _CONSTRAINTS = SlowCounterConstraints()
 
     _meas_mode = 'pixel'  # measurement modes: counter, pixel, esr
-    _meas_mode_available = ['counter', 'pixel', 'esr']
+    _meas_mode_available = ['counter', 'pixel', 'esr', 'single-isob']
 
     _device_status = 'idle'  # can be idle, armed or running
     _meas_running = False
@@ -104,10 +104,9 @@ class MicrowaveQ(Base, SlowCounterInterface):
     _mw_freq_list = []
     _mw_gain = 0.4 # not exposed to interface!!!
 
-    #FIXME: quick and dirty implementation for the iso-B mode
-    _use_iso_b = False
+    # settings for iso-B mode
     _iso_b_freq = 500e6 # in MHz
-    _iso_b_gain = 0.2 # linear gain for iso b mode.
+    _iso_b_gain = 0.0 # linear gain for iso b mode.
 
     def on_activate(self):
 
@@ -534,31 +533,37 @@ class MicrowaveQ(Base, SlowCounterInterface):
         return frame_int
 
     def prepare_pixelclock(self):
+        """ Setup the device to count upon an external clock. """
 
         self._meas_mode = 'pixel'
 
         self.meas_method = self.meas_method_PixelClock
 
         self._dev.configureCW_PIX(frequency=self._iso_b_freq)
-
-        if self._use_iso_b:
-            self._dev.rfpulse.setGain(self._iso_b_gain)
-        else:
-            self._dev.rfpulse.setGain(0.0)
-
+        self._dev.rfpulse.setGain(0.0)
         self._dev.resultFilter.set(0)
 
         return 0
 
-    def use_iso_b(self, freq, gain):
-        """FIXME: Quick and dirty method to enable single iso-b. """
-        self._use_iso_b = True
+    def prepare_pixelclock_single_iso_b(self, freq, gain):
+        """ Setup the device for a single frequency output. 
+
+        @param float freq: the frequency in Hz to be applied during the counting.
+        @param float gain: the linear power gain of the device, from 0.0 to 1.0
+
+        """
+
+        self._meas_mode = 'single-isob'
+
+        self.meas_method = self.meas_method_PixelClock
+
         self._iso_b_freq = freq
         self._iso_b_gain = gain
+        self._dev.configureCW_PIX(frequency=self._iso_b_freq)
+        self._dev.rfpulse.setGain(self._iso_b_gain)
+        self._dev.resultFilter.set(0)
 
-    def deactive_iso_b(self):
-        """FIXME: Quick and dirty method to disable the single iso-b. """
-        self._use_iso_b = False
+        return 0
 
     def arm_device(self, pulses=100):
 
