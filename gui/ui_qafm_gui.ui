@@ -9,8 +9,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>966</width>
-    <height>739</height>
+    <width>1033</width>
+    <height>814</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -26,7 +26,7 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>966</width>
+     <width>1033</width>
      <height>21</height>
     </rect>
    </property>
@@ -448,6 +448,173 @@
    </attribute>
    <widget class="QWidget" name="dockWidgetContents_2">
     <layout class="QGridLayout" name="gridLayout_5">
+     <item row="4" column="0">
+      <widget class="QGroupBox" name="scan_param_groupBox">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <property name="title">
+        <string>Scan Parameter</string>
+       </property>
+       <layout class="QGridLayout" name="gridLayout_scan_params"/>
+      </widget>
+     </item>
+     <item row="2" column="0">
+      <widget class="QGroupBox" name="groupBox_5">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <property name="title">
+        <string>Current AFM Position</string>
+       </property>
+       <layout class="QGridLayout" name="gridLayout_7">
+        <item row="1" column="1">
+         <widget class="ScienDSpinBox" name="afm_curr_y_DSpinBox">
+          <property name="readOnly">
+           <bool>true</bool>
+          </property>
+          <property name="buttonSymbols">
+           <enum>QAbstractSpinBox::NoButtons</enum>
+          </property>
+         </widget>
+        </item>
+        <item row="1" column="0">
+         <widget class="ScienDSpinBox" name="afm_curr_x_DSpinBox">
+          <property name="readOnly">
+           <bool>true</bool>
+          </property>
+          <property name="buttonSymbols">
+           <enum>QAbstractSpinBox::NoButtons</enum>
+          </property>
+         </widget>
+        </item>
+        <item row="0" column="1">
+         <widget class="QLabel" name="label_17">
+          <property name="text">
+           <string>Y</string>
+          </property>
+         </widget>
+        </item>
+        <item row="0" column="0">
+         <widget class="QLabel" name="label_16">
+          <property name="text">
+           <string>X</string>
+          </property>
+         </widget>
+        </item>
+       </layout>
+      </widget>
+     </item>
+     <item row="0" column="0">
+      <widget class="QGroupBox" name="groupBox_8">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <property name="title">
+        <string>Save Tag AFM Data</string>
+       </property>
+       <layout class="QGridLayout" name="gridLayout_10">
+        <item row="2" column="0">
+         <widget class="QLineEdit" name="probename_LineEdit">
+          <property name="toolTip">
+           <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Type here the name of the Quantilever (also known as the probe) for the ProteusQ.&lt;br/&gt;The data will be saved into this folder.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+          </property>
+         </widget>
+        </item>
+        <item row="1" column="1">
+         <widget class="QLabel" name="label_21">
+          <property name="text">
+           <string>Samplename</string>
+          </property>
+         </widget>
+        </item>
+        <item row="1" column="0">
+         <widget class="QLabel" name="label_20">
+          <property name="text">
+           <string>Probename</string>
+          </property>
+         </widget>
+        </item>
+        <item row="2" column="1">
+         <widget class="QLineEdit" name="samplename_LineEdit">
+          <property name="toolTip">
+           <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Type here the name of the Sample, which is investigated wit the ProteusQ.&lt;br/&gt;The data will be saved into this folder.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+          </property>
+         </widget>
+        </item>
+        <item row="2" column="2">
+         <widget class="QCheckBox" name="daily_folder_CheckBox">
+          <property name="toolTip">
+           <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Indicate, whether you what to save the measurements in a daily folder.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+          </property>
+          <property name="layoutDirection">
+           <enum>Qt::LeftToRight</enum>
+          </property>
+          <property name="autoFillBackground">
+           <bool>false</bool>
+          </property>
+          <property name="text">
+           <string/>
+          </property>
+         </widget>
+        </item>
+        <item row="0" column="0" colspan="3">
+         <widget class="QLineEdit" name="qafm_save_LineEdit"/>
+        </item>
+        <item row="1" column="2">
+         <widget class="QLabel" name="label_22">
+          <property name="text">
+           <string>Daily folder</string>
+          </property>
+         </widget>
+        </item>
+       </layout>
+      </widget>
+     </item>
+     <item row="3" column="0">
+      <widget class="QGroupBox" name="groupBox_6">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <property name="title">
+        <string>Target AFM Position</string>
+       </property>
+       <layout class="QGridLayout" name="gridLayout_8">
+        <item row="0" column="1">
+         <widget class="QLabel" name="label_19">
+          <property name="text">
+           <string>Y</string>
+          </property>
+         </widget>
+        </item>
+        <item row="0" column="0">
+         <widget class="QLabel" name="label_18">
+          <property name="text">
+           <string>X</string>
+          </property>
+         </widget>
+        </item>
+        <item row="1" column="0">
+         <widget class="ScienDSpinBox" name="afm_target_x_DSpinBox"/>
+        </item>
+        <item row="1" column="1">
+         <widget class="ScienDSpinBox" name="afm_target_y_DSpinBox"/>
+        </item>
+       </layout>
+      </widget>
+     </item>
      <item row="1" column="0">
       <widget class="QGroupBox" name="groupBox_4">
        <property name="sizePolicy">
@@ -578,177 +745,10 @@
        </layout>
       </widget>
      </item>
-     <item row="4" column="0">
-      <widget class="QGroupBox" name="scan_param_groupBox">
-       <property name="sizePolicy">
-        <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
-         <horstretch>0</horstretch>
-         <verstretch>0</verstretch>
-        </sizepolicy>
-       </property>
-       <property name="title">
-        <string>Scan Parameter</string>
-       </property>
-       <layout class="QGridLayout" name="gridLayout_scan_params"/>
-      </widget>
-     </item>
-     <item row="2" column="0">
-      <widget class="QGroupBox" name="groupBox_5">
-       <property name="sizePolicy">
-        <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
-         <horstretch>0</horstretch>
-         <verstretch>0</verstretch>
-        </sizepolicy>
-       </property>
-       <property name="title">
-        <string>Current AFM Position</string>
-       </property>
-       <layout class="QGridLayout" name="gridLayout_7">
-        <item row="1" column="1">
-         <widget class="ScienDSpinBox" name="afm_curr_y_DSpinBox">
-          <property name="readOnly">
-           <bool>true</bool>
-          </property>
-          <property name="buttonSymbols">
-           <enum>QAbstractSpinBox::NoButtons</enum>
-          </property>
-         </widget>
-        </item>
-        <item row="1" column="0">
-         <widget class="ScienDSpinBox" name="afm_curr_x_DSpinBox">
-          <property name="readOnly">
-           <bool>true</bool>
-          </property>
-          <property name="buttonSymbols">
-           <enum>QAbstractSpinBox::NoButtons</enum>
-          </property>
-         </widget>
-        </item>
-        <item row="0" column="1">
-         <widget class="QLabel" name="label_17">
-          <property name="text">
-           <string>Y</string>
-          </property>
-         </widget>
-        </item>
-        <item row="0" column="0">
-         <widget class="QLabel" name="label_16">
-          <property name="text">
-           <string>X</string>
-          </property>
-         </widget>
-        </item>
-       </layout>
-      </widget>
-     </item>
-     <item row="3" column="0">
-      <widget class="QGroupBox" name="groupBox_6">
-       <property name="sizePolicy">
-        <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
-         <horstretch>0</horstretch>
-         <verstretch>0</verstretch>
-        </sizepolicy>
-       </property>
-       <property name="title">
-        <string>Target AFM Position</string>
-       </property>
-       <layout class="QGridLayout" name="gridLayout_8">
-        <item row="0" column="1">
-         <widget class="QLabel" name="label_19">
-          <property name="text">
-           <string>Y</string>
-          </property>
-         </widget>
-        </item>
-        <item row="0" column="0">
-         <widget class="QLabel" name="label_18">
-          <property name="text">
-           <string>X</string>
-          </property>
-         </widget>
-        </item>
-        <item row="1" column="0">
-         <widget class="ScienDSpinBox" name="afm_target_x_DSpinBox"/>
-        </item>
-        <item row="1" column="1">
-         <widget class="ScienDSpinBox" name="afm_target_y_DSpinBox"/>
-        </item>
-       </layout>
-      </widget>
-     </item>
-     <item row="0" column="0">
-      <widget class="QGroupBox" name="groupBox_8">
-       <property name="sizePolicy">
-        <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
-         <horstretch>0</horstretch>
-         <verstretch>0</verstretch>
-        </sizepolicy>
-       </property>
-       <property name="title">
-        <string>Save Tag AFM Data</string>
-       </property>
-       <layout class="QGridLayout" name="gridLayout_10">
-        <item row="2" column="0">
-         <widget class="QLineEdit" name="probename_LineEdit">
-          <property name="toolTip">
-           <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Type here the name of the Quantilever (also known as the probe) for the ProteusQ.&lt;br/&gt;The data will be saved into this folder.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-          </property>
-         </widget>
-        </item>
-        <item row="1" column="1">
-         <widget class="QLabel" name="label_21">
-          <property name="text">
-           <string>Samplename</string>
-          </property>
-         </widget>
-        </item>
-        <item row="1" column="0">
-         <widget class="QLabel" name="label_20">
-          <property name="text">
-           <string>Probename</string>
-          </property>
-         </widget>
-        </item>
-        <item row="2" column="1">
-         <widget class="QLineEdit" name="samplename_LineEdit">
-          <property name="toolTip">
-           <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Type here the name of the Sample, which is investigated wit the ProteusQ.&lt;br/&gt;The data will be saved into this folder.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-          </property>
-         </widget>
-        </item>
-        <item row="2" column="2">
-         <widget class="QCheckBox" name="daily_folder_CheckBox">
-          <property name="toolTip">
-           <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Indicate, whether you what to save the measurements in a daily folder.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-          </property>
-          <property name="layoutDirection">
-           <enum>Qt::LeftToRight</enum>
-          </property>
-          <property name="autoFillBackground">
-           <bool>false</bool>
-          </property>
-          <property name="text">
-           <string/>
-          </property>
-         </widget>
-        </item>
-        <item row="0" column="0" colspan="3">
-         <widget class="QLineEdit" name="qafm_save_LineEdit"/>
-        </item>
-        <item row="1" column="2">
-         <widget class="QLabel" name="label_22">
-          <property name="text">
-           <string>Daily folder</string>
-          </property>
-         </widget>
-        </item>
-       </layout>
-      </widget>
-     </item>
     </layout>
    </widget>
   </widget>
-  <widget class="QToolBar" name="toolBar">
+  <widget class="QToolBar" name="ToolBar_optimizer">
    <property name="windowTitle">
     <string>toolBar</string>
    </property>
@@ -767,7 +767,7 @@
    <addaction name="actionOptimize_Pos"/>
    <addaction name="actionSaveOptiData"/>
   </widget>
-  <widget class="QToolBar" name="toolBar_2">
+  <widget class="QToolBar" name="ToolBar_objective_scanner">
    <property name="windowTitle">
     <string>toolBar_2</string>
    </property>
@@ -789,7 +789,7 @@
    <addaction name="actionStart_Obj_YZ_scan"/>
    <addaction name="actionSaveObjData"/>
   </widget>
-  <widget class="QToolBar" name="toolBar_4">
+  <widget class="QToolBar" name="ToolBar_stop">
    <property name="windowTitle">
     <string>toolBar_4</string>
    </property>
@@ -807,7 +807,7 @@
    </attribute>
    <addaction name="actionStop_Scan"/>
   </widget>
-  <widget class="QToolBar" name="toolBar_5">
+  <widget class="QToolBar" name="ToolBar_sample_scanner">
    <property name="windowTitle">
     <string>toolBar_5</string>
    </property>
@@ -826,6 +826,73 @@
    <addaction name="actionGo_To_AFM_pos"/>
    <addaction name="actionStart_QAFM_Scan"/>
    <addaction name="actionSaveDataQAFM"/>
+  </widget>
+  <widget class="QDockWidget" name="dockWidget_isob">
+   <property name="windowTitle">
+    <string>Single Iso-B Parameters</string>
+   </property>
+   <attribute name="dockWidgetArea">
+    <number>2</number>
+   </attribute>
+   <widget class="QWidget" name="dockWidgetContents_3">
+    <layout class="QGridLayout" name="gridLayout_12">
+     <item row="0" column="0">
+      <widget class="QGroupBox" name="groupBox_single_isob">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <property name="title">
+        <string>Single Iso-B</string>
+       </property>
+       <layout class="QGridLayout" name="gridLayout_11">
+        <item row="0" column="0">
+         <widget class="QLabel" name="label_23">
+          <property name="text">
+           <string>MW Frequency</string>
+          </property>
+         </widget>
+        </item>
+        <item row="0" column="1">
+         <widget class="QLabel" name="label_24">
+          <property name="text">
+           <string>MW gain</string>
+          </property>
+         </widget>
+        </item>
+        <item row="1" column="0">
+         <widget class="ScienDSpinBox" name="single_isob_freq_DSpinBox">
+          <property name="suffix">
+           <string>Hz</string>
+          </property>
+          <property name="maximum">
+           <double>10000000000.000000000000000</double>
+          </property>
+          <property name="singleStep">
+           <double>0.010000000000000</double>
+          </property>
+         </widget>
+        </item>
+        <item row="1" column="1">
+         <widget class="ScienDSpinBox" name="single_isob_gain_DSpinBox">
+          <property name="suffix">
+           <string/>
+          </property>
+          <property name="maximum">
+           <double>1.000000000000000</double>
+          </property>
+          <property name="singleStep">
+           <double>0.100000000000000</double>
+          </property>
+         </widget>
+        </item>
+       </layout>
+      </widget>
+     </item>
+    </layout>
+   </widget>
   </widget>
   <action name="actionStart_QAFM_Scan">
    <property name="icon">
