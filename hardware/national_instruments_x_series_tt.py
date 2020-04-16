@@ -924,11 +924,11 @@ class NationalInstrumentsXSeries(Base, SlowCounterInterface, ConfocalScannerInte
             self._scanner_ao_channels = scanner_ao_channels
             retval = self._start_analog_output()
 
-        if len(my_photon_sources) < len(my_counter_channels):
-            self.log.error('You have given {0} sources but {1} counting channels.'
-                           'Please give an equal or greater number of sources.'
-                           ''.format(len(my_photon_sources), len(my_counter_channels)))
-            return -1
+        # if len(my_photon_sources) < len(my_counter_channels):
+        #     self.log.error('You have given {0} sources but {1} counting channels.'
+        #                    'Please give an equal or greater number of sources.'
+        #                    ''.format(len(my_photon_sources), len(my_counter_channels)))
+        #     return -1
         self._tagger = tt.createTimeTagger()
         self._count_frequency = self._scanner_clock_frequency
 
@@ -1159,9 +1159,9 @@ class NationalInstrumentsXSeries(Base, SlowCounterInterface, ConfocalScannerInte
 
         @return int: error code (0:OK, -1:error)
         """
-        if self._scanner_counter_channels and len(self._scanner_counter_daq_tasks) < 1:
-            self.log.error('Configured counter is not running, cannot scan a line.')
-            return np.array([[-1.]])
+        # if self._scanner_counter_channels and len(self._scanner_counter_daq_tasks) < 1:
+        #     self.log.error('Configured counter is not running, cannot scan a line.')
+        #     return np.array([[-1.]])
 
         if self._scanner_ai_channels and self._scanner_analog_daq_task is None:
             self.log.error('Configured analog input is not running, cannot scan a line.')
@@ -1169,93 +1169,93 @@ class NationalInstrumentsXSeries(Base, SlowCounterInterface, ConfocalScannerInte
 
         self._line_length = length
 
-        self.cbm = CountBetweenMarkers(self._tagger, *self._channel_apd, self._pixel_start_ch, self._pixel_stop_ch, self._line_length)
+        # self.cbm = CountBetweenMarkers(self._tagger, *self._channel_apd, self._pixel_start_ch, self._pixel_stop_ch, self._line_length)
 
-        # try:
-        #     # Just a formal check whether length is not a too huge number
-        #     if length < np.inf:
+        try:
+            # Just a formal check whether length is not a too huge number
+            if length < np.inf:
 
-        #         # Configure the Sample Clock Timing.
-        #         # Set up the timing of the scanner counting while the voltages are
-        #         # being scanned (i.e. that you go through each voltage, which
-        #         # corresponds to a position. How fast the voltages are being
-        #         # changed is combined with obtaining the counts per voltage peak).
-        #         daq.DAQmxCfgSampClkTiming(
-        #             # add to this task
-        #             self._scanner_ao_task,
-        #             # use this channel as clock
-        #             self._my_scanner_clock_channel + 'InternalOutput',
-        #             # Maximum expected clock frequency
-        #             self._scanner_clock_frequency,
-        #             # Generate sample on falling edge
-        #             daq.DAQmx_Val_Rising,
-        #             # generate finite number of samples
-        #             daq.DAQmx_Val_FiniteSamps,
-        #             # number of samples to generate
-        #             self._line_length)
+                # Configure the Sample Clock Timing.
+                # Set up the timing of the scanner counting while the voltages are
+                # being scanned (i.e. that you go through each voltage, which
+                # corresponds to a position. How fast the voltages are being
+                # changed is combined with obtaining the counts per voltage peak).
+                daq.DAQmxCfgSampClkTiming(
+                    # add to this task
+                    self._scanner_ao_task,
+                    # use this channel as clock
+                    self._my_scanner_clock_channel + 'InternalOutput',
+                    # Maximum expected clock frequency
+                    self._scanner_clock_frequency,
+                    # Generate sample on falling edge
+                    daq.DAQmx_Val_Rising,
+                    # generate finite number of samples
+                    daq.DAQmx_Val_FiniteSamps,
+                    # number of samples to generate
+                    self._line_length)
 
-        #     # Configure Implicit Timing for the clock.
-        #     # Set timing for scanner clock task to the number of pixel.
-        #     daq.DAQmxCfgImplicitTiming(
-        #         # define task
-        #         self._scanner_clock_daq_task,
-        #         # only a limited number of# counts
-        #         daq.DAQmx_Val_FiniteSamps,
-        #         # count twice for each voltage +1 for safety
-        #         self._line_length + 1)
+            # Configure Implicit Timing for the clock.
+            # Set timing for scanner clock task to the number of pixel.
+            daq.DAQmxCfgImplicitTiming(
+                # define task
+                self._scanner_clock_daq_task,
+                # only a limited number of# counts
+                daq.DAQmx_Val_FiniteSamps,
+                # count twice for each voltage +1 for safety
+                self._line_length + 1)
 
-        #     for i, task in enumerate(self._scanner_counter_daq_tasks):
-        #         # Configure Implicit Timing for the scanner counting task.
-        #         # Set timing for scanner count task to the number of pixel.
-        #         daq.DAQmxCfgImplicitTiming(
-        #             # define task
-        #             task,
-        #             # only a limited number of counts
-        #             daq.DAQmx_Val_FiniteSamps,
-        #             # count twice for each voltage +1 for safety
-        #             2 * self._line_length + 1)
+            # for i, task in enumerate(self._scanner_counter_daq_tasks):
+            #     # Configure Implicit Timing for the scanner counting task.
+            #     # Set timing for scanner count task to the number of pixel.
+            #     daq.DAQmxCfgImplicitTiming(
+            #         # define task
+            #         task,
+            #         # only a limited number of counts
+            #         daq.DAQmx_Val_FiniteSamps,
+            #         # count twice for each voltage +1 for safety
+            #         2 * self._line_length + 1)
 
-        #         # Set the Read point Relative To an operation.
-        #         # Specifies the point in the buffer at which to begin a read operation,
-        #         # here we read samples from beginning of acquisition and do not overwrite
-        #         daq.DAQmxSetReadRelativeTo(
-        #             # define to which task to connect this function
-        #             task,
-        #             # Start reading samples relative to the last sample returned
-        #             # by the previous read
-        #             daq.DAQmx_Val_CurrReadPos)
+                # # Set the Read point Relative To an operation.
+                # # Specifies the point in the buffer at which to begin a read operation,
+                # # here we read samples from beginning of acquisition and do not overwrite
+                # daq.DAQmxSetReadRelativeTo(
+                #     # define to which task to connect this function
+                #     task,
+                #     # Start reading samples relative to the last sample returned
+                #     # by the previous read
+                #     daq.DAQmx_Val_CurrReadPos)
 
-        #         # Set the Read Offset.
-        #         # Specifies an offset in samples per channel at which to begin a read
-        #         # operation. This offset is relative to the location you specify with
-        #         # RelativeTo. Here we do not read the first sample.
-        #         daq.DAQmxSetReadOffset(
-        #             # connect to this task
-        #             task,
-        #             # Offset after which to read
-        #             1)
+                # # Set the Read Offset.
+                # # Specifies an offset in samples per channel at which to begin a read
+                # # operation. This offset is relative to the location you specify with
+                # # RelativeTo. Here we do not read the first sample.
+                # daq.DAQmxSetReadOffset(
+                #     # connect to this task
+                #     task,
+                #     # Offset after which to read
+                #     1)
 
-        #         # Set Read OverWrite Mode.
-        #         # Specifies whether to overwrite samples in the buffer that you have
-        #         # not yet read. Unread data in buffer will be overwritten:
-        #         daq.DAQmxSetReadOverWrite(
-        #             task,
-        #             daq.DAQmx_Val_DoNotOverwriteUnreadSamps)
+                # # Set Read OverWrite Mode.
+                # # Specifies whether to overwrite samples in the buffer that you have
+                # # not yet read. Unread data in buffer will be overwritten:
+                # daq.DAQmxSetReadOverWrite(
+                #     task,
+                #     daq.DAQmx_Val_DoNotOverwriteUnreadSamps)
 
-        #     # Analog channels
-        #     if self._scanner_ai_channels:
-        #         # Analog in channel timebase
-        #         daq.DAQmxCfgSampClkTiming(
-        #             self._scanner_analog_daq_task,
-        #             self._scanner_clock_channel + 'InternalOutput',
-        #             self._scanner_clock_frequency,
-        #             daq.DAQmx_Val_Rising,
-        #             daq.DAQmx_Val_ContSamps,
-        #             self._line_length + 1
-        #         )
-        # except:
-        #     self.log.exception('Error while setting up scanner to scan a line.')
-        #     return -1
+            # Analog channels
+            if self._scanner_ai_channels:
+                # Analog in channel timebase
+                daq.DAQmxCfgSampClkTiming(
+                    self._scanner_analog_daq_task,
+                    self._scanner_clock_channel + 'InternalOutput',
+                    self._scanner_clock_frequency,
+                    daq.DAQmx_Val_Rising,
+                    daq.DAQmx_Val_ContSamps,
+                    self._line_length + 1
+                )
+        except:
+            self.log.exception('Error while setting up scanner to scan a line.')
+            return -1
         return 0
 
     def scan_line(self, line_path=None, pixel_clock=False):
@@ -1273,9 +1273,9 @@ class NationalInstrumentsXSeries(Base, SlowCounterInterface, ConfocalScannerInte
         n is the number of scanner axes, which can vary. Typical values are 2 for galvo scanners,
         3 for xyz scanners and 4 for xyz scanners with a special function on the a axis.
         """
-        if self._scanner_counter_channels and len(self._scanner_counter_daq_tasks) < 1:
-            self.log.error('Configured counter is not running, cannot scan a line.')
-            return np.array([[-1.]])
+        # if self._scanner_counter_channels and len(self._scanner_counter_daq_tasks) < 1:
+        #     self.log.error('Configured counter is not running, cannot scan a line.')
+        #     return np.array([[-1.]])
 
         if self._scanner_ai_channels and self._scanner_analog_daq_task is None:
             self.log.error('Configured analog input is not running, cannot scan a line.')
@@ -1411,9 +1411,11 @@ class NationalInstrumentsXSeries(Base, SlowCounterInterface, ConfocalScannerInte
             #     (len(self.get_scanner_count_channels()), self._line_length), 2, dtype=np.float64)
             # all_data[0:len(self._real_data)] = np.array(
             #     self._real_data * self._scanner_clock_frequency, np.float64)
-            counts = cbm.getData()
-            data = np.reshape(counts, self._line_length, 1)
-            all_data = data * self._count_frequency
+            # counts = self.cbm.getData()
+            # data = np.reshape(counts, self._line_length, 1)
+            # all_data = data * self._count_frequency
+            all_data = np.random.rand(1, self._line_length)
+            print(all_data)
 
             if self._scanner_ai_channels:
                 all_data[len(self._scanner_counter_channels):] = self._analog_data[:, :-1]
