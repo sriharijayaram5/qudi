@@ -24,7 +24,6 @@ import numpy as np
 import re
 
 import PyDAQmx as daq
-import TimeTagger as tt
 from TimeTagger import *
 from core.module import Base
 from core.configoption import ConfigOption
@@ -112,9 +111,9 @@ class NationalInstrumentsXSeries(Base, SlowCounterInterface, ConfocalScannerInte
     _scanner_position_ranges = ConfigOption('scanner_position_ranges', missing='error')
 
     _channel_apd_0 = ConfigOption('timetagger_channel_apd_0', missing='error')
-    _channel_apd_1 = ConfigOption('timetagger_channel_apd_1', None, missing='warn')
-    _pixel_start_ch = ConfigOption('timetagger_pixel_start_ch', None, missing='error')
-    _pixel_stop_ch = ConfigOption('timetagger_pixel_stop_ch', None, missing='error')
+    _channel_apd_1 = ConfigOption('timetagger_channel_apd_1', missing='warn')
+    _pixel_start_ch = ConfigOption('timetagger_pixel_start_ch', missing='error')
+    _pixel_stop_ch = ConfigOption('timetagger_pixel_stop_ch', missing='error')
     _sum_channels = ConfigOption('timetagger_sum_channels', True)
 
     # odmr
@@ -929,15 +928,17 @@ class NationalInstrumentsXSeries(Base, SlowCounterInterface, ConfocalScannerInte
         #                    'Please give an equal or greater number of sources.'
         #                    ''.format(len(my_photon_sources), len(my_counter_channels)))
         #     return -1
-        self._tagger = tt.createTimeTagger()
+        self._tagger = createTimeTagger()
+        self._tagger.reset()
+        self._tagger.sync()
         self._count_frequency = self._scanner_clock_frequency
 
         if self._sum_channels:
-            channel_combined = tt.Combiner(self._tagger, channels = [self._channel_apd_0, self._channel_apd_1])
-            self._channel_apd = [channel_combined.getChannel()]
+            self._channel_combined = Combiner(self._tagger, [self._channel_apd_0, self._channel_apd_1])
+            self._channel_apd = self._channel_combined.getChannel()
         else:
-            self._channel_apd = [self._channel_apd_0, self._channel_apd_1]
-
+            self._channel_apd = self._channel_apd_0
+        
         # try:
         #     # Set the Sample Timing Type. Task timing to use a sampling clock:
         #     # specify how the Data of the selected task is collected, i.e. set it
@@ -1168,8 +1169,7 @@ class NationalInstrumentsXSeries(Base, SlowCounterInterface, ConfocalScannerInte
             return -1
 
         self._line_length = length
-
-        # self.cbm = CountBetweenMarkers(self._tagger, *self._channel_apd, self._pixel_start_ch, self._pixel_stop_ch, self._line_length)
+        self.cbm = CountBetweenMarkers(self._tagger, self._channel_apd, self._pixel_start_ch, self._pixel_stop_ch, self._line_length)
 
         try:
             # Just a formal check whether length is not a too huge number
@@ -1411,12 +1411,10 @@ class NationalInstrumentsXSeries(Base, SlowCounterInterface, ConfocalScannerInte
             #     (len(self.get_scanner_count_channels()), self._line_length), 2, dtype=np.float64)
             # all_data[0:len(self._real_data)] = np.array(
             #     self._real_data * self._scanner_clock_frequency, np.float64)
-            # counts = self.cbm.getData()
-            # data = np.reshape(counts, self._line_length, 1)
-            # all_data = data * self._count_frequency
-            all_data = np.random.rand(1, self._line_length)
-            print(all_data)
-
+            counts = self.cbm.getData()
+            data = np.reshape(counts,(1, self._line_length))
+            all_data = data * self._count_frequency
+            
             if self._scanner_ai_channels:
                 all_data[len(self._scanner_counter_channels):] = self._analog_data[:, :-1]
 
