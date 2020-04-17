@@ -786,7 +786,7 @@ class NationalInstrumentsXSeries(Base, SlowCounterInterface, ConfocalScannerInte
         """
         n_ch = len(self.get_scanner_axes())
         if myrange is None:
-            myrange = [[-10., 10.], [-10., 10.], [-10., 10.], [-10., 10.]][0:n_ch]
+            myrange = [[0., 10.], [0., 10.], [0., 10.], [0., 10.]][0:n_ch]
 
         if not isinstance(myrange, (frozenset, list, set, tuple, np.ndarray)):
             self.log.error('Given range is no array type.')
@@ -1414,7 +1414,7 @@ class NationalInstrumentsXSeries(Base, SlowCounterInterface, ConfocalScannerInte
             counts = self.cbm.getData()
             data = np.reshape(counts,(1, self._line_length))
             all_data = data * self._count_frequency
-            
+
             if self._scanner_ai_channels:
                 all_data[len(self._scanner_counter_channels):] = self._analog_data[:, :-1]
 
