@@ -183,10 +183,12 @@ class TimeTaggerCounter(Base, SlowCounterInterface):
             return np.array([self.counter0.getData() * self._count_frequency,
                              self.counter1.getData() * self._count_frequency])
 
-    def start_corr(self, bw=1000000, n=100, runtime=1):
+    def start_corr(self, bw=1000000, n=100):
         self.corr = tt.Correlation(self._tagger, channel_1=self._channel_apd_0, channel_2=self._channel_apd_1, binwidth=int(bw), n_bins=n)
-        time.sleep(runtime)
-        return self.corr.getIndex(), self.corr.getDataNormalized()
+        return 
+    
+    def get_corr(self):
+        return self.corr.getIndex(), np.nan_to_num(self.corr.getDataNormalized())
     
     def close_counter(self):
         """ Closes the counter and cleans up afterwards.

@@ -45,6 +45,7 @@ class CounterLogic(GenericLogic):
     sigCounterUpdated = QtCore.Signal()
 
     sigCountDataNext = QtCore.Signal()
+    sigCountCorrNext = QtCore.Signal()
 
     sigGatedCounterFinished = QtCore.Signal()
     sigGatedCounterContinue = QtCore.Signal(bool)
@@ -127,6 +128,7 @@ class CounterLogic(GenericLogic):
 
         # connect signals
         self.sigCountDataNext.connect(self.count_loop_body, QtCore.Qt.QueuedConnection)
+        self.sigCountCorrNext.connect(self.count_corr_loop, QtCore.Qt.QueuedConnection)
         return
 
     def on_deactivate(self):
@@ -140,6 +142,7 @@ class CounterLogic(GenericLogic):
             self._stopCount_wait()
 
         self.sigCountDataNext.disconnect()
+        self.sigCountCorrNext.disconnect()
         return
 
     def get_hardware_constraints(self):
@@ -440,7 +443,7 @@ class CounterLogic(GenericLogic):
             self.sigCountDataNext.emit()
             return
     
-    def startCorr(self, bw, n, run_time):
+    def startCorr(self, bw, n):
         """ 
             @return error: 0 is OK, -1 is error
         """
@@ -459,10 +462,40 @@ class CounterLogic(GenericLogic):
                 self.log.warning('Counter already running. Method call ignored.')
                 return 0
 
-            self.corr_x, self.corr_y = self._counting_device.start_corr(bw/10e6*10e12, n, run_time)
-            self.module_state.unlock()
+            self._counting_device.start_corr(bw/1e9*10e12, n)
+            self.corr_x, self.corr_y = self._counting_device.get_corr()
+            self.corr_y = np.full_like(self.corr_y, 0)
+            self.corr_stopRequested = False
             self.sigCorrUpdated.emit()
+            self.sigCountCorrNext.emit()
             return
+
+    def count_corr_loop(self):
+        if self.module_state() == 'locked':
+            with self.threadlock:
+                # check for aborts of the thread in break if necessary
+                if self.corr_stopRequested:
+                    # switch the state variable off again
+                    self.corr_stopRequested = False
+                    self.module_state.unlock()
+                    self.sigCorrUpdated.emit()
+                    return
+
+                # read the current corr value
+                self.corr_x, self.corr_y = self._counting_device.get_corr()
+            # call this again from event loop
+            self.sigCorrUpdated.emit()
+            self.sigCountCorrNext.emit()
+        return
+    
+    def stopCorr(self):
+        """ Set a flag to request stopping counting.
+        """
+        if self.module_state() == 'locked':
+            with self.threadlock:
+                self.corr_stopRequested = True
+                del(self._counting_device.corr)
+        return
 
     def stopCount(self):
         """ Set a flag to request stopping counting.

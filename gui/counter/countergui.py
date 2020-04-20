@@ -23,7 +23,7 @@ top-level directory of this distribution and at <https://github.com/Ulm-IQO/qudi
 import numpy as np
 import os
 import pyqtgraph as pg
-
+import time
 from core.connector import Connector
 from gui.colordefs import QudiPalettePale as palette
 from gui.guibase import GUIBase
@@ -71,7 +71,8 @@ class CounterGui(GUIBase):
 
     sigStartCounter = QtCore.Signal()
     sigStopCounter = QtCore.Signal()
-    sigStartCorr = QtCore.Signal(float, int, float)
+    sigStartCorr = QtCore.Signal(float, int)
+    sigStopCorr = QtCore.Signal()
 
     def __init__(self, config, **kwargs):
         super().__init__(config=config, **kwargs)
@@ -157,20 +158,15 @@ class CounterGui(GUIBase):
             self.c_curves = []
             # Create an empty plot curve to be filled later, set its pen
             self.c_curves.append(
-                pg.PlotDataItem(
-                        pen=pg.mkPen(palette.c3, style=QtCore.Qt.DotLine),
-                        symbol='s',
-                        symbolPen=palette.c3,
-                        symbolBrush=palette.c3,
-                        symbolSize=5))
+                pg.ScatterPlotItem(fillLevel=0, brush=(0,0,255,150)))
             self._cpw.addItem(self.c_curves[-1])
             self.c_curves.append(
                 pg.PlotDataItem(pen=pg.mkPen(palette.c4, width=3), symbol=None))
             self._cpw.addItem(self.c_curves[-1])
 
             # setting the x axis length correctly
-            self._cpw.setXRange(-self._cw.bin_width_DoubleSpinBox.value()*self._cw.no_of_bins_SpinBox.value()/10e6/2,
-                                self._cw.bin_width_DoubleSpinBox.value()*self._cw.no_of_bins_SpinBox.value()/10e6/2)
+            self._cpw.setXRange(-self._cw.bin_width_DoubleSpinBox.value()*self._cw.no_of_bins_SpinBox.value()/1e9/2,
+                                self._cw.bin_width_DoubleSpinBox.value()*self._cw.no_of_bins_SpinBox.value()/1e9/2)
             
         self._mw.actionCorrelation.triggered.connect(assignCor)
         
@@ -218,6 +214,7 @@ class CounterGui(GUIBase):
         self.sigStopCounter.connect(self._counting_logic.stopCount)
 
         self.sigStartCorr.connect(self._counting_logic.startCorr)
+        self.sigStopCorr.connect(self._counting_logic.stopCorr)
 
         ##################
         # Handling signals from the logic
@@ -267,6 +264,7 @@ class CounterGui(GUIBase):
         self._mw.restore_default_view_Action.triggered.disconnect()
         self.sigStartCounter.disconnect()
         self.sigStartCorr.disconnect()
+        self.sigStopCorr.disconnect()
         self.sigStopCounter.disconnect()
         self._counting_logic.sigCounterUpdated.disconnect()
         self._counting_logic.sigCountingSamplesChanged.disconnect()
@@ -344,19 +342,21 @@ class CounterGui(GUIBase):
     def update_corr(self):
         x = self._counting_logic.corr_x/10e12
         y = self._counting_logic.corr_y
-        print(x,y)
         self.c_curves[-2].setData(y=y, x=x)
+        self._cw.runtime_Label.setText(f'{time.time()-self.corr_t0:.1f}')
     
     def start_corr(self):
         """ Handling the Start button to stop and restart the counter.
         """
         if self._counting_logic.module_state() == 'locked':
-            self._cw.start_counter_Action.setText('Counter locked')
-            self._cw.start_counter_Action.setChecked(False)
-        else:
             self._cw.start_counter_Action.setText('Start')
-            self._mw.start_counter_Action.setChecked(True)
-            self.sigStartCorr.emit(self._cw.bin_width_DoubleSpinBox.value(), self._cw.no_of_bins_SpinBox.value(), self._cw.runtime_SpinBox.value())
+            self._cw.start_counter_Action.setChecked(False)
+            self.sigStopCorr.emit()
+        else:
+            self._cw.start_counter_Action.setText('Stop')
+            self._cw.start_counter_Action.setChecked(True)
+            self.sigStartCorr.emit(self._cw.bin_width_DoubleSpinBox.value(), self._cw.no_of_bins_SpinBox.value())
+            self.corr_t0 = time.time()
         return self._counting_logic.module_state()
 
     def save_clicked(self):
