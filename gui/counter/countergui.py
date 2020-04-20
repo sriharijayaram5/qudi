@@ -40,7 +40,21 @@ class CounterMainWindow(QtWidgets.QMainWindow):
     def __init__(self, **kwargs):
         # Get the path to the *.ui file
         this_dir = os.path.dirname(__file__)
-        ui_file = os.path.join(this_dir, 'ui_slow_counter.ui')
+        ui_file = os.path.join(this_dir, 'ui_slow_counter copy.ui')
+
+        # Load it
+        super().__init__(**kwargs)
+        uic.loadUi(ui_file, self)
+        self.show()
+
+class CorrelationMainWindow(QtWidgets.QMainWindow):
+
+    """ Create the Main Window based on the *.ui file. """
+
+    def __init__(self, **kwargs):
+        # Get the path to the *.ui file
+        this_dir = os.path.dirname(__file__)
+        ui_file = os.path.join(this_dir, 'ui_slow_counter_corr.ui')
 
         # Load it
         super().__init__(**kwargs)
@@ -57,6 +71,7 @@ class CounterGui(GUIBase):
 
     sigStartCounter = QtCore.Signal()
     sigStopCounter = QtCore.Signal()
+    sigStartCorr = QtCore.Signal(float, int, float)
 
     def __init__(self, config, **kwargs):
         super().__init__(config=config, **kwargs)
@@ -130,7 +145,35 @@ class CounterGui(GUIBase):
         self._mw.count_length_SpinBox.valueChanged.connect(self.count_length_changed)
         self._mw.count_freq_SpinBox.valueChanged.connect(self.count_frequency_changed)
         self._mw.oversampling_SpinBox.valueChanged.connect(self.oversampling_changed)
+        # Correlation window
+        def assignCor():
+            self._cw = CorrelationMainWindow()
+            self._cw.start_counter_Action.triggered.connect(self.start_corr)
+            # self._cw.save_Action.triggered.connect(self.save_corr)
+            self._cpw = self._cw.correlation_hist_PlotWidget
+            self._cpw.setLabel('left', 'Frequency', units='counts/s')
+            self._cpw.setLabel('bottom', 'dt', units='s')
 
+            self.c_curves = []
+            # Create an empty plot curve to be filled later, set its pen
+            self.c_curves.append(
+                pg.PlotDataItem(
+                        pen=pg.mkPen(palette.c3, style=QtCore.Qt.DotLine),
+                        symbol='s',
+                        symbolPen=palette.c3,
+                        symbolBrush=palette.c3,
+                        symbolSize=5))
+            self._cpw.addItem(self.c_curves[-1])
+            self.c_curves.append(
+                pg.PlotDataItem(pen=pg.mkPen(palette.c4, width=3), symbol=None))
+            self._cpw.addItem(self.c_curves[-1])
+
+            # setting the x axis length correctly
+            self._cpw.setXRange(-self._cw.bin_width_DoubleSpinBox.value()*self._cw.no_of_bins_SpinBox.value()/10e6/2,
+                                self._cw.bin_width_DoubleSpinBox.value()*self._cw.no_of_bins_SpinBox.value()/10e6/2)
+            
+        self._mw.actionCorrelation.triggered.connect(assignCor)
+        
         if len(self.curves) >= 2:
             self._mw.trace_1_checkbox.setChecked(True)
         else:
@@ -174,6 +217,8 @@ class CounterGui(GUIBase):
         self.sigStartCounter.connect(self._counting_logic.startCount)
         self.sigStopCounter.connect(self._counting_logic.stopCount)
 
+        self.sigStartCorr.connect(self._counting_logic.startCorr)
+
         ##################
         # Handling signals from the logic
 
@@ -192,6 +237,8 @@ class CounterGui(GUIBase):
         self._counting_logic.sigSavingStatusChanged.connect(self.update_saving_Action)
         self._counting_logic.sigCountingModeChanged.connect(self.update_counting_mode_ComboBox)
         self._counting_logic.sigCountStatusChanged.connect(self.update_count_status_Action)
+        
+        self._counting_logic.sigCorrUpdated.connect(self.update_corr)
 
         return 0
 
@@ -219,6 +266,7 @@ class CounterGui(GUIBase):
         self._mw.trace_4_checkbox.stateChanged.disconnect()
         self._mw.restore_default_view_Action.triggered.disconnect()
         self.sigStartCounter.disconnect()
+        self.sigStartCorr.disconnect()
         self.sigStopCounter.disconnect()
         self._counting_logic.sigCounterUpdated.disconnect()
         self._counting_logic.sigCountingSamplesChanged.disconnect()
@@ -227,6 +275,8 @@ class CounterGui(GUIBase):
         self._counting_logic.sigSavingStatusChanged.disconnect()
         self._counting_logic.sigCountingModeChanged.disconnect()
         self._counting_logic.sigCountStatusChanged.disconnect()
+
+        self._counting_logic.sigCorrUpdated.disconnect()
 
         self._mw.close()
         return
@@ -289,6 +339,24 @@ class CounterGui(GUIBase):
         else:
             self._mw.start_counter_Action.setText('Stop counter')
             self.sigStartCounter.emit()
+        return self._counting_logic.module_state()
+    
+    def update_corr(self):
+        x = self._counting_logic.corr_x/10e12
+        y = self._counting_logic.corr_y
+        print(x,y)
+        self.c_curves[-2].setData(y=y, x=x)
+    
+    def start_corr(self):
+        """ Handling the Start button to stop and restart the counter.
+        """
+        if self._counting_logic.module_state() == 'locked':
+            self._cw.start_counter_Action.setText('Counter locked')
+            self._cw.start_counter_Action.setChecked(False)
+        else:
+            self._cw.start_counter_Action.setText('Start')
+            self._mw.start_counter_Action.setChecked(True)
+            self.sigStartCorr.emit(self._cw.bin_width_DoubleSpinBox.value(), self._cw.no_of_bins_SpinBox.value(), self._cw.runtime_SpinBox.value())
         return self._counting_logic.module_state()
 
     def save_clicked(self):

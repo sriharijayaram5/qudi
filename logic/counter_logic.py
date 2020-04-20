@@ -55,6 +55,8 @@ class CounterLogic(GenericLogic):
     sigCountStatusChanged = QtCore.Signal(bool)
     sigCountingModeChanged = QtCore.Signal(CountingMode)
 
+    sigCorrUpdated = QtCore.Signal()
+
     # declare connectors
     counter1 = Connector(interface='SlowCounterInterface')
     savelogic = Connector(interface='SaveLogic')
@@ -436,6 +438,30 @@ class CounterLogic(GenericLogic):
             # Start data reader loop
             self.sigCountStatusChanged.emit(True)
             self.sigCountDataNext.emit()
+            return
+    
+    def startCorr(self, bw, n, run_time):
+        """ 
+            @return error: 0 is OK, -1 is error
+        """
+        # Sanity checks
+        constraints = self.get_hardware_constraints()
+        if self._counting_mode not in constraints.counting_mode:
+            self.log.error('Unknown counting mode "{0}". Cannot start the counter.'
+                           ''.format(self._counting_mode))
+            return -1
+
+        with self.threadlock:
+            # Lock module
+            if self.module_state() != 'locked':
+                self.module_state.lock()
+            else:
+                self.log.warning('Counter already running. Method call ignored.')
+                return 0
+
+            self.corr_x, self.corr_y = self._counting_device.start_corr(bw/10e6*10e12, n, run_time)
+            self.module_state.unlock()
+            self.sigCorrUpdated.emit()
             return
 
     def stopCount(self):
