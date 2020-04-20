@@ -11,25 +11,21 @@
    </rect>
   </property>
   <property name="windowTitle">
-   <string>qudi: Slow Counter</string>
+   <string>qudi: Correlation</string>
   </property>
   <widget class="QWidget" name="centralwidget">
-   <widget class="PlotWidget" name="correlation_hist_PlotWidget">
-    <property name="geometry">
-     <rect>
-      <x>10</x>
-      <y>11</y>
-      <width>782</width>
-      <height>331</height>
-     </rect>
-    </property>
-    <property name="minimumSize">
-     <size>
-      <width>782</width>
-      <height>331</height>
-     </size>
-    </property>
-   </widget>
+   <layout class="QGridLayout" name="gridLayout">
+    <item row="0" column="0">
+     <widget class="PlotWidget" name="correlation_hist_PlotWidget">
+      <property name="minimumSize">
+       <size>
+        <width>782</width>
+        <height>331</height>
+       </size>
+      </property>
+     </widget>
+    </item>
+   </layout>
   </widget>
   <widget class="QMenuBar" name="menubar">
    <property name="geometry">
@@ -44,18 +40,8 @@
     <property name="title">
      <string>&amp;View</string>
     </property>
-    <widget class="QMenu" name="menuToolbars">
-     <property name="title">
-      <string>&amp;Toolbars</string>
-     </property>
-     <addaction name="counting_controls_view_Action"/>
-    </widget>
-    <addaction name="slow_counter_view_Action"/>
-    <addaction name="slow_counter_parameters_view_Action"/>
     <addaction name="separator"/>
-    <addaction name="menuToolbars"/>
     <addaction name="separator"/>
-    <addaction name="restore_default_view_Action"/>
     <addaction name="actionClose"/>
    </widget>
    <addaction name="menuView"/>
@@ -241,7 +227,7 @@ Timestamps in oversampling interval are all equal to the averaging time.</string
     <bool>true</bool>
    </property>
    <property name="text">
-    <string>Slow parameters</string>
+    <string>Show parameters</string>
    </property>
    <property name="toolTip">
     <string>Show Slow counter parameters</string>

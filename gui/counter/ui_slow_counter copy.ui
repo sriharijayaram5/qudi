@@ -378,7 +378,7 @@ Timestamps in oversampling interval are all equal to the averaging time.</string
   </action>
   <action name="actionCorrelation">
    <property name="checkable">
-    <bool>true</bool>
+    <bool>false</bool>
    </property>
    <property name="text">
     <string>Correlation</string>
