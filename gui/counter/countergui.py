@@ -158,7 +158,11 @@ class CounterGui(GUIBase):
             self.c_curves = []
             # Create an empty plot curve to be filled later, set its pen
             self.c_curves.append(
-                pg.ScatterPlotItem(fillLevel=0, brush=(0,0,255,150)))
+                pg.PlotDataItem(pen=pg.mkPen(palette.c3, style=QtCore.Qt.DotLine),
+                        symbol='o',
+                        symbolPen=palette.c3,
+                        symbolBrush=palette.c3,
+                        symbolSize=5))
             self._cpw.addItem(self.c_curves[-1])
             self.c_curves.append(
                 pg.PlotDataItem(pen=pg.mkPen(palette.c4, width=3), symbol=None))
