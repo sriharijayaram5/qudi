@@ -148,12 +148,13 @@ class CounterGui(GUIBase):
         self._mw.oversampling_SpinBox.valueChanged.connect(self.oversampling_changed)
         # Correlation window
         def assignCor():
+            self.corr_t0 = 0
             self._cw = CorrelationMainWindow()
             self._cw.start_counter_Action.triggered.connect(self.start_corr)
-            # self._cw.save_Action.triggered.connect(self.save_corr)
+            self._cw.save_Action.triggered.connect(self.save_corr)
             self._cpw = self._cw.correlation_hist_PlotWidget
-            self._cpw.setLabel('left', 'Frequency', units='counts/s')
-            self._cpw.setLabel('bottom', 'dt', units='s')
+            self._cpw.setLabel('left', 'g<sup>(2)</sup>(<font>&tau;</font>)')
+            self._cpw.setLabel('bottom', '<font>&tau;</font>', units='s')
 
             self.c_curves = []
             # Create an empty plot curve to be filled later, set its pen
@@ -344,7 +345,7 @@ class CounterGui(GUIBase):
         return self._counting_logic.module_state()
     
     def update_corr(self):
-        x = self._counting_logic.corr_x/10e12
+        x = self._counting_logic.corr_x/1e12
         y = self._counting_logic.corr_y
         self.c_curves[-2].setData(y=y, x=x)
         self._cw.runtime_Label.setText(f'{time.time()-self.corr_t0:.1f}')
@@ -362,6 +363,10 @@ class CounterGui(GUIBase):
             self.sigStartCorr.emit(self._cw.bin_width_DoubleSpinBox.value(), self._cw.no_of_bins_SpinBox.value())
             self.corr_t0 = time.time()
         return self._counting_logic.module_state()
+
+    def save_corr(self):
+        self._counting_logic.save_corr(self._cw.bin_width_DoubleSpinBox.value(), self._cw.no_of_bins_SpinBox.value(), f'{time.time()-self.corr_t0:.1f}')
+        return
 
     def save_clicked(self):
         """ Handling the save button to save the data into a file.
