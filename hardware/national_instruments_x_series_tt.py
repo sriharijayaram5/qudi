@@ -1411,7 +1411,7 @@ class NationalInstrumentsXSeries(Base, SlowCounterInterface, ConfocalScannerInte
             #     (len(self.get_scanner_count_channels()), self._line_length), 2, dtype=np.float64)
             # all_data[0:len(self._real_data)] = np.array(
             #     self._real_data * self._scanner_clock_frequency, np.float64)
-            counts = self.cbm.getData()
+            counts = np.nan_to_num(self.cbm.getData())
             data = np.reshape(counts,(1, self._line_length))
             all_data = data * self._count_frequency
 

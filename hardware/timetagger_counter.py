@@ -178,10 +178,10 @@ class TimeTaggerCounter(Base, SlowCounterInterface):
 
         time.sleep(2 / self._count_frequency)
         if self._mode < 2:
-            return self.counter.getData() * self._count_frequency
+            return np.nan_to_num(self.counter.getData() * self._count_frequency)
         else:
-            return np.array([self.counter0.getData() * self._count_frequency,
-                             self.counter1.getData() * self._count_frequency])
+            return np.nan_to_num(np.array([self.counter0.getData() * self._count_frequency,
+                             self.counter1.getData() * self._count_frequency]))
 
     def start_corr(self, bw=1000000, n=100):
         self.corr = tt.Correlation(self._tagger, channel_1=self._channel_apd_0, channel_2=self._channel_apd_1, binwidth=int(bw), n_bins=n)
