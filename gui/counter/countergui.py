@@ -149,6 +149,7 @@ class CounterGui(GUIBase):
         # Correlation window
         def assignCor():
             self.corr_t0 = 0
+            self.save_runtime = ''
             self._cw = CorrelationMainWindow()
             self._cw.start_counter_Action.triggered.connect(self.start_corr)
             self._cw.save_Action.triggered.connect(self.save_corr)
@@ -348,7 +349,8 @@ class CounterGui(GUIBase):
         x = self._counting_logic.corr_x/1e12
         y = self._counting_logic.corr_y
         self.c_curves[-2].setData(y=y, x=x)
-        self._cw.runtime_Label.setText(f'{time.time()-self.corr_t0:.1f}')
+        self.save_runtime = f'{time.time()-self.corr_t0:.1f}'
+        self._cw.runtime_Label.setText(self.save_runtime)
     
     def start_corr(self):
         """ Handling the Start button to stop and restart the counter.
@@ -365,7 +367,7 @@ class CounterGui(GUIBase):
         return self._counting_logic.module_state()
 
     def save_corr(self):
-        self._counting_logic.save_corr(self._cw.bin_width_DoubleSpinBox.value(), self._cw.no_of_bins_SpinBox.value(), f'{time.time()-self.corr_t0:.1f}')
+        self._counting_logic.save_corr(self._cw.bin_width_DoubleSpinBox.value(), self._cw.no_of_bins_SpinBox.value(), self.save_runtime)
         return
 
     def save_clicked(self):

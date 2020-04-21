@@ -98,6 +98,7 @@ class CounterLogic(GenericLogic):
         self._counting_mode = CountingMode['CONTINUOUS']
 
         self._saving = False
+        self.corr_x, self.corr_y = None, None
         return
 
     def on_activate(self):
@@ -487,6 +488,45 @@ class CounterLogic(GenericLogic):
             self.sigCorrUpdated.emit()
             self.sigCountCorrNext.emit()
         return
+
+    def draw_corr(self, data):
+        """ Draw figure to save with data file.
+
+        @param: nparray data: a numpy array containing counts vs time for all detectors
+
+        @return: fig fig: a matplotlib figure object to be saved to file.
+        """
+        # Use qudi style
+        plt.style.use(self._save_logic.mpl_qd_style)
+
+        # Create figure
+        fig, ax = plt.subplots()
+        ax.plot(data[0]/1e3, data[1], linestyle=':', linewidth=0.5)
+        ax.set_xlabel('$\\tau$ (ns)')
+        ax.set_ylabel('$g^{(2)}(\\tau)$')
+        return fig
+    
+    def save_corr(self, bin_width, n_bins, run_time):
+        # write the parameters:
+        if self.corr_y is None:
+            return
+        parameters = OrderedDict()
+        parameters['Runtime(s)'] = run_time
+        parameters['Bin width(ns)'] = bin_width
+        parameters['No. of bins'] = n_bins
+
+        filelabel = 'correlation_hist'
+
+        # prepare the data in a dict or in an OrderedDict:
+        header = 'T(ps), g(2)(T)'
+        data = {header: np.array([self.corr_x, self.corr_y]).T}
+        filepath = self._save_logic.get_path_for_module(module_name='Counter')
+
+        fig = self.draw_corr(data=(self.corr_x, self.corr_y))
+        self._save_logic.save_data(data, filepath=filepath, parameters=parameters,
+                                    filelabel=filelabel, plotfig=fig, delimiter='\t')
+        self.log.info('Correlation data saved to:\n{0}'.format(filepath))
+        return 
     
     def stopCorr(self):
         """ Set a flag to request stopping counting.
