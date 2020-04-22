@@ -22,7 +22,7 @@ top-level directory of this distribution and at <https://github.com/Ulm-IQO/qudi
 
 import numpy as np
 import re
-
+import time
 import PyDAQmx as daq
 from TimeTagger import *
 from core.module import Base
@@ -1411,6 +1411,9 @@ class NationalInstrumentsXSeries(Base, SlowCounterInterface, ConfocalScannerInte
             #     (len(self.get_scanner_count_channels()), self._line_length), 2, dtype=np.float64)
             # all_data[0:len(self._real_data)] = np.array(
             #     self._real_data * self._scanner_clock_frequency, np.float64)
+            timeout = time.time()
+            while not self.cbm.ready() and (time.time()-timeout)<1.0:
+                pass
             counts = np.nan_to_num(self.cbm.getData())
             data = np.reshape(counts,(1, self._line_length))
             all_data = data * self._count_frequency
@@ -1789,7 +1792,9 @@ class NationalInstrumentsXSeries(Base, SlowCounterInterface, ConfocalScannerInte
                 self._scanner_clock_daq_task,
                 # maximal timeout for the counter times the positions
                 self._RWTimeout * 2 * self._odmr_length)
-
+            timeout = time.time()
+            while not self.cbm.ready() and (time.time()-timeout)<1.0:
+                pass
             counts = np.nan_to_num(self.cbm.getData())
             all_data_tt = counts * self._count_frequency
 
