@@ -463,7 +463,7 @@ class CounterLogic(GenericLogic):
                 self.log.warning('Counter already running. Method call ignored.')
                 return 0
 
-            self._counting_device.start_corr(bw/1e9*10e12, n)
+            self._counting_device.start_corr(bw/1e9*1e12, n)
             self.corr_x, self.corr_y = self._counting_device.get_corr()
             self.corr_y = np.full_like(self.corr_y, 0)
             self.corr_stopRequested = False
