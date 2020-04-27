@@ -928,6 +928,8 @@ class NationalInstrumentsXSeries(Base, SlowCounterInterface, ConfocalScannerInte
         #                    'Please give an equal or greater number of sources.'
         #                    ''.format(len(my_photon_sources), len(my_counter_channels)))
         #     return -1
+
+        #Create TimeTagger object and combine channels
         self._tagger = createTimeTagger()
         self._tagger.reset()
         self._tagger.sync()
@@ -1169,6 +1171,7 @@ class NationalInstrumentsXSeries(Base, SlowCounterInterface, ConfocalScannerInte
             return -1
 
         self._line_length = length
+        #Start instance of TimeTagger.CountBetweenMarkers with the correct channels. Does this every time a line is scanned
         self.cbm = CountBetweenMarkers(self._tagger, self._channel_apd, self._pixel_start_ch, self._pixel_stop_ch, self._line_length)
 
         try:
@@ -1411,6 +1414,11 @@ class NationalInstrumentsXSeries(Base, SlowCounterInterface, ConfocalScannerInte
             #     (len(self.get_scanner_count_channels()), self._line_length), 2, dtype=np.float64)
             # all_data[0:len(self._real_data)] = np.array(
             #     self._real_data * self._scanner_clock_frequency, np.float64)
+
+            #Waits until either the cbm array is fille or until arbitrary 1 second. This is to make sure we are not reading data out before the
+            #TimeTagger is able to write from buffer to array. Could maybe sleep in the while loop for 0.1s instead of pass to make it possibly less
+            #intensive with the repeated ready() calls to the TimeTagger
+            #The actual counts are then retrieved and reshaped. 
             timeout = time.time()
             while not self.cbm.ready() and (time.time()-timeout)<1.0:
                 pass
@@ -1555,6 +1563,7 @@ class NationalInstrumentsXSeries(Base, SlowCounterInterface, ConfocalScannerInte
             #     return -1
 
         try:
+            #TimeTagger object is created for ODMR and channels are combined.
             self._tagger = createTimeTagger()
             self._tagger.reset()
             self._tagger.sync()
@@ -1749,6 +1758,7 @@ class NationalInstrumentsXSeries(Base, SlowCounterInterface, ConfocalScannerInte
             return True, np.array([-1.])
 
         try:
+            #Initialises the actual CountBetweenMarkers object with the correct length and channels. Does this for every pass.
             self.cbm = CountBetweenMarkers(self._tagger, self._channel_apd, self._pixel_start_ch, self._pixel_stop_ch, self._odmr_length)
             # start the scanner counting task that acquires counts synchronously
             # if self._scanner_counter_channels:
@@ -1792,6 +1802,11 @@ class NationalInstrumentsXSeries(Base, SlowCounterInterface, ConfocalScannerInte
                 self._scanner_clock_daq_task,
                 # maximal timeout for the counter times the positions
                 self._RWTimeout * 2 * self._odmr_length)
+
+            #Waits until either the cbm array is fille or until arbitrary 1 second. This is to make sure we are not reading data out before the
+            #TimeTagger is able to write from buffer to array. Could maybe sleep in the while loop for 0.1s instead of pass to make it possibly less
+            #intensive with the repeated ready() calls to the TimeTagger
+            #The actual counts are then retrieved and reshaped.
             timeout = time.time()
             while not self.cbm.ready() and (time.time()-timeout)<1.0:
                 pass
@@ -1906,7 +1921,7 @@ class NationalInstrumentsXSeries(Base, SlowCounterInterface, ConfocalScannerInte
 
                 else:
                     all_data[start_index:] = odmr_analog_data[:, :-1]
-
+            #Returning TimeTagger data instead
             return False, all_data_tt
         except:
             self.log.exception('Error while counting for ODMR.')

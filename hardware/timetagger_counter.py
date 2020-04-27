@@ -184,10 +184,18 @@ class TimeTaggerCounter(Base, SlowCounterInterface):
                              self.counter1.getData() * self._count_frequency]))
 
     def start_corr(self, bw=1000000, n=100):
+        '''Start correlation measurement and sets up an instance of TimeTagger.Correlation()
+        @param int bw: binwidth of correlation measurement in picoseconds
+        
+        @param int n: no. of bins of correlation measurement
+        '''
         self.corr = tt.Correlation(self._tagger, channel_1=self._channel_apd_0, channel_2=self._channel_apd_1, binwidth=int(bw), n_bins=n)
         return 
     
     def get_corr(self):
+        '''Gets data of correlation measurement
+        @return tuple (index of correlation hist in ps, normalized histogram data)
+        '''
         return self.corr.getIndex(), np.nan_to_num(self.corr.getDataNormalized())
     
     def close_counter(self):
