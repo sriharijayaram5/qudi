@@ -162,6 +162,11 @@ class MicrowaveQ(Base, SlowCounterInterface):
     def on_deactivate(self):
         self.disconnect_mq()
 
+
+    def trf_off(self):
+        #Turn off trf completely
+        self._dev.spiTrf.write(4,0x440e400)
+
     # ==========================================================================
     # Enhance the current module by threading capabilities:
     # ==========================================================================
