@@ -227,6 +227,74 @@ class MicrowaveQ(Base, SlowCounterInterface):
         self._CONSTRAINTS.max_count_frequency = 1e+3
         self._CONSTRAINTS.counting_mode = [CountingMode.CONTINUOUS]
 
+
+    # ==========================================================================
+    #                 GPIO handling
+    # ==========================================================================
+
+    # counting of GPIO ports starts on the hardware from 1 and not from 0, 
+    # follow this convention here.
+
+    @property
+    def gpi1(self):
+        return bool(self._dev.gpio.input0.get())
+
+    @property
+    def gpi2(self):
+        return bool(self._dev.gpio.input1.get())
+
+    @property
+    def gpi3(self):
+        return bool(self._dev.gpio.input2.get())
+
+    @property
+    def gpi4(self):
+        return bool(self._dev.gpio.input3.get())
+
+    @property
+    def gpo1(self):
+        return bool(self._dev.gpio.output0.get())
+
+    @gpo1.setter
+    def gpo1(self, state):
+        if isinstance(state, bool) or isinstance(state, int):
+            return self._dev.gpio.output0.set(int(state))
+        else:
+            self.log.warning('Incorrect state of the GPO-1 port, will be ignored.')
+
+    @property
+    def gpo2(self):
+        return bool(self._dev.gpio.output1.get())
+
+    @gpo2.setter
+    def gpo2(self, state):
+        if isinstance(state, bool) or isinstance(state, int):
+            return self._dev.gpio.output1.set(int(state))
+        else:
+            self.log.warning('Incorrect state of the GPO-2 port, will be ignored.')
+
+    @property
+    def gpo3(self):
+        return bool(self._dev.gpio.output2.get())
+
+    @gpo3.setter
+    def gpo3(self, state):
+        if isinstance(state, bool) or isinstance(state, int):
+            return self._dev.gpio.output2.set(int(state))
+        else:
+            self.log.warning('Incorrect state of the GPO-3 port, will be ignored.')
+
+    @property
+    def gpo4(self):
+        return bool(self._dev.gpio.output3.get())
+
+    @gpo4.setter
+    def gpo4(self, state):
+        if isinstance(state, bool) or isinstance(state, int):
+            return self._dev.gpio.output3.set(int(state))
+        else:
+            self.log.warning('Incorrect state of the GPO-4 port, will be ignored.')
+
     # ==========================================================================
     #                 Begin: Slow Counter Interface Implementation
     # ==========================================================================
