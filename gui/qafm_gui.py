@@ -548,7 +548,7 @@ class ProteusQGUI(GUIBase):
         self._mw.obj_x_max_DSpinBox.setSuffix('m')
         self._mw.obj_x_max_DSpinBox.setMinimalStep(0.1e-6)
 
-        self._mw.obj_x_num_SpinBox.setRange(2, 1000)
+        self._mw.obj_x_num_SpinBox.setRange(2, 10000)
 
         self._mw.obj_y_min_DSpinBox.setRange(0.0, 30e-6)
         self._mw.obj_y_min_DSpinBox.setSuffix('m')
@@ -558,7 +558,7 @@ class ProteusQGUI(GUIBase):
         self._mw.obj_y_max_DSpinBox.setSuffix('m')
         self._mw.obj_y_max_DSpinBox.setMinimalStep(0.1e-6)
 
-        self._mw.obj_y_num_SpinBox.setRange(2, 1000)
+        self._mw.obj_y_num_SpinBox.setRange(2, 10000)
 
         self._mw.obj_z_min_DSpinBox.setRange(0.0, 10e-6)
         self._mw.obj_z_min_DSpinBox.setSuffix('m')
@@ -568,7 +568,7 @@ class ProteusQGUI(GUIBase):
         self._mw.obj_z_max_DSpinBox.setSuffix('m')
         self._mw.obj_z_max_DSpinBox.setMinimalStep(0.1e-6)
 
-        self._mw.obj_z_num_SpinBox.setRange(2, 1000)
+        self._mw.obj_z_num_SpinBox.setRange(2, 10000)
 
         self._mw.obj_target_x_DSpinBox.setRange(0.0, 30e-6)
         self._mw.obj_target_x_DSpinBox.setSuffix('m')
