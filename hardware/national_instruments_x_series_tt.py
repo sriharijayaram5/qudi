@@ -931,8 +931,6 @@ class NationalInstrumentsXSeries(Base, SlowCounterInterface, ConfocalScannerInte
 
         #Create TimeTagger object and combine channels
         self._tagger = createTimeTagger()
-        self._tagger.reset()
-        self._tagger.sync()
         self._count_frequency = self._scanner_clock_frequency
 
         if self._sum_channels:
@@ -1565,8 +1563,6 @@ class NationalInstrumentsXSeries(Base, SlowCounterInterface, ConfocalScannerInte
         try:
             #TimeTagger object is created for ODMR and channels are combined.
             self._tagger = createTimeTagger()
-            self._tagger.reset()
-            self._tagger.sync()
             self._count_frequency = self._scanner_clock_frequency
 
             if self._sum_channels:
