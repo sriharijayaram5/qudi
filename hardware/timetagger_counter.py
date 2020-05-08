@@ -203,7 +203,7 @@ class TimeTaggerCounter(Base, SlowCounterInterface):
 
         @return int: error code (0:OK, -1:error)
         """
-        self._tagger.reset()
+        # self._tagger.reset()
         return 0
 
     def close_clock(self):
