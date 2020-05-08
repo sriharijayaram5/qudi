@@ -534,7 +534,6 @@ class CounterLogic(GenericLogic):
         if self.module_state() == 'locked':
             with self.threadlock:
                 self.corr_stopRequested = True
-                del(self._counting_device.corr)
         return
 
     def stopCount(self):
