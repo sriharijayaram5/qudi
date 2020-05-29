@@ -1418,7 +1418,7 @@ class NationalInstrumentsXSeries(Base, SlowCounterInterface, ConfocalScannerInte
             #intensive with the repeated ready() calls to the TimeTagger
             #The actual counts are then retrieved and reshaped. 
             timeout = time.time()
-            while not self.cbm.ready() and (time.time()-timeout)<1.0:
+            while (time.time()-timeout)<(1/self._count_frequency * 20):
                 pass
             counts = np.nan_to_num(self.cbm.getData())
             data = np.reshape(counts,(1, self._line_length))
@@ -1804,7 +1804,7 @@ class NationalInstrumentsXSeries(Base, SlowCounterInterface, ConfocalScannerInte
             #intensive with the repeated ready() calls to the TimeTagger
             #The actual counts are then retrieved and reshaped.
             timeout = time.time()
-            while not self.cbm.ready() and (time.time()-timeout)<1.0:
+            while (time.time()-timeout)<(1/self._count_frequency * 20):
                 pass
             counts = np.nan_to_num(self.cbm.getData())
             all_data_tt = counts * self._count_frequency
