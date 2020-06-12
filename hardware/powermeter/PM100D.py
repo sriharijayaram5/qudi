@@ -48,7 +48,7 @@ class PM100D(Base, SimpleDataInterface, ProcessInterface):
     _modtype = 'hardware'
 
     _address = ConfigOption('address', missing='error')
-    _timeout = ConfigOption('timeout', 1)
+    _timeout = ConfigOption('timeout', 1000)
     _power_meter = None
 
     def on_activate(self):
@@ -56,7 +56,7 @@ class PM100D(Base, SimpleDataInterface, ProcessInterface):
 
         rm = visa.ResourceManager()
         try:
-            self._inst = rm.open_resource(self._address, timeout=self._timeout)
+            self._inst = rm.open_resource(self._address, open_timeout=self._timeout)
         except:
             self.log.error('Could not connect to hardware. Please check the wires and the address.')
 
