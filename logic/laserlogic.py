@@ -137,6 +137,16 @@ class LaserLogic(GenericLogic):
         # in this threadpool our worker thread will be run
         self.threadpool = QtCore.QThreadPool()
 
+        #initialising fit container
+        self.fc = self.fitlogic().make_fit_container('saturation_curve_agathe', '1d')
+        self.fc.set_units(['W', 'c/s'])
+        d1 = {}
+        d1['Hyperbolic_saturation'] = {'fit_function': 'hyperbolicsaturation2', 'estimator': 'generic'}
+        d2 = {}
+        d2['1d'] = d1
+        self.fc.load_from_dict(d2)
+        self.fc.current_fit = 'Hyperbolic_saturation'
+
         pass
 
     def on_deactivate(self):
@@ -279,7 +289,7 @@ class LaserLogic(GenericLogic):
 
     def saturation_curve_data(self,time_per_point,start_power,stop_power,
                             num_of_points,final_power):
-        """ Obtains all necessary data to create a saturation curve
+        """ Obtain all necessary data to create a saturation curve
 
         @param int time_per_point: acquisition time of counts per each laser power in seconds.
         @param int start_power: starting power in Watts.
@@ -381,7 +391,7 @@ class LaserLogic(GenericLogic):
         return
 
     def save_saturation_data(self, tag=None):
-        """ Saves the current Saturation data to a file, including the figure."""
+        """ Save the current Saturation data to a file, including the figure."""
         timestamp = datetime.datetime.now()
 
         if tag is None:
@@ -457,6 +467,27 @@ class LaserLogic(GenericLogic):
                 return True
         return False
 
+    def do_fit(self, x_data=None, y_data=None):
+        """
+        Execute the fit (configured in the fc object) on the measurement data. Optionally on passed 
+        data.
+
+        @params np.array x_data: optional, laser power values. By default, values stored in self._data.
+        @params np.array y_data: optional, fluorescence values. By default, values stored in self._data.
+
+        Create 3 class attributes
+            np.array self.saturation_fit_x: 1D arrays containing the x values of the fitting function
+            np.array self.saturation_fit_y: 1D arrays containing the y values of the fitting function
+            lmfit.model.ModelResult fit_result: the result object of lmfit. If additional information
+                                        is needed from the fit, then they can be obtained from this 
+                                        object. 
+        """
+        if (x_data is None) or (y_data is None):
+            x_data = self._data['Power']
+            y_data = self._data['Fluorescence']
+
+        self.saturation_fit_x, self.saturation_fit_y, self.fit_result = self.fc.do_fit(x_data, y_data)
+        return
 
 
 
