@@ -336,13 +336,13 @@ class LaserGUI(GUIBase):
         """
 
         #TODO: Create a display with the error bar and not only the points.
-        self._mw.saturation_Curve_Label.setText('{0:6.3f}'.format(self._laser_logic.sat_curve_counts))
+        self._mw.saturation_Curve_Label.setText('{0:6.3f}'.format(self._laser_logic.get_data()['Fluorescence'][-1]))
         #self._mw.currentLabel.setText('{0:6.3f} mA'.format(self._laser_logic.laser_current_setpoint))
         #self._mw.powerLabel.setText('{0:6.3f} W'.format(self._laser_logic.laser_power_setpoint))
         #self._mw.extraLabel.setText(self._laser_logic.laser_extra)
         #self.updateButtonsEnabled()
-        self.curves[0].setData(self._laser_logic.data['Power'], self._laser_logic.data['Fluorescence'])
-        #self.curves[1].setData(self._laser_logic.data['Power'],self._laser_logic.data['Stddev'])
+        self.curves[0].setData(self._laser_logic.get_data()['Power'], self._laser_logic.get_data()['Fluorescence'])
+        #self.curves[1].setData(self._laser_logic.get_data()['Power'],self._laser_logic.get_data()['Stddev'])
 
     def run_stop_saturation(self, is_checked):
         """ Manages what happens if saturation scan is started/stopped. """

@@ -28,6 +28,7 @@ import datetime
 from qtpy import QtCore
 import matplotlib.pyplot as plt
 import numpy as np
+import copy
 
 from core.module import Connector, ConfigOption
 from logic.generic_logic import GenericLogic
@@ -93,6 +94,7 @@ class LaserLogic(GenericLogic):
     laser_conn = Connector(interface='SimpleLaserInterface')
     counter_logic = Connector(interface='CounterLogic')
     savelogic = Connector(interface='SaveLogic')
+    fitlogic = Connector(interface='FitLogic')
 
     queryInterval = ConfigOption('query_interval', 100)
 
@@ -130,11 +132,7 @@ class LaserLogic(GenericLogic):
         self.laser_control_mode = self._dev.get_control_mode()
         self.has_shutter = self._dev.get_shutter_state() != ShutterState.NOSHUTTER
         #These 3 are probably not needed afterwards with the data
-        self.sat_curve_counts = {}
-        self.sat_curve_power = {}
-        self.sat_curve_stdev = {}
-        self.data = OrderedDict()
-        #self.data = {}
+        self._data = {}
 
         # in this threadpool our worker thread will be run
         self.threadpool = QtCore.QThreadPool()
@@ -243,6 +241,42 @@ class LaserLogic(GenericLogic):
 
         return self._dev.get_laser_state()
 
+    def get_data(self):
+        """ Get recorded data.
+
+        @return dict: contains an np.array with the measured or computed values for each data field
+        (e.g. 'Fluorescence', 'Power') .
+        """
+        data_copy = copy.deepcopy(self._data)
+        return data_copy
+
+    def set_data(self, xdata, ydata, std_dev=None, num_of_points=None):
+        """Set the data.
+
+        @params np.array xdata: laser power values
+        @params np.array ydata: fluorescence values
+        @params np.array std_dev: optional, standard deviation values
+        @params np.array num_of_points: optional, number of data points. The default value is len(xdata)
+        """
+
+        if num_of_points is None:
+            num_of_points = len(xdata)
+            
+        #Setting up the list for data
+        self._data['Power'] = np.zeros(num_of_points)
+        self._data['Fluorescence'] = np.zeros(num_of_points)
+        if std_dev is not None:
+            self._data['Stddev'] = np.zeros(num_of_points)
+
+        for i in range(num_of_points):
+            self._data['Power'][i] = xdata[i]
+            self._data['Fluorescence'][i] = ydata[i]
+            if std_dev is not None:
+                self._data['Stddev'][i] = std_dev[i]
+
+        self.sigRefresh.emit()
+
+
     def saturation_curve_data(self,time_per_point,start_power,stop_power,
                             num_of_points,final_power):
         """ Obtains all necessary data to create a saturation curve
@@ -261,11 +295,6 @@ class LaserLogic(GenericLogic):
         #Creating the list of powers for the measurement.
         power_calibration = np.zeros(num_of_points)
         laser_power = np.zeros(num_of_points)
-
-        #Setting up the list for data
-        self.data['Fluorescence'] = []
-        self.data['Stddev'] = []
-        self.data['Power'] = []
 
         for i in range(len(laser_power)):
             step = (stop_power-start_power)/(num_of_points-1)
@@ -312,14 +341,8 @@ class LaserLogic(GenericLogic):
             #counts[i] = self._counterlogic.countdata[0].mean()
             #std_dev[i] = statistics.stdev(self._counterlogic.countdata[0])
 
-            self.sat_curve_counts = counts[i]
-            self.sat_curve_stdev = std_dev[i]
-            self.sat_curve_power = laser_power[i]
-            self.data['Fluorescence'].append(counts[i])
-            self.data['Stddev'].append(std_dev[i])
-            self.data['Power'].append(laser_power[i])
-
-            self.sigRefresh.emit()
+            self.set_data(laser_power, counts, std_dev, i + 1)
+            #self.set_data(laser_power, counts, std_dev, num_of_points)
 
         self._counterlogic.stopCount()
 
@@ -373,7 +396,7 @@ class LaserLogic(GenericLogic):
                 filelabel = 'Saturation_data'
 
         #The data is already prepared in a dict so just calling the data.
-        data = self.data
+        data = self._data
 
         if data == OrderedDict():
             self.log.warning('Sorry, there is no data to save. Start a measurement first.')
@@ -404,11 +427,11 @@ class LaserLogic(GenericLogic):
         @return fig fig: a matplotlib figure object to be saved to file.
         """     
     
-        counts = self.data['Fluorescence']
-        stddev = self.data['Stddev']
-        laser_power = self.data['Power']
+        counts = self._data['Fluorescence']
+        stddev = self._data['Stddev']
+        laser_power = self._data['Power']
         #For now there is no power calibration, this should change in the future.
-        power_calibration = self.data['Power']
+        power_calibration = self._data['Power']
 
         # Use qudi style
         plt.style.use(self._save_logic.mpl_qd_style)
