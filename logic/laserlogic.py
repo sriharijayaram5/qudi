@@ -141,7 +141,7 @@ class LaserLogic(GenericLogic):
         self.fc = self.fitlogic().make_fit_container('saturation_curve_agathe', '1d')
         self.fc.set_units(['W', 'c/s'])
         d1 = {}
-        d1['Hyperbolic_saturation'] = {'fit_function': 'hyperbolicsaturation2', 'estimator': 'generic'}
+        d1['Hyperbolic_saturation'] = {'fit_function': 'hyperbolicsaturation', 'estimator': '2'}
         d2 = {}
         d2['1d'] = d1
         self.fc.load_from_dict(d2)
@@ -487,6 +487,7 @@ class LaserLogic(GenericLogic):
             y_data = self._data['Fluorescence']
 
         self.saturation_fit_x, self.saturation_fit_y, self.fit_result = self.fc.do_fit(x_data, y_data)
+        self.sigRefresh.emit()
         return
 
 
