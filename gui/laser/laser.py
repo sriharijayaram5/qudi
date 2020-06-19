@@ -76,7 +76,9 @@ class LaserGUI(GUIBase):
         #####################
         # Configuring the dock widgets
         # Use the inherited class 'LaserWindow' to create the GUI window
+        # Hiding the central widget for comfort. 
         self._mw = LaserWindow()
+        self._mw.centralwidget.hide()
 
         # Plot labels.
         self._pw = self._mw.saturation_Curve_PlotWidget
@@ -93,6 +95,8 @@ class LaserGUI(GUIBase):
 
         self._mw.start_saturation_Action.triggered.connect(self.run_stop_saturation)
         self._mw.save_curve_Action.triggered.connect(self.save_saturation_curve_clicked)
+        self._mw.laser_ON_Action.triggered.connect(self.LaserStateON)
+        self._mw.laser_OFF_Action.triggered.connect(self.LaserStateOFF)
 
         self.sigSaveMeasurement.connect(self._laser_logic.save_saturation_data, QtCore.Qt.QueuedConnection)
         self.sigCurrent.connect(self._laser_logic.set_current)
@@ -102,8 +106,9 @@ class LaserGUI(GUIBase):
         self.sigStopSaturation.connect(self._laser_logic.stop_saturation_curve_data)
         self._mw.controlModeButtonGroup.buttonClicked.connect(self.changeControlMode)
         self._mw.LaserdoubleSpinBox.editingFinished.connect(self.updatePowerFromSpinBox)
-        self._mw.LaserButtonON.clicked.connect(self.LaserStateON)
-        self._mw.LaserButtonOFF.clicked.connect(self.LaserStateOFF)
+        #self._mw.LaserButtonON.clicked.connect(self.LaserStateON)
+        #self._mw.LaserButtonOFF.clicked.connect(self.LaserStateOFF)
+        self._mw.dofit_Button.buttonClicked.connect(self._laser_logic.do_fit)
         self._laser_logic.sigRefresh.connect(self.refreshGui)
         self._laser_logic.sigUpdateButton.connect(self.updateButtonsEnabled)
         self._laser_logic.sigAbortedMeasurement.connect(self.aborted_saturation_measurement)
@@ -144,9 +149,13 @@ class LaserGUI(GUIBase):
         """ Disable laser power ON button.
             Button will remain Disabled until laser power OFF button is clicked.
         """
-        self._mw.LaserButtonON.setEnabled(False)
+        
+        self._mw.laser_ON_Action.setEnabled(False)
+        self._mw.laser_ON_Action.setChecked(False)
+        #self._mw.LaserButtonON.setEnabled(False)
         self._laser_logic.on()
-        self._mw.LaserButtonOFF.setEnabled(True)
+        self._mw.laser_OFF_Action.setEnabled(True)
+        #self._mw.LaserButtonOFF.setEnabled(True)
 
         #self.sigLaserOn.emit(on)
 
@@ -154,9 +163,12 @@ class LaserGUI(GUIBase):
         """ Disable laser power OFF button.
             Button will remain Disabled until laser power ON button is clicked.
         """
-        self._mw.LaserButtonOFF.setEnabled(False)
+        self._mw.laser_OFF_Action.setEnabled(False)
+        self._mw.laser_OFF_Action.setChecked(False)
+        #self._mw.LaserButtonOFF.setEnabled(False)
         self._laser_logic.off()
-        self._mw.LaserButtonON.setEnabled(True)
+        self._mw.laser_ON_Action.setEnabled(True)
+        #self._mw.LaserButtonON.setEnabled(True)
 
         #self.sigLaserOn.emit(on)
 
@@ -207,13 +219,18 @@ class LaserGUI(GUIBase):
 
         #Checking if the laser is on or off. 
         if self._laser_logic.get_laser_state() == LaserState.ON:
-            self._mw.LaserButtonON.setEnabled(False)
-            self._mw.LaserButtonOFF.setEnabled(True)
+            self._mw.laser_ON_Action.setEnabled(False)
+            #self._mw.LaserButtonON.setEnabled(False)
+            self._mw.laser_OFF_Action.setEnabled(True)
+            #self._mw.LaserButtonOFF.setEnabled(True)
         elif self._laser_logic.get_laser_state() == LaserState.OFF:
-            self._mw.LaserButtonOFF.setEnabled(False)
-            self._mw.LaserButtonON.setEnabled(True)
+            self._mw.laser_OFF_Action.setEnabled(False)
+            #self._mw.LaserButtonOFF.setEnabled(False)
+            self._mw.laser_ON_Action.setEnabled(True)
+            #self._mw.LaserButtonON.setEnabled(True)
         else:
-            self._mw.LaserButtonON.setText('Laser: ?')
+            self._mw.laser_ON_Action.setText('Laser: ?')
+            #self._mw.LaserButtonON.setText('Laser: ?')
 
         #Checking which control modes are available.
         if self._laser_logic.laser_can_power == True:
@@ -277,8 +294,10 @@ class LaserGUI(GUIBase):
         if self._counterlogic.module_state() == 'locked':
             self._mw.start_saturation_Action.setEnabled(True)
             self._mw.start_saturation_Action.setChecked(True)
-            self._mw.LaserButtonON.setEnabled(False)
-            self._mw.LaserButtonOFF.setEnabled(False)
+            self._mw.laser_ON_Action.setEnabled(False)
+            #self._mw.LaserButtonON.setEnabled(False)
+            self._mw.laser_OFF_Action.setEnabled(False)
+            #self._mw.LaserButtonOFF.setEnabled(False)
             self._mw.LaserdoubleSpinBox.setEnabled(False)
             self._mw.analogModulationRadioButton.setEnabled(False)
             self._mw.currentRadioButton.setEnabled(False)
@@ -302,13 +321,18 @@ class LaserGUI(GUIBase):
             self._mw.timeDoubleSpinBox.setEnabled(True)
             #Checking if the laser is on or off. 
             if self._laser_logic.get_laser_state() == LaserState.ON:
-                self._mw.LaserButtonON.setEnabled(False)
-                self._mw.LaserButtonOFF.setEnabled(True)
+                self._mw.laser_ON_Action.setEnabled(False)
+                #self._mw.LaserButtonON.setEnabled(False)
+                self._mw.laser_OFF_Action.setEnabled(True)
+                #self._mw.LaserButtonOFF.setEnabled(True)
             elif self._laser_logic.get_laser_state() == LaserState.OFF:
-                self._mw.LaserButtonOFF.setEnabled(False)
-                self._mw.LaserButtonON.setEnabled(True)
+                self._mw.laser_OFF_Action.setEnabled(False)
+                #self._mw.LaserButtonOFF.setEnabled(False)
+                self._mw.laser_ON_Action.setEnabled(True)
+                #self._mw.LaserButtonON.setEnabled(True)
             else:
-                self._mw.LaserButtonON.setText('Laser: ?')
+                self._mw.laser_ON_Action.setText('Laser: ?')
+                #self._mw.LaserButtonON.setText('Laser: ?')
 
 
     @QtCore.Slot()
@@ -342,14 +366,17 @@ class LaserGUI(GUIBase):
         #self._mw.extraLabel.setText(self._laser_logic.laser_extra)
         #self.updateButtonsEnabled()
         self.curves[0].setData(self._laser_logic.get_data()['Power'], self._laser_logic.get_data()['Fluorescence'])
-        #self.curves[1].setData(self._laser_logic.get_data()['Power'],self._laser_logic.get_data()['Stddev'])
+        if hasattr(self._laser_logic, 'saturation_fit_x'):
+            self.curves[1].setData(self._laser_logic.saturation_fit_x,self._laser_logic.saturation_fit_y)
 
     def run_stop_saturation(self, is_checked):
         """ Manages what happens if saturation scan is started/stopped. """
         if is_checked:
             # change the axes appearance according to input values:
-            self._mw.LaserButtonON.setEnabled(False)
-            self._mw.LaserButtonOFF.setEnabled(False)
+            self._mw.laser_ON_Action.setEnabled(False)
+            #self._mw.LaserButtonON.setEnabled(False)
+            self._mw.laser_OFF_Action.setEnabled(False)
+            #self._mw.LaserButtonOFF.setEnabled(False)
             self._mw.LaserdoubleSpinBox.setEnabled(False)
             self._mw.analogModulationRadioButton.setEnabled(False)
             self._mw.currentRadioButton.setEnabled(False)
@@ -423,6 +450,7 @@ class LaserGUI(GUIBase):
         """
         self._mw.start_saturation_Action.setChecked(False)
         self._mw.start_saturation_Action.setEnabled(True)
+        self._mw.start_saturation_Action.setText('Start saturation')
         self._mw.LaserdoubleSpinBox.setEnabled(True)
         self._mw.analogModulationRadioButton.setEnabled(True)
         self._mw.currentRadioButton.setEnabled(True)
