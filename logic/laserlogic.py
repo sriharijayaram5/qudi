@@ -30,7 +30,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import copy
 
-from core.module import Connector, ConfigOption
+from core.module import Connector, ConfigOption, StatusVar
 from logic.generic_logic import GenericLogic
 from interface.simple_laser_interface import ControlMode, ShutterState, LaserState
 
@@ -101,9 +101,13 @@ class LaserLogic(GenericLogic):
     sigRefresh = QtCore.Signal()
     sigUpdateButton = QtCore.Signal()
     sigAbortedMeasurement = QtCore.Signal()
+    sigSaturationFitUpdated = QtCore.Signal(np.ndarray, np.ndarray, dict)
 
     # make a dummy worker thread:
     _worker_thread = WorkerThread(print)
+
+    #creating a fit container
+    fc = StatusVar('fits', None)
 
     def on_activate(self):
         """ Prepare logic module for work.
@@ -137,22 +141,35 @@ class LaserLogic(GenericLogic):
         # in this threadpool our worker thread will be run
         self.threadpool = QtCore.QThreadPool()
 
-        #initialising fit container
-        self.fc = self.fitlogic().make_fit_container('saturation_curve_agathe', '1d')
-        self.fc.set_units(['W', 'c/s'])
-        d1 = {}
-        d1['Hyperbolic_saturation'] = {'fit_function': 'hyperbolicsaturation', 'estimator': '2'}
-        d2 = {}
-        d2['1d'] = d1
-        self.fc.load_from_dict(d2)
-        self.fc.current_fit = 'Hyperbolic_saturation'
-
         pass
 
     def on_deactivate(self):
         """ Deactivate module.
         """
         pass
+
+    @fc.constructor
+    def sv_set_fits(self, val):
+        #Setup fit container
+        fc = self.fitlogic().make_fit_container('saturation_curve_agathe', '1d')
+        fc.set_units(['W', 'c/s'])
+        if isinstance(val, dict) and len(val) > 0:
+            fc.load_from_dict(val)
+        else:
+            d1 = {}
+            d1['Hyperbolic_saturation'] = {'fit_function': 'hyperbolicsaturation', 'estimator': '2'}
+            d2 = {}
+            d2['1d'] = d1
+            fc.load_from_dict(d2)            
+        return fc
+
+    @fc.representer
+    def sv_get_fits(self, val):
+        """ save configured fits """
+        if len(val.fit_list) > 0:
+            return val.save_to_dict()
+        else:
+            return None
 
     def on(self):
         """ Turn on laser. Does not open shutter if one is present.
@@ -482,14 +499,23 @@ class LaserLogic(GenericLogic):
                                         is needed from the fit, then they can be obtained from this 
                                         object. 
         """
+        self.fc.current_fit = 'Hyperbolic_saturation'
+
+        if 'Power' not in self._data or len(self._data['Power']) < 3:
+            self.log.warning('There is not enough data points to fit the curve. Fitting aborted.')
+            return
+
         if (x_data is None) or (y_data is None):
             x_data = self._data['Power']
             y_data = self._data['Fluorescence']
 
         self.saturation_fit_x, self.saturation_fit_y, self.fit_result = self.fc.do_fit(x_data, y_data)
-        self.sigRefresh.emit()
+        if self.fit_result is None:
+            result_str_dict = {}
+        else:
+            result_str_dict = self.fit_result.result_str_dict
+        self.sigSaturationFitUpdated.emit(self.saturation_fit_x, self.saturation_fit_y, result_str_dict)
         return
-
 
 
 

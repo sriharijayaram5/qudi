@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>583</width>
-    <height>462</height>
+    <width>855</width>
+    <height>489</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -130,16 +130,86 @@
      <property name="sizeConstraint">
       <enum>QLayout::SetMaximumSize</enum>
      </property>
-     <item row="4" column="2">
+     <item row="4" column="9">
+      <widget class="QPushButton" name="dofit_Button">
+       <property name="text">
+        <string>Do Hyperbolic Fit</string>
+       </property>
+      </widget>
+     </item>
+     <item row="5" column="2">
       <widget class="QSpinBox" name="numPointsSpinBox"/>
      </item>
      <item row="1" column="1" colspan="3">
       <widget class="QLineEdit" name="save_tag_LineEdit"/>
      </item>
-     <item row="5" column="0" colspan="7">
-      <widget class="PlotWidget" name="saturation_Curve_PlotWidget"/>
+     <item row="4" column="1">
+      <widget class="QLabel" name="StopPowerLabel">
+       <property name="font">
+        <font>
+         <pointsize>8</pointsize>
+        </font>
+       </property>
+       <property name="text">
+        <string>Stop Power (mW)</string>
+       </property>
+      </widget>
      </item>
-     <item row="3" column="5" rowspan="2" colspan="2">
+     <item row="4" column="2">
+      <widget class="QLabel" name="NumPointsLabel">
+       <property name="font">
+        <font>
+         <pointsize>8</pointsize>
+        </font>
+       </property>
+       <property name="text">
+        <string>Points</string>
+       </property>
+      </widget>
+     </item>
+     <item row="4" column="0">
+      <widget class="QLabel" name="startPowerLabel">
+       <property name="font">
+        <font>
+         <pointsize>8</pointsize>
+        </font>
+       </property>
+       <property name="text">
+        <string>Start Power (mW)</string>
+       </property>
+      </widget>
+     </item>
+     <item row="5" column="0">
+      <widget class="ScienDSpinBox" name="startPowerDoubleSpinBox"/>
+     </item>
+     <item row="5" column="3">
+      <widget class="ScienDSpinBox" name="timeDoubleSpinBox"/>
+     </item>
+     <item row="4" column="3">
+      <widget class="QLabel" name="TimeperpointLabel">
+       <property name="text">
+        <string>Time/point (s)</string>
+       </property>
+      </widget>
+     </item>
+     <item row="5" column="1">
+      <widget class="ScienDSpinBox" name="stopPowerDoubleSpinBox"/>
+     </item>
+     <item row="1" column="0">
+      <widget class="QLabel" name="save_tag_label">
+       <property name="text">
+        <string>Figure Name:</string>
+       </property>
+      </widget>
+     </item>
+     <item row="5" column="9">
+      <widget class="QLabel" name="fit_tag_label">
+       <property name="text">
+        <string>Fit Results:</string>
+       </property>
+      </widget>
+     </item>
+     <item row="4" column="7">
       <widget class="QLabel" name="saturation_Curve_Label">
        <property name="sizePolicy">
         <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
@@ -160,69 +230,42 @@
        </property>
       </widget>
      </item>
-     <item row="3" column="1">
-      <widget class="QLabel" name="StopPowerLabel">
-       <property name="font">
-        <font>
-         <pointsize>8</pointsize>
-        </font>
+     <item row="4" column="8">
+      <spacer name="horizontalSpacer">
+       <property name="orientation">
+        <enum>Qt::Horizontal</enum>
        </property>
-       <property name="text">
-        <string>Stop Power (mW)</string>
+       <property name="sizeHint" stdset="0">
+        <size>
+         <width>40</width>
+         <height>20</height>
+        </size>
        </property>
-      </widget>
+      </spacer>
      </item>
-     <item row="3" column="2">
-      <widget class="QLabel" name="NumPointsLabel">
-       <property name="font">
-        <font>
-         <pointsize>8</pointsize>
-        </font>
+     <item row="6" column="0" rowspan="3" colspan="5">
+      <widget class="PlotWidget" name="saturation_Curve_PlotWidget"/>
+     </item>
+     <item row="8" column="9">
+      <spacer name="verticalSpacer_2">
+       <property name="orientation">
+        <enum>Qt::Vertical</enum>
        </property>
-       <property name="text">
-        <string>Points</string>
+       <property name="sizeHint" stdset="0">
+        <size>
+         <width>20</width>
+         <height>40</height>
+        </size>
        </property>
-      </widget>
+      </spacer>
      </item>
-     <item row="3" column="0">
-      <widget class="QLabel" name="startPowerLabel">
-       <property name="font">
-        <font>
-         <pointsize>8</pointsize>
-        </font>
+     <item row="6" column="8" colspan="2">
+      <widget class="QTextBrowser" name="saturation_fit_results_DisplayWidget">
+       <property name="sizeAdjustPolicy">
+        <enum>QAbstractScrollArea::AdjustToContents</enum>
        </property>
-       <property name="text">
-        <string>Start Power (mW)</string>
-       </property>
-      </widget>
-     </item>
-     <item row="4" column="0">
-      <widget class="ScienDSpinBox" name="startPowerDoubleSpinBox"/>
-     </item>
-     <item row="4" column="3">
-      <widget class="ScienDSpinBox" name="timeDoubleSpinBox"/>
-     </item>
-     <item row="3" column="3">
-      <widget class="QLabel" name="TimeperpointLabel">
-       <property name="text">
-        <string>Time/point (s)</string>
-       </property>
-      </widget>
-     </item>
-     <item row="4" column="1">
-      <widget class="ScienDSpinBox" name="stopPowerDoubleSpinBox"/>
-     </item>
-     <item row="1" column="0">
-      <widget class="QLabel" name="save_tag_label">
-       <property name="text">
-        <string>Figure Name:</string>
-       </property>
-      </widget>
-     </item>
-     <item row="1" column="4" colspan="3">
-      <widget class="QPushButton" name="dofit_Button">
-       <property name="text">
-        <string>Do Hyperbolic Fit</string>
+       <property name="tabChangesFocus">
+        <bool>true</bool>
        </property>
       </widget>
      </item>
@@ -234,8 +277,8 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>583</width>
-     <height>21</height>
+     <width>855</width>
+     <height>22</height>
     </rect>
    </property>
   </widget>
