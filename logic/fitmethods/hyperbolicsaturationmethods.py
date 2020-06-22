@@ -109,6 +109,27 @@ def make_hyperbolicsaturation_fit(self, x_axis, data, estimator, units=None, add
 
     result = mod_final.fit(data, x=x_axis, params=params, **kwargs)
 
+    if units is None:
+        units = ['arb. unit', 'arb. unit']
+
+    result_str_dict = {}
+
+    result_str_dict['I_sat'] = {'value': result.params['I_sat'].value,
+                                'unit': units[1]}
+    result_str_dict['P_sat'] = {'value': result.params['P_sat'].value,
+                                'unit': units[0]}
+    result_str_dict['Slope'] = {'value': result.params['slope'].value,
+                                'unit': '{0}/{1}'.format(units[1], units[0])}
+    result_str_dict['Offset'] = {'value': result.params['offset'].value,
+                                 'unit': units[1]}
+
+    if result.errorbars:
+        result_str_dict['I_sat']['error'] = result.params['I_sat'].stderr
+        result_str_dict['P_sat']['error'] = result.params['P_sat'].stderr
+        result_str_dict['Slope']['error'] = result.params['slope'].stderr
+        result_str_dict['Offset']['error'] = result.params['offset'].stderr
+    result.result_str_dict = result_str_dict
+
     return result
 
 
