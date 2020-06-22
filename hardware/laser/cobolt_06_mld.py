@@ -234,13 +234,14 @@ class CoboltLaserMLD(Base, SimpleLaserInterface):
 
     def on(self):
         """ Turn on laser. Does not open shutter if one is present.
+        
+        @return enum LaserState: actual laser state
 
         Turning the laser on depends on if autostart is enabled (True) or disabled (False).
 
         However, to get around the manual issue, getting into its mode will try and see if
         the key position is in the correct place. 
-        
-        @return enum LaserState: actual laser state
+
         """
         
         #This is for when autostart is Disabled
