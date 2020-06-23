@@ -148,7 +148,7 @@ class CounterGui(GUIBase):
         self._mw.oversampling_SpinBox.valueChanged.connect(self.oversampling_changed)
         # Correlation window
         def assignCor():
-            self.corr_t0 = 0
+            self.timestamp = QtCore.QTime()
             self.save_runtime = ''
             self._cw = CorrelationMainWindow()
             self._cw.start_counter_Action.triggered.connect(self.start_corr)
@@ -349,7 +349,7 @@ class CounterGui(GUIBase):
         x = self._counting_logic.corr_x/1e12
         y = self._counting_logic.corr_y
         self.c_curves[-2].setData(y=y, x=x)
-        self.save_runtime = f'{time.time()-self.corr_t0:.1f}'
+        self.save_runtime = f'{self.timestamp.elapsed()/1e3:.3f}'
         self._cw.runtime_Label.setText(self.save_runtime)
     
     def start_corr(self):
@@ -363,7 +363,7 @@ class CounterGui(GUIBase):
             self._cw.start_counter_Action.setText('Stop')
             self._cw.start_counter_Action.setChecked(True)
             self.sigStartCorr.emit(self._cw.bin_width_DoubleSpinBox.value(), self._cw.no_of_bins_SpinBox.value())
-            self.corr_t0 = time.time()
+            self.timestamp.start()
         return self._counting_logic.module_state()
 
     def save_corr(self):
