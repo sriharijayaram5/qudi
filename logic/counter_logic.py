@@ -486,7 +486,7 @@ class CounterLogic(GenericLogic):
                 # read the current corr value
                 self.corr_x, self.corr_y = self._counting_device.get_corr()
             # call this again from event loop; qudi can't plot so fast so give a timeout
-            if (time.time() - self._timeout)>1:
+            if (time.time() - self._timeout)>0.2:
                 self.sigCorrUpdated.emit()
                 self._timeout = time.time()
             self.sigCountCorrNext.emit()
