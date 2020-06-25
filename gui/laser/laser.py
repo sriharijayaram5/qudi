@@ -363,12 +363,12 @@ class LaserGUI(GUIBase):
         """
 
         #TODO: Create a display with the error bar and not only the points.
-        self._mw.saturation_Curve_Label.setText('{0:6.3f}'.format(self._laser_logic.get_data()['Fluorescence'][-1]))
+        self._mw.saturation_Curve_Label.setText('{0:6.3f}'.format(self._laser_logic.get_saturation_data()['Fluorescence'][-1]))
         #self._mw.currentLabel.setText('{0:6.3f} mA'.format(self._laser_logic.laser_current_setpoint))
         #self._mw.powerLabel.setText('{0:6.3f} W'.format(self._laser_logic.laser_power_setpoint))
         #self._mw.extraLabel.setText(self._laser_logic.laser_extra)
         #self.updateButtonsEnabled()
-        self.saturation_curve.setData(self._laser_logic.get_data()['Power'], self._laser_logic.get_data()['Fluorescence'])            
+        self.saturation_curve.setData(self._laser_logic.get_saturation_data()['Power'], self._laser_logic.get_saturation_data()['Fluorescence'])            
 
     def update_fit(self, x_data, y_data, result_str_dict):
         """ Update the plot of the fit and the fit results displayed.
