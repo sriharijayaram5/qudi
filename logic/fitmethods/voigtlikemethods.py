@@ -27,12 +27,73 @@ from lmfit.models import VoigtModel, PseudoVoigtModel
 from scipy.interpolate import InterpolatedUnivariateSpline
 from scipy.special import wofz
 
-
 ################################################################################
 #                                                                              #
 #                   Defining Voigt and pseudo-Voigt Models                     #
 #                                                                              #
 ################################################################################
+
+"""
+Information about Voigt and Pseudo-Voigt Model
+==============================================
+
+Voigt Model:
+~~~~~~~~~~~~
+
+The Voigt profile is a probability distribution given by the convolution of a 
+Lorentzian distribution and a Gaussian distribution centered at the same point.
+It is useful for fiiting functions resulting from a combination of a Gaussian 
+and a Lorentzian function.
+                                  
+The Voigt profile is defined by the following integral:
+                              ,-
+    V(x, mu, sigma, gamma)  = | G(x', mu, sigma) * L(x - x', mu, gamma) * dx'
+                             -'
+where mu is the center of the distributions and sigma and gamma are the scale
+parameters of the gaussian and the lorentzian distributions respectively. 
+
+This Voigt profile can then be multiplied by a constant amplitude.
+
+Some formulas are available to directly evaluate the profile without having to
+computing the integral.
+
+
+The fitting algorithm uses the built-in Voigt model of the lmfit library. In 
+that model, gamma is by default constrained to have a value equal to sigma.
+In a second version of the algorithm, we removed the constraint and let gamma 
+be varied independently.
+
+The lmfit model also includes parameters fwhm and height, which report full
+width at half maximum and maximum peak height. 
+
+When gamma is varied independently, one should not use the provided value of 
+fwhm which is no longer valid, but a new value can be calculated. It is also 
+possible to compute a parameter representing how much the curve is Lorentzian 
+and how much it is Gaussian.
+
+
+Pseudo-Voigt Model:
+~~~~~~~~~~~~~~~~~~~
+
+In the Pseudo-Voigt Model, the convolution product is replaced by a linear 
+combination of a Gaussian curve G(x) and a Lorentzian curve L(x). It provides 
+an approximation of the Voigt Model which is easier to evaluate. 
+
+The definition of the Pseudo-Voigt profile is:
+
+    V(x, f) = alpha * L(x, f) + (1 - alpha) * G(x, f) with 0 < alpha < 1
+
+In this model, the Gaussian and Lorentzian distribution function share values 
+for amplitude (A), center (μ) and full width at half maximum fwhm.
+
+Note that the parameter alpha gives information on how much the curve is Lorentzian 
+and how much it is Gaussian.
+
+
+
+See <https://en.wikipedia.org/wiki/Voigt_profile> for more information about 
+Voigt and Pseudo-Voigt models and for some useful formulas. 
+"""
 
 ###############################
 # Voigt model with offset     #
