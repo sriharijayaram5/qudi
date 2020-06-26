@@ -30,7 +30,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import copy
 
-from core.module import Connector, ConfigOption
+from core.module import Connector, ConfigOption, StatusVar
 from logic.generic_logic import GenericLogic
 from interface.simple_laser_interface import ControlMode, ShutterState, LaserState
 
@@ -95,15 +95,20 @@ class LaserLogic(GenericLogic):
     counter_logic = Connector(interface='CounterLogic')
     savelogic = Connector(interface='SaveLogic')
     fitlogic = Connector(interface='FitLogic')
+    odmrlogic = Connector(interface='ODMRLogic')
 
     queryInterval = ConfigOption('query_interval', 100)
 
     sigRefresh = QtCore.Signal()
     sigUpdateButton = QtCore.Signal()
     sigAbortedMeasurement = QtCore.Signal()
+    sigSaturationFitUpdated = QtCore.Signal(np.ndarray, np.ndarray, dict)
 
     # make a dummy worker thread:
     _worker_thread = WorkerThread(print)
+
+    #creating a fit container
+    fc = StatusVar('fits', None)
 
     def on_activate(self):
         """ Prepare logic module for work.
@@ -111,6 +116,7 @@ class LaserLogic(GenericLogic):
         self._dev = self.laser_conn()
         self._counterlogic = self.counter_logic()
         self._save_logic = self.savelogic()
+        self._odmr_logic = self.odmrlogic()
         self._stop_request = False
         
         #start in cw mode
@@ -132,20 +138,11 @@ class LaserLogic(GenericLogic):
         self.laser_control_mode = self._dev.get_control_mode()
         self.has_shutter = self._dev.get_shutter_state() != ShutterState.NOSHUTTER
         #These 3 are probably not needed afterwards with the data
-        self._data = {}
+        self._saturation_data = {}
+        self._odmr_data = {}
 
         # in this threadpool our worker thread will be run
         self.threadpool = QtCore.QThreadPool()
-
-        #initialising fit container
-        self.fc = self.fitlogic().make_fit_container('saturation_curve_agathe', '1d')
-        self.fc.set_units(['W', 'c/s'])
-        d1 = {}
-        d1['Hyperbolic_saturation'] = {'fit_function': 'hyperbolicsaturation', 'estimator': '2'}
-        d2 = {}
-        d2['1d'] = d1
-        self.fc.load_from_dict(d2)
-        self.fc.current_fit = 'Hyperbolic_saturation'
 
         pass
 
@@ -153,6 +150,29 @@ class LaserLogic(GenericLogic):
         """ Deactivate module.
         """
         pass
+
+    @fc.constructor
+    def sv_set_fits(self, val):
+        #Setup fit container
+        fc = self.fitlogic().make_fit_container('saturation_curve_agathe', '1d')
+        fc.set_units(['W', 'c/s'])
+        if isinstance(val, dict) and len(val) > 0:
+            fc.load_from_dict(val)
+        else:
+            d1 = {}
+            d1['Hyperbolic_saturation'] = {'fit_function': 'hyperbolicsaturation', 'estimator': '2'}
+            d2 = {}
+            d2['1d'] = d1
+            fc.load_from_dict(d2)            
+        return fc
+
+    @fc.representer
+    def sv_get_fits(self, val):
+        """ save configured fits """
+        if len(val.fit_list) > 0:
+            return val.save_to_dict()
+        else:
+            return None
 
     def on(self):
         """ Turn on laser. Does not open shutter if one is present.
@@ -251,16 +271,16 @@ class LaserLogic(GenericLogic):
 
         return self._dev.get_laser_state()
 
-    def get_data(self):
+    def get_saturation_data(self):
         """ Get recorded data.
 
         @return dict: contains an np.array with the measured or computed values for each data field
         (e.g. 'Fluorescence', 'Power') .
         """
-        data_copy = copy.deepcopy(self._data)
+        data_copy = copy.deepcopy(self._saturation_data)
         return data_copy
 
-    def set_data(self, xdata, ydata, std_dev=None, num_of_points=None):
+    def set_saturation_data(self, xdata, ydata, std_dev=None, num_of_points=None):
         """Set the data.
 
         @params np.array xdata: laser power values
@@ -273,16 +293,16 @@ class LaserLogic(GenericLogic):
             num_of_points = len(xdata)
             
         #Setting up the list for data
-        self._data['Power'] = np.zeros(num_of_points)
-        self._data['Fluorescence'] = np.zeros(num_of_points)
+        self._saturation_data['Power'] = np.zeros(num_of_points)
+        self._saturation_data['Fluorescence'] = np.zeros(num_of_points)
         if std_dev is not None:
-            self._data['Stddev'] = np.zeros(num_of_points)
+            self._saturation_data['Stddev'] = np.zeros(num_of_points)
 
         for i in range(num_of_points):
-            self._data['Power'][i] = xdata[i]
-            self._data['Fluorescence'][i] = ydata[i]
+            self._saturation_data['Power'][i] = xdata[i]
+            self._saturation_data['Fluorescence'][i] = ydata[i]
             if std_dev is not None:
-                self._data['Stddev'][i] = std_dev[i]
+                self._saturation_data['Stddev'][i] = std_dev[i]
 
         self.sigRefresh.emit()
 
@@ -351,7 +371,7 @@ class LaserLogic(GenericLogic):
             #counts[i] = self._counterlogic.countdata[0].mean()
             #std_dev[i] = statistics.stdev(self._counterlogic.countdata[0])
 
-            self.set_data(laser_power, counts, std_dev, i + 1)
+            self.set_saturation_data(laser_power, counts, std_dev, i + 1)
             #self.set_data(laser_power, counts, std_dev, num_of_points)
 
         self._counterlogic.stopCount()
@@ -362,7 +382,7 @@ class LaserLogic(GenericLogic):
 
         array_of_data = np.vstack((counts,laser_power,power_calibration)).transpose()
 
-        return array_of_data;
+        return array_of_data
 
     def start_saturation_curve_data(self,time_per_point=4,start_power=1/1000,stop_power=22/1000,
                         num_of_points=17,final_power=3/1000):
@@ -406,7 +426,7 @@ class LaserLogic(GenericLogic):
                 filelabel = 'Saturation_data'
 
         #The data is already prepared in a dict so just calling the data.
-        data = self._data
+        data = self._saturation_data
 
         if data == OrderedDict():
             self.log.warning('Sorry, there is no data to save. Start a measurement first.')
@@ -437,11 +457,11 @@ class LaserLogic(GenericLogic):
         @return fig fig: a matplotlib figure object to be saved to file.
         """     
     
-        counts = self._data['Fluorescence']
-        stddev = self._data['Stddev']
-        laser_power = self._data['Power']
+        counts = self._saturation_data['Fluorescence']
+        stddev = self._saturation_data['Stddev']
+        laser_power = self._saturation_data['Power']
         #For now there is no power calibration, this should change in the future.
-        power_calibration = self._data['Power']
+        power_calibration = self._saturation_data['Power']
 
         # Use qudi style
         plt.style.use(self._save_logic.mpl_qd_style)
@@ -482,15 +502,87 @@ class LaserLogic(GenericLogic):
                                         is needed from the fit, then they can be obtained from this 
                                         object. 
         """
+        self.fc.current_fit = 'Hyperbolic_saturation'
+
+        if 'Power' not in self._saturation_data or len(self._saturation_data['Power']) < 3:
+            self.log.warning('There is not enough data points to fit the curve. Fitting aborted.')
+            return
+
         if (x_data is None) or (y_data is None):
-            x_data = self._data['Power']
-            y_data = self._data['Fluorescence']
+            x_data = self._saturation_data['Power']
+            y_data = self._saturation_data['Fluorescence']
 
         self.saturation_fit_x, self.saturation_fit_y, self.fit_result = self.fc.do_fit(x_data, y_data)
-        self.sigRefresh.emit()
+        if self.fit_result is None:
+            result_str_dict = {}
+        else:
+            result_str_dict = self.fit_result.result_str_dict
+        self.sigSaturationFitUpdated.emit(self.saturation_fit_x, self.saturation_fit_y, result_str_dict)
         return
 
+    def set_odmr_data(self, xdata, ydata, fit_params, laser_power, clear=False):
 
+        if clear:
+            self._odmr_data.clear()
+
+        self._odmr_data[laser_power] = {}
+        self._odmr_data[laser_power]['Frequency'] = xdata
+        self._odmr_data[laser_power]['Fluorescence'] = ydata
+        self._odmr_data[laser_power]['Fit'] = fit_params
+
+
+    def perform_odmr_measurement(self, freq_start=2_800_000_000, freq_step=1_000_000, 
+                                 freq_stop=2_950_000_000, mw_power=30, channel=0, runtime=60,
+                                 fit_function='No Fit', save_after_meas=True, name_tag=''):
+
+        odmr_plot_x, odmr_plot_y, odmr_fit_params = self._odmr_logic.perform_odmr_measurement(
+                                     freq_start, freq_step, freq_stop, mw_power, channel, runtime,
+                                     fit_function, save_after_meas, name_tag)
+
+        return odmr_plot_x, odmr_plot_y[channel, :], odmr_fit_params
+
+    def perform_measurement(self, start_power=1/1000, stop_power=22/1000, num_of_points=17, 
+                                 final_power=3/1000, freq_start=2_800_000_000, freq_step=1_000_000,
+                                 freq_stop=2_950_000_000, mw_power=30, channel=0, runtime=60, 
+                                 fit_function='No Fit', save_after_meas=True, name_tag=''):
+
+        #Creating the list of powers for the measurement.
+        laser_power = np.zeros(num_of_points)
+        
+        if num_of_points == 1:
+            laser_power[0] = start_power
+        
+        else:
+            power_step = (stop_power - start_power) / (num_of_points - 1)
+            for i in range(len(laser_power)):
+                laser_power[i] = start_power + i * power_step
+
+        if self.get_laser_state() == LaserState.OFF:
+            self._dev.on()
+
+        self._odmr_data.clear()
+
+        for i in range(len(laser_power)):
+
+            # if self._stop_request:
+            #     break
+
+            self._dev.set_power(laser_power[i])
+
+            odmr_plot_x, odmr_plot_y, odmr_fit_params = self.perform_odmr_measurement(freq_start, 
+                                                 freq_step, freq_stop, mw_power, channel, runtime, 
+                                                 fit_function, save_after_meas, name_tag)
+
+            self.set_odmr_data(odmr_plot_x, odmr_plot_y, odmr_fit_params, laser_power[i])
+
+        self._dev.set_power(final_power)
+
+        return self._odmr_data
+        
+    
+
+
+        
 
 
 

@@ -26,6 +26,7 @@ import pyqtgraph as pg
 import time
 
 from core.module import Connector
+from core.util import units
 from gui.colordefs import QudiPalettePale as palette
 from gui.guibase import GUIBase
 from interface.simple_laser_interface import ControlMode, ShutterState, LaserState
@@ -85,13 +86,14 @@ class LaserGUI(GUIBase):
         self._pw.setLabel('left', 'Fluorescence', units='counts/s')
         self._pw.setLabel('bottom', 'Laser Power', units='W')
 
-        #Setting up the empty curves.
-        self.curves = []
-
-        self.curves.append(pg.PlotDataItem(pen=pg.mkPen(palette.c1), symbol=None))
-        self._pw.addItem(self.curves[-1])
-        self.curves.append(pg.PlotDataItem(pen=pg.mkPen(palette.c2), symbol=None))
-        self._pw.addItem(self.curves[-1])
+        #Setting up the curves.
+        self.saturation_curve = pg.PlotDataItem(pen=pg.mkPen(palette.c1, style=QtCore.Qt.DotLine), 
+                                                  symbol='o', symbolPen=palette.c1,
+                                                  symbolBrush=palette.c1,
+                                                  symbolSize=7 )
+        self._pw.addItem(self.saturation_curve)
+        
+        self.saturation_fit_image = pg.PlotDataItem(pen=pg.mkPen(palette.c2), symbol=None)                                        
 
         self._mw.start_saturation_Action.triggered.connect(self.run_stop_saturation)
         self._mw.save_curve_Action.triggered.connect(self.save_saturation_curve_clicked)
@@ -109,6 +111,7 @@ class LaserGUI(GUIBase):
         #self._mw.LaserButtonON.clicked.connect(self.LaserStateON)
         #self._mw.LaserButtonOFF.clicked.connect(self.LaserStateOFF)
         self._mw.dofit_Button.clicked.connect(self._laser_logic.do_fit)
+        self._laser_logic.sigSaturationFitUpdated.connect(self.update_fit, QtCore.Qt.QueuedConnection)
         self._laser_logic.sigRefresh.connect(self.refreshGui)
         self._laser_logic.sigUpdateButton.connect(self.updateButtonsEnabled)
         self._laser_logic.sigAbortedMeasurement.connect(self.aborted_saturation_measurement)
@@ -135,7 +138,7 @@ class LaserGUI(GUIBase):
 
         #self.sigStartSaturation.disconnect()
         #self.sigStopSaturation.disconnect()
-
+        self._laser_logic.sigSaturationFitUpdated.disconnect()
         self._mw.close()
 
     def show(self):
@@ -360,14 +363,31 @@ class LaserGUI(GUIBase):
         """
 
         #TODO: Create a display with the error bar and not only the points.
-        self._mw.saturation_Curve_Label.setText('{0:6.3f}'.format(self._laser_logic.get_data()['Fluorescence'][-1]))
+        self._mw.saturation_Curve_Label.setText('{0:6.3f}'.format(self._laser_logic.get_saturation_data()['Fluorescence'][-1]))
         #self._mw.currentLabel.setText('{0:6.3f} mA'.format(self._laser_logic.laser_current_setpoint))
         #self._mw.powerLabel.setText('{0:6.3f} W'.format(self._laser_logic.laser_power_setpoint))
         #self._mw.extraLabel.setText(self._laser_logic.laser_extra)
         #self.updateButtonsEnabled()
-        self.curves[0].setData(self._laser_logic.get_data()['Power'], self._laser_logic.get_data()['Fluorescence'])
-        if hasattr(self._laser_logic, 'saturation_fit_x'):
-            self.curves[1].setData(self._laser_logic.saturation_fit_x,self._laser_logic.saturation_fit_y)
+        self.saturation_curve.setData(self._laser_logic.get_saturation_data()['Power'], self._laser_logic.get_saturation_data()['Fluorescence'])            
+
+    def update_fit(self, x_data, y_data, result_str_dict):
+        """ Update the plot of the fit and the fit results displayed.
+
+        @params np.array x_data: 1D arrays containing the x values of the fitting function
+        @params np.array y_data: 1D arrays containing the y values of the fitting function
+        @params dict result_str_dict: a dictionary with the relevant fit parameters. Each entry has
+                                            to be a dict with two needed keywords 'value' and 'unit'
+                                            and one optional keyword 'error'.
+        """
+        self._mw.saturation_fit_results_DisplayWidget.clear()
+        try:
+            formated_results = units.create_formatted_output(result_str_dict)
+        except:
+            formated_results = 'this fit does not return formatted results'
+        self._mw.saturation_fit_results_DisplayWidget.setPlainText(formated_results)
+        self.saturation_fit_image.setData(x=x_data, y=y_data)
+        if self.saturation_fit_image not in self._mw.saturation_Curve_PlotWidget.listDataItems():
+            self._mw.saturation_Curve_PlotWidget.addItem(self.saturation_fit_image)
 
     def run_stop_saturation(self, is_checked):
         """ Manages what happens if saturation scan is started/stopped. """
@@ -388,6 +408,7 @@ class LaserGUI(GUIBase):
             self._mw.timeDoubleSpinBox.setEnabled(False)
             self.sigStartSaturation.emit()
             self._mw.start_saturation_Action.setEnabled(False)
+            self._mw.saturation_Curve_PlotWidget.removeItem(self.saturation_fit_image)
         else:
             self._mw.LaserdoubleSpinBox.setEnabled(True)
             self._mw.analogModulationRadioButton.setEnabled(True)
