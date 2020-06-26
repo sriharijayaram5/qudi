@@ -330,6 +330,18 @@ def make_lorentzian_fit(self, x_axis, data, estimator, units=None,
                                'error': result.params['fwhm'].stderr,
                                'unit': units[0]}
 
+    result_str_dict['Maximum slope left'] = {'value':  result.params['center'].value - 
+                                        (result.params['sigma'].value / np.sqrt(3)),
+                                          'error': result.params['center'].stderr + 
+                                          (result.params['sigma'].stderr / np.sqrt(3)),
+                                          'unit': units[0]}
+
+    result_str_dict['Maximum slope right'] = {'value':  result.params['center'].value + 
+                                        (result.params['sigma'].value / np.sqrt(3)),
+                                          'error': result.params['center'].stderr + 
+                                          (result.params['sigma'].stderr / np.sqrt(3)),
+                                          'unit': units[0]}
+
     result_str_dict['chi_sqr'] = {'value': result.chisqr, 'unit': ''}
 
     result.result_str_dict = result_str_dict
@@ -501,6 +513,30 @@ def make_lorentziandouble_fit(self, x_axis, data, estimator, units=None, add_par
     result_str_dict['FWHM 1'] = {'value': result.params['l1_fwhm'].value,
                                  'error': result.params['l1_fwhm'].stderr,
                                  'unit': units[0]}
+
+    result_str_dict['Max slope left 0'] = {'value':  result.params['l0_center'].value - 
+                                        (result.params['l0_sigma'].value / np.sqrt(3)),
+                                          'error': result.params['l0_center'].stderr + 
+                                          (result.params['l0_sigma'].stderr / np.sqrt(3)),
+                                          'unit': units[0]}
+
+    result_str_dict['Max slope right 0'] = {'value':  result.params['l0_center'].value + 
+                                        (result.params['l0_sigma'].value / np.sqrt(3)),
+                                          'error': result.params['l0_center'].stderr + 
+                                          (result.params['l0_sigma'].stderr / np.sqrt(3)),
+                                          'unit': units[0]}
+
+    result_str_dict['Max slope left 1'] = {'value':  result.params['l1_center'].value - 
+                                        (result.params['l1_sigma'].value / np.sqrt(3)),
+                                          'error': result.params['l1_center'].stderr + 
+                                          (result.params['l1_sigma'].stderr / np.sqrt(3)),
+                                          'unit': units[0]}
+
+    result_str_dict['Max slope right 1'] = {'value':  result.params['l1_center'].value + 
+                                        (result.params['l1_sigma'].value / np.sqrt(3)),
+                                          'error': result.params['l1_center'].stderr + 
+                                          (result.params['l1_sigma'].stderr / np.sqrt(3)),
+                                          'unit': units[0]}
 
     result_str_dict['chi_sqr'] = {'value': result.chisqr, 'unit': ''}
 
