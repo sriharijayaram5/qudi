@@ -108,7 +108,7 @@ class LaserGUI(GUIBase):
         self._mw.LaserdoubleSpinBox.editingFinished.connect(self.updatePowerFromSpinBox)
         #self._mw.LaserButtonON.clicked.connect(self.LaserStateON)
         #self._mw.LaserButtonOFF.clicked.connect(self.LaserStateOFF)
-        self._mw.dofit_Button.buttonClicked.connect(self._laser_logic.do_fit)
+        self._mw.dofit_Button.clicked.connect(self._laser_logic.do_fit)
         self._laser_logic.sigRefresh.connect(self.refreshGui)
         self._laser_logic.sigUpdateButton.connect(self.updateButtonsEnabled)
         self._laser_logic.sigAbortedMeasurement.connect(self.aborted_saturation_measurement)
