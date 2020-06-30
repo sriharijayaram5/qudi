@@ -470,6 +470,7 @@ class CounterLogic(GenericLogic):
                     self.stopRequested = False
                     self.module_state.unlock()
                     self.sigCounterUpdated.emit()
+                    self.waitCond.wakeAll() # release all the waiting conditions
                     return
 
                 # read the current counter value
