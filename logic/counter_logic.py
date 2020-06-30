@@ -41,10 +41,9 @@ class CounterLogic(GenericLogic):
 
     @return error: 0 is OK, -1 is error
     """
+
     sigCounterUpdated = QtCore.Signal()
-
     sigCountDataNext = QtCore.Signal()
-
     sigGatedCounterFinished = QtCore.Signal()
     sigGatedCounterContinue = QtCore.Signal(bool)
     sigCountingSamplesChanged = QtCore.Signal(int)
@@ -54,6 +53,7 @@ class CounterLogic(GenericLogic):
     sigCountStatusChanged = QtCore.Signal(bool)
     sigCountingModeChanged = QtCore.Signal(CountingMode)
 
+    waitCond = QtCore.QWaitCondition()
 
     _modclass = 'CounterLogic'
     _modtype = 'logic'
@@ -67,7 +67,10 @@ class CounterLogic(GenericLogic):
     _smooth_window_length = StatusVar('smooth_window_length', 10)
     _counting_samples = StatusVar('counting_samples', 1)
     _count_frequency = StatusVar('count_frequency', 50)
-    _saving = StatusVar('saving', False)
+    _continous_saving = StatusVar('continous_saving', False)
+
+    _finite_saving = False
+    _finite_arr_idx = 0 
 
 
     def __init__(self, config, **kwargs):
@@ -97,7 +100,7 @@ class CounterLogic(GenericLogic):
         # self._binned_counting = True  # UNUSED?
         self._counting_mode = CountingMode['CONTINUOUS']
 
-        self._saving = False
+        self._continous_saving = False
         return
 
     def on_activate(self):
@@ -256,7 +259,7 @@ class CounterLogic(GenericLogic):
 
         @return bool: saving state
         """
-        return self._saving
+        return self._continous_saving
 
     def start_saving(self, resume=False):
         """
@@ -269,14 +272,14 @@ class CounterLogic(GenericLogic):
             self._data_to_save = []
             self._saving_start_time = time.time()
 
-        self._saving = True
+        self._continous_saving = True
 
         # If the counter is not running, then it should start running so there is data to save
         if self.module_state() != 'locked':
             self.startCount()
 
-        self.sigSavingStatusChanged.emit(self._saving)
-        return self._saving
+        self.sigSavingStatusChanged.emit(self._continous_saving)
+        return self._continous_saving
 
     def save_data(self, to_file=True, postfix='', save_figure=True):
         """ Save the counter trace data and writes it to a file.
@@ -288,7 +291,7 @@ class CounterLogic(GenericLogic):
         @return dict parameters: Dictionary which contains the saving parameters
         """
         # stop saving thus saving state has to be set to False
-        self._saving = False
+        self._continous_saving = False
         self._saving_stop_time = time.time()
 
         # write the parameters:
@@ -322,7 +325,7 @@ class CounterLogic(GenericLogic):
                                        filelabel=filelabel, plotfig=fig, delimiter='\t')
             self.log.info('Counter Trace saved to:\n{0}'.format(filepath))
 
-        self.sigSavingStatusChanged.emit(self._saving)
+        self.sigSavingStatusChanged.emit(self._continous_saving)
         return self._data_to_save, parameters
 
     def draw_figure(self, data):
@@ -439,11 +442,10 @@ class CounterLogic(GenericLogic):
             # Start data reader loop
             self.sigCountStatusChanged.emit(True)
             self.sigCountDataNext.emit()
-            return
+            return 0
 
     def stopCount(self):
-        """ Set a flag to request stopping counting.
-        """
+        """ Set a flag to request stopping counting. """
         if self.module_state() == 'locked':
             with self.threadlock:
                 self.stopRequested = True
@@ -570,7 +572,7 @@ class CounterLogic(GenericLogic):
                                                             -self._smooth_window_length:])
 
         # save the data if necessary
-        if self._saving:
+        if self._continous_saving:
              # if oversampling is necessary
             if self._counting_samples > 1:
                 chans = self.get_channels()
@@ -589,6 +591,16 @@ class CounterLogic(GenericLogic):
                 for i, ch in enumerate(chans):
                     newdata[i+1] = self.countdata[i, -1]
                 self._data_to_save.append(newdata)
+
+
+        if self._finite_saving:
+            self._req_counts_arr[:, self._finite_arr_idx: self._finite_arr_idx+self._counting_samples] =  self.countdata[:, -self._counting_samples:]
+            self._finite_arr_idx += self._counting_samples
+
+            if self._finite_arr_idx >= len(self._req_counts_arr[0]):
+                self._finite_saving = False
+                self.waitCond.wakeAll()
+
         return
 
     def _process_data_gated(self):
@@ -671,3 +683,51 @@ class CounterLogic(GenericLogic):
             samples = self.get_count_length()
 
         return self.countdata[:, -samples:]
+
+
+    def request_counts(self, samples=1):
+        """ Request the number of counts during the counting. 
+
+        @param int samples: indicate number of samples to acquire.
+
+        @return np.array(num_chan, samples): counting array in counts/s.
+            int num_chan: number of channels
+            int samples: number of requested samples
+
+        Method will leave this module in the state as it was before the 
+        counting.
+
+        Note1: The counts are not requested twice, but reliably recorded 
+               concurrently from the time of request.
+        Note2: Calling this method from the GUI thread will cause the display to
+               sleep until data is acquired, hence consider to run this method
+               in a separate thread to guarantee continuous display.
+        """
+
+        # allocate data
+        self._req_counts_arr = np.zeros([len(self.get_channels()), samples*self._counting_samples])        
+        self._finite_arr_idx = 0    # finite array index
+
+        status_before_start = self.module_state()
+
+        if status_before_start == 'idle':
+
+            status = self.startCount()
+
+            if status < 0:
+                self.log.warning('Problem in starting the counter occurred!')
+                # indicate that there was a problem in the start
+                return meas_vals -1
+
+        with self.threadlock:
+            self._finite_saving = True
+
+            # pause this here, until the waiting condition has been released. 
+            # Calling from gui thread will cause a wait of this thread.
+            self.waitCond.wait(self.threadlock)    
+
+        # restore the situation as it was when starting the method.
+        if status_before_start == 'idle':
+            self.stopCount()
+
+        return self._req_counts_arr
