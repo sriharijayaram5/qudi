@@ -99,6 +99,13 @@ class LaserLogic(GenericLogic):
 
     queryInterval = ConfigOption('query_interval', 100)
 
+    power_start = StatusVar('power_start', 1/1000)
+    power_stop = StatusVar('power_stop', 22/1000)
+    number_of_points = StatusVar('number_of_points', 15)
+    time_per_point = StatusVar('time_per_point', 5)
+    #creating a fit container
+    fc = StatusVar('fits', None)
+
     sigRefresh = QtCore.Signal()
     sigUpdateButton = QtCore.Signal()
     sigAbortedMeasurement = QtCore.Signal()
@@ -107,8 +114,6 @@ class LaserLogic(GenericLogic):
     # make a dummy worker thread:
     _worker_thread = WorkerThread(print)
 
-    #creating a fit container
-    fc = StatusVar('fits', None)
 
     def on_activate(self):
         """ Prepare logic module for work.
