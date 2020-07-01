@@ -1,10 +1,12 @@
+# external standard python modules
 import threading
 import copy
 import logging
 from enum import Enum
 
-from . import AxiStreamPacketizer
-from . import SrpConn
+# subcomponents related to this package
+from .AxiStreamPacketizer import AxiStreamPacketConnection
+from .SrpConn import SRPv3Connection
 from .rssi.Connection import ConnState
 
 logger = logging.getLogger(__name__)
@@ -27,11 +29,10 @@ class MqCallbackThread(threading.Thread):
     def run(self):
         return self.mqConn._MqConn__threadWorker()
 
-
 class MqConn:
     def __initAxiConn(self):
-        self.axiConn = AxiStreamPacketizer.AxiStreamPacketConnection(self.rssiConfig)
-        self.srpConn = SrpConn.SRPv3Connection(self.axiConn, 0, self.__onSrpPacketRecvd)
+        self.axiConn = AxiStreamPacketConnection(self.rssiConfig)
+        self.srpConn = SRPv3Connection(self.axiConn, 0, self.__onSrpPacketRecvd)
         self.axiConn.setChannelCallback(1, self.streamCallback)
 
     def __init__(self, rssiConfig, streamCallback):

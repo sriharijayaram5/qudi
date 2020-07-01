@@ -1,4 +1,5 @@
 import struct
+from collections import OrderedDict
 from enum import Enum
 
 # NOTE: In SLAC documentation, SYN and non-SYN headers are considered different but both begin
@@ -35,7 +36,6 @@ class CtlBitField:
         presentNames = [name for name in CtlBitNames if self.__getattribute__(name)]
         return "Ctl: '" + ' '.join(presentNames) + "'"
 
-
 class ExtraSynBitField:
     def __init__(self, version=1, oneBit=1, chk=False, zeroBits=0):
         self.version = version
@@ -50,7 +50,6 @@ class ExtraSynBitField:
 
     def toByte(self):
         return (self.version << 4) | (self.oneBit << 3) | (int(self.chk) << 2) | self.zeroBits
-
 
 class CommonHeader:
     def __init__(self, ctlBits=CtlBitField.make(), headerLength=0, seqNo=0, ackNo=0):
@@ -71,7 +70,6 @@ class CommonHeader:
         return '; '.join(
             [self.ctlBits.toString(), 'seq: {}; ack: {}'.format(self.seqNo, self.ackNo)])
 
-
 class NonSynHeader:
     def __init__(self, spare=0, checksum=0):
         self.spare = spare
@@ -88,7 +86,6 @@ class NonSynHeader:
     def toString(self):
         return ''
 
-
 def calculateChecksum(data):
         checksum = 0
         data_len = len(data)
@@ -103,7 +100,6 @@ def calculateChecksum(data):
         checksum = (checksum >> 16) + (checksum & 0xffff)
         checksum = ~checksum & 0xffff
         return checksum
-
 
 class SynHeader:
     def __init__(self, extraBitField=ExtraSynBitField(),
@@ -159,11 +155,9 @@ class SynHeader:
                 self.maxRetransmissions, self.maxCumAcks, self.maxOutOfSeqAck,
                 self.minusLog10timeoutUnit, self.connectionId)
 
-
 class SegmentType(Enum):
     Syn = 1
     NonSyn = 2
-
 
 class Segment:
     def __init__(self,

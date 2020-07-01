@@ -1,11 +1,11 @@
 import struct
+import random
 import logging
 
-# All SRP packets have an identically structured header. Write requests and non-posted
-# responses have a payload. Responses have a footer.
+# All SRP packets have an identically structured header. Write requests and 
+# non-posted responses have a payload. Responses have a footer.
 
 logger = logging.getLogger(__name__)
-
 
 class SrpSupportField:
     def __init__(self, unalignedAccess=False, byteAccess=False, write=False, read=False):
@@ -31,7 +31,6 @@ class SrpSupportField:
                 presentNames.append(name)
 
         return ' '.join(presentNames) if len(presentNames) > 0 else 'none'
-
 
 class SrpHeader:
     def __init__(self, version=0x3, opcode=0x3, supportField=SrpSupportField(),
@@ -69,7 +68,6 @@ class SrpHeader:
                 'TimeoutCnt: {}, Tid: {}, Addr: 0x{:08x}, Size: {}').format(self.version,
                 self.opcode, self.supportField.toString(), self.ignoreMemResp, self.prot,
                 self.timeoutCnt, self.tid, self.addr, self.size)
-
 
 class SrpFooter:
     def __init__(self, memBusResp=0, timeout=False, eofe=False, frameError=False,
@@ -115,7 +113,6 @@ class SrpFooter:
 
         return retStr
 
-
 class SrpPacket:
     def __init__(self, header=SrpHeader(), payload=b'', footer=None):
         self.header = header
@@ -153,7 +150,6 @@ class SrpPacket:
             retStr += '; Payload: {}'.format(self.payload)
         return retStr
 
-
 # This just references an AxiStreamPacketConnection and a channel number, 
 class SRPv3Connection:
     def __init__(self, axiPacketConnection, channelNum, packetCallback):
@@ -166,8 +162,7 @@ class SRPv3Connection:
 
     def __dataCallback(self, data):
         srpPacket = SrpPacket.respFromRaw(data)
-        # COMMENT OUT SINCE IT OVERFLOWS THE LOGGER
-        #logger.debug('Recvd SRP packet: ' + srpPacket.toString())
+        logger.debug('Recvd SRP packet: ' + srpPacket.toString())
         self.packetCb(srpPacket)
 
     def sendReadReq(self, addr, size):
@@ -184,7 +179,6 @@ class SRPv3Connection:
         return
 
     def __sendPacket(self, packet):
-        # COMMENT OUT SINCE IT OVERFLOWS THE LOGGER
-        #logger.debug('Sending SRP packet: ' + packet.toString(payload=True))
+        logger.debug('Sending SRP packet: ' + packet.toString(payload=True))
         self.__tid = (self.__tid + 1) % 2**32
         self.axiPacketConnection.sendData(self.channelNum, packet.toRaw())
