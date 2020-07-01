@@ -1032,12 +1032,12 @@ class ODMRLogic(GenericLogic):
         # Perform fit if requested
         if fit_function != 'No Fit':
             self.do_fit(fit_function, channel_index=channel)
-            fit_params = self.fc.current_fit_param
+            fit_result = self.fc.current_fit_result
         else:
-            fit_params = None
+            fit_result = None
 
         # Save data if requested
         if save_after_meas:
             self.save_odmr_data(tag=name_tag)
 
-        return self.odmr_plot_x, self.odmr_plot_y, fit_params
+        return self.odmr_plot_x, self.odmr_plot_y, fit_result
