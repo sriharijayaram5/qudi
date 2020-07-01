@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>813</width>
-    <height>462</height>
+    <width>855</width>
+    <height>489</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -23,69 +23,29 @@
      <verstretch>0</verstretch>
     </sizepolicy>
    </property>
-   <layout class="QGridLayout" name="gridLayout">
-    <item row="0" column="0">
-     <widget class="QGroupBox" name="groupBox">
-      <property name="enabled">
-       <bool>true</bool>
-      </property>
-      <property name="sizePolicy">
-       <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
-        <horstretch>0</horstretch>
-        <verstretch>0</verstretch>
-       </sizepolicy>
-      </property>
-      <property name="title">
-       <string/>
-      </property>
-      <widget class="QPushButton" name="LaserButtonON">
-       <property name="enabled">
-        <bool>true</bool>
-       </property>
-       <property name="geometry">
-        <rect>
-         <x>20</x>
-         <y>30</y>
-         <width>71</width>
-         <height>23</height>
-        </rect>
-       </property>
-       <property name="text">
-        <string>Laser ON</string>
-       </property>
-      </widget>
-      <widget class="QPushButton" name="LaserButtonOFF">
-       <property name="enabled">
-        <bool>true</bool>
-       </property>
-       <property name="geometry">
-        <rect>
-         <x>20</x>
-         <y>60</y>
-         <width>71</width>
-         <height>23</height>
-        </rect>
-       </property>
-       <property name="text">
-        <string>Laser OFF</string>
-       </property>
-      </widget>
-     </widget>
-    </item>
-   </layout>
+   <layout class="QGridLayout" name="gridLayout"/>
   </widget>
   <widget class="QStatusBar" name="statusbar"/>
   <widget class="QDockWidget" name="dockWidget">
    <property name="sizePolicy">
-    <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
+    <sizepolicy hsizetype="Ignored" vsizetype="Preferred">
      <horstretch>0</horstretch>
      <verstretch>0</verstretch>
     </sizepolicy>
+   </property>
+   <property name="allowedAreas">
+    <set>Qt::AllDockWidgetAreas</set>
    </property>
    <attribute name="dockWidgetArea">
     <number>1</number>
    </attribute>
    <widget class="QWidget" name="dockWidgetContents">
+    <property name="sizePolicy">
+     <sizepolicy hsizetype="Fixed" vsizetype="Preferred">
+      <horstretch>0</horstretch>
+      <verstretch>0</verstretch>
+     </sizepolicy>
+    </property>
     <layout class="QGridLayout" name="gridLayout_3">
      <item row="2" column="0">
       <widget class="QRadioButton" name="digModulationRadioButton">
@@ -148,29 +108,108 @@
   </widget>
   <widget class="QDockWidget" name="saturation_Curve_DockWidget">
    <property name="sizePolicy">
-    <sizepolicy hsizetype="Maximum" vsizetype="Preferred">
+    <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
      <horstretch>0</horstretch>
      <verstretch>0</verstretch>
     </sizepolicy>
    </property>
-   <property name="maximumSize">
-    <size>
-     <width>444</width>
-     <height>389</height>
-    </size>
+   <property name="allowedAreas">
+    <set>Qt::AllDockWidgetAreas</set>
    </property>
    <attribute name="dockWidgetArea">
     <number>2</number>
    </attribute>
    <widget class="QWidget" name="dockWidgetContents_2">
+    <property name="sizePolicy">
+     <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+      <horstretch>0</horstretch>
+      <verstretch>0</verstretch>
+     </sizepolicy>
+    </property>
     <layout class="QGridLayout" name="gridLayout_2">
+     <property name="sizeConstraint">
+      <enum>QLayout::SetMaximumSize</enum>
+     </property>
+     <item row="4" column="9">
+      <widget class="QPushButton" name="dofit_Button">
+       <property name="text">
+        <string>Do Hyperbolic Fit</string>
+       </property>
+      </widget>
+     </item>
+     <item row="5" column="2">
+      <widget class="QSpinBox" name="numPointsSpinBox"/>
+     </item>
      <item row="1" column="1" colspan="3">
       <widget class="QLineEdit" name="save_tag_LineEdit"/>
      </item>
-     <item row="5" column="0" colspan="8">
-      <widget class="PlotWidget" name="saturation_Curve_PlotWidget"/>
+     <item row="4" column="1">
+      <widget class="QLabel" name="StopPowerLabel">
+       <property name="font">
+        <font>
+         <pointsize>8</pointsize>
+        </font>
+       </property>
+       <property name="text">
+        <string>Stop Power (mW)</string>
+       </property>
+      </widget>
      </item>
-     <item row="3" column="5" rowspan="2" colspan="3">
+     <item row="4" column="2">
+      <widget class="QLabel" name="NumPointsLabel">
+       <property name="font">
+        <font>
+         <pointsize>8</pointsize>
+        </font>
+       </property>
+       <property name="text">
+        <string>Points</string>
+       </property>
+      </widget>
+     </item>
+     <item row="4" column="0">
+      <widget class="QLabel" name="startPowerLabel">
+       <property name="font">
+        <font>
+         <pointsize>8</pointsize>
+        </font>
+       </property>
+       <property name="text">
+        <string>Start Power (mW)</string>
+       </property>
+      </widget>
+     </item>
+     <item row="5" column="0">
+      <widget class="ScienDSpinBox" name="startPowerDoubleSpinBox"/>
+     </item>
+     <item row="5" column="3">
+      <widget class="ScienDSpinBox" name="timeDoubleSpinBox"/>
+     </item>
+     <item row="4" column="3">
+      <widget class="QLabel" name="TimeperpointLabel">
+       <property name="text">
+        <string>Time/point (s)</string>
+       </property>
+      </widget>
+     </item>
+     <item row="5" column="1">
+      <widget class="ScienDSpinBox" name="stopPowerDoubleSpinBox"/>
+     </item>
+     <item row="1" column="0">
+      <widget class="QLabel" name="save_tag_label">
+       <property name="text">
+        <string>Figure Name:</string>
+       </property>
+      </widget>
+     </item>
+     <item row="5" column="9">
+      <widget class="QLabel" name="fit_tag_label">
+       <property name="text">
+        <string>Fit Results:</string>
+       </property>
+      </widget>
+     </item>
+     <item row="4" column="7">
       <widget class="QLabel" name="saturation_Curve_Label">
        <property name="sizePolicy">
         <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
@@ -191,25 +230,7 @@
        </property>
       </widget>
      </item>
-     <item row="4" column="2">
-      <widget class="QSpinBox" name="numPointsSpinBox"/>
-     </item>
-     <item row="3" column="0">
-      <widget class="QLabel" name="startPowerLabel">
-       <property name="font">
-        <font>
-         <pointsize>8</pointsize>
-        </font>
-       </property>
-       <property name="text">
-        <string>Start Power (mW)</string>
-       </property>
-      </widget>
-     </item>
-     <item row="4" column="0">
-      <widget class="ScienDSpinBox" name="startPowerDoubleSpinBox"/>
-     </item>
-     <item row="1" column="4" colspan="4">
+     <item row="4" column="8">
       <spacer name="horizontalSpacer">
        <property name="orientation">
         <enum>Qt::Horizontal</enum>
@@ -222,47 +243,29 @@
        </property>
       </spacer>
      </item>
-     <item row="3" column="1">
-      <widget class="QLabel" name="StopPowerLabel">
-       <property name="font">
-        <font>
-         <pointsize>8</pointsize>
-        </font>
-       </property>
-       <property name="text">
-        <string>Stop Power (mW)</string>
-       </property>
-      </widget>
+     <item row="6" column="0" rowspan="3" colspan="5">
+      <widget class="PlotWidget" name="saturation_Curve_PlotWidget"/>
      </item>
-     <item row="3" column="2">
-      <widget class="QLabel" name="NumPointsLabel">
-       <property name="font">
-        <font>
-         <pointsize>8</pointsize>
-        </font>
+     <item row="8" column="9">
+      <spacer name="verticalSpacer_2">
+       <property name="orientation">
+        <enum>Qt::Vertical</enum>
        </property>
-       <property name="text">
-        <string>Points</string>
+       <property name="sizeHint" stdset="0">
+        <size>
+         <width>20</width>
+         <height>40</height>
+        </size>
        </property>
-      </widget>
+      </spacer>
      </item>
-     <item row="3" column="3">
-      <widget class="QLabel" name="TimeperpointLabel">
-       <property name="text">
-        <string>Time/point (s)</string>
+     <item row="6" column="8" colspan="2">
+      <widget class="QTextBrowser" name="saturation_fit_results_DisplayWidget">
+       <property name="sizeAdjustPolicy">
+        <enum>QAbstractScrollArea::AdjustToContents</enum>
        </property>
-      </widget>
-     </item>
-     <item row="4" column="3">
-      <widget class="ScienDSpinBox" name="timeDoubleSpinBox"/>
-     </item>
-     <item row="4" column="1">
-      <widget class="ScienDSpinBox" name="stopPowerDoubleSpinBox"/>
-     </item>
-     <item row="1" column="0">
-      <widget class="QLabel" name="save_tag_label">
-       <property name="text">
-        <string>Figure Name:</string>
+       <property name="tabChangesFocus">
+        <bool>true</bool>
        </property>
       </widget>
      </item>
@@ -274,14 +277,17 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>813</width>
-     <height>21</height>
+     <width>855</width>
+     <height>22</height>
     </rect>
    </property>
   </widget>
   <widget class="QToolBar" name="toolBar">
    <property name="windowTitle">
     <string>toolBar</string>
+   </property>
+   <property name="toolButtonStyle">
+    <enum>Qt::ToolButtonTextUnderIcon</enum>
    </property>
    <attribute name="toolBarArea">
     <enum>TopToolBarArea</enum>
@@ -291,6 +297,9 @@
    </attribute>
    <addaction name="start_saturation_Action"/>
    <addaction name="save_curve_Action"/>
+   <addaction name="separator"/>
+   <addaction name="laser_ON_Action"/>
+   <addaction name="laser_OFF_Action"/>
    <addaction name="separator"/>
   </widget>
   <action name="start_saturation_Action">
@@ -322,6 +331,33 @@
    </property>
    <property name="toolTip">
     <string>Save curve to file</string>
+   </property>
+  </action>
+  <action name="laser_ON_Action">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="icon">
+    <iconset>
+     <normaloff>../../../qnami-qudi/artwork/icons/oxygen/22x22/media-playback-start.png</normaloff>../../../qnami-qudi/artwork/icons/oxygen/22x22/media-playback-start.png</iconset>
+   </property>
+   <property name="text">
+    <string>Laser ON</string>
+   </property>
+  </action>
+  <action name="laser_OFF_Action">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="icon">
+    <iconset>
+     <normaloff>../../../qnami-qudi/artwork/icons/oxygen/22x22/media-playback-stop.png</normaloff>../../../qnami-qudi/artwork/icons/oxygen/22x22/media-playback-stop.png</iconset>
+   </property>
+   <property name="text">
+    <string>Laser_OFF</string>
+   </property>
+   <property name="toolTip">
+    <string>Laser OFF</string>
    </property>
   </action>
  </widget>

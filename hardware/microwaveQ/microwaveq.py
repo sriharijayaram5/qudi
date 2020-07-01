@@ -62,6 +62,7 @@ class MicrowaveQ(Base, SlowCounterInterface):
     ip_address = ConfigOption('ip_address', default='192.168.2.10')
     port = ConfigOption('port', default=55555, missing='info')
     unlock_key = ConfigOption('unlock_key', missing='error')
+    gain_cali_name = ConfigOption('gain_cali_name', default='')
 
 
 
@@ -158,6 +159,10 @@ class MicrowaveQ(Base, SlowCounterInterface):
 
         # set the main RF port (RF OUT 2H) to on
         self._dev.gpio.rfswitch.set(1)
+
+        # test gain compensation:
+        if self.gain_cali_name != '':
+            self._dev._setGainCalibration(self.gain_cali_name)
 
     def on_deactivate(self):
         self.disconnect_mq()
