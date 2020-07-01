@@ -420,17 +420,17 @@ class CoboltLaserStandalone():
         """
         self.rm = visa.ResourceManager()
 
-
+        #FIXME
         #Making sure that the comport is correct even if the ConfigOption 
         #Ends up not being the correct one.
-        for entry in self.rm.list_resources():
-            with self.rm.open_resource(entry, open_timeout=0.01) as dev:
-                try:
-                    dev.query('l?')
-                    if comport != entry:
-                        comport = entry
-                except Exception as e:
-                    pass
+        #for entry in self.rm.list_resources():
+        #    with self.rm.open_resource(entry, open_timeout=0.01) as dev:
+        #        try:
+        #            dev.query('l?')
+        #            if comport != entry:
+        #                comport = entry
+        #        except Exception as e:
+        #            pass
 
         self.connect_laser(comport)
 
