@@ -790,11 +790,12 @@ class LaserLogic(GenericLogic):
             std_fwhm = np.zeros((rows, columns))
             for i in range(rows):
                 for j in range(columns):
-                    params = fit_data[i][j].result_str_dict
-                    mean_contrast[i][j] = (params['Contrast 0']['value'] + params['Contrast 1']['value']) / 2
-                    std_contrast[i][j] = (params['Contrast 0']['error'] + params['Contrast 1']['error']) / 2
-                    mean_fwhm[i][j] = (params['FWHM 0']['value'] + params['FWHM 1']['value']) / 2
-                    std_fwhm[i][j] = (params['FWHM 0']['error'] + params['FWHM 1']['error']) / 2
+                    if hasattr(fit_data[i][j], 'result_str_dict'):
+                        params = fit_data[i][j].result_str_dict
+                        mean_contrast[i][j] = (params['Contrast 0']['value'] + params['Contrast 1']['value']) / 2
+                        std_contrast[i][j] = (params['Contrast 0']['error'] + params['Contrast 1']['error']) / 2
+                        mean_fwhm[i][j] = (params['FWHM 0']['value'] + params['FWHM 1']['value']) / 2
+                        std_fwhm[i][j] = (params['FWHM 0']['error'] + params['FWHM 1']['error']) / 2
 
             contrast_data = {'Contrast from the fit (%)': mean_contrast}
             contrast_std_data = {'Error for the contrast from the fit (%)': std_contrast}
