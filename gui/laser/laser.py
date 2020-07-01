@@ -87,15 +87,18 @@ class LaserGUI(GUIBase):
         self._pw.setLabel('bottom', 'Laser Power', units='W')
 
         #Setting up the curves.
-        self.saturation_curve = pg.PlotDataItem(pen=pg.mkPen(palette.c1, style=QtCore.Qt.DotLine), 
+        self.saturation_curve = pg.PlotDataItem(pen=pg.mkPen(palette.c1, style=QtCore.Qt.DashLine), 
                                                   symbol='o', symbolPen=palette.c1,
                                                   symbolBrush=palette.c1,
                                                   symbolSize=7 )
+        self.errorbar = pg.ErrorBarItem(x=np.array([0]), y =np.array([0]), pen=pg.mkPen(palette.c1, style=QtCore.Qt.DotLine))
         self._pw.addItem(self.saturation_curve)
+        self._pw.addItem(self.errorbar)
         
         self.saturation_fit_image = pg.PlotDataItem(pen=pg.mkPen(palette.c2), symbol=None)                                        
 
         self._mw.start_saturation_Action.triggered.connect(self.run_stop_saturation)
+        self._mw.start_saturation_Action.triggered.connect(self.update_settings)
         self._mw.save_curve_Action.triggered.connect(self.save_saturation_curve_clicked)
         self._mw.laser_ON_Action.triggered.connect(self.LaserStateON)
         self._mw.laser_OFF_Action.triggered.connect(self.LaserStateOFF)
@@ -119,15 +122,15 @@ class LaserGUI(GUIBase):
         #Setting up the constraints for the Saturation Curve.
         lpr = self._laser_logic.laser_power_range
         self._mw.startPowerDoubleSpinBox.setRange(lpr[0], lpr[1])
-        self._mw.startPowerDoubleSpinBox.setValue(1/1000)
+        self._mw.startPowerDoubleSpinBox.setValue(self._laser_logic.power_start)
         self._mw.startPowerDoubleSpinBox.setSuffix('W')
         self._mw.stopPowerDoubleSpinBox.setRange(lpr[0], lpr[1])
-        self._mw.stopPowerDoubleSpinBox.setValue(22/1000)
+        self._mw.stopPowerDoubleSpinBox.setValue(self._laser_logic.power_stop)
         self._mw.stopPowerDoubleSpinBox.setSuffix('W')
         self._mw.numPointsSpinBox.setRange(1,100)
-        self._mw.numPointsSpinBox.setValue(15)
+        self._mw.numPointsSpinBox.setValue(self._laser_logic.number_of_points)
         self._mw.timeDoubleSpinBox.setRange(1,1000)
-        self._mw.timeDoubleSpinBox.setValue(5)
+        self._mw.timeDoubleSpinBox.setValue(self._laser_logic.time_per_point)
         self._mw.timeDoubleSpinBox.setSuffix('s')
 
         self.updateButtonsEnabled()
@@ -368,7 +371,16 @@ class LaserGUI(GUIBase):
         #self._mw.powerLabel.setText('{0:6.3f} W'.format(self._laser_logic.laser_power_setpoint))
         #self._mw.extraLabel.setText(self._laser_logic.laser_extra)
         #self.updateButtonsEnabled()
-        self.saturation_curve.setData(self._laser_logic.get_saturation_data()['Power'], self._laser_logic.get_saturation_data()['Fluorescence'])            
+        self.saturation_curve.setData(self._laser_logic.get_saturation_data()['Power'], self._laser_logic.get_saturation_data()['Fluorescence'])    
+        self.errorbar.setData(x=self._laser_logic.get_saturation_data()['Power'], y=self._laser_logic.get_saturation_data()['Fluorescence'], height=self._laser_logic.get_saturation_data()['Stddev'])          
+
+    def update_settings(self):
+        """ Write the new settings from the gui to the file. """
+        self._laser_logic.power_start = self._mw.startPowerDoubleSpinBox.value()
+        self._laser_logic.power_stop = self._mw.stopPowerDoubleSpinBox.value()
+        self._laser_logic.number_of_points = self._mw.numPointsSpinBox.value()
+        self._laser_logic.time_per_point = self._mw.timeDoubleSpinBox.value()
+        return
 
     def update_fit(self, x_data, y_data, result_str_dict):
         """ Update the plot of the fit and the fit results displayed.
