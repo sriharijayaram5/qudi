@@ -628,7 +628,7 @@ class LaserLogic(GenericLogic):
         for i in range(len(laser_power)):
 
             #Stopping mechanism
-            if self._stop_request_meas:
+            if self._stop_request:
                 break
 
             self._dev.set_power(laser_power[i])
