@@ -472,6 +472,22 @@ class CounterLogic(GenericLogic):
             self.sigCountCorrNext.emit()
             return
 
+    def pause_resume_corr(self):
+        with self.threadlock:
+            # check for aborts of the thread in break if necessary
+            if self.corr_stopRequested:
+                # switch the state variable off again
+                self._counting_device.corr.stop()
+                self.corr_stopRequested = False
+                if self.module_state() == 'locked':
+                    self.module_state.unlock()
+                return
+
+            self._counting_device.corr.start()
+            self.module_state.lock()
+        self.sigCountCorrNext.emit()
+        return
+
     def count_corr_loop(self):
         if self.module_state() == 'locked':
             with self.threadlock:

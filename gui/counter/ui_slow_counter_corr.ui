@@ -179,12 +179,13 @@ Timestamps in oversampling interval are all equal to the averaging time.</string
     <bool>false</bool>
    </attribute>
    <addaction name="start_counter_Action"/>
+   <addaction name="pause_counter_Action"/>
    <addaction name="save_Action"/>
   </widget>
   <action name="start_counter_Action">
-   <property name="checkable">
+   <!-- <property name="checkable">
     <bool>true</bool>
-   </property>
+   </property> -->
    <property name="icon">
     <iconset>
      <normaloff>../../artwork/icons/qudiTheme/22x22/start-counter.png</normaloff>../../artwork/icons/qudiTheme/22x22/start-counter.png</iconset>
@@ -194,6 +195,21 @@ Timestamps in oversampling interval are all equal to the averaging time.</string
    </property>
    <property name="toolTip">
     <string>Start the counter</string>
+   </property>
+  </action>
+  <action name="pause_counter_Action">
+   <!-- <property name="checkable">
+    <bool>true</bool>
+   </property> -->
+   <property name="icon">
+    <iconset>
+     <normaloff>../../artwork/icons/qudiTheme/22x22/restart-counter.png</normaloff>../../artwork/icons/qudiTheme/22x22/restart-counter.png</iconset>
+   </property>
+   <property name="text">
+    <string>Pause counter</string>
+   </property>
+   <property name="toolTip">
+    <string>Pause/Resume the counter</string>
    </property>
   </action>
   <action name="save_Action">

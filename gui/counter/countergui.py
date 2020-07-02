@@ -73,6 +73,7 @@ class CounterGui(GUIBase):
     sigStopCounter = QtCore.Signal()
     sigStartCorr = QtCore.Signal(float, int)
     sigStopCorr = QtCore.Signal()
+    sigPauseResumeCorr = QtCore.Signal()
 
     def __init__(self, config, **kwargs):
         super().__init__(config=config, **kwargs)
@@ -152,6 +153,8 @@ class CounterGui(GUIBase):
             self.save_runtime = ''
             self._cw = CorrelationMainWindow()
             self._cw.start_counter_Action.triggered.connect(self.start_corr)
+            self._cw.pause_counter_Action.triggered.connect(self.pause_resume_corr)
+            self._cw.pause_counter_Action.setEnabled(False)
             self._cw.save_Action.triggered.connect(self.save_corr)
             self._cpw = self._cw.correlation_hist_PlotWidget
             self._cpw.setLabel('left', 'g<sup>(2)</sup>(<font>&tau;</font>)')
@@ -221,6 +224,7 @@ class CounterGui(GUIBase):
 
         self.sigStartCorr.connect(self._counting_logic.startCorr)
         self.sigStopCorr.connect(self._counting_logic.stopCorr)
+        self.sigPauseResumeCorr.connect(self._counting_logic.pause_resume_corr)
 
         ##################
         # Handling signals from the logic
@@ -271,6 +275,7 @@ class CounterGui(GUIBase):
         self.sigStartCounter.disconnect()
         self.sigStartCorr.disconnect()
         self.sigStopCorr.disconnect()
+        self.sigPauseResumeCorr.disconnect()
         self.sigStopCounter.disconnect()
         self._counting_logic.sigCounterUpdated.disconnect()
         self._counting_logic.sigCountingSamplesChanged.disconnect()
@@ -356,13 +361,34 @@ class CounterGui(GUIBase):
         """ Handling the Start button to stop and restart the counter.
         """
         if self._counting_logic.module_state() == 'locked':
-            self._cw.start_counter_Action.setText('Start')
+            self._cw.start_counter_Action.setText('Restart counter')
+            self._cw.pause_counter_Action.setText('Resume counter')
             self._cw.start_counter_Action.setChecked(False)
             self.sigStopCorr.emit()
         else:
-            self._cw.start_counter_Action.setText('Stop')
+            self._cw.start_counter_Action.setText('Stop counter')
+            self._cw.pause_counter_Action.setText('Pause counter')
             self._cw.start_counter_Action.setChecked(True)
+            self._cw.pause_counter_Action.setEnabled(True)
             self.sigStartCorr.emit(self._cw.bin_width_DoubleSpinBox.value(), self._cw.no_of_bins_SpinBox.value())
+            self.timestamp.start()
+        return self._counting_logic.module_state()
+    
+    def pause_resume_corr(self):
+        """ Handling the Start button to stop and restart the counter.
+        """
+        if self._counting_logic.module_state() == 'locked':
+            self._cw.pause_counter_Action.setText('Resume counter')
+            self._cw.start_counter_Action.setText('Restart counter')
+            self._cw.pause_counter_Action.setChecked(False)
+            self.sigStopCorr.emit()
+            self.sigPauseResumeCorr.emit()
+            # self.timestamp.stop()
+        else:
+            self._cw.pause_counter_Action.setText('Pause counter')
+            self._cw.start_counter_Action.setText('Stop counter')
+            self._cw.pause_counter_Action.setChecked(True)
+            self.sigPauseResumeCorr.emit()
             self.timestamp.start()
         return self._counting_logic.module_state()
 
