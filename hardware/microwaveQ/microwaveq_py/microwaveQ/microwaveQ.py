@@ -453,6 +453,8 @@ class MicrowaveQ(dev.Device):
 
         if freq is None:
             freq = self.__cur_freq
+        else:
+            self.__cur_freq = freq
 
         gain_val, self.__cur_power = self.get_gain_for_freq_power(freq, power)
         self.rfpulse.setGain(gain_val)
