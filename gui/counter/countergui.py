@@ -354,7 +354,7 @@ class CounterGui(GUIBase):
         x = self._counting_logic.corr_x/1e12
         y = self._counting_logic.corr_y
         self.c_curves[-2].setData(y=y, x=x)
-        self.save_runtime = f'{self.timestamp.elapsed()/1e3:.3f}'
+        self.save_runtime = f'{(self.timestamp.elapsed()+self.pause)/1e3:.3f}'
         self._cw.runtime_Label.setText(self.save_runtime)
     
     def start_corr(self):
@@ -372,6 +372,7 @@ class CounterGui(GUIBase):
             self._cw.pause_counter_Action.setEnabled(True)
             self.sigStartCorr.emit(self._cw.bin_width_DoubleSpinBox.value(), self._cw.no_of_bins_SpinBox.value())
             self.timestamp.start()
+            self.pause = 0
         return self._counting_logic.module_state()
     
     def pause_resume_corr(self):
@@ -383,6 +384,7 @@ class CounterGui(GUIBase):
             self._cw.pause_counter_Action.setChecked(False)
             self.sigStopCorr.emit()
             self.sigPauseResumeCorr.emit()
+            self.pause += self.timestamp.elapsed()
             # self.timestamp.stop()
         else:
             self._cw.pause_counter_Action.setText('Pause counter')
