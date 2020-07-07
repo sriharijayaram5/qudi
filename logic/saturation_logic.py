@@ -29,7 +29,6 @@ from qtpy import QtCore
 import matplotlib.pyplot as plt
 import numpy as np
 import copy
-import statistics
 import lmfit.model
 
 from core.module import Connector, ConfigOption, StatusVar
@@ -144,7 +143,7 @@ class LaserLogic(GenericLogic):
         self.laser_can_digital_mod = ControlMode.MODULATION_DIGITAL in self._dev.allowed_control_modes()
         self.laser_control_mode = self._dev.get_control_mode()
         self.has_shutter = self._dev.get_shutter_state() != ShutterState.NOSHUTTER
-        #These 3 are probably not needed afterwards with the data
+        #Create data containers
         self._saturation_data = {}
         self._odmr_data = {}
 
@@ -161,7 +160,7 @@ class LaserLogic(GenericLogic):
     @fc.constructor
     def sv_set_fits(self, val):
         #Setup fit container
-        fc = self.fitlogic().make_fit_container('saturation_curve_agathe', '1d')
+        fc = self.fitlogic().make_fit_container('saturation_curve', '1d')
         fc.set_units(['W', 'c/s'])
         if isinstance(val, dict) and len(val) > 0:
             fc.load_from_dict(val)
@@ -302,7 +301,6 @@ class LaserLogic(GenericLogic):
         #Setting up the list for data
         self._saturation_data['Power'] = np.zeros(num_of_points)
         self._saturation_data['Fluorescence'] = np.zeros(num_of_points)
-        if std_dev is not None:
             self._saturation_data['Stddev'] = np.zeros(num_of_points)
 
         for i in range(num_of_points):
@@ -373,10 +371,10 @@ class LaserLogic(GenericLogic):
 
             #For later when you actually use the counter.
             # counts[i] = self._counterlogic.countdata[0].mean()
-            # std_dev[i] = statistics.stdev(self._counterlogic.countdata[0])
+            # std_dev[i] = self._counterlogic.countdata[0].std(ddof=1)
             counts_array  = self._counterlogic.request_counts(counter_points)[0]
             counts[i] = counts_array.mean()
-            std_dev[i] = statistics.stdev(counts_array)
+            std_dev[i] = counts_array.std(ddof=1)
 
             self.set_saturation_data(laser_power, counts, std_dev, i + 1)
 
@@ -520,19 +518,23 @@ class LaserLogic(GenericLogic):
         Create 3 class attributes
             np.array self.saturation_fit_x: 1D arrays containing the x values of the fitting function
             np.array self.saturation_fit_y: 1D arrays containing the y values of the fitting function
-            lmfit.model.ModelResult fit_result: the result object of lmfit. If additional information
+            lmfit.model.ModelResult self.fit_result: the result object of lmfit. If additional information
                                         is needed from the fit, then they can be obtained from this 
                                         object. 
         """
         self.fc.current_fit = 'Hyperbolic_saturation'
 
-        if 'Power' not in self._saturation_data or len(self._saturation_data['Power']) < 3:
-            self.log.warning('There is not enough data points to fit the curve. Fitting aborted.')
-            return
-
         if (x_data is None) or (y_data is None):
+            if 'Power' in self._saturation_data:
             x_data = self._saturation_data['Power']
             y_data = self._saturation_data['Fluorescence']
+            else:
+                self.log.warning('There is no data points. Fitting aborted.')
+                return
+
+        if len(x_data) < 3:
+            self.log.warning('There is not enough data points to fit the curve. Fitting aborted.')
+            return
 
         self.saturation_fit_x, self.saturation_fit_y, self.fit_result = self.fc.do_fit(x_data, y_data)
         if self.fit_result is None:
@@ -560,7 +562,20 @@ class LaserLogic(GenericLogic):
                      'coord2_arr': np.linspace(freq_start, freq_stop, freq_num, endpoint=True),
                      'units': 'c/s',
                      'nice_name': 'Fluorescence',
-                     'params': {},  # !!! here are all the measurement parameter saved
+                     'params': {'Parameters for': 'Optimize operating point measurement',
+                                'axis name for coord0': 'Laser power',
+                                'axis name for coord1': 'Microwave power',
+                                'axis name for coord2': 'Microwave frequency',
+                                'coord0_start (W)': laser_power_start,
+                                'coord0_stop (W)': laser_power_stop,
+                                'coord0_num (#)': laser_power_num,
+                                'coord1_start (dBm)': mw_power_start,
+                                'coord1_stop (dBm)': mw_power_stop,
+                                'coord1_num (#)': mw_power_num,
+                                'coord2_start (Hz)': freq_start,
+                                'coord2_stop (Hz)': freq_stop,
+                                'coord2_num (#)': freq_num
+                                },  # !!! here are all the measurement parameter saved
                      'display_range': None, # what is it ?
                     }  
 
@@ -594,22 +609,9 @@ class LaserLogic(GenericLogic):
                                   freq_start, freq_stop, freq_num)
 
         # Save the measurement parameter
-        self._odmr_data['params'] = {'Parameters for': 'Optimize operating point measurement',
-                                     'axis name for coord0': 'Laser power',
-                                     'axis name for coord1': 'Microwave power',
-                                     'axis name for coord2': 'Microwave frequency',
-                                     'coord0_start (W)': laser_power_start,
-                                     'coord0_stop (W)': laser_power_stop,
-                                     'coord0_num (#)': laser_power_num,
-                                     'coord1_start (dBm)': mw_power_start,
-                                     'coord1_stop (dBm)': mw_power_stop,
-                                     'coord1_num (#)': mw_power_num,
-                                     'coord2_start (Hz)': freq_start,
-                                     'coord2_stop (Hz)': freq_stop,
-                                     'coord2_num (#)': freq_num,
-                                     'ODMR runtime (s)': odmr_runtime,
-                                     'Fit function': fit_function
-                                    }
+        self._odmr_data['params']['ODMR runtime (s)'] = odmr_runtime
+        self._odmr_data['params']['Fit function'] = fit_function
+        
        
         # Create the lists of powers for the measurement
         laser_power = np.linspace(laser_power_start, laser_power_stop, laser_power_num, endpoint=True)
@@ -643,10 +645,12 @@ class LaserLogic(GenericLogic):
 
             counts_array  = self._counterlogic.request_counts(counter_num_of_points)[channel]
             counts = counts_array.mean()
-            std_dev = statistics.stdev(counts_array)
+            std_dev = counts_array.std(ddof=1)
 
             self._odmr_data['saturation_data'][i] = counts
             self._odmr_data['saturation_data_std'][i] = std_dev          
+
+            self.set_saturation_data(laser_power, self._odmr_data['saturation_data'], self._odmr_data['saturation_data_std'], i + 1)          
 
             for j in range(len(mw_power)):
 
@@ -666,6 +670,8 @@ class LaserLogic(GenericLogic):
 
         if save_after_meas :
             self.save_odmr_data(tag=name_tag)
+            self.do_fit()
+            self.save_saturation_data(tag=name_tag)
         
         return self._odmr_data
         
