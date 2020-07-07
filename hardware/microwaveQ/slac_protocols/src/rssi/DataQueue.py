@@ -1,10 +1,11 @@
+# external standard python modules
 import time
 import recordtype
 import logging
 from collections import deque
 
-from . import Segment
-from .Segment import SegmentType
+# subcomponents related to this package
+from .Segment import Segment, SegmentType, CtlBitField, CommonHeader, NonSynHeader
 
 # Terminology:
 # - Local/remote Seq: the sequence numbers with which local/remote data is labelled,
@@ -25,21 +26,17 @@ UnackedDataItem = recordtype.recordtype('UnackedDataItem',
 
 UnsentDataItem = recordtype.recordtype('UnsentDataItem', ['data', 'ctlBits'])
 
-
 def incrementSeqNo(seqNo):
     return (seqNo + 1) % 2**8
 
-
 def seqNoDifference(seqNo1, seqNo2):
     return (seqNo1 - seqNo2) % 2**8
-
 
 def seqNoInRangeInclusive(rangeBegin, rangeEnd, seqNo):
     if rangeBegin < rangeEnd:
         return seqNo >= rangeBegin and seqNo <= rangeEnd
     else:
         return seqNo >= rangeBegin or seqNo <= rangeEnd
-
 
 # Keeping track of data.
 class DataQueue:
@@ -121,11 +118,11 @@ class DataQueue:
             return
 
         if seqNoDifference(self.lastRemoteSeq, self.lastAckedRemoteSeq) > self.maxCumAcks:
-            ctlBits = Segment.CtlBitField.make('ACK')
+            ctlBits = CtlBitField.make('ACK')
             segmentsSent = self.__sendNextSegment(b'', ctlBits)
         
         if not segmentsSent and incrementSeqNo(self.lastRemoteSeq) == self.lastAckedRemoteSeq:
-            ctlBits = Segment.CtlBitField.make('ACK')
+            ctlBits = CtlBitField.make('ACK')
             if not self.__sendNextSegment(b'', ctlBits):
                 logger.warning('Remote sequence number overflow may occur with next ' +
                     'received segment. Data corruption is possible.')
@@ -137,9 +134,8 @@ class DataQueue:
         expectedRemoteSeqNo = incrementSeqNo(self.lastRemoteSeq)
 
         if segment.commonHeader.seqNo != expectedRemoteSeqNo:
-            # COMMENT OUT SINCE IT OVERFLOWS THE LOGGER
-            # logger.warning('Expected remote sequence number {}, got {}.'
-            #     .format(expectedRemoteSeqNo, segment.commonHeader.seqNo))
+            logger.warning('Expected remote sequence number {}, got {}.'
+                .format(expectedRemoteSeqNo, segment.commonHeader.seqNo))
             return False
 
         # Check control bits valid.
@@ -219,7 +215,7 @@ class DataQueue:
                     min(firstUnacked.retransmissionTime, self.nullTime)
 
             # Schedule the RST segment.
-            ctlBits = Segment.CtlBitField.make('ACK', 'RST')
+            ctlBits = CtlBitField.make('ACK', 'RST')
             self.__sendNextSegment(b'', ctlBits)
 
     def __unackedDataFull(self):
@@ -231,7 +227,7 @@ class DataQueue:
                 logger.warning('Not sending user data as a disconnect has been requested.')
                 return
 
-        ctlBits = Segment.CtlBitField.make('ACK')
+        ctlBits = CtlBitField.make('ACK')
         self.__sendNextSegment(data, ctlBits)
 
     # Returns whether any segments were sent.
@@ -280,13 +276,15 @@ class DataQueue:
 
     def __makeSegment(self, ctlBits, seqNo, data):
         with self.lock:
-            commonHeader = Segment.CommonHeader(ctlBits, 8, seqNo, self.lastRemoteSeq)
+            commonHeader = CommonHeader(ctlBits, 8, seqNo, self.lastRemoteSeq)
             self.lastAckedRemoteSeq = self.lastRemoteSeq
 
-        nonSynHeader = Segment.NonSynHeader(0, 0)
+        nonSynHeader = NonSynHeader(0, 0)
 
-        fullSegment = Segment.Segment(
-            SegmentType.NonSyn, commonHeader, nonSynHeader, data)
+        fullSegment = Segment(SegmentType.NonSyn, 
+                              commonHeader, 
+                              nonSynHeader, 
+                              data)
 
         if self.calcChecksums:
             fullSegment.setChecksum()
@@ -317,9 +315,9 @@ class DataQueue:
                     segmentsSent = self.__sendSegment(segment)
 
             if self.remoteNeedsAck and self.cumAckTime <= currTime:
-                ctlBits = Segment.CtlBitField.make('ACK')
+                ctlBits = CtlBitField.make('ACK')
                 segmentsSent = self.__sendNextSegment(b'', ctlBits)
 
             if not segmentsSent and not self.disconnectRequested and self.nullTime <= currTime:
-                ctlBits = Segment.CtlBitField.make('ACK', 'NUL')
+                ctlBits = CtlBitField.make('ACK', 'NUL')
                 self.__sendNextSegment(b'', ctlBits)

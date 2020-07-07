@@ -21,7 +21,6 @@ top-level directory of this distribution and at <https://github.com/Ulm-IQO/qudi
 
 from datetime import datetime
 from qtpy import QtCore
-
 import threading
 import numpy as np
 import time
@@ -48,7 +47,7 @@ class MicrowaveQ(Base, SlowCounterInterface):
         module.Class: 'simple_data_dummy.SimpleDummy'
         ip_address: '192.168.2.10'
         port: 55555
-        unlock_key: <your obtained key, either in hex or number> e.g. of the form: 58293468969010369791345065897427835159
+        unlock_key: <your obtained key, either in hex or number> e.g. of the form: 51233412369010369791345065897427812359
 
     """
 
@@ -62,6 +61,7 @@ class MicrowaveQ(Base, SlowCounterInterface):
     ip_address = ConfigOption('ip_address', default='192.168.2.10')
     port = ConfigOption('port', default=55555, missing='info')
     unlock_key = ConfigOption('unlock_key', missing='error')
+    gain_cali_name = ConfigOption('gain_cali_name', default='')
 
 
 
@@ -78,7 +78,7 @@ class MicrowaveQ(Base, SlowCounterInterface):
     _CONSTRAINTS = SlowCounterConstraints()
 
     _meas_mode = 'pixel'  # measurement modes: counter, pixel, esr
-    _meas_mode_available = ['counter', 'pixel', 'esr', 'single-isob']
+    _meas_mode_available = ['dummy', 'counter', 'pixel', 'esr', 'single-isob']
 
     _device_status = 'idle'  # can be idle, armed or running
     _meas_running = False
@@ -159,16 +159,35 @@ class MicrowaveQ(Base, SlowCounterInterface):
         # set the main RF port (RF OUT 2H) to on
         self._dev.gpio.rfswitch.set(1)
 
+        # test gain compensation:
+        if self.gain_cali_name != '':
+            self._dev._setGainCalibration(self.gain_cali_name)
+
     def on_deactivate(self):
         self.disconnect_mq()
 
 
     def trf_off(self):
-        #Turn off trf completely
-        self._dev.spiTrf.write(4,0x440e400)
+        """ Turn completely off the local oscillator for rf creation. 
+
+        Usually, the local oscillator is running in the background and leaking
+        through the microwaveQ. The amount of power leaking through is quite 
+        small, but still, if desired, then the trf can be also turned off 
+        completely. """
+
+        self._dev.spiTrf.write(4, 0x440e400)
+
+
+    def vco_off(self):
+        """Turn off completely the Voltage controlled oscillator.
+
+        NOTE: By turning this off, you need to make sure that you turn it on 
+        again if you start a measurement, otherwise nothing will be outputted.
+        """
+        self._dev.spiTrf.write(4, 0x440e404)
 
     # ==========================================================================
-    # Enhance the current module by threading capabilities:
+    # Enhance the current module by Qudi threading capabilities:
     # ==========================================================================
 
     @QtCore.Slot(QtCore.QThread)
@@ -177,7 +196,7 @@ class MicrowaveQ(Base, SlowCounterInterface):
 
 
     def connect_mq(self):
-
+        """ Establish a connection to microwaveQ. """
         if hasattr(self, '_dev'):
             if self.is_connected():
                 self.disconnect_mq()
@@ -194,12 +213,14 @@ class MicrowaveQ(Base, SlowCounterInterface):
             self.log.error(f'Cannot establish connection to MicrowaveQ due to {str(e)}.')
 
     def is_connected(self):
+        """Check whether connection protocol is initialized and ready. """
         if hasattr(self._dev.com.conn, 'axiConn'):
             return self._dev.com.conn.isConnected()
         else:
             return False
 
     def reconnect_mq(self):
+        """ Reconnect to the microwaveQ. """
         self.disconnect_mq()
         self.connect_mq()
         #FIXME: This should be removed later on!
@@ -226,6 +247,11 @@ class MicrowaveQ(Base, SlowCounterInterface):
         self._CONSTRAINTS.min_count_frequency = 1e-3
         self._CONSTRAINTS.max_count_frequency = 1e+3
         self._CONSTRAINTS.counting_mode = [CountingMode.CONTINUOUS]
+
+    # ==========================================================================
+    #                 power setting handling
+    # ==========================================================================
+
 
 
     # ==========================================================================
@@ -447,11 +473,13 @@ class MicrowaveQ(Base, SlowCounterInterface):
     def getMeasurements(self):
         return self.__measurements
 
+
+    #FIXME: USE THIS FUNCTIONALITY, RIGHT NOW NOT USED!!!!
     def get_meas_method(self):
-        return self._meas_method
+        return self.meas_method
 
     def get_meas_method_name(self):
-        return self._meas_method.__name__
+        return self.meas_method.__name__
 
     def set_meas_method(self, meas_method):
 
@@ -461,7 +489,7 @@ class MicrowaveQ(Base, SlowCounterInterface):
             else:
                 self.log.warning('No proper measurement method found. Call skipped.')
                 return
-        self._meas_method = meas_method
+        self.meas_method = meas_method
 
 
     def streamCb(self, frame):
@@ -486,6 +514,8 @@ class MicrowaveQ(Base, SlowCounterInterface):
 
         self.meas_method(frame_int)
 
+    def meas_method_dummy(self, frame_int):
+        pass
 
     def meas_method(self, frame_int):
         """ this measurement methods becomes overwritten by the required mode. """
@@ -496,6 +526,9 @@ class MicrowaveQ(Base, SlowCounterInterface):
         self._dev.ctrl.start(self._count_number)
         self.result_available.wait()
 
+    def prepare_dummy(self):
+        self._meas_mode = 'dummy'
+        self.meas_method = self.meas_method_dummy
 
     def prepare_counter(self, counting_window=0.001):
 
@@ -714,7 +747,11 @@ class MicrowaveQ(Base, SlowCounterInterface):
 
         self.meas_method = self.meas_esr
 
-    def start_esr(self, num_meas):
+    def start_esr(self, num_meas=10000):
+        """ Start esr.
+
+        @param int num_meas: number of measurement runs, zero means infinity.
+        """
 
         self._esr_counter = 0
         self._meas_esr_res = np.zeros((num_meas, len(self._meas_esr_line)))
@@ -869,6 +906,8 @@ class MicrowaveQ(Base, SlowCounterInterface):
         self._mw_running = False
         self._dev.rfpulse.setGain(0.0)
         self._dev.ctrl.stop()
+        self.trf_off()
+        #self.vco_off()
 
         return 0
 
@@ -909,12 +948,14 @@ class MicrowaveQ(Base, SlowCounterInterface):
         @return int: error code (0:OK, -1:error)
         """
 
+        self.prepare_dummy()
+
         self._mw_mode = 'cw'
 
         #FIXME: power is set arbitrary
 
         self._dev.configureCW(frequency=self._mw_cw_frequency, countingWindowLength=0.5)
-        self._dev.rfpulse.setGain(0.1)
+        self._dev.ctrl.start(0)
 
         self._mw_running = True
 
@@ -935,11 +976,9 @@ class MicrowaveQ(Base, SlowCounterInterface):
 
         self._mw_mode = 'cw'
 
-        if power is not None:
-            self._mw_cw_power = power
-
-        if frequency is not None:
-            self._mw_cw_frequency = frequency
+        if (power is not None) and (frequency is not None):
+            self._dev.set_freq_power(frequency, power)
+            self._mw_cw_frequency, self._mw_cw_power = self._dev.get_freq_power()
 
         return self._mw_cw_frequency, self._mw_cw_power,  self._mw_mode
 
@@ -952,7 +991,7 @@ class MicrowaveQ(Base, SlowCounterInterface):
         @return int: error code (0:OK, -1:error)
         """
 
-        self.start_esr(1000)
+        self.start_esr()
         self._mw_running = True
 
         return 0
@@ -969,14 +1008,21 @@ class MicrowaveQ(Base, SlowCounterInterface):
 
         self._mw_mode = 'list'
 
+        mean_freq = None
+
         if frequency is not None:
             self._mw_freq_list = frequency
             self.prepare_cw_esr(self._mw_freq_list, self._esr_count_frequency, self._mw_gain)
-        
-        #FIXME: use a separate variable for this!
-        if power is not None:
-            self._mw_cw_power = power
 
+            mean_freq = np.mean(self._mw_freq_list)
+
+        # #FIXME: use a separate variable for this!
+        # if power is not None:
+        #     self._mw_cw_power = power
+
+        self._dev.set_freq_power(mean_freq, power)
+
+        set_freq, self._mw_cw_power = self._dev.get_freq_power()
 
         return self._mw_freq_list, self._mw_cw_power, self._mw_mode
 
