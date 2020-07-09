@@ -60,8 +60,11 @@ computing the integral.
 
 The fitting algorithm uses the built-in Voigt model of the lmfit library. In 
 that model, gamma is by default constrained to have a value equal to sigma.
-In a second version of the algorithm, we removed the constraint and let gamma 
-be varied independently.
+This means that the lorentzian and the gaussian distributions contribute in 
+equal measure to the final function. This function is therefore called 
+"voigtequalized".
+In a second version of the algorithm, we remove the constraint and let gamma 
+be varied independently, which results in the standard voigt function.
 
 The lmfit model also includes parameters fwhm and height, which report full
 width at half maximum and maximum peak height. 
@@ -99,7 +102,7 @@ Voigt and Pseudo-Voigt models and for some useful formulas.
 # Voigt model with offset     #
 ###############################
 
-def make_voigt_model(self, prefix=None):
+def make_voigtequalized_model(self, prefix=None):
     """ Create a Voigt model with offset. In this model, gamma is constrained 
     to have a value equal to sigma.
 
@@ -128,14 +131,14 @@ def make_voigt_model(self, prefix=None):
 #    Double Voigt model with offset        #
 ############################################
 
-def make_voigtdouble_model(self):
+def make_voigtdoubleequalized_model(self):
     """ Create a model with double voigt with offset. For each voigt function, 
     gamma is constrained to have a value equal to sigma . 
 
     @return tuple: (object model, object params).
     """
-    voigt_model_0, _ = self.make_voigt_model(prefix='v0_')
-    voigt_model_1, _ = self.make_voigt_model(prefix='v1_')
+    voigt_model_0, _ = self.make_voigtequalized_model(prefix='v0_')
+    voigt_model_1, _ = self.make_voigtequalized_model(prefix='v1_')
     double_voigt_model = voigt_model_0 + voigt_model_1
 
     double_voigt_model.set_param_hint('v1_offset', value=0, vary=False)
@@ -149,7 +152,7 @@ def make_voigtdouble_model(self):
 #    Second version of Voigt model with offset    #
 ###################################################
 
-def make_voigt2_model(self, prefix=None):
+def make_voigt_model(self, prefix=None):
     """ Create a Voigt model with offset. In this model, gamma is no more 
     constrained to have a value equal to sigma.
     
@@ -186,15 +189,15 @@ def make_voigt2_model(self, prefix=None):
 #    Second version of double Voigt model with offset    #
 ##########################################################
 
-def make_voigtdouble2_model(self):
+def make_voigtdouble_model(self):
     """ Create a model with double Voigt with offset. In this model gamma is not 
     constrained to have a value equal to sigma.
 
     @return tuple: (object model, object params).
     """
 
-    voigt_model_0, _ = self.make_voigt2_model(prefix='v0_')
-    voigt_model_1, _ = self.make_voigt2_model(prefix='v1_')
+    voigt_model_0, _ = self.make_voigt_model(prefix='v0_')
+    voigt_model_1, _ = self.make_voigt_model(prefix='v1_')
     double_voigt_model = voigt_model_0 + voigt_model_1
 
     double_voigt_model.set_param_hint('v1_offset', value=0, vary=False)
@@ -261,7 +264,7 @@ def make_pseudovoigtdouble_model(self):
 #                 Single Voigt with offset fitting                         #
 ############################################################################
 
-def make_voigt_fit(self, x_axis, data, estimator, units=None, add_params=None, **kwargs):
+def make_voigtequalized_fit(self, x_axis, data, estimator, units=None, add_params=None, **kwargs):
     """ Perform a 1D voigt fit on the provided data.
 
     @param numpy.array x_axis: 1D axis values
@@ -278,7 +281,7 @@ def make_voigt_fit(self, x_axis, data, estimator, units=None, add_params=None, *
                           with best fit with given axis,...
     """
 
-    model, params = self.make_voigt_model()
+    model, params = self.make_voigtequalized_model()
 
     error, params = estimator(x_axis, data, params)
 
@@ -317,7 +320,7 @@ def make_voigt_fit(self, x_axis, data, estimator, units=None, add_params=None, *
     result.result_str_dict = result_str_dict
     return result
 
-def estimate_voigt_dip(self, x_axis, data, params):
+def estimate_voigtequalized_dip(self, x_axis, data, params):
     """ Provides an estimator to obtain initial values for the voigt function.
 
     @param numpy.array x_axis: 1D axis values
@@ -379,7 +382,7 @@ def estimate_voigt_dip(self, x_axis, data, params):
 #                   Double Voigt with offset fitting                       #
 ############################################################################
 
-def make_voigtdouble_fit(self, x_axis, data, estimator, units=None, add_params=None, **kwargs):
+def make_voigtdoubleequalized_fit(self, x_axis, data, estimator, units=None, add_params=None, **kwargs):
     """ Perform a 1D double voigt dip fit with offset on the provided data.
 
     @param numpy.array x_axis: 1D axis values
@@ -397,7 +400,7 @@ def make_voigtdouble_fit(self, x_axis, data, estimator, units=None, add_params=N
 
     """
 
-    model, params = self.make_voigtdouble_model()
+    model, params = self.make_voigtdoubleequalized_model()
 
     error, params = estimator(x_axis, data, params)
 
@@ -456,7 +459,7 @@ def make_voigtdouble_fit(self, x_axis, data, estimator, units=None, add_params=N
     result.result_str_dict = result_str_dict
     return result
 
-def estimate_voigtdouble_dip(self, x_axis, data, params,
+def estimate_voigtdoubleequalized_dip(self, x_axis, data, params,
                                   threshold_fraction=0.3,
                                   minimal_threshold=0.01,
                                   sigma_threshold_fraction=0.3):
@@ -551,7 +554,7 @@ def estimate_voigtdouble_dip(self, x_axis, data, params,
 
     return error, params
 
-def estimate_voigtdouble_symmetricdip(self, x_axis, data, params,
+def estimate_voigtdoubleequalized_symmetricdip(self, x_axis, data, params,
                                   threshold_fraction=0.3,
                                   minimal_threshold=0.01,
                                   sigma_threshold_fraction=0.3):
@@ -571,7 +574,7 @@ def estimate_voigtdouble_symmetricdip(self, x_axis, data, params,
     Note that with this estimator, the two dips will have the same amplitude 
     and sigma (and therefore the same height and fwhm).
     """
-    error, params = self.estimate_voigtdouble_dip(x_axis, data, params, 
+    error, params = self.estimate_voigtdoubleequalized_dip(x_axis, data, params, 
                                   threshold_fraction, minimal_threshold,
                                   sigma_threshold_fraction)
 
@@ -584,7 +587,7 @@ def estimate_voigtdouble_symmetricdip(self, x_axis, data, params,
 #           Second version of single Voigt with offset fitting             #
 ############################################################################
 
-def make_voigt2_fit(self, x_axis, data, estimator, units=None, add_params=None, **kwargs):
+def make_voigt_fit(self, x_axis, data, estimator, units=None, add_params=None, **kwargs):
     """ Perform a 1D voigt fit on the provided data. In that fit, gamma won't 
     be constrained to have a value equal to sigma.
 
@@ -602,7 +605,7 @@ def make_voigt2_fit(self, x_axis, data, estimator, units=None, add_params=None, 
                           with best fit with given axis,...
     """
 
-    model, params = self.make_voigt2_model()
+    model, params = self.make_voigt_model()
 
     error, params = estimator(x_axis, data, params)
 
@@ -640,7 +643,7 @@ def make_voigt2_fit(self, x_axis, data, estimator, units=None, add_params=None, 
     result.result_str_dict = result_str_dict
     return result
 
-def estimate_voigt2_dip(self, x_axis, data, params):
+def estimate_voigt_dip(self, x_axis, data, params):
     """ Provides an estimator to obtain initial values for the voigt function.
 
     @param numpy.array x_axis: 1D axis values
@@ -654,7 +657,7 @@ def estimate_voigt2_dip(self, x_axis, data, params):
         int error: error code (0:OK, -1:error)
         Parameters object params: set parameters of initial values
     """
-    error, params = self.estimate_voigt_dip(x_axis, data, params)
+    error, params = self.estimate_voigtequalized_dip(x_axis, data, params)
 
     sigma = params['sigma'].value
     stepsize = x_axis[1] - x_axis[0]
@@ -668,7 +671,7 @@ def estimate_voigt2_dip(self, x_axis, data, params):
 #         Second version of double Voigt with offset fitting               #
 ############################################################################
 
-def make_voigtdouble2_fit(self, x_axis, data, estimator, units=None, add_params=None, **kwargs):
+def make_voigtdouble_fit(self, x_axis, data, estimator, units=None, add_params=None, **kwargs):
     """ Perform a 1D double voigt dip fit with offset on the provided data. 
     In that fit, gamma values won't be constrained to be equal to sigma.
 
@@ -687,7 +690,7 @@ def make_voigtdouble2_fit(self, x_axis, data, estimator, units=None, add_params=
 
     """
 
-    model, params = self.make_voigtdouble2_model()
+    model, params = self.make_voigtdouble_model()
 
     error, params = estimator(x_axis, data, params)
 
@@ -754,7 +757,7 @@ def make_voigtdouble2_fit(self, x_axis, data, estimator, units=None, add_params=
     result.result_str_dict = result_str_dict
     return result
 
-def estimate_voigtdouble2_dip(self, x_axis, data, params,
+def estimate_voigtdouble_dip(self, x_axis, data, params,
                                   threshold_fraction=0.3,
                                   minimal_threshold=0.01,
                                   sigma_threshold_fraction=0.3):
@@ -772,7 +775,7 @@ def estimate_voigtdouble2_dip(self, x_axis, data, params,
         Parameters object params: set parameters of initial values
     """
 
-    error, params = self.estimate_voigtdouble_dip(x_axis, data, params, threshold_fraction, 
+    error, params = self.estimate_voigtdoubleequalized_dip(x_axis, data, params, threshold_fraction, 
                                                   minimal_threshold, sigma_threshold_fraction)
 
     voigt0_sigma = params['v0_sigma'].value
@@ -788,7 +791,7 @@ def estimate_voigtdouble2_dip(self, x_axis, data, params,
 
     return error, params
 
-def estimate_voigtdouble2_symmetricdip(self, x_axis, data, params,
+def estimate_voigtdouble_symmetricdip(self, x_axis, data, params,
                                   threshold_fraction=0.3,
                                   minimal_threshold=0.01,
                                   sigma_threshold_fraction=0.3):
@@ -809,7 +812,7 @@ def estimate_voigtdouble2_symmetricdip(self, x_axis, data, params,
     sigma and gamma (and therefore the same height and fwhm).
     """
 
-    error, params = self.estimate_voigtdouble2_dip(x_axis, data, params, threshold_fraction,
+    error, params = self.estimate_voigtdouble_dip(x_axis, data, params, threshold_fraction,
                                                    minimal_threshold, sigma_threshold_fraction)
 
     
@@ -897,7 +900,7 @@ def estimate_pseudovoigt_dip(self, x_axis, data, params):
         int error: error code (0:OK, -1:error)
         Parameters object params: set parameters of initial values
     """
-    error, params = self.estimate_voigt_dip(x_axis, data, params)
+    error, params = self.estimate_voigtequalized_dip(x_axis, data, params)
 
     params['fraction'].set(value=0.5)
 
@@ -1006,7 +1009,7 @@ def estimate_pseudovoigtdouble_dip(self, x_axis, data, params,
         int error: error code (0:OK, -1:error)
         Parameters object params: set parameters of initial values
     """
-    error, params = self.estimate_voigtdouble_dip(x_axis, data, params, threshold_fraction,
+    error, params = self.estimate_voigtdoubleequalized_dip(x_axis, data, params, threshold_fraction,
                                                   minimal_threshold, sigma_threshold_fraction)
 
     params['v0_fraction'].set(value=0.5)
