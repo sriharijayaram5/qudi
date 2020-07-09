@@ -321,6 +321,16 @@ def make_lorentzian_fit(self, x_axis, data, estimator, units=None,
         self.log.warning('The 1D lorentzian fit did not work. Error '
                          'message: {0}\n'.format(result.message))
 
+    #Overwrite the standart deviation of the sensitivity
+    result.params['sensitivity'].stderr = result.params['sensitivity'].value * \
+                                          np.sqrt((result.params['fwhm'].stderr /
+                                          result.params['fwhm'].value)**2 +
+                                          (result.params['contrast'].stderr /
+                                          result.params['contrast'].value)**2 +
+                                          (result.params['offset'].stderr /
+                                          (2 * result.params['offset'].value))**2)
+
+
     # Write the parameters to allow human-readable output to be generated
     result_str_dict = OrderedDict()
 
@@ -490,6 +500,23 @@ def make_lorentziandouble_fit(self, x_axis, data, estimator, units=None, add_par
         result = model.fit(data, x=x_axis, params=params, **kwargs)
         self.log.error('The double lorentzian fit did not '
                      'work: {0}'.format(result.message))
+
+    #Overwrite the standart deviation of the sensitivity
+    result.params['l0_sensitivity'].stderr = result.params['l0_sensitivity'].value * \
+                                          np.sqrt((result.params['l0_fwhm'].stderr /
+                                          result.params['l0_fwhm'].value)**2 +
+                                          (result.params['l0_contrast'].stderr /
+                                          result.params['l0_contrast'].value)**2 +
+                                          (result.params['offset'].stderr /
+                                          (2 * result.params['offset'].value))**2)
+
+    result.params['l1_sensitivity'].stderr = result.params['l1_sensitivity'].value * \
+                                          np.sqrt((result.params['l1_fwhm'].stderr /
+                                          result.params['l1_fwhm'].value)**2 +
+                                          (result.params['l1_contrast'].stderr /
+                                          result.params['l1_contrast'].value)**2 +
+                                          (result.params['offset'].stderr /
+                                          (2 * result.params['offset'].value))**2)
 
     # Write the parameters to allow human-readable output to be generated
     result_str_dict = OrderedDict()
