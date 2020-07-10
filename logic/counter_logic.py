@@ -718,7 +718,7 @@ class CounterLogic(GenericLogic):
             if status < 0:
                 self.log.warning('Problem in starting the counter occurred!')
                 # indicate that there was a problem in the start
-                return meas_vals -1
+                return self._req_counts_arr - 1
 
         with self.threadlock:
             self._finite_saving = True
