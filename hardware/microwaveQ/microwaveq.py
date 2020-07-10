@@ -860,6 +860,7 @@ class MicrowaveQ(Base, SlowCounterInterface):
         @return int: error code (0:OK, -1:error)
         """
         self._dev.ctrl.stop()
+        self._meas_running = False
         return 0
 
     def close_odmr_clock(self):
