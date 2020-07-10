@@ -202,7 +202,7 @@ def make_lorentzian_model(self, prefix=None):
                                         expr='({0}amplitude/offset)*100'.format(prefix))
 
     lorentz_offset_model.set_param_hint('{0}sensitivity'.format(prefix),
-                                        expr='2.75e-11 * {0}fwhm / (abs({0}contrast) * sqrt(offset))'.format(prefix))
+                                        expr='2.75e-11 * {0}fwhm / (abs({0}contrast) * 0.01 * sqrt(offset))'.format(prefix))
 
     params = lorentz_offset_model.make_params()
 
@@ -238,7 +238,7 @@ def make_multiplelorentzian_model(self, no_of_functions=1):
 
         multi_lorentz_model.set_param_hint(
             '{0}sensitivity'.format(prefix),
-            expr='2.75e-11 * {0}fwhm / (abs({0}contrast) * sqrt(offset))'.format(prefix))
+            expr='2.75e-11 * {0}fwhm / (abs({0}contrast) * 0.01 * sqrt(offset))'.format(prefix))
 
         for ii in range(1, no_of_functions):
             prefix = 'l{0:d}_'.format(ii)
@@ -248,7 +248,7 @@ def make_multiplelorentzian_model(self, no_of_functions=1):
                 expr='({0}amplitude/offset)*100'.format(prefix))
             multi_lorentz_model.set_param_hint(
                 '{0}sensitivity'.format(prefix),
-                expr='2.75e-11 * {0}fwhm / (abs({0}contrast) * sqrt(offset))'.format(prefix))
+                expr='2.75e-11 * {0}fwhm / (abs({0}contrast) * 0.01 * sqrt(offset))'.format(prefix))
 
     params = multi_lorentz_model.make_params()
 
