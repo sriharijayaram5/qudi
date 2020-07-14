@@ -111,6 +111,9 @@ class LaserLogic(GenericLogic):
     sigUpdateButton = QtCore.Signal()
     sigAbortedMeasurement = QtCore.Signal()
     sigSaturationFitUpdated = QtCore.Signal(np.ndarray, np.ndarray, dict)
+    sigOOPStarted = QtCore.Signal()
+    sigOOPStopped = QtCore.Signal()
+    sigOOPUpdateData = QtCore.Signal()
 
     # make a dummy worker thread:
     _worker_thread = WorkerThread(print)
@@ -124,6 +127,7 @@ class LaserLogic(GenericLogic):
         self._save_logic = self.savelogic()
         self._odmr_logic = self.odmrlogic()
         self._stop_request = False
+        self._OOP_stop_request = False
         
         #start in cw mode
         if self._dev.get_control_mode() != ControlMode.POWER:
@@ -301,7 +305,7 @@ class LaserLogic(GenericLogic):
         #Setting up the list for data
         self._saturation_data['Power'] = np.zeros(num_of_points)
         self._saturation_data['Fluorescence'] = np.zeros(num_of_points)
-            self._saturation_data['Stddev'] = np.zeros(num_of_points)
+        self._saturation_data['Stddev'] = np.zeros(num_of_points)
 
         for i in range(num_of_points):
             self._saturation_data['Power'][i] = xdata[i]
@@ -526,12 +530,12 @@ class LaserLogic(GenericLogic):
 
         if (x_data is None) or (y_data is None):
             if 'Power' in self._saturation_data:
-            x_data = self._saturation_data['Power']
-            y_data = self._saturation_data['Fluorescence']
+                x_data = self._saturation_data['Power']
+                y_data = self._saturation_data['Fluorescence']
             else:
                 self.log.warning('There is no data points. Fitting aborted.')
                 return
-
+        
         if len(x_data) < 3:
             self.log.warning('There is not enough data points to fit the curve. Fitting aborted.')
             return
@@ -557,6 +561,10 @@ class LaserLogic(GenericLogic):
                      'saturation_data_std': np.zeros(laser_power_num),
                      'background_data': np.zeros(laser_power_num),
                      'background_data_std': np.zeros(laser_power_num),
+                     'fit_contrast': np.zeros((laser_power_num, mw_power_num)),
+                     'fit_std_contrast': np.zeros((laser_power_num, mw_power_num)),
+                     'fit_fwhm': np.zeros((laser_power_num, mw_power_num)),
+                     'fit_std_fwhm':np.zeros((laser_power_num, mw_power_num)),
                      'coord0_arr': np.linspace(laser_power_start, laser_power_stop, laser_power_num, endpoint=True),
                      'coord1_arr': np.linspace(mw_power_start, mw_power_stop, mw_power_num, endpoint=True),
                      'coord2_arr': np.linspace(freq_start, freq_stop, freq_num, endpoint=True),
@@ -588,21 +596,26 @@ class LaserLogic(GenericLogic):
                                  freq_stop=2_950_000_000, mw_power=30, channel=0, runtime=60,
                                  fit_function='No Fit', save_after_meas=False, name_tag=''):
 
-        odmr_plot_x, odmr_plot_y, odmr_fit_result = self._odmr_logic.perform_odmr_measurement(
+        error, odmr_plot_x, odmr_plot_y, odmr_fit_result = self._odmr_logic.perform_odmr_measurement(
                                      freq_start, freq_step, freq_stop, mw_power, channel, runtime,
                                      fit_function, save_after_meas, name_tag)
 
-        return odmr_plot_x, odmr_plot_y[channel, :], odmr_fit_result
+        if error:
+            self.log.warning('ODMR measurement aborted')
+            return error, None, None, None
+
+        return error, odmr_plot_x, odmr_plot_y[channel, :], odmr_fit_result
 
 
     def perform_measurement(self, laser_power_start=1/1000, laser_power_stop=22/1000, laser_power_num=17, 
                                  final_power=3/1000, mw_power_start=20, mw_power_stop=40, mw_power_num=5,
                                  freq_start=2_800_000_000, freq_stop=2_950_000_000, freq_num=100, 
                                  channel=0, odmr_runtime=60, counter_num_of_points=100, stabilization_time=1, 
-                                 save_after_meas=True, name_tag='', fit_function='No Fit', func=None):
+                                 save_after_meas=True, name_tag='', fit_function='Two Lorentzian dips', func=None):
 
         #Setting up the stopping mechanism.
-        self._stop_request = False
+        self._OOP_stop_request = False
+        self.sigOOPStarted.emit()
 
         self._odmr_data = self.initialize_odmr_data(laser_power_start, laser_power_stop, laser_power_num,
                                   mw_power_start, mw_power_stop, mw_power_num,
@@ -619,10 +632,13 @@ class LaserLogic(GenericLogic):
 
         #TODO: Check if we need to turn laser on (or should it be done manually ?)
         if self.get_laser_state() == LaserState.OFF:
-
-            self.sigAbortedMeasurement.emit()
-            self.sigUpdateButton.emit()
             self.log.warning('Measurement Aborted. Laser is not ON.')
+            self.sigOOPStopped.emit()
+            return
+
+        if self._counterlogic.module_state() == 'locked':
+            self.log.warning('Another measurement is running, stop it first!')
+            self.sigOOPStopped.emit()
             return
 
         freq_step = (freq_stop - freq_start) / (freq_num - 1)
@@ -630,7 +646,7 @@ class LaserLogic(GenericLogic):
         for i in range(len(laser_power)):
 
             #Stopping mechanism
-            if self._stop_request:
+            if self._OOP_stop_request:
                 break
 
             self._dev.set_power(laser_power[i])
@@ -655,15 +671,39 @@ class LaserLogic(GenericLogic):
             for j in range(len(mw_power)):
 
                 #Stopping mechanism
-                if self._stop_request:
+                if self._OOP_stop_request:
                     break
             
-                odmr_plot_x, odmr_plot_y, odmr_fit_result = self.perform_odmr_measurement(freq_start, 
+                error, odmr_plot_x, odmr_plot_y, odmr_fit_result = self.perform_odmr_measurement(freq_start, 
                                                     freq_step, freq_stop, mw_power[j], channel, odmr_runtime, 
                                                     fit_function, save_after_meas=False)
-                
+
+                if error:
+                    self.log.warning('Optimal operation point measurement aborted')
+                    self.sigOOPStopped.emit()
+                    return
+
                 self._odmr_data['data'][i][j] = odmr_plot_y
                 self._odmr_data['fit_results'][i][j] = odmr_fit_result
+
+                if fit_function != 'No fit':
+                    if not hasattr(self._odmr_data['fit_results'][i][j], 'result_str_dict'):
+                        self.log.warning("The selected fit does not allow to access the fit parameters. Please chose another fit.")
+                        break
+                    if 'Contrast' in self._odmr_data['fit_results'][i][j].result_str_dict: 
+                        params = fit_data[i][j].result_str_dict
+                        self._odmr_data['fit_contrast'][i][j] = params['Contrast']['value']
+                        self._odmr_data['fit_std_contrast'][i][j] = params['Contrast']['error']
+                        self._odmr_data['fit_fwhm'][i][j] = params['FWHM']['value']
+                        self._odmr_data['fit_std_fwhm'][i][j] = params['FWHM']['error']
+                    if 'Contrast 0' in self._odmr_data['fit_results'][i][j].result_str_dict: 
+                        params = self._odmr_data['fit_results'][i][j].result_str_dict
+                        self._odmr_data['fit_contrast'][i][j] = (params['Contrast 0']['value'] + params['Contrast 1']['value']) / 2
+                        self._odmr_data['fit_std_contrast'][i][j] = (params['Contrast 0']['error'] + params['Contrast 1']['error']) / 2
+                        self._odmr_data['fit_fwhm'][i][j] = (params['FWHM 0']['value'] + params['FWHM 1']['value']) / 2
+                        self._odmr_data['fit_std_fwhm'][i][j] = (params['FWHM 0']['error'] + params['FWHM 1']['error']) / 2
+                
+                self.sigOOPUpdateData.emit()
 
         #TODO: do we need a final power ? Or should we turn the laser off ?
         self._dev.set_power(final_power)
@@ -672,7 +712,9 @@ class LaserLogic(GenericLogic):
             self.save_odmr_data(tag=name_tag)
             self.do_fit()
             self.save_saturation_data(tag=name_tag)
-        
+
+        self.sigOOPStopped.emit()
+
         return self._odmr_data
         
 
@@ -705,7 +747,6 @@ class LaserLogic(GenericLogic):
         figure_data = data['data']
         # Add this line if the odmr data standart deviation is recorded. 
         # std_err_data = data['data_std']
-        fit_data = data['fit_results']
 
         # check whether figure has only zeros as data, skip this then
         if not np.any(figure_data):
@@ -785,28 +826,15 @@ class LaserLogic(GenericLogic):
         #                                fmt='%.6e',
         #                                delimiter='\t',
         #                                timestamp=timestamp)
-
         
 
-        # Save fit result only for double dips fit
-        if hasattr(fit_data[0][0], 'result_str_dict') and 'Contrast 0' in fit_data[0][0].result_str_dict: 
-            mean_contrast = np.zeros((rows, columns))
-            std_contrast = np.zeros((rows, columns))
-            mean_fwhm = np.zeros((rows, columns))
-            std_fwhm = np.zeros((rows, columns))
-            for i in range(rows):
-                for j in range(columns):
-                    if hasattr(fit_data[i][j], 'result_str_dict'):
-                        params = fit_data[i][j].result_str_dict
-                        mean_contrast[i][j] = (params['Contrast 0']['value'] + params['Contrast 1']['value']) / 2
-                        std_contrast[i][j] = (params['Contrast 0']['error'] + params['Contrast 1']['error']) / 2
-                        mean_fwhm[i][j] = (params['FWHM 0']['value'] + params['FWHM 1']['value']) / 2
-                        std_fwhm[i][j] = (params['FWHM 0']['error'] + params['FWHM 1']['error']) / 2
+        # Save fit result if they are computed
 
-            contrast_data = {'Contrast from the fit (%)': mean_contrast}
-            contrast_std_data = {'Error for the contrast from the fit (%)': std_contrast}
-            fwhm_data = {'FWHM from the fit (Hz)': mean_fwhm}
-            fwhm_std_data = {'Error for FWHM from the fit (Hz)': std_fwhm}
+        if self._odmr_data['fit_contrast'].any():
+            contrast_data = {'Contrast from the fit (%)': self._odmr_data['fit_contrast']}
+            contrast_std_data = {'Error for the contrast from the fit (%)': self._odmr_data['fit_std_contrast']}
+            fwhm_data = {'FWHM from the fit (Hz)': self._odmr_data['fit_fwhm']}
+            fwhm_std_data = {'Error for FWHM from the fit (Hz)': self._odmr_data['fit_std_fwhm']}
             filelabel_contrast = filelabel + '_Contrast'
             filelabel_contrast_std = filelabel + '_Contrast_stddev'
             filelabel_fwhm = filelabel + '_FWHM'
@@ -863,14 +891,33 @@ class LaserLogic(GenericLogic):
 
         return
 
+    def start_OOP_measurement(self, laser_power_start, laser_power_stop, 
+                                                laser_power_num, final_power,
+                                                mw_power_start, mw_power_stop, 
+                                                mw_power_num, freq_start,
+                                                freq_stop, freq_num, channel,
+                                                odmr_runtime, counter_runtime):
 
+        """ Starting a Threaded measurement.
+        """
+        if self.check_thread_active():
+            self.log.error("A measurement is currently running, stop it first!")
+            return
 
-        
+        count_frequency = self._counterlogic.get_count_frequency()
+        counter_num_of_points = int(count_frequency * counter_runtime)
 
+        self._worker_thread = WorkerThread(target=self.perform_measurement,
+                                            args=(laser_power_start, laser_power_stop, laser_power_num, 
+                                 final_power, mw_power_start, mw_power_stop, mw_power_num,
+                                 freq_start, freq_stop, freq_num, 
+                                 channel, odmr_runtime, counter_num_of_points),
+                                            name='operation_point_measurement') 
 
+        self.threadpool.start(self._worker_thread)
 
+    def stop_OOP_measurement(self):
+        self._OOP_stop_request = True
 
-
-
-
-
+    def get_odmr_constraints(self):
+        return self._odmr_logic.get_hw_constraints()

@@ -28,6 +28,7 @@ import time
 from core.module import Connector
 from core.util import units
 from gui.colordefs import QudiPalettePale as palette
+from gui.colordefs import ColorScaleInferno
 from gui.guibase import GUIBase
 from interface.simple_laser_interface import ControlMode, ShutterState, LaserState
 from qtpy import QtCore
@@ -35,7 +36,8 @@ from qtpy import QtWidgets
 from qtpy import uic
 
 class LaserWindow(QtWidgets.QMainWindow):
-    """ Create the Main Window based on the *.ui file. """
+    """ Create the Main Window based on the *.ui file. 
+    """
 
     def __init__(self):
         # Get the path to the *.ui file
@@ -64,6 +66,8 @@ class LaserGUI(GUIBase):
     sigStartSaturation = QtCore.Signal()
     sigStopSaturation = QtCore.Signal()
     sigSaveMeasurement = QtCore.Signal(str)
+    sigStartOOPMeasurement = QtCore.Signal()
+    sigStopOOPMeasurement = QtCore.Signal()
 
     def __init__(self, config, **kwargs):
         super().__init__(config=config, **kwargs)
@@ -80,44 +84,41 @@ class LaserGUI(GUIBase):
         # Hiding the central widget for comfort. 
         self._mw = LaserWindow()
         self._mw.centralwidget.hide()
+        self._mw.tabifyDockWidget(self._mw.saturation_fit_DockWidget, self._mw.OOP_DockWidget)
+
+        # Create a QSettings object for the mainwindow and store the actual GUI layout
+        self.mwsettings = QtCore.QSettings("QUDI", "Saturation")
+        self.mwsettings.setValue("geometry", self._mw.saveGeometry())
+        self.mwsettings.setValue("windowState", self._mw.saveState())
 
         # Plot labels.
         self._pw = self._mw.saturation_Curve_PlotWidget
         self._pw.setLabel('left', 'Fluorescence', units='counts/s')
         self._pw.setLabel('bottom', 'Laser Power', units='W')
 
+        self._matrix_pw = self._mw.matrix_PlotWidget
+        self._matrix_pw.setLabel(axis='left', text='Laser power', units='W')
+        self._matrix_pw.setLabel(axis='bottom', text='MW power', units='dBm')
+
         #Setting up the curves.
-        self.saturation_curve = pg.PlotDataItem(pen=pg.mkPen(palette.c1, style=QtCore.Qt.DashLine), 
+        self.saturation_curve = pg.PlotDataItem(pen=pg.mkPen(palette.c1, style=QtCore.Qt.DotLine), 
                                                   symbol='o', symbolPen=palette.c1,
                                                   symbolBrush=palette.c1,
                                                   symbolSize=7 )
-        self.errorbar = pg.ErrorBarItem(x=np.array([0]), y =np.array([0]), pen=pg.mkPen(palette.c1, style=QtCore.Qt.DotLine))
+        self.errorbar = pg.ErrorBarItem(x=np.array([0]), y =np.array([0]), pen=pg.mkPen(palette.c6, style=QtCore.Qt.SolidLine), beam=1)
+        self.saturation_fit_image = pg.PlotDataItem(pen=pg.mkPen(palette.c2), symbol=None)  
+        self.matrix_image = pg.ImageItem()
+        # self.matrix_image = pg.ImageItem(self._laser_logic._odmr_data['fit_contrast'], 
+        #                                  axisOrder='row-major')
+        # self.matrix_image.setRect(QtCore.QRectF())                     
+        
         self._pw.addItem(self.saturation_curve)
         self._pw.addItem(self.errorbar)
-        
-        self.saturation_fit_image = pg.PlotDataItem(pen=pg.mkPen(palette.c2), symbol=None)                                        
+        self._matrix_pw.addItem(self.matrix_image)
 
-        self._mw.start_saturation_Action.triggered.connect(self.run_stop_saturation)
-        self._mw.start_saturation_Action.triggered.connect(self.update_settings)
-        self._mw.save_curve_Action.triggered.connect(self.save_saturation_curve_clicked)
-        self._mw.laser_ON_Action.triggered.connect(self.LaserStateON)
-        self._mw.laser_OFF_Action.triggered.connect(self.LaserStateOFF)
-
-        self.sigSaveMeasurement.connect(self._laser_logic.save_saturation_data, QtCore.Qt.QueuedConnection)
-        self.sigCurrent.connect(self._laser_logic.set_current)
-        self.sigPower.connect(self._laser_logic.set_power)
-        self.sigCtrlMode.connect(self._laser_logic.set_control_mode)
-        self.sigStartSaturation.connect(self.start_saturation_curve_clicked)
-        self.sigStopSaturation.connect(self._laser_logic.stop_saturation_curve_data)
-        self._mw.controlModeButtonGroup.buttonClicked.connect(self.changeControlMode)
-        self._mw.LaserdoubleSpinBox.editingFinished.connect(self.updatePowerFromSpinBox)
-        #self._mw.LaserButtonON.clicked.connect(self.LaserStateON)
-        #self._mw.LaserButtonOFF.clicked.connect(self.LaserStateOFF)
-        self._mw.dofit_Button.clicked.connect(self._laser_logic.do_fit)
-        self._laser_logic.sigSaturationFitUpdated.connect(self.update_fit, QtCore.Qt.QueuedConnection)
-        self._laser_logic.sigRefresh.connect(self.refreshGui)
-        self._laser_logic.sigUpdateButton.connect(self.updateButtonsEnabled)
-        self._laser_logic.sigAbortedMeasurement.connect(self.aborted_saturation_measurement)
+        # Get the colorscales at set LUT
+        my_colors = ColorScaleInferno()
+        self.matrix_image.setLookupTable(my_colors.lut)
 
         #Setting up the constraints for the Saturation Curve.
         lpr = self._laser_logic.laser_power_range
@@ -133,15 +134,86 @@ class LaserGUI(GUIBase):
         self._mw.timeDoubleSpinBox.setValue(self._laser_logic.time_per_point)
         self._mw.timeDoubleSpinBox.setSuffix('s')
 
+        odmr_constraints = self._laser_logic.get_odmr_constraints()
+        self._mw.laser_power_start_DoubleSpinBox.setRange(lpr[0], lpr[1])
+        self._mw.laser_power_start_DoubleSpinBox.setValue(self._laser_logic.power_start)
+        self._mw.laser_power_start_DoubleSpinBox.setSuffix('W')
+        self._mw.laser_power_stop_DoubleSpinBox.setRange(lpr[0], lpr[1])
+        self._mw.laser_power_stop_DoubleSpinBox.setValue(self._laser_logic.power_stop)
+        self._mw.laser_power_stop_DoubleSpinBox.setSuffix('W')
+        self._mw.laser_power_num_SpinBox.setValue(5)
+        self._mw.mw_power_start_DoubleSpinBox.setRange(odmr_constraints.min_power, odmr_constraints.max_power)
+        self._mw.mw_power_start_DoubleSpinBox.setSuffix('dBm')
+        self._mw.mw_power_start_DoubleSpinBox.setValue(0)
+        self._mw.mw_power_stop_DoubleSpinBox.setRange(odmr_constraints.min_power, odmr_constraints.max_power)
+        self._mw.mw_power_stop_DoubleSpinBox.setSuffix('dBm')
+        self._mw.mw_power_stop_DoubleSpinBox.setValue(29)
+        self._mw.mw_power_num_SpinBox.setValue(4)
+        self._mw.freq_start_DoubleSpinBox.setRange(odmr_constraints.min_frequency, odmr_constraints.max_frequency)
+        self._mw.freq_start_DoubleSpinBox.setSuffix('Hz')
+        self._mw.freq_start_DoubleSpinBox.setValue(2_800_000_000)
+        self._mw.freq_stop_DoubleSpinBox.setRange(odmr_constraints.min_frequency, odmr_constraints.max_frequency)
+        self._mw.freq_stop_DoubleSpinBox.setSuffix('Hz')
+        self._mw.freq_stop_DoubleSpinBox.setValue(2_900_000_000)
+        self._mw.freq_num_SpinBox.setRange(1, 1000)
+        self._mw.freq_num_SpinBox.setValue(100)
+        self._mw.counter_runtime_DoubleSpinBox.setRange(1, 1000)
+        self._mw.counter_runtime_DoubleSpinBox.setValue(2)
+        self._mw.counter_runtime_DoubleSpinBox.setSuffix('s')
+        self._mw.odmr_runtime_DoubleSpinBox.setRange(1, 1000)
+        self._mw.odmr_runtime_DoubleSpinBox.setValue(5)
+        self._mw.odmr_runtime_DoubleSpinBox.setSuffix('s')
+        self._mw.channel_SpinBox.setValue(0)
         self.updateButtonsEnabled()
+        
+        ########################################################################
+        #                       Connect signals                                #
+        ########################################################################
+
+        # Internal trigger signals
+        self._mw.start_saturation_Action.triggered.connect(self.run_stop_saturation)
+        self._mw.start_saturation_Action.triggered.connect(self.update_settings)
+        self._mw.save_curve_Action.triggered.connect(self.save_saturation_curve_clicked)
+        self._mw.action_Save.triggered.connect(self.save_saturation_curve_clicked)
+        self._mw.action_RestoreDefault.triggered.connect(self.restore_defaultview)
+        self._mw.laser_ON_Action.triggered.connect(self.LaserStateON)
+        self._mw.laser_OFF_Action.triggered.connect(self.LaserStateOFF)
+        self._mw.controlModeButtonGroup.buttonClicked.connect(self.changeControlMode)
+        #self._mw.LaserButtonON.clicked.connect(self.LaserStateON)
+        #self._mw.LaserButtonOFF.clicked.connect(self.LaserStateOFF)
+        self._mw.dofit_Button.clicked.connect(self.dofit_button_clicked)
+        self._mw.run_stop_measurement_Action.triggered.connect(self.run_stop_OOP_measurement)
+
+        # Control/values-changed signals to logic
+        self.sigSaveMeasurement.connect(self._laser_logic.save_saturation_data, QtCore.Qt.QueuedConnection)
+        self.sigCurrent.connect(self._laser_logic.set_current)
+        self.sigPower.connect(self._laser_logic.set_power)
+        self.sigCtrlMode.connect(self._laser_logic.set_control_mode)
+        self.sigStartSaturation.connect(self.start_saturation_curve_clicked)
+        self.sigStopSaturation.connect(self._laser_logic.stop_saturation_curve_data)
+        self.sigStartOOPMeasurement.connect(self.start_OOP_measurement_clicked, QtCore.Qt.QueuedConnection)
+        self.sigStopOOPMeasurement.connect(self._laser_logic.stop_OOP_measurement, QtCore.Qt.QueuedConnection)
+        # Update signals coming from logic:
+        self._laser_logic.sigSaturationFitUpdated.connect(self.update_fit, QtCore.Qt.QueuedConnection)
+        self._laser_logic.sigRefresh.connect(self.refreshGui)
+        self._laser_logic.sigUpdateButton.connect(self.updateButtonsEnabled)
+        self._laser_logic.sigAbortedMeasurement.connect(self.aborted_saturation_measurement)
+        self._laser_logic.sigOOPStarted.connect(self.OOP_started)
+        self._laser_logic.sigOOPStopped.connect(self.OOP_stopped)
+        self._laser_logic.sigOOPUpdateData.connect(self.OOP_update_data)
+
+        # Internal user input changed signals
+        self._mw.LaserdoubleSpinBox.editingFinished.connect(self.updatePowerFromSpinBox)
 
     def on_deactivate(self):
         """ Deactivate the module properly.
         """
-
+        # Disconnect signals
         #self.sigStartSaturation.disconnect()
         #self.sigStopSaturation.disconnect()
         self._laser_logic.sigSaturationFitUpdated.disconnect()
+        self._mw.action_Save.triggered.disconnect()
+        self._mw.action_RestoreDefault.triggered.disconnect()
         self._mw.close()
 
     def show(self):
@@ -217,6 +289,10 @@ class LaserGUI(GUIBase):
             self.sigCtrlMode.emit(ControlMode.MODULATION_ANALOG)
         else:
             self.log.error('How did you mess up the radio button group?')
+
+    ###########################################################################
+    #                      Saturation curve methods                           #
+    ###########################################################################
 
     @QtCore.Slot()
     def updateButtonsEnabled(self):
@@ -365,14 +441,26 @@ class LaserGUI(GUIBase):
         """ Update labels, the plot and button states with new data. 
         """
 
+        sat_data = self._laser_logic.get_saturation_data()
         #TODO: Create a display with the error bar and not only the points.
-        self._mw.saturation_Curve_Label.setText('{0:6.3f}'.format(self._laser_logic.get_saturation_data()['Fluorescence'][-1]))
+        counts_value = sat_data['Fluorescence'][-1]
+        scale_fact = units.ScaledFloat(counts_value).scale_val
+        unit_prefix = units.ScaledFloat(counts_value).scale
+        self._mw.saturation_Curve_Label.setText('{0:6.3f} {1}{2}'.format(counts_value / scale_fact,  unit_prefix, 'counts/s'))
         #self._mw.currentLabel.setText('{0:6.3f} mA'.format(self._laser_logic.laser_current_setpoint))
         #self._mw.powerLabel.setText('{0:6.3f} W'.format(self._laser_logic.laser_power_setpoint))
         #self._mw.extraLabel.setText(self._laser_logic.laser_extra)
         #self.updateButtonsEnabled()
-        self.saturation_curve.setData(self._laser_logic.get_saturation_data()['Power'], self._laser_logic.get_saturation_data()['Fluorescence'])    
-        self.errorbar.setData(x=self._laser_logic.get_saturation_data()['Power'], y=self._laser_logic.get_saturation_data()['Fluorescence'], height=self._laser_logic.get_saturation_data()['Stddev'])          
+        self.saturation_curve.setData(sat_data['Power'], sat_data['Fluorescence'])    
+        self.errorbar.setData(x=sat_data['Power'], y=sat_data['Fluorescence'], height=sat_data['Stddev'])
+                              
+        if len(sat_data['Power']) > 1:
+            self.errorbar.setData(beam=(sat_data['Power'][1] - sat_data['Power'][0])/4) 
+
+                 
+    def restore_defaultview(self):
+        self._mw.restoreGeometry(self.mwsettings.value("geometry", ""))
+        self._mw.restoreState(self.mwsettings.value("windowState", ""))
 
     def update_settings(self):
         """ Write the new settings from the gui to the file. """
@@ -398,8 +486,9 @@ class LaserGUI(GUIBase):
             formated_results = 'this fit does not return formatted results'
         self._mw.saturation_fit_results_DisplayWidget.setPlainText(formated_results)
         self.saturation_fit_image.setData(x=x_data, y=y_data)
-        if self.saturation_fit_image not in self._mw.saturation_Curve_PlotWidget.listDataItems():
-            self._mw.saturation_Curve_PlotWidget.addItem(self.saturation_fit_image)
+        if self.saturation_fit_image not in self._pw.listDataItems():
+            self._pw.addItem(self.saturation_fit_image)
+        self._mw.dofit_Button.setChecked(True)
 
     def run_stop_saturation(self, is_checked):
         """ Manages what happens if saturation scan is started/stopped. """
@@ -420,7 +509,10 @@ class LaserGUI(GUIBase):
             self._mw.timeDoubleSpinBox.setEnabled(False)
             self.sigStartSaturation.emit()
             self._mw.start_saturation_Action.setEnabled(False)
-            self._mw.saturation_Curve_PlotWidget.removeItem(self.saturation_fit_image)
+            self._pw.removeItem(self.saturation_fit_image)
+            self._mw.saturation_fit_results_DisplayWidget.clear()
+            self._mw.dofit_Button.setChecked(False)
+           
         else:
             self._mw.LaserdoubleSpinBox.setEnabled(True)
             self._mw.analogModulationRadioButton.setEnabled(True)
@@ -495,4 +587,116 @@ class LaserGUI(GUIBase):
         self._mw.timeDoubleSpinBox.setEnabled(True)
 
         return
+
+    def dofit_button_clicked(self, checked):
+        if checked:
+            self._mw.dofit_Button.setChecked(False)
+            self._laser_logic.do_fit()
+        else: 
+            self._pw.removeItem(self.saturation_fit_image)
+            self._mw.saturation_fit_results_DisplayWidget.clear()
+
+
+    ###########################################################################
+    #              Optimal operation point measurement methods                #
+    ###########################################################################
+
+    def run_stop_OOP_measurement(self, is_checked):
+        """ Manages what happens if operation point measurement is started/stopped. """
+        if is_checked:
+            self.sigStartOOPMeasurement.emit()
+        else:
+            self.sigStopOOPMeasurement.emit()
+        return
+
+    def start_OOP_measurement_clicked(self):
+        """ Deals with what needs to happen when an operation point measurement is started. 
+        """
+        pwr = self._mw.powerRadioButton.isChecked()
+
+        laser_power_start = self._mw.laser_power_start_DoubleSpinBox.value()
+        laser_power_stop = self._mw.laser_power_stop_DoubleSpinBox.value()
+        laser_power_num = self._mw.laser_power_num_SpinBox.value()
+        mw_power_start = self._mw.mw_power_start_DoubleSpinBox.value()
+        mw_power_stop = self._mw.mw_power_stop_DoubleSpinBox.value()
+        mw_power_num = self._mw.mw_power_num_SpinBox.value()
+        freq_start = self._mw.freq_start_DoubleSpinBox.value()
+        freq_stop = self._mw.freq_stop_DoubleSpinBox.value()
+        freq_num = self._mw.freq_num_SpinBox.value()
+        counter_runtime = self._mw.counter_runtime_DoubleSpinBox.value()
+        odmr_runtime = self._mw.odmr_runtime_DoubleSpinBox.value()
+        channel = self._mw.channel_SpinBox.value()
+
+        if pwr:
+            final_power = self._mw.LaserdoubleSpinBox.value()
+        else:
+            final_power = laser_power_start
+
+        self._laser_logic.start_OOP_measurement(laser_power_start, laser_power_stop, 
+                                                laser_power_num, final_power,
+                                                mw_power_start, mw_power_stop, 
+                                                mw_power_num, freq_start,
+                                                freq_stop, freq_num, channel,
+                                                odmr_runtime, counter_runtime
+                                                )
+
+        return self._laser_logic.module_state()
+
+    def OOP_started(self):
+        self._mw.run_stop_measurement_Action.setChecked(True)
+        self._mw.laser_power_start_DoubleSpinBox.setEnabled(False)
+        self._mw.laser_power_stop_DoubleSpinBox.setEnabled(False)
+        self._mw.laser_power_num_SpinBox.setEnabled(False)
+        self._mw.mw_power_start_DoubleSpinBox.setEnabled(False)
+        self._mw.mw_power_stop_DoubleSpinBox.setEnabled(False)
+        self._mw.mw_power_num_SpinBox.setEnabled(False)
+        self._mw.freq_start_DoubleSpinBox.setEnabled(False)
+        self._mw.freq_stop_DoubleSpinBox.setEnabled(False)
+        self._mw.freq_num_SpinBox.setEnabled(False)
+        self._mw.counter_runtime_DoubleSpinBox.setEnabled(False)
+        self._mw.odmr_runtime_DoubleSpinBox.setEnabled(False)
+        self._mw.channel_SpinBox.setEnabled(False)
+        self._mw.start_saturation_Action.setEnabled(False)
+        self._mw.laser_ON_Action.setEnabled(False)
+        self._mw.laser_OFF_Action.setEnabled(False)
+        self._mw.LaserdoubleSpinBox.setEnabled(False)
+        self._mw.analogModulationRadioButton.setEnabled(False)
+        self._mw.currentRadioButton.setEnabled(False)
+        self._mw.digModulationRadioButton.setEnabled(False)
+        self._mw.powerRadioButton.setEnabled(False)
+
+    def OOP_stopped(self):
+        self._mw.run_stop_measurement_Action.setChecked(False)
+        self._mw.laser_power_start_DoubleSpinBox.setEnabled(True)
+        self._mw.laser_power_stop_DoubleSpinBox.setEnabled(True)
+        self._mw.laser_power_num_SpinBox.setEnabled(True)
+        self._mw.mw_power_start_DoubleSpinBox.setEnabled(True)
+        self._mw.mw_power_stop_DoubleSpinBox.setEnabled(True)
+        self._mw.mw_power_num_SpinBox.setEnabled(True)
+        self._mw.freq_start_DoubleSpinBox.setEnabled(True)
+        self._mw.freq_stop_DoubleSpinBox.setEnabled(True)
+        self._mw.freq_num_SpinBox.setEnabled(True)
+        self._mw.counter_runtime_DoubleSpinBox.setEnabled(True)
+        self._mw.odmr_runtime_DoubleSpinBox.setEnabled(True)
+        self._mw.channel_SpinBox.setEnabled(True)
+        self._mw.start_saturation_Action.setEnabled(True)
+        self._mw.laser_ON_Action.setEnabled(True)
+        self._mw.laser_OFF_Action.setEnabled(True)
+        self._mw.LaserdoubleSpinBox.setEnabled(True)
+        self._mw.analogModulationRadioButton.setEnabled(True)
+        self._mw.currentRadioButton.setEnabled(True)
+        self._mw.digModulationRadioButton.setEnabled(True)
+        self._mw.powerRadioButton.setEnabled(True)
+
+    def OOP_update_data(self):
+        # self.matrix_image.setRect(QtCore.QRectF())
+        self.matrix_image.setImage(image=self._laser_logic._odmr_data['fit_contrast'],
+                                   axisOrder='row-major')
+        self.matrix_image.setRect(
+            QtCore.QRectF(
+                self._laser_logic._odmr_data['coord1_arr'][0],
+                self._laser_logic._odmr_data['coord0_arr'][0],
+                self._laser_logic._odmr_data['coord1_arr'][-1] - self._laser_logic._odmr_data['coord1_arr'][0],
+                self._laser_logic._odmr_data['coord0_arr'][-1] - self._laser_logic._odmr_data['coord0_arr'][0])
+            )
 
