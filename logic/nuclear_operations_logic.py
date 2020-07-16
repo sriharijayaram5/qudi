@@ -815,7 +815,7 @@ class NuclearOperationsLogic(GenericLogic):
 
         name_tag = 'odmr_meas_for_nuclear_ops'
 
-        _, _, result = self._odmr_logic.perform_odmr_measurement(freq_start=start_freq,
+        _, _, _, result = self._odmr_logic.perform_odmr_measurement(freq_start=start_freq,
                                                           freq_step=self.odmr_meas_step,
                                                           freq_stop=stop_freq,
                                                           power=self.odmr_meas_power,

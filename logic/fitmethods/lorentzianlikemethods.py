@@ -201,6 +201,9 @@ def make_lorentzian_model(self, prefix=None):
     lorentz_offset_model.set_param_hint('{0}contrast'.format(prefix),
                                         expr='({0}amplitude/offset)*100'.format(prefix))
 
+    lorentz_offset_model.set_param_hint('{0}sensitivity'.format(prefix),
+                                        expr='2.75e-11 * {0}fwhm / (abs({0}contrast) * 0.01 * sqrt(offset))'.format(prefix))
+
     params = lorentz_offset_model.make_params()
 
     return lorentz_offset_model, params
@@ -233,6 +236,9 @@ def make_multiplelorentzian_model(self, no_of_functions=1):
             '{0}contrast'.format(prefix),
             expr='({0}amplitude/offset)*100'.format(prefix))
 
+        multi_lorentz_model.set_param_hint(
+            '{0}sensitivity'.format(prefix),
+            expr='2.75e-11 * {0}fwhm / (abs({0}contrast) * 0.01 * sqrt(offset))'.format(prefix))
 
         for ii in range(1, no_of_functions):
             prefix = 'l{0:d}_'.format(ii)
@@ -240,6 +246,9 @@ def make_multiplelorentzian_model(self, no_of_functions=1):
             multi_lorentz_model.set_param_hint(
                 '{0}contrast'.format(prefix),
                 expr='({0}amplitude/offset)*100'.format(prefix))
+            multi_lorentz_model.set_param_hint(
+                '{0}sensitivity'.format(prefix),
+                expr='2.75e-11 * {0}fwhm / (abs({0}contrast) * 0.01 * sqrt(offset))'.format(prefix))
 
     params = multi_lorentz_model.make_params()
 
@@ -312,6 +321,16 @@ def make_lorentzian_fit(self, x_axis, data, estimator, units=None,
         self.log.warning('The 1D lorentzian fit did not work. Error '
                          'message: {0}\n'.format(result.message))
 
+    #Overwrite the standart deviation of the sensitivity
+    result.params['sensitivity'].stderr = result.params['sensitivity'].value * \
+                                          np.sqrt((result.params['fwhm'].stderr /
+                                          result.params['fwhm'].value)**2 +
+                                          (result.params['contrast'].stderr /
+                                          result.params['contrast'].value)**2 +
+                                          (result.params['offset'].stderr /
+                                          (2 * result.params['offset'].value))**2)
+
+
     # Write the parameters to allow human-readable output to be generated
     result_str_dict = OrderedDict()
 
@@ -329,6 +348,10 @@ def make_lorentzian_fit(self, x_axis, data, estimator, units=None,
     result_str_dict['FWHM'] = {'value': result.params['fwhm'].value,
                                'error': result.params['fwhm'].stderr,
                                'unit': units[0]}
+
+    result_str_dict['Sensitivity'] = {'value': result.params['sensitivity'].value,
+                                      'error': result.params['sensitivity'].stderr,
+                                      'unit': 'T/sqrt(Hz)'}
 
     result_str_dict['Maximum slope left'] = {'value':  result.params['center'].value - 
                                         (result.params['sigma'].value / np.sqrt(3)),
@@ -478,6 +501,23 @@ def make_lorentziandouble_fit(self, x_axis, data, estimator, units=None, add_par
         self.log.error('The double lorentzian fit did not '
                      'work: {0}'.format(result.message))
 
+    #Overwrite the standart deviation of the sensitivity
+    result.params['l0_sensitivity'].stderr = result.params['l0_sensitivity'].value * \
+                                          np.sqrt((result.params['l0_fwhm'].stderr /
+                                          result.params['l0_fwhm'].value)**2 +
+                                          (result.params['l0_contrast'].stderr /
+                                          result.params['l0_contrast'].value)**2 +
+                                          (result.params['offset'].stderr /
+                                          (2 * result.params['offset'].value))**2)
+
+    result.params['l1_sensitivity'].stderr = result.params['l1_sensitivity'].value * \
+                                          np.sqrt((result.params['l1_fwhm'].stderr /
+                                          result.params['l1_fwhm'].value)**2 +
+                                          (result.params['l1_contrast'].stderr /
+                                          result.params['l1_contrast'].value)**2 +
+                                          (result.params['offset'].stderr /
+                                          (2 * result.params['offset'].value))**2)
+
     # Write the parameters to allow human-readable output to be generated
     result_str_dict = OrderedDict()
 
@@ -513,6 +553,14 @@ def make_lorentziandouble_fit(self, x_axis, data, estimator, units=None, add_par
     result_str_dict['FWHM 1'] = {'value': result.params['l1_fwhm'].value,
                                  'error': result.params['l1_fwhm'].stderr,
                                  'unit': units[0]}
+
+    result_str_dict['Sensitivity 0'] = {'value': result.params['l0_sensitivity'].value,
+                                        'error': result.params['l0_sensitivity'].stderr,
+                                        'unit': 'T/sqrt(Hz)'}
+
+    result_str_dict['Sensitivity 1'] = {'value': result.params['l1_sensitivity'].value,
+                                        'error': result.params['l1_sensitivity'].stderr,
+                                        'unit': 'T/sqrt(Hz)'}
 
     result_str_dict['Max slope left 0'] = {'value':  result.params['l0_center'].value - 
                                         (result.params['l0_sigma'].value / np.sqrt(3)),

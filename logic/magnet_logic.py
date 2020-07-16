@@ -1282,7 +1282,7 @@ class MagnetLogic(GenericLogic):
         low_step_freq = self.odmr_2d_low_step_freq
         low_stop_freq = self.odmr_2d_low_center_freq + self.odmr_2d_low_range_freq / 2
 
-        _, _, result = self._odmr_logic.perform_odmr_measurement(low_start_freq,
+        _, _, _, result = self._odmr_logic.perform_odmr_measurement(low_start_freq,
                                                           low_step_freq,
                                                           low_stop_freq,
                                                           self.odmr_2d_low_power,
@@ -1330,7 +1330,7 @@ class MagnetLogic(GenericLogic):
         high_step_freq = self.odmr_2d_high_step_freq
         high_stop_freq = self.odmr_2d_high_center_freq + self.odmr_2d_high_range_freq / 2
 
-       _, _, result = self._odmr_logic.perform_odmr_measurement(high_start_freq,
+        _, _, _, result = self._odmr_logic.perform_odmr_measurement(high_start_freq,
                                                           high_step_freq,
                                                           high_stop_freq,
                                                           self.odmr_2d_high_power,
@@ -1463,7 +1463,7 @@ class MagnetLogic(GenericLogic):
         step_freq = self.odmr_2d_low_step_freq
         stop_freq = self.odmr_2d_low_center_freq + self.odmr_2d_low_range_freq / 2
 
-        _, _, result = self._odmr_logic.perform_odmr_measurement(start_freq,
+        _, _, _, result = self._odmr_logic.perform_odmr_measurement(start_freq,
                                                           step_freq,
                                                           stop_freq,
                                                           self.odmr_2d_low_power,
