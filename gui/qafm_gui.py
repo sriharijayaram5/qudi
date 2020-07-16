@@ -1445,9 +1445,9 @@ class ProteusQGUI(GUIBase):
         #self.disable_scan_actions()
 
         #FIXME: THIS IS A QUICKFIX, NEEDS TO BE REMOVED AS SOON AS POSSIBLE!!!!
-        if self._check_counter_running():
-            self.log.error('Counter is still running, close it before proceeding.')
-            return
+        # if self._check_counter_running():
+        #     self.log.error('Counter is still running, close it before proceeding.')
+        #     return
 
         self.disable_scan_actions()
 
@@ -1478,9 +1478,9 @@ class ProteusQGUI(GUIBase):
     def start_obj_scan_xy_scan_clicked(self):
 
         #FIXME: THIS IS A QUICKFIX, NEEDS TO BE REMOVED AS SOON AS POSSIBLE!!!!
-        if self._check_counter_running():
-            self.log.error('Counter is still running, close it before proceeding.')
-            return
+        # if self._check_counter_running():
+        #     self.log.error('Counter is still running, close it before proceeding.')
+        #     return
 
 
         self.disable_scan_actions()
@@ -1504,9 +1504,9 @@ class ProteusQGUI(GUIBase):
     def start_obj_scan_xz_scan_clicked(self):
 
         #FIXME: THIS IS A QUICKFIX, NEEDS TO BE REMOVED AS SOON AS POSSIBLE!!!!
-        if self._check_counter_running():
-            self.log.error('Counter is still running, close it before proceeding.')
-            return
+        # if self._check_counter_running():
+        #     self.log.error('Counter is still running, close it before proceeding.')
+        #     return
 
         self.disable_scan_actions()
 
@@ -1531,9 +1531,9 @@ class ProteusQGUI(GUIBase):
 
 
         #FIXME: THIS IS A QUICKFIX, NEEDS TO BE REMOVED AS SOON AS POSSIBLE!!!!
-        if self._check_counter_running():
-            self.log.error('Counter is still running, close it before proceeding.')
-            return
+        # if self._check_counter_running():
+        #     self.log.error('Counter is still running, close it before proceeding.')
+        #     return
 
 
         self.disable_scan_actions()
@@ -1558,9 +1558,9 @@ class ProteusQGUI(GUIBase):
     def start_optimize_clicked(self):
 
         #FIXME: THIS IS A QUICKFIX, NEEDS TO BE REMOVED AS SOON AS POSSIBLE!!!!
-        if self._check_counter_running():
-            self.log.error('Counter is still running, close it before proceeding.')
-            return
+        # if self._check_counter_running():
+        #     self.log.error('Counter is still running, close it before proceeding.')
+        #     return
 
         self.disable_scan_actions()
 
