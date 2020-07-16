@@ -121,15 +121,15 @@ class MicrowaveQ(Base, SlowCounterInterface):
         self._counting_window = 0.01 # the counting window in seconds
 
         self.__measurements = 0
-        try:
-            self._dev = microwaveQ.MicrowaveQ(self.ip_address,
-                                             self.port,
-                                             self.streamCb,
-                                             self._CLK_FREQ_FPGA)
-            self._dev.ctrl.unlock(self.unlock_key)
-            self._dev.initialize()
-        except Exception as e:
-            self.log.error(f'Cannot establish connection to MicrowaveQ due to {str(e)}.')
+        # try:
+        self._dev = microwaveQ.MicrowaveQ(self.ip_address,
+                                         self.port,
+                                         self.streamCb,
+                                         self._CLK_FREQ_FPGA)
+        self._dev.ctrl.unlock(self.unlock_key)
+        self._dev.initialize()
+        # except Exception as e:
+        #     self.log.error(f'Cannot establish connection to MicrowaveQ due to {str(e)}.')
 
 
         self._create_constraints()
@@ -320,6 +320,11 @@ class MicrowaveQ(Base, SlowCounterInterface):
             return self._dev.gpio.output3.set(int(state))
         else:
             self.log.warning('Incorrect state of the GPO-4 port, will be ignored.')
+
+
+    def is_measurement_running(self):
+        return self._meas_running
+
 
     # ==========================================================================
     #                 Begin: Slow Counter Interface Implementation
@@ -532,6 +537,10 @@ class MicrowaveQ(Base, SlowCounterInterface):
 
     def prepare_counter(self, counting_window=0.001):
 
+        if self._meas_running:
+            self.log.error('A measurement is still running. Stop it first.')
+            return -1
+
         self._meas_mode = 'counter'
 
         if counting_window > 1.0:
@@ -641,6 +650,10 @@ class MicrowaveQ(Base, SlowCounterInterface):
     def prepare_pixelclock(self):
         """ Setup the device to count upon an external clock. """
 
+        if self._meas_running:
+            self.log.error('A measurement is still running. Stop it first.')
+            return -1
+
         self._meas_mode = 'pixel'
 
         self.meas_method = self.meas_method_PixelClock
@@ -658,6 +671,10 @@ class MicrowaveQ(Base, SlowCounterInterface):
         @param float gain: the linear power gain of the device, from 0.0 to 1.0
 
         """
+        if self._meas_running:
+            self.log.error('A measurement is still running. Stop it first.')
+            return -1
+        
 
         self._meas_mode = 'single-isob'
 
@@ -716,6 +733,7 @@ class MicrowaveQ(Base, SlowCounterInterface):
         self._device_status = 'idle'
 
         self._esr_process_cond.wakeAll()
+        self._meas_running = False
 
     #===========================================================================
     #       ESR measurements: ODMRCounterInterface Implementation
@@ -727,6 +745,11 @@ class MicrowaveQ(Base, SlowCounterInterface):
         @param list freq_list: containing the frequency list entries
         @param float count_freq: count frequency in Hz
         """
+
+        if self._meas_running:
+            self.log.error('A measurement is still running . Stop it first.')
+            return -1
+
 
         self._meas_mode = 'esr'
 
@@ -746,6 +769,8 @@ class MicrowaveQ(Base, SlowCounterInterface):
         self._meas_esr_line = np.zeros(len(freq_list)+2)
 
         self.meas_method = self.meas_esr
+
+        return 0
 
     def start_esr(self, num_meas=10000):
         """ Start esr.
@@ -797,6 +822,10 @@ class MicrowaveQ(Base, SlowCounterInterface):
 
         if clock_frequency is not None:
             self._esr_count_frequency = clock_frequency
+
+        if self._meas_running:
+            self.log.error('A measurement is still running. Stop it first.')
+            return -1
 
         return 0
 
@@ -1112,14 +1141,3 @@ class MicrowaveQ(Base, SlowCounterInterface):
         limits.sweep_maxentries = 2000
         return limits
 
-class MeasThread(QtCore.QThread):
-
-    def __init__(self):
-        QtCore.QThread.__init__(self)
-
-    def __del__(self):
-        self.wait()
-
-    def run(self):
-    # your logic here
-        pass
