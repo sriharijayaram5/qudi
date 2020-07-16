@@ -1048,3 +1048,9 @@ class LaserLogic(GenericLogic):
             self.log.warning("This data is not available from the fit, sorry!")
             return np.array([[0]])
 
+    def get_data_unit(self, data_name):
+        if hasattr(self._odmr_data['fit_results'][0][0], 'result_str_dict'):
+            param_dict = self._odmr_data['fit_results'][0][0].result_str_dict
+            if data_name in  param_dict:
+                return param_dict[data_name]['unit']
+        return ''

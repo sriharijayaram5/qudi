@@ -708,10 +708,15 @@ class LaserGUI(GUIBase):
         data_name = self._mw.data_ComboBox.currentText()
         if data_name != '':
 
-            cb_range = self.get_matrix_cb_range(data_name)
-            self.update_colorbar(cb_range)
+            matrix = self._laser_logic.get_data(data_name) 
+            scale_fact = units.ScaledFloat(matrix[0][0]).scale_val
+            unit_prefix = units.ScaledFloat(matrix[0][0]).scale
+            matrix_scaled = matrix / scale_fact
+            cb_range = self.get_matrix_cb_range(matrix_scaled)
+            unit_scaled = unit_prefix + self._laser_logic.get_data_unit(data_name)
+            self.update_colorbar(cb_range, unit_scaled)
 
-            self.matrix_image.setImage(image=self._laser_logic.get_data(data_name),
+            self.matrix_image.setImage(image=matrix_scaled,
                                        axisOrder='row-major',
                                        levels=(cb_range[0], cb_range[1]))
             self.matrix_image.setRect(
@@ -722,8 +727,7 @@ class LaserGUI(GUIBase):
                     self._laser_logic._odmr_data['coord0_arr'][-1] - self._laser_logic._odmr_data['coord0_arr'][0])
                 )
 
-    def get_matrix_cb_range(self, data_name):
-        matrix = self._laser_logic.get_data(data_name)
+    def get_matrix_cb_range(self, matrix):
         matrix_nonzero = matrix[np.nonzero(matrix)]
         cb_min = np.min(matrix_nonzero)
         cb_max = np.max(matrix_nonzero)
@@ -731,8 +735,9 @@ class LaserGUI(GUIBase):
         return cb_range
 
     #FIXME: Colorbar not properly displayed for big numbers (>1e9) or small numbers (<1e-3)
-    def update_colorbar(self, cb_range):
+    def update_colorbar(self, cb_range, unit):
         self.oop_cb.refresh_colorbar(cb_range[0], cb_range[1])
+        self._mw.oop_cb_PlotWidget.setLabel('right', units=unit)
         return
 
     def change_laser_params(self):
