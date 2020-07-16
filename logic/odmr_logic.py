@@ -92,7 +92,7 @@ class ODMRLogic(GenericLogic):
         self._fit_logic = self.fitlogic()
         self._odmr_counter = self.odmrcounter()
         self._save_logic = self.savelogic()
-        self._taskrunner = self.taskrunner()
+        #self._taskrunner = self.taskrunner()
 
         # Get hardware constraints
         limits = self.get_hw_constraints()
