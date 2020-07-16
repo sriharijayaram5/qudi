@@ -85,6 +85,15 @@ class WorkerThread(QtCore.QRunnable):
     def is_running(self):
         return self._is_running
 
+    def autoDelete(self):
+        """ Delete the thread. """
+        self._is_running = False
+        return super(WorkerThread, self).autoDelete()
+
+#TODO: reimplement the SetAutoDelete functionality
+
+
+
 class AFMConfocalLogic(GenericLogic):
     """ Main AFM logic class providing advanced measurement control. """
 
@@ -641,14 +650,30 @@ class AFMConfocalLogic(GenericLogic):
         spm_start_idx = 0
 
         if 'counts' in meas_params:
+
+            self.log.info('in counts start.')
+
             self._spm.enable_point_trigger()
             curr_scan_params.insert(0, 'counts')  # insert the fluorescence parameter
             
             if self._sg_single_iso_b_operation == True:
-                self._counter.prepare_pixelclock_single_iso_b(self._single_iso_b_frequency, 
+                ret_val_mq = self._counter.prepare_pixelclock_single_iso_b(self._single_iso_b_frequency, 
                                                               self._single_iso_b_gain)
+
+                self.log.info(f'Prepared pixelclock iso b, val {ret_val_mq}')
             else:
-                self._counter.prepare_pixelclock()
+                ret_val_mq = self._counter.prepare_pixelclock()
+
+                self.log.info(f'Prepared pixelclock, val {ret_val_mq}')
+
+
+            if ret_val_mq < 0:
+                self.module_state.unlock()
+                self.sigQAFMScanFinished.emit()
+
+                self.log.info(f'Return.')
+
+                return self._qafm_scan_array
             
             spm_start_idx = 1 # start index of the temporary scan for the spm parameters
 
@@ -674,6 +699,7 @@ class AFMConfocalLogic(GenericLogic):
                                                             coord1_stop)
         if ret_val < 1:
             self.module_state.unlock()
+            self.sigQAFMScanFinished.emit()
             return self._qafm_scan_array
 
         start_time_afm_scan = datetime.datetime.now()
@@ -751,7 +777,7 @@ class AFMConfocalLogic(GenericLogic):
                     self._qafm_scan_array[name]['data'][line_num // 2] = self._qafm_scan_line[index] * self._qafm_scan_array[name]['scale_fac']
                 reverse_meas = True
 
-            # self.log.info(f'Line number {line_num} completed.')
+            self.log.info(f'Line number {line_num} completed.')
             #print(f'Line number {line_num} completed.')
 
             # enable the break only if next scan goes into forward movement
@@ -765,7 +791,9 @@ class AFMConfocalLogic(GenericLogic):
             # and perform here an optimization first
             if self.get_optimize_request():
 
+                self._counter.stop_measurement()
                 self._spm.finish_scan()
+
                 time.sleep(2)
 
                 self.default_optimize()
@@ -775,6 +803,8 @@ class AFMConfocalLogic(GenericLogic):
                                               scan_mode=0)  # line scan
                 if 'counts' in meas_params:
                     self._spm.enable_point_trigger()
+
+                self._counter.prepare_pixelclock()
 
                 self.log.info('optimizer finished.')
 
@@ -1096,9 +1126,11 @@ class AFMConfocalLogic(GenericLogic):
         # make the counter for esr ready
         freq_list = np.linspace(freq_start, freq_stop, freq_points, endpoint=True)
 
+        ret_val = self._counter.prepare_cw_esr(freq_list, esr_count_freq, mw_power)
 
-
-        self._counter.prepare_cw_esr(freq_list, esr_count_freq, mw_power)
+        if ret_val < 0:
+            self.sigQuantiScanFinished.emit()
+            return self._qafm_scan_array
 
         # scan_speed_per_line = 0.01  # in seconds
         scan_speed_per_line = int_time_afm
@@ -1304,7 +1336,7 @@ class AFMConfocalLogic(GenericLogic):
                    break
 
             # self.log.info(f'Line number {line_num} completed.')
-            print(f'Line number {line_num} completed.')
+            self.log.info(f'Line number {line_num} completed.')
 
             # store the current line number
             self._spm_line_num = line_num
@@ -1318,7 +1350,11 @@ class AFMConfocalLogic(GenericLogic):
 
                 self.log.info('Enter optimization.')
 
+                self._counter.stop_measurement()
+
                 self._counter.prepare_pixelclock()
+
+
                 self._spm.finish_scan()
 
                 self.default_optimize()
@@ -1438,7 +1474,12 @@ class AFMConfocalLogic(GenericLogic):
 
         # make the counter for esr ready
         freq_list = np.linspace(freq_start, freq_stop, freq_points, endpoint=True)
-        self._counter.prepare_cw_esr(freq_list, esr_count_freq, mw_power)
+        
+        ret_val = self._counter.prepare_cw_esr(freq_list, esr_count_freq, mw_power)
+
+        if ret_val < 0:
+            self.sigQuantiScanFinished.emit()
+            return self._qafm_scan_array
 
         # scan_speed_per_line = 0.01  # in seconds
         scan_speed_per_line = int_time_afm
@@ -2217,7 +2258,12 @@ class AFMConfocalLogic(GenericLogic):
         time_idle_move = self._sg_idle_move_scan_obj
 
         if self._counter.get_device_mode() != 'pixel':
-            self._counter.prepare_pixelclock()
+            ret_val = self._counter.prepare_pixelclock()
+
+            if ret_val < 0:
+                self.module_state.unlock()
+                self.sigObjScanFinished.emit()
+                return self._obj_scan_array
 
         # scan_speed_per_line = 0.01  # in seconds
         scan_speed_per_line = integration_time * coord0_num
@@ -2565,7 +2611,15 @@ class AFMConfocalLogic(GenericLogic):
                              # moving without measuring
 
         if self._counter.get_device_mode() != 'pixel':
-            self._counter.prepare_pixelclock()
+            ret_val = self._counter.prepare_pixelclock()
+
+            if ret_val < 0:
+                self.sigObjScanFinished.emit()
+
+                self._stop_request = True   # Set a stop request to stop a false measurement!
+
+                return self._opti_scan_array
+
 
         scan_arr = self._spm.create_scan_leftright(coord0_start, coord0_stop,
                                                    coord1_start, coord1_stop,
@@ -2831,7 +2885,12 @@ class AFMConfocalLogic(GenericLogic):
                              # moving without measuring
 
         if self._counter.get_device_mode() != 'pixel':
-            self._counter.prepare_pixelclock()
+            ret_val = self._counter.prepare_pixelclock()
+
+            if ret_val < 0:
+                self.sigOptimizeLineScanFinished.emit(opti_name)
+                self._stop_request = True   # Set a stop request to stop a false measurement!
+                return self._opti_scan_array
             
         # scan_speed_per_line = 0.01  # in seconds
         scan_speed_per_line = integration_time * res
@@ -2981,6 +3040,8 @@ class AFMConfocalLogic(GenericLogic):
         #                                                  int_time_xy,
         #                                                  wait_first_point=True)
 
+        self._opt_val[0], self._opt_val[1], self._opt_val[3] = self.get_optimizer_target()
+
         #FIXME: Module state
         # self.module_state.lock()
 
@@ -3056,6 +3117,7 @@ class AFMConfocalLogic(GenericLogic):
         self._opt_val = [x_max, y_max, c_max, z_max, c_max_z]
         # self.module_state.unlock()
         self.sigOptimizeScanFinished.emit()
+        self._counter.stop_measurement()
 
         return x_max, y_max, c_max, z_max, c_max_z
 
@@ -3323,11 +3385,15 @@ class AFMConfocalLogic(GenericLogic):
 
         #FIXME: this is mostly for debugging reasons, but it should be removed later.
         # unlock the state in case an error has happend.
-        if not self._worker_thread.is_running():
+        if not self._worker_thread.is_running() or not self._counter.is_measurement_running:
             self._counter.cond.wakeAll()
             if self.module_state() != 'idle':
                 self.module_state.unlock()
+
+            #self._worker_thread.autoDelete()
+
             return -1
+
         return 0
 
         #self._spm.finish_scan()
@@ -3760,10 +3826,7 @@ class AFMConfocalLogic(GenericLogic):
 
             else:
                 self.default_optimize(run_in_thread=True)
-
                 return True
-
-
 
         else:
             self._optimize_request = state
