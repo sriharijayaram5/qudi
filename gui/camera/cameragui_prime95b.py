@@ -146,10 +146,12 @@ class CameraGUI(GUIBase):
                 self.roi_p1, self.roi_p2], [
                 self.roi_s1, self.roi_s2], pen=(
                 0, 0, 0, 0), scaleSnap=True, translateSnap=True, maxBounds=QtCore.QRectF(
-                    self.roi_p1, self.roi_p2, self.roi_s1, self.roi_s2))
+                    self.roi_p1, self.roi_p2, self.roi_s1, self.roi_s2),movable=False)
+        self.roi.handleSize=12
         self.roi.addScaleHandle((0, 1), (1, 0))
         self.roi.addScaleHandle((0, 0), (1, 1))
         self.roi.addScaleHandle((1, 0), (0, 1))
+        self.roi.addTranslateHandle((1, 1), (0, 0))
         # self._mw.image_PlotWidget.addItem(self.roi)
         self._mw.image_PlotWidget.setAspectLocked(True)
         self.sigROISet.connect(self._logic.set_image_roi)
@@ -158,6 +160,10 @@ class CameraGUI(GUIBase):
         self._mw.SetRoi.clicked.connect(self.set_roi)
         self._mw.DefaultRoi.setEnabled(False)
         self._mw.SetRoi.setEnabled(False)
+        self._mw.image_PlotWidget.addItem(self.roi)
+
+        self.cross = pg.CrosshairROI(pos=(self.roi_s1/2,self.roi_s2/2), size=(40,40), translateSnap=True, rotateSnap=True, maxBounds=QtCore.QRectF(0, 0, 1200,1200))
+        self._mw.image_PlotWidget.addItem(self.cross)
 
         # Get the colorscale and set the LUTs
         self.my_colors = ColorScaleInferno()
@@ -243,7 +249,7 @@ class CameraGUI(GUIBase):
     def start_image_clicked(self):
         # Adds the ROI widget when an image is clicked. Only serves aesthetic purpose when added here and not
         # in initialization.
-        self._mw.image_PlotWidget.addItem(self.roi)
+        # self._mw.image_PlotWidget.addItem(self.roi)
         self.sigImageStart.emit()
         self._mw.start_image_Action.setDisabled(True)
         self._mw.start_video_Action.setDisabled(True)
@@ -257,7 +263,7 @@ class CameraGUI(GUIBase):
         """ Handling the Start button to stop and restart the counter.
         """
         self._mw.start_image_Action.setDisabled(True)
-        self._mw.image_PlotWidget.addItem(self.roi)
+        # self._mw.image_PlotWidget.addItem(self.roi)
         if self._logic.enabled:
             self._mw.start_video_Action.setText('Start Video')
             self.sigVideoStop.emit()
@@ -282,6 +288,9 @@ class CameraGUI(GUIBase):
         self._image.setImage(image=raw_data_image)
         self.update_xy_cb_range()
         self._sd.exposureDSpinBox.setValue(self._logic._exposure)
+        x, y = self.cross.pos()
+        self.counts = raw_data_image[int(y),int(x)]
+        self._mw.counts_label.setText(str(self.counts))
         # self._image.setImage(image=raw_data_image, levels=levels)
 
     def updateView(self):
@@ -317,6 +326,8 @@ class CameraGUI(GUIBase):
         self.sigROISet.emit(self.roi.saveState())
         self.start_image_clicked()
         self.roi.setSize(self.roi.saveState()['size'])
+        self.cross.maxBounds=QtCore.QRectF(0, 0, self.roi.saveState()['size'][0]-1,self.roi.saveState()['size'][1]-1)
+        self.cross.setPos((self.roi.saveState()['size'][0]/2,self.roi.saveState()['size'][1]/2))
         self.roi.setPos((self.roi_p1, self.roi_p2))
         if was_enabled:
             self._mw.start_video_Action.setText('Stop Video')
