@@ -9,6 +9,7 @@ import os
 import csv
 import numpy as np
 from scipy import interpolate
+import socket
 
 # subcomponents related to this package
 from . import SpiController
@@ -65,8 +66,16 @@ class MicrowaveQ(dev.Device):
             cu_clk_freq -- Counting clock frequency in Hz
             conf_path   -- configuration files path
         """
+
+        self.logger = logging.getLogger(__name__)
+
+        if not self._check_socket_available(local_port):
+            raise OSError(f'Network socket server at port {local_port} '
+                          f'cannot be established.')
+
+
         com     = FPGA.FPGA(ip, local_port, streamCb, cu_clk_freq)
-        super().__init__(com,0x10000000)
+        super().__init__(com, 0x10000000)
         
         self.streamCb = streamCb
         if conf_path == "":
@@ -163,6 +172,27 @@ class MicrowaveQ(dev.Device):
                 self.spiLmk.write(addr, data)
             else:
                 assert False, "Unknown device"
+
+    def _check_socket_available(self, port):
+        """ Check the connectivity of the socket. """
+
+        server = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+
+        try:
+            server.bind(('', port))
+
+            self.logger.debug('Network server socket at Port {port} available.')
+
+            server.close()
+            return True
+
+        except OSError:
+            self.logger.error(f'Network socket blocked at Port {port}. Most '
+                              f'likely there is already a socket (Network) '
+                              f'connection open to the microwaveQ, close it '
+                              f'first and reconnect the microwaveQ again.')
+            server.close()
+            return False
 
     # def _simResult(self, data):
     #   stream=bytearray()
@@ -383,7 +413,7 @@ class MicrowaveQ(dev.Device):
             gain_num = int(gain_num)
             entries = int(entries)
 
-        self._freq_gain_power_data = cali_data = np.reshape(np.loadtxt(cali_path),(freq_num, gain_num, entries))
+        self._freq_gain_power_data = np.reshape(np.loadtxt(cali_path),(freq_num, gain_num, entries))
 
         self._cali_freq_arr = self._freq_gain_power_data[:,0,0]
         self._cali_gain_arr = self._freq_gain_power_data[0,:,1]
