@@ -101,10 +101,6 @@ class LaserLogic(GenericLogic):
 
     queryInterval = ConfigOption('query_interval', 100)
 
-    power_start = StatusVar('power_start', 1/1000)
-    power_stop = StatusVar('power_stop', 22/1000)
-    number_of_points = StatusVar('number_of_points', 15)
-    time_per_point = StatusVar('time_per_point', 5)
     #creating a fit container
     fc = StatusVar('fits', None)
 
@@ -569,71 +565,58 @@ class LaserLogic(GenericLogic):
         return
 
 
-    def initialize_odmr_data(self, laser_power_start, laser_power_stop, laser_power_num,
-                                  mw_power_start, mw_power_stop, mw_power_num,
-                                  freq_start, freq_stop, freq_num):
+    def initialize_odmr_data(self):
 
-        meas_dict = {'data': np.zeros((laser_power_num, mw_power_num, freq_num)),
+        meas_dict = {'data': np.zeros((self.laser_power_num, self.mw_power_num, self.freq_num)),
                      # FIXME: get the odmr data std
-                     # 'data_std': np.zeros((laser_power_num, mw_power_num, freq_num)),
-                     'fit_results': np.zeros((laser_power_num, mw_power_num), dtype = lmfit.model.ModelResult),
-                     'saturation_data': np.zeros(laser_power_num),
-                     'saturation_data_std': np.zeros(laser_power_num),
-                     'background_data': np.zeros(laser_power_num),
-                     'background_data_std': np.zeros(laser_power_num),
+                     # 'data_std': np.zeros((self.laser_power_num, self.mw_power_num, self.freq_num)),
+                     #TODO : replace np array by list
+                     'saturation_data': np.zeros(self.laser_power_num),
+                     'saturation_data_std': np.zeros(self.laser_power_num),
+                     # 'background_data': np.zeros(self.laser_power_num),
+                     # 'background_data_std': np.zeros(self.laser_power_num),
+                     'fit_results': np.zeros((self.laser_power_num, self.mw_power_num), dtype = lmfit.model.ModelResult),
                      'fit_params': {},
-                     'coord0_arr': np.linspace(laser_power_start, laser_power_stop, laser_power_num, endpoint=True),
-                     'coord1_arr': np.linspace(mw_power_start, mw_power_stop, mw_power_num, endpoint=True),
-                     'coord2_arr': np.linspace(freq_start, freq_stop, freq_num, endpoint=True),
+                     'coord0_arr': np.linspace(self.laser_power_start, self.laser_power_stop, self.laser_power_num, endpoint=True),
+                     'coord1_arr': np.linspace(self.mw_power_start, self.mw_power_stop, self.mw_power_num, endpoint=True),
+                     'coord2_arr': np.linspace(self.freq_start, self.freq_stop, self.freq_num, endpoint=True),
                      'units': 'c/s',
                      'nice_name': 'Fluorescence',
                      'params': {'Parameters for': 'Optimize operating point measurement',
                                 'axis name for coord0': 'Laser power',
                                 'axis name for coord1': 'Microwave power',
                                 'axis name for coord2': 'Microwave frequency',
-                                'coord0_start (W)': laser_power_start,
-                                'coord0_stop (W)': laser_power_stop,
-                                'coord0_num (#)': laser_power_num,
-                                'coord1_start (dBm)': mw_power_start,
-                                'coord1_stop (dBm)': mw_power_stop,
-                                'coord1_num (#)': mw_power_num,
-                                'coord2_start (Hz)': freq_start,
-                                'coord2_stop (Hz)': freq_stop,
-                                'coord2_num (#)': freq_num
+                                'coord0_start (W)': self.laser_power_start,
+                                'coord0_stop (W)': self.laser_power_stop,
+                                'coord0_num (#)': self.laser_power_num,
+                                'coord1_start (dBm)': self.mw_power_start,
+                                'coord1_stop (dBm)': self.mw_power_stop,
+                                'coord1_num (#)': self.mw_power_num,
+                                'coord2_start (Hz)': self.freq_start,
+                                'coord2_stop (Hz)': self.freq_stop,
+                                'coord2_num (#)': self.freq_num,
+                                'ODMR runtime (s)': self.odmr_runtime,
+                                'Counter runtime (s)': self.counter_runtime,
+                                'Fit function': self.odmr_fit_function,
+                                'Channel': self.channel,
                                 },  # !!! here are all the measurement parameter saved
-                     'display_range': None, # what is it ?
                     }  
 
         self._odmr_data = meas_dict
 
         return self._odmr_data
 
-
-
-
-    def perform_measurement(self, laser_power_start=1/1000, laser_power_stop=22/1000, laser_power_num=17, 
-                                 final_power=3/1000, mw_power_start=20, mw_power_stop=40, mw_power_num=5,
-                                 freq_start=2_800_000_000, freq_stop=2_950_000_000, freq_num=100, 
-                                 channel=0, odmr_runtime=60, counter_runtime=3, 
-                                 fit_function='Two Lorentzian dips', optimize=False, 
-                                 name_tag='', save_after_meas=True, stabilization_time=1):
+    def perform_measurement(self, save_after_meas=True, stabilization_time=1):
 
         #Setting up the stopping mechanism.
         self._OOP_stop_request = False
         self.sigOOPStarted.emit()
 
-        self._odmr_data = self.initialize_odmr_data(laser_power_start, laser_power_stop, laser_power_num,
-                                  mw_power_start, mw_power_stop, mw_power_num,
-                                  freq_start, freq_stop, freq_num)
-
-        # Save the measurement parameter
-        self._odmr_data['params']['ODMR runtime (s)'] = odmr_runtime
-        self._odmr_data['params']['Fit function'] = fit_function
-        
+        self._odmr_data = self.initialize_odmr_data()
        
         # Create the lists of powers for the measurement
-        laser_power = np.linspace(laser_power_start, laser_power_stop, laser_power_num, endpoint=True)
-        mw_power = np.linspace(mw_power_start, mw_power_stop, mw_power_num, endpoint=True)
+        laser_power = np.linspace(self.laser_power_start, self.laser_power_stop, self.laser_power_num, endpoint=True)
+        mw_power = np.linspace(self.mw_power_start, self.mw_power_stop, self.mw_power_num, endpoint=True)
 
         #TODO: Check if we need to turn laser on (or should it be done manually ?)
         if self.get_laser_state() == LaserState.OFF:
@@ -648,7 +631,7 @@ class LaserLogic(GenericLogic):
 
         count_frequency = self._counterlogic.get_count_frequency()
         counter_num_of_points = int(count_frequency * self.counter_runtime)
-        freq_step = (freq_stop - freq_start) / (freq_num - 1)
+        freq_step = (self.freq_stop - self.freq_start) / (self.freq_num - 1)
 
         for i in range(len(laser_power)):
 
@@ -661,12 +644,12 @@ class LaserLogic(GenericLogic):
             time.sleep(stabilization_time)
             
             # Optimize the position
-            if optimize:
+            if self.optimize:
                 self.afm_scanner_logic().default_optimize()
 
             time.sleep(stabilization_time)
 
-            counts_array  = self._counterlogic.request_counts(counter_num_of_points)[channel]
+            counts_array  = self._counterlogic.request_counts(counter_num_of_points)[self.channel]
             counts = counts_array.mean()
             std_dev = counts_array.std(ddof=1)
 
@@ -682,28 +665,29 @@ class LaserLogic(GenericLogic):
                     break
             
                 error, odmr_plot_x, odmr_plot_y, odmr_fit_result = self._odmr_logic.perform_odmr_measurement(
-                                     freq_start, freq_step, freq_stop, mw_power[j], channel, odmr_runtime,
-                                     fit_function, save_after_meas=False, name_tag='')
+                                     self.freq_start, freq_step, self.freq_stop, mw_power[j], self.channel, self.odmr_runtime,
+                                     self.odmr_fit_function, save_after_meas=False, name_tag='')
 
                 if error:
                     self.log.warning('Optimal operation point measurement aborted')
                     self.sigOOPStopped.emit()
                     return
 
-                odmr_plot_y  = odmr_plot_y[channel, :]
+                odmr_plot_y  = odmr_plot_y[self.channel, :]
 
                 self._odmr_data['data'][i][j] = odmr_plot_y
                 self._odmr_data['fit_results'][i][j] = odmr_fit_result
-                self.update_fit_params(i, j, fit_function, laser_power_num, mw_power_num)                
+                self.update_fit_params(i, j)                
                 self.sigOOPUpdateData.emit()
 
         #TODO: do we need a final power ? Or should we turn the laser off ?
-        self._dev.set_power(final_power)
+        #FIXME: replace laser_power_start by final power
+        self._dev.set_power(self.laser_power_start)
 
         if save_after_meas :
-            self.save_odmr_data(tag=name_tag)
+            self.save_odmr_data(tag=self.OOP_nametag)
             self.do_fit()
-            self.save_saturation_data(tag=name_tag)
+            self.save_saturation_data(tag=self.OOP_nametag)
 
         self.sigOOPStopped.emit()
 
@@ -823,48 +807,79 @@ class LaserLogic(GenericLogic):
         # Save fit result if they are computed
 
         if self._odmr_data['fit_results'].any():
-            if 'Contrast' in self._odmr_data['fit_params']:
-                contrast_data = {'Contrast from the fit (%)': self._odmr_data['fit_params']['Contrast']}
-                contrast_std_data = {'Error for the contrast from the fit (%)': self._odmr_data['fit_params']['Contrast error']}
-                fwhm_data = {'FWHM from the fit (Hz)': self._odmr_data['fit_params']['FWHM']}
-                fwhm_std_data = {'Error for FWHM from the fit (Hz)': self._odmr_data['fit_params']['FWHM error']}
-            elif 'Contrast 0' in self._odmr_data['fit_params']:
-                contrast_data = {'Contrast from the fit (%)': self._odmr_data['fit_params']['Contrast 0']}
-                contrast_std_data = {'Error for the contrast from the fit (%)': self._odmr_data['fit_params']['Contrast 0 error']}
-                fwhm_data = {'FWHM from the fit (Hz)': self._odmr_data['fit_params']['FWHM 0']}
-                fwhm_std_data = {'Error for FWHM from the fit (Hz)': self._odmr_data['fit_params']['FWHM 0 error']}
-            filelabel_contrast = filelabel + '_Contrast'
-            filelabel_contrast_std = filelabel + '_Contrast_stddev'
-            filelabel_fwhm = filelabel + '_FWHM'
-            filelabel_fwhm_std = filelabel + '_FWHM_stddev'
-
-            self._save_logic.save_data(contrast_data, parameters=parameters,
+            for param_name in self._odmr_data['fit_params']:
+                data_matrix, unit = self.get_data(param_name)
+                data_dict = {param_name + ' (' + unit + ')': data_matrix}
+                data_filelabel = filelabel + '_' + param_name
+                fig = self.draw_matrix_figure(param_name)
+                self._save_logic.save_data(data_dict, parameters=parameters,
                                         filepath=filepath,
-                                        filelabel=filelabel_contrast,
+                                        filelabel=data_filelabel,
                                         fmt='%.6e',
                                         delimiter='\t',
-                                        timestamp=timestamp)
+                                        timestamp=timestamp,
+                                        plotfig=fig)
+                if 'errors' in self._odmr_data['fit_params'][param_name]:
+                    std_matrix = self._odmr_data['fit_params'][param_name]['errors']                       
+                    std_dict = {param_name + ' Error (' + unit + ')': std_matrix}
+                    std_filelabel = filelabel + '_' + param_name + '_stddev'
+                    self._save_logic.save_data(std_dict, parameters=parameters,
+                                            filepath=filepath,
+                                            filelabel=std_filelabel,
+                                            fmt='%.6e',
+                                            delimiter='\t',
+                                            timestamp=timestamp)
 
-            self._save_logic.save_data(contrast_std_data, parameters=parameters,
-                                        filepath=filepath,
-                                        filelabel=filelabel_contrast_std,
-                                        fmt='%.6e',
-                                        delimiter='\t',
-                                        timestamp=timestamp)
+                
+
+            # if 'Contrast' in self._odmr_data['fit_params']:
+            #     contrast_data = {'Contrast from the fit (%)': self._odmr_data['fit_params']['Contrast']}
+            #     contrast_std_data = {'Error for the contrast from the fit (%)': self._odmr_data['fit_params']['Contrast error']}
+            #     fwhm_data = {'FWHM from the fit (Hz)': self._odmr_data['fit_params']['FWHM']}
+            #     fwhm_std_data = {'Error for FWHM from the fit (Hz)': self._odmr_data['fit_params']['FWHM error']}
+            #     fig_contrast = self.draw_matrix_figure('Contrast')
+            #     fig_fwhm = self.draw_matrix_figure('FWHM')
+            # elif 'Contrast 0' in self._odmr_data['fit_params']:
+            #     contrast_data = {'Contrast from the fit (%)': self._odmr_data['fit_params']['Contrast 0']}
+            #     contrast_std_data = {'Error for the contrast from the fit (%)': self._odmr_data['fit_params']['Contrast 0 error']}
+            #     fwhm_data = {'FWHM from the fit (Hz)': self._odmr_data['fit_params']['FWHM 0']}
+            #     fwhm_std_data = {'Error for FWHM from the fit (Hz)': self._odmr_data['fit_params']['FWHM 0 error']}
+            #     fig_contrast = self.draw_matrix_figure('Contrast 0')
+            #     fig_fwhm = self.draw_matrix_figure('FWHM 0')
+            # filelabel_contrast = filelabel + '_Contrast'
+            # filelabel_contrast_std = filelabel + '_Contrast_stddev'
+            # filelabel_fwhm = filelabel + '_FWHM'
+            # filelabel_fwhm_std = filelabel + '_FWHM_stddev'
+
+            # self._save_logic.save_data(contrast_data, parameters=parameters,
+            #                             filepath=filepath,
+            #                             filelabel=filelabel_contrast,
+            #                             fmt='%.6e',
+            #                             delimiter='\t',
+            #                             timestamp=timestamp,
+            #                             plotfig=fig_contrast)
+
+            # self._save_logic.save_data(contrast_std_data, parameters=parameters,
+            #                             filepath=filepath,
+            #                             filelabel=filelabel_contrast_std,
+            #                             fmt='%.6e',
+            #                             delimiter='\t',
+            #                             timestamp=timestamp)
                                         
-            self._save_logic.save_data(fwhm_data, parameters=parameters,
-                                        filepath=filepath,
-                                        filelabel=filelabel_fwhm,
-                                        fmt='%.6e',
-                                        delimiter='\t',
-                                        timestamp=timestamp)
+            # self._save_logic.save_data(fwhm_data, parameters=parameters,
+            #                             filepath=filepath,
+            #                             filelabel=filelabel_fwhm,
+            #                             fmt='%.6e',
+            #                             delimiter='\t',
+            #                             timestamp=timestamp,
+            #                             plotfig=fig_fwhm)
 
-            self._save_logic.save_data(fwhm_std_data, parameters=parameters,
-                                        filepath=filepath,
-                                        filelabel=filelabel_fwhm_std,
-                                        fmt='%.6e',
-                                        delimiter='\t',
-                                        timestamp=timestamp)
+            # self._save_logic.save_data(fwhm_std_data, parameters=parameters,
+            #                             filepath=filepath,
+            #                             filelabel=filelabel_fwhm_std,
+            #                             fmt='%.6e',
+            #                             delimiter='\t',
+            #                             timestamp=timestamp)
 
         if len(tag) > 0:
             filelabel_sat = '{0}_Saturation_data'.format(tag)
@@ -875,8 +890,8 @@ class LaserLogic(GenericLogic):
         sat_data['Laser power'] = data['coord0_arr']
         sat_data['Fluorescence'] = data['saturation_data']
         sat_data['Stddev'] = data['saturation_data_std']
-        sat_data['Background'] = data['background_data']
-        sat_data['Background stddev'] = data['background_data_std']
+        # sat_data['Background'] = data['background_data']
+        # sat_data['Background stddev'] = data['background_data_std']
 
         self._save_logic.save_data(sat_data, parameters=parameters,
                                        filepath=filepath,
@@ -898,23 +913,8 @@ class LaserLogic(GenericLogic):
             return
 
         self._worker_thread = WorkerThread(target=self.perform_measurement,
-                                            args=(self.laser_power_start, 
-                                                  self.laser_power_stop, 
-                                                  self.laser_power_num,                                                  
-                                                  self.laser_power_start, 
-                                                  self.mw_power_start, 
-                                                  self.mw_power_stop, 
-                                                  self.mw_power_num,
-                                                  self.freq_start, 
-                                                  self.freq_stop, 
-                                                  self.freq_num,
-                                                  self.channel, 
-                                                  self.odmr_runtime, 
-                                                  self.counter_runtime,
-                                                  self.odmr_fit_function,
-                                                  self.optimize,
-                                                  self.OOP_nametag),
-                                                  name='operation_point_measurement') 
+                                            args=(),
+                                            name='operation_point_measurement') 
 
         self.threadpool.start(self._worker_thread)
 
@@ -1022,8 +1022,8 @@ class LaserLogic(GenericLogic):
         self.sigParameterUpdated.emit()
         return self.OOP_nametag
 
-    def update_fit_params(self, i, j, fit_function, laser_power_num, mw_power_num):
-        if fit_function != 'No fit':
+    def update_fit_params(self, i, j):
+        if self.odmr_fit_function != 'No fit':
             if not hasattr(self._odmr_data['fit_results'][0][0], 'result_str_dict'):
                 self.log.warning("The selected fit does not allow to access the fit parameters. Please chose another fit.")
                 return
@@ -1031,26 +1031,71 @@ class LaserLogic(GenericLogic):
             param_dict = self._odmr_data['fit_results'][i][j].result_str_dict
             if (i, j) == (0, 0):
                 for param_name in param_dict.keys():
-                    self._odmr_data['fit_params'][param_name] = np.zeros((laser_power_num, mw_power_num))
-                    if 'error' in param_dict[param_name]:
-                        self._odmr_data['fit_params'][param_name + ' error'] = np.zeros((laser_power_num, mw_power_num))
-                #self.sigDataAvailableUpdated.emit(list(self._odmr_data['fit_params'].keys()))
-                self.sigDataAvailableUpdated.emit(list(param_dict.keys()))
+                    if not 'slope' in param_name :
+                        self._odmr_data['fit_params'][param_name] = {}
+                        self._odmr_data['fit_params'][param_name]['values'] = np.zeros((self.laser_power_num, self.mw_power_num))
+                        if 'error' in param_dict[param_name]:
+                            self._odmr_data['fit_params'][param_name]['errors'] = np.zeros((self.laser_power_num, self.mw_power_num))
+                        self._odmr_data['fit_params'][param_name]['unit'] = param_dict[param_name]['unit']
+                self.sigDataAvailableUpdated.emit(list(self._odmr_data['fit_params'].keys()))
+                #self.sigDataAvailableUpdated.emit(list(param_dict.keys()))
             for param_name in param_dict:
-                self._odmr_data['fit_params'][param_name][i][j] = param_dict[param_name]['value']
-                if 'error' in param_dict[param_name]:
-                    self._odmr_data['fit_params'][param_name + ' error'][i][j] = param_dict[param_name]['error']
+                if not 'slope' in param_name:
+                    self._odmr_data['fit_params'][param_name]['values'][i][j] = param_dict[param_name]['value']
+                    if 'error' in param_dict[param_name]:
+                        self._odmr_data['fit_params'][param_name]['errors'][i][j] = param_dict[param_name]['error']
 
     def get_data(self, data_name):
         if data_name in self._odmr_data['fit_params']:
-            return self._odmr_data['fit_params'][data_name]
+            param_dict = self._odmr_data['fit_params'][data_name]
+            return param_dict['values'], param_dict['unit']
         else:
             self.log.warning("This data is not available from the fit, sorry!")
-            return np.array([[0]])
+            return np.array([[0]]), ''
 
-    def get_data_unit(self, data_name):
-        if hasattr(self._odmr_data['fit_results'][0][0], 'result_str_dict'):
-            param_dict = self._odmr_data['fit_results'][0][0].result_str_dict
-            if data_name in  param_dict:
-                return param_dict[data_name]['unit']
-        return ''
+
+    def draw_matrix_figure(self, data_name):
+        if data_name  not in self._odmr_data['fit_params']:
+            fig = None
+            return fig
+        
+        matrix, unit = self.get_data(data_name)
+        scale_fact = units.ScaledFloat(np.max(matrix)).scale_val
+        unit_prefix = units.ScaledFloat(np.max(matrix)).scale
+        matrix_scaled = matrix / scale_fact
+        cbar_range = np.array([np.min(matrix_scaled), np.max(matrix_scaled)])
+        unit_scaled = unit_prefix + unit
+
+        # Use qudi style
+        plt.style.use(self._save_logic.mpl_qd_style)
+
+        # Create figure
+        #fig = plt.figure()
+        fig, (ax_matrix) = plt.subplots(nrows=1, ncols=1)
+        matrixplot = ax_matrix.imshow(matrix_scaled,
+                                cmap=plt.get_cmap('viridis'),  # reference the right place in qd
+                                origin='lower',
+                                vmin=cbar_range[0],
+                                vmax=cbar_range[1],
+                                extent=[self.mw_power_start,
+                                    self.mw_power_stop,
+                                    self.laser_power_start,
+                                    self.laser_power_stop
+                                    ],
+                                aspect='auto',
+                                interpolation='nearest')
+
+        ax_matrix.set_xlabel('MW power (dBm)')
+        ax_matrix.set_ylabel('Laser power (W)')
+
+        # Adjust subplot to make room for colorbar
+        fig.subplots_adjust(right=0.8)
+
+        # Add colorbar axis to figure
+        cbar_ax = fig.add_axes([0.85, 0.15, 0.02, 0.7])
+
+        # Draw colorbar
+        cbar = fig.colorbar(matrixplot, cax=cbar_ax)
+        cbar.set_label(data_name + ' (' + unit_scaled + ')')
+
+        return fig
