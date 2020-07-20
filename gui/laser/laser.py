@@ -138,13 +138,13 @@ class LaserGUI(GUIBase):
         #Setting up the constraints for the Saturation Curve.
         lpr = self._laser_logic.laser_power_range
         self._mw.startPowerDoubleSpinBox.setRange(lpr[0], lpr[1])
-        self._mw.startPowerDoubleSpinBox.setValue(self._laser_logic.power_start)
+        self._mw.startPowerDoubleSpinBox.setValue(self._laser_logic.laser_power_start)
         self._mw.stopPowerDoubleSpinBox.setRange(lpr[0], lpr[1])
-        self._mw.stopPowerDoubleSpinBox.setValue(self._laser_logic.power_stop)
+        self._mw.stopPowerDoubleSpinBox.setValue(self._laser_logic.laser_power_stop)
         self._mw.numPointsSpinBox.setRange(1,100)
-        self._mw.numPointsSpinBox.setValue(self._laser_logic.number_of_points)
+        self._mw.numPointsSpinBox.setValue(self._laser_logic.laser_power_num)
         self._mw.timeDoubleSpinBox.setRange(1,1000)
-        self._mw.timeDoubleSpinBox.setValue(self._laser_logic.time_per_point)
+        self._mw.timeDoubleSpinBox.setValue(self._laser_logic.counter_runtime)
 
         odmr_constraints = self._laser_logic.get_odmr_constraints()
         self._mw.laser_power_start_DoubleSpinBox.setRange(lpr[0], lpr[1])
@@ -197,7 +197,9 @@ class LaserGUI(GUIBase):
         self._mw.fit_ComboBox.currentTextChanged.connect(self._laser_logic.set_odmr_fit)
         self._mw.data_ComboBox.currentTextChanged.connect(self.OOP_update_data)
         self._mw.nametag_LineEdit.textChanged.connect(self._laser_logic.set_OOP_nametag)
-        
+        self._mw.cb_high_percentile_DoubleSpinBox.valueChanged.connect(self.colorscale_changed)
+        self._mw.cb_low_percentile_DoubleSpinBox.valueChanged.connect(self.colorscale_changed)
+
         # Internal trigger signals
         self._mw.start_saturation_Action.triggered.connect(self.run_stop_saturation)
         self._mw.start_saturation_Action.triggered.connect(self.update_settings)
@@ -498,10 +500,10 @@ class LaserGUI(GUIBase):
 
     def update_settings(self):
         """ Write the new settings from the gui to the file. """
-        self._laser_logic.power_start = self._mw.startPowerDoubleSpinBox.value()
-        self._laser_logic.power_stop = self._mw.stopPowerDoubleSpinBox.value()
-        self._laser_logic.number_of_points = self._mw.numPointsSpinBox.value()
-        self._laser_logic.time_per_point = self._mw.timeDoubleSpinBox.value()
+        self._laser_logic.laser_power_start = self._mw.startPowerDoubleSpinBox.value()
+        self._laser_logic.laser_power_stop = self._mw.stopPowerDoubleSpinBox.value()
+        self._laser_logic.laser_power_num = self._mw.numPointsSpinBox.value()
+        self._laser_logic.counter_runtime = self._mw.timeDoubleSpinBox.value()
         return
 
     @QtCore.Slot(np.ndarray, np.ndarray, dict)
@@ -702,35 +704,49 @@ class LaserGUI(GUIBase):
         self._mw.digModulationRadioButton.setEnabled(True)
         self._mw.powerRadioButton.setEnabled(True)
 
-    @QtCore.Slot()
-    def OOP_update_data(self):
-        # self.matrix_image.setRect(QtCore.QRectF())
+    #Move to the logic??
+    def get_scaled_data(self):
         data_name = self._mw.data_ComboBox.currentText()
         if data_name != '':
 
-            matrix = self._laser_logic.get_data(data_name) 
-            scale_fact = units.ScaledFloat(matrix[0][0]).scale_val
-            unit_prefix = units.ScaledFloat(matrix[0][0]).scale
-            matrix_scaled = matrix / scale_fact
-            cb_range = self.get_matrix_cb_range(matrix_scaled)
-            unit_scaled = unit_prefix + self._laser_logic.get_data_unit(data_name)
-            self.update_colorbar(cb_range, unit_scaled)
+            matrix, unit = self._laser_logic.get_data(data_name) 
 
-            self.matrix_image.setImage(image=matrix_scaled,
-                                       axisOrder='row-major',
-                                       levels=(cb_range[0], cb_range[1]))
-            self.matrix_image.setRect(
-                QtCore.QRectF(
-                    self._laser_logic._odmr_data['coord1_arr'][0],
-                    self._laser_logic._odmr_data['coord0_arr'][0],
-                    self._laser_logic._odmr_data['coord1_arr'][-1] - self._laser_logic._odmr_data['coord1_arr'][0],
-                    self._laser_logic._odmr_data['coord0_arr'][-1] - self._laser_logic._odmr_data['coord0_arr'][0])
-                )
+            scale_fact = units.ScaledFloat(np.max(matrix)).scale_val
+            unit_prefix = units.ScaledFloat(np.max(matrix)).scale
+            matrix_scaled = matrix / scale_fact
+            unit_scaled = unit_prefix + unit
+            return matrix_scaled, unit_scaled, 0
+        return [], '', -1
+
+
+    @QtCore.Slot()
+    def OOP_update_data(self):
+        # self.matrix_image.setRect(QtCore.QRectF())
+        matrix_scaled, unit_scaled, error = self.get_scaled_data()
+        if error:
+            return
+        cb_range = self.get_matrix_cb_range(matrix_scaled)
+        self.update_colorbar(cb_range, unit_scaled)
+
+        self.matrix_image.setImage(image=matrix_scaled,
+                                    axisOrder='row-major',
+                                    levels=(cb_range[0], cb_range[1]))
+        self.matrix_image.setRect(
+            QtCore.QRectF(
+                self._laser_logic._odmr_data['coord1_arr'][0],
+                self._laser_logic._odmr_data['coord0_arr'][0],
+                self._laser_logic._odmr_data['coord1_arr'][-1] - self._laser_logic._odmr_data['coord1_arr'][0],
+                self._laser_logic._odmr_data['coord0_arr'][-1] - self._laser_logic._odmr_data['coord0_arr'][0])
+            )
 
     def get_matrix_cb_range(self, matrix):
         matrix_nonzero = matrix[np.nonzero(matrix)]
-        cb_min = np.min(matrix_nonzero)
-        cb_max = np.max(matrix_nonzero)
+
+        low_centile = self._mw.cb_low_percentile_DoubleSpinBox.value()
+        high_centile = self._mw.cb_high_percentile_DoubleSpinBox.value()
+
+        cb_min = np.percentile(matrix_nonzero, low_centile)
+        cb_max = np.percentile(matrix_nonzero, high_centile)
         cb_range = [cb_min, cb_max]
         return cb_range
 
@@ -738,6 +754,18 @@ class LaserGUI(GUIBase):
     def update_colorbar(self, cb_range, unit):
         self.oop_cb.refresh_colorbar(cb_range[0], cb_range[1])
         self._mw.oop_cb_PlotWidget.setLabel('right', units=unit)
+        return
+
+    def colorscale_changed(self):
+        """
+        Updates the range of the displayed colorscale in both the colorbar and the matrix plot.
+        """
+        matrix_scaled, unit_scaled, error = self.get_scaled_data()
+        if error:
+            return
+        cb_range = self.get_matrix_cb_range(matrix_scaled)
+        self.update_colorbar(cb_range, unit_scaled)
+        self.matrix_image.setImage(image=matrix_scaled, levels=(cb_range[0], cb_range[1]))
         return
 
     def change_laser_params(self):
