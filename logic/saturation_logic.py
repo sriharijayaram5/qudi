@@ -667,6 +667,10 @@ class LaserLogic(GenericLogic):
             time.sleep(stabilization_time)
 
             counts_array  = self._counterlogic.request_counts(counter_num_of_points)[channel]
+
+            #To avoid crash
+            time.sleep(stabilization_time)
+
             counts = counts_array.mean()
             std_dev = counts_array.std(ddof=1)
 
