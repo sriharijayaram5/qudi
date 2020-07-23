@@ -224,7 +224,7 @@ class LaserLogic(GenericLogic):
         @return float: Actual laser power in Watts (W).
         """
         
-        self._dev.get_power()
+        return self._dev.get_power()
 
     def set_power(self, power):
         """ Set laser power in watts
@@ -371,7 +371,7 @@ class LaserLogic(GenericLogic):
         counts = np.zeros(num_of_points)
         std_dev = np.zeros(num_of_points)
 
-        self._counterlogic.startCount()
+        #self._counterlogic.startCount()
 
         self.sigUpdateButton.emit()
 
@@ -398,7 +398,7 @@ class LaserLogic(GenericLogic):
 
             self.set_saturation_data(laser_power, counts, std_dev, i + 1)
 
-        self._counterlogic.stopCount()
+        #self._counterlogic.stopCount()
 
         self._dev.set_power(final_power)
 
@@ -667,6 +667,9 @@ class LaserLogic(GenericLogic):
                 #Stopping mechanism
                 if self._OOP_stop_request:
                     break
+
+                if self.optimize:
+                    self.afm_scanner_logic().default_optimize()
             
                 error, odmr_plot_x, odmr_plot_y, odmr_fit_result = self._odmr_logic.perform_odmr_measurement(
                                      self.freq_start, freq_step, self.freq_stop, mw_power[j], self.channel, self.odmr_runtime,
