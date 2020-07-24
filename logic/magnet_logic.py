@@ -1282,7 +1282,7 @@ class MagnetLogic(GenericLogic):
         low_step_freq = self.odmr_2d_low_step_freq
         low_stop_freq = self.odmr_2d_low_center_freq + self.odmr_2d_low_range_freq / 2
 
-        param = self._odmr_logic.perform_odmr_measurement(low_start_freq,
+        _, _, _, result = self._odmr_logic.perform_odmr_measurement(low_start_freq,
                                                           low_step_freq,
                                                           low_stop_freq,
                                                           self.odmr_2d_low_power,
@@ -1290,7 +1290,7 @@ class MagnetLogic(GenericLogic):
                                                           self.odmr_2d_low_fitfunction,
                                                           self.odmr_2d_save_after_measure,
                                                           name_tag)
-
+        param = result.params
         # restructure the output parameters:
         for entry in param:
             store_dict['low_freq_' + str(entry)] = param[entry]
@@ -1330,7 +1330,7 @@ class MagnetLogic(GenericLogic):
         high_step_freq = self.odmr_2d_high_step_freq
         high_stop_freq = self.odmr_2d_high_center_freq + self.odmr_2d_high_range_freq / 2
 
-        param = self._odmr_logic.perform_odmr_measurement(high_start_freq,
+        _, _, _, result = self._odmr_logic.perform_odmr_measurement(high_start_freq,
                                                           high_step_freq,
                                                           high_stop_freq,
                                                           self.odmr_2d_high_power,
@@ -1338,6 +1338,8 @@ class MagnetLogic(GenericLogic):
                                                           self.odmr_2d_high_fitfunction,
                                                           self.odmr_2d_save_after_measure,
                                                           name_tag)
+        param = result.params
+
         # restructure the output parameters:
         for entry in param:
             store_dict['high_freq_' + str(entry)] = param[entry]
@@ -1461,7 +1463,7 @@ class MagnetLogic(GenericLogic):
         step_freq = self.odmr_2d_low_step_freq
         stop_freq = self.odmr_2d_low_center_freq + self.odmr_2d_low_range_freq / 2
 
-        param = self._odmr_logic.perform_odmr_measurement(start_freq,
+        _, _, _, result = self._odmr_logic.perform_odmr_measurement(start_freq,
                                                           step_freq,
                                                           stop_freq,
                                                           self.odmr_2d_low_power,
@@ -1469,6 +1471,7 @@ class MagnetLogic(GenericLogic):
                                                           self.odmr_2d_low_fitfunction,
                                                           self.odmr_2d_save_after_measure,
                                                           name_tag)
+        param = result.params
 
         param['ODMR peak/Magnet move ratio axis0'] = self.odmr_2d_peak_axis0_move_ratio
         param['ODMR peak/Magnet move ratio axis1'] = self.odmr_2d_peak_axis1_move_ratio

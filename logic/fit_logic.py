@@ -355,7 +355,7 @@ class FitContainer(QtCore.QObject):
             self.current_fit = 'No Fit'
         else:
             self.current_fit = current_fit
-            if current_fit != 'No Fit':
+            if current_fit != 'No Fit' and 'use_settings' in self.fit_list[self.current_fit]:
                 use_settings = self.fit_list[self.current_fit]['use_settings']
                 self.use_settings = lmfit.parameter.Parameters()
                 # Update the use parameter dictionary
@@ -369,6 +369,7 @@ class FitContainer(QtCore.QObject):
         return self.current_fit, self.use_settings
 
     def do_fit(self, x_data, y_data):
+        #FIXME: Documentation, only 3 variables are returned, not 4
         """Performs the chosen fit on the measured data.
         @param array x_data: optional, 1D np.array or 1D list with the x values.
                              If None is passed then the module x values are

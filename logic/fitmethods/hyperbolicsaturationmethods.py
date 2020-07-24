@@ -22,8 +22,9 @@ top-level directory of this distribution and at <https://github.com/Ulm-IQO/qudi
 
 
 from lmfit.models import Model
+from lmfit import Parameters
 import numpy as np
-
+import math
 
 ################################################################################
 #                                                                              #
@@ -108,6 +109,27 @@ def make_hyperbolicsaturation_fit(self, x_axis, data, estimator, units=None, add
 
     result = mod_final.fit(data, x=x_axis, params=params, **kwargs)
 
+    if units is None:
+        units = ['arb. unit', 'arb. unit']
+
+    result_str_dict = {}
+
+    result_str_dict['I_sat'] = {'value': result.params['I_sat'].value,
+                                'unit': units[1]}
+    result_str_dict['P_sat'] = {'value': result.params['P_sat'].value,
+                                'unit': units[0]}
+    result_str_dict['Slope'] = {'value': result.params['slope'].value,
+                                'unit': '{0}/{1}'.format(units[1], units[0])}
+    result_str_dict['Offset'] = {'value': result.params['offset'].value,
+                                 'unit': units[1]}
+
+    if result.errorbars:
+        result_str_dict['I_sat']['error'] = result.params['I_sat'].stderr
+        result_str_dict['P_sat']['error'] = result.params['P_sat'].stderr
+        result_str_dict['Slope']['error'] = result.params['slope'].stderr
+        result_str_dict['Offset']['error'] = result.params['offset'].stderr
+    result.result_str_dict = result_str_dict
+
     return result
 
 
@@ -139,6 +161,7 @@ def estimate_hyperbolicsaturation(self, x_axis, data, params):
 
     data_red = data - est_slope*x_axis - est_offset
     est_I_sat = np.mean(data_red[len(data_red)//2:])
+    #FIXME: It should be f(est_P_sat) = est_I_sat/2, not est_P_sat = est_I_sat/2
     est_P_sat = est_I_sat/2
 
     params['I_sat'].value = est_I_sat
@@ -146,5 +169,61 @@ def estimate_hyperbolicsaturation(self, x_axis, data, params):
     params['offset'].value = est_offset
     params['P_sat'].value = est_P_sat
 
+
+    return error, params
+
+
+def estimate_hyperbolicsaturation_2(self, x_axis, data, params):
+    """ Provides an estimation for a saturation like function.
+
+    @param numpy.array x_axis: 1D axis values
+    @param numpy.array data: 1D data, should have the same dimension as x_axis.
+    @param lmfit.Parameters params: object includes parameter dictionary which
+                                    can be set
+
+    @return tuple (error, params):
+
+    Explanation of the return parameter:
+        int error: error code (0:OK, -1:error)
+        Parameters object params: set parameters of initial values
+
+    Another version of the estimator. May work better on some datasets. Note that here the offset 
+    of the linear model is set to zero and will not vary during the fit. 
+    """
+
+    error = self._check_1D_input(x_axis=x_axis, data=data, params=params)
+
+    n = len(x_axis)
+    m = min(math.floor(n*0.8), n-2)
+    p = max(math.ceil(n*0.1), 2)
+    
+    x_tail = x_axis[m:]
+    data_tail = data[m:]
+    
+    result_lin_tail = self.make_linear_fit(x_axis=x_tail, data=data_tail, estimator=self.estimate_linear)
+    est_slope = result_lin_tail.params['slope'].value
+    
+    data_red = data - est_slope*x_axis
+    est_I_sat = np.mean(data_red[m:])
+
+    x_red_head = x_axis[:p]
+    data_red_head = data_red[:p]
+    
+    no_offset = Parameters()
+    no_offset.add('offset', value = 0, vary = False)
+    result_lin_head = self.make_linear_fit(x_axis=x_red_head, data=data_red_head, estimator=self.estimate_linear, add_params = no_offset)
+    origin_slope = result_lin_head.params['slope'].value
+
+    est_P_sat = est_I_sat/origin_slope
+
+    params['I_sat'].value = est_I_sat
+    params['P_sat'].value = est_P_sat
+    params['slope'].value = est_slope
+    params['I_sat'].min = 0
+    params['P_sat'].min = 0
+    params['slope'].min = 0
+   
+    params['offset'].value = 0
+    params['offset'].vary = False
 
     return error, params

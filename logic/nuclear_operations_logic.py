@@ -815,7 +815,7 @@ class NuclearOperationsLogic(GenericLogic):
 
         name_tag = 'odmr_meas_for_nuclear_ops'
 
-        param = self._odmr_logic.perform_odmr_measurement(freq_start=start_freq,
+        _, _, _, result = self._odmr_logic.perform_odmr_measurement(freq_start=start_freq,
                                                           freq_step=self.odmr_meas_step,
                                                           freq_stop=stop_freq,
                                                           power=self.odmr_meas_power,
@@ -824,6 +824,7 @@ class NuclearOperationsLogic(GenericLogic):
                                                           save_after_meas=True,
                                                           name_tag=name_tag)
 
+        param = result.params
         self.odmr_meas_freq0 = param['Freq. 0']['value']
         self.odmr_meas_freq1 = param['Freq. 1']['value']
         self.odmr_meas_freq2 = param['Freq. 2']['value']

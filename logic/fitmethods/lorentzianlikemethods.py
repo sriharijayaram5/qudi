@@ -322,7 +322,8 @@ def make_lorentzian_fit(self, x_axis, data, estimator, units=None,
                          'message: {0}\n'.format(result.message))
 
     #Overwrite the standart deviation of the sensitivity
-    result.params['sensitivity'].stderr = result.params['sensitivity'].value * \
+    if result.errorbars:
+        result.params['sensitivity'].stderr = result.params['sensitivity'].value * \
                                           np.sqrt((result.params['fwhm'].stderr /
                                           result.params['fwhm'].value)**2 +
                                           (result.params['contrast'].stderr /
@@ -338,34 +339,36 @@ def make_lorentzian_fit(self, x_axis, data, estimator, units=None,
         units = ["arb. units"]
 
     result_str_dict['Position'] = {'value': result.params['center'].value,
-                                   'error': result.params['center'].stderr,
                                    'unit': units[0]}
 
     result_str_dict['Contrast'] = {'value': abs(result.params['contrast'].value),
-                                   'error': result.params['contrast'].stderr,
                                    'unit': '%'}
 
     result_str_dict['FWHM'] = {'value': result.params['fwhm'].value,
-                               'error': result.params['fwhm'].stderr,
                                'unit': units[0]}
 
     result_str_dict['Sensitivity'] = {'value': result.params['sensitivity'].value,
-                                      'error': result.params['sensitivity'].stderr,
                                       'unit': 'T/sqrt(Hz)'}
 
     result_str_dict['Maximum slope left'] = {'value':  result.params['center'].value - 
                                         (result.params['sigma'].value / np.sqrt(3)),
-                                          'error': result.params['center'].stderr + 
-                                          (result.params['sigma'].stderr / np.sqrt(3)),
                                           'unit': units[0]}
 
     result_str_dict['Maximum slope right'] = {'value':  result.params['center'].value + 
                                         (result.params['sigma'].value / np.sqrt(3)),
-                                          'error': result.params['center'].stderr + 
-                                          (result.params['sigma'].stderr / np.sqrt(3)),
                                           'unit': units[0]}
 
     result_str_dict['chi_sqr'] = {'value': result.chisqr, 'unit': ''}
+
+    if result.errorbars:
+        result_str_dict['Position']['error'] = result.params['center'].stderr
+        result_str_dict['Contrast']['error'] = result.params['contrast'].stderr
+        result_str_dict['FWHM']['error'] = result.params['fwhm'].stderr
+        result_str_dict['Sensitivity']['error'] = result.params['sensitivity'].stderr
+        result_str_dict['Maximum slope left']['error'] = result.params['center'].stderr + \
+                                          (result.params['sigma'].stderr / np.sqrt(3))
+        result_str_dict['Maximum slope right']['error'] = result.params['center'].stderr + \
+                                          (result.params['sigma'].stderr / np.sqrt(3))
 
     result.result_str_dict = result_str_dict
     return result
@@ -502,7 +505,8 @@ def make_lorentziandouble_fit(self, x_axis, data, estimator, units=None, add_par
                      'work: {0}'.format(result.message))
 
     #Overwrite the standart deviation of the sensitivity
-    result.params['l0_sensitivity'].stderr = result.params['l0_sensitivity'].value * \
+    if result.errorbars:
+        result.params['l0_sensitivity'].stderr = result.params['l0_sensitivity'].value * \
                                           np.sqrt((result.params['l0_fwhm'].stderr /
                                           result.params['l0_fwhm'].value)**2 +
                                           (result.params['l0_contrast'].stderr /
@@ -510,7 +514,7 @@ def make_lorentziandouble_fit(self, x_axis, data, estimator, units=None, add_par
                                           (result.params['offset'].stderr /
                                           (2 * result.params['offset'].value))**2)
 
-    result.params['l1_sensitivity'].stderr = result.params['l1_sensitivity'].value * \
+        result.params['l1_sensitivity'].stderr = result.params['l1_sensitivity'].value * \
                                           np.sqrt((result.params['l1_fwhm'].stderr /
                                           result.params['l1_fwhm'].value)**2 +
                                           (result.params['l1_contrast'].stderr /
@@ -525,68 +529,70 @@ def make_lorentziandouble_fit(self, x_axis, data, estimator, units=None, add_par
         units = ["arb. u."]
 
     result_str_dict['Position 0'] = {'value': result.params['l0_center'].value,
-                                     'error': result.params['l0_center'].stderr,
                                      'unit': units[0]}
 
     result_str_dict['Position 1'] = {'value': result.params['l1_center'].value,
-                                     'error': result.params['l1_center'].stderr,
                                      'unit': units[0]}
 
     result_str_dict['Splitting'] = {'value': (result.params['l1_center'].value -
                                               result.params['l0_center'].value),
-                                    'error': (result.params['l0_center'].stderr +
-                                              result.params['l1_center'].stderr),
                                     'unit': units[0]}
 
     result_str_dict['Contrast 0'] = {'value': abs(result.params['l0_contrast'].value),
-                                     'error': result.params['l0_contrast'].stderr,
                                      'unit': '%'}
 
     result_str_dict['Contrast 1'] = {'value': abs(result.params['l1_contrast'].value),
-                                     'error': result.params['l1_contrast'].stderr,
                                      'unit': '%'}
 
     result_str_dict['FWHM 0'] = {'value': result.params['l0_fwhm'].value,
-                                 'error': result.params['l0_fwhm'].stderr,
                                  'unit': units[0]}
 
     result_str_dict['FWHM 1'] = {'value': result.params['l1_fwhm'].value,
-                                 'error': result.params['l1_fwhm'].stderr,
                                  'unit': units[0]}
 
     result_str_dict['Sensitivity 0'] = {'value': result.params['l0_sensitivity'].value,
-                                        'error': result.params['l0_sensitivity'].stderr,
                                         'unit': 'T/sqrt(Hz)'}
 
     result_str_dict['Sensitivity 1'] = {'value': result.params['l1_sensitivity'].value,
-                                        'error': result.params['l1_sensitivity'].stderr,
                                         'unit': 'T/sqrt(Hz)'}
 
     result_str_dict['Max slope left 0'] = {'value':  result.params['l0_center'].value - 
                                         (result.params['l0_sigma'].value / np.sqrt(3)),
-                                          'error': result.params['l0_center'].stderr + 
-                                          (result.params['l0_sigma'].stderr / np.sqrt(3)),
                                           'unit': units[0]}
 
     result_str_dict['Max slope right 0'] = {'value':  result.params['l0_center'].value + 
                                         (result.params['l0_sigma'].value / np.sqrt(3)),
-                                          'error': result.params['l0_center'].stderr + 
-                                          (result.params['l0_sigma'].stderr / np.sqrt(3)),
                                           'unit': units[0]}
 
     result_str_dict['Max slope left 1'] = {'value':  result.params['l1_center'].value - 
                                         (result.params['l1_sigma'].value / np.sqrt(3)),
-                                          'error': result.params['l1_center'].stderr + 
-                                          (result.params['l1_sigma'].stderr / np.sqrt(3)),
                                           'unit': units[0]}
 
     result_str_dict['Max slope right 1'] = {'value':  result.params['l1_center'].value + 
                                         (result.params['l1_sigma'].value / np.sqrt(3)),
-                                          'error': result.params['l1_center'].stderr + 
-                                          (result.params['l1_sigma'].stderr / np.sqrt(3)),
                                           'unit': units[0]}
 
     result_str_dict['chi_sqr'] = {'value': result.chisqr, 'unit': ''}
+
+    if result.errorbars:
+        result_str_dict['Position 0']['error'] = result.params['l0_center'].stderr
+        result_str_dict['Position 1']['error'] = result.params['l1_center'].stderr
+        result_str_dict['Splitting']['error'] = (result.params['l0_center'].stderr + \
+                                              result.params['l1_center'].stderr)
+        result_str_dict['Contrast 0']['error'] = result.params['l0_contrast'].stderr
+        result_str_dict['Contrast 1']['error'] = result.params['l1_contrast'].stderr
+        result_str_dict['FWHM 0']['error'] = result.params['l0_fwhm'].stderr
+        result_str_dict['FWHM 1']['error'] = result.params['l1_fwhm'].stderr
+        result_str_dict['Sensitivity 0']['error'] = result.params['l0_sensitivity'].stderr
+        result_str_dict['Sensitivity 1']['error'] = result.params['l1_sensitivity'].stderr
+        result_str_dict['Max slope left 0']['error'] = result.params['l0_center'].stderr + \
+                                          (result.params['l0_sigma'].stderr / np.sqrt(3))
+        result_str_dict['Max slope right 0']['error'] = result.params['l0_center'].stderr + \
+                                          (result.params['l0_sigma'].stderr / np.sqrt(3))
+        result_str_dict['Max slope left 1']['error'] = result.params['l1_center'].stderr + \
+                                          (result.params['l1_sigma'].stderr / np.sqrt(3))
+        result_str_dict['Max slope right 1']['error'] = result.params['l1_center'].stderr + \
+                                          (result.params['l1_sigma'].stderr / np.sqrt(3))
 
     result.result_str_dict = result_str_dict
     return result
@@ -878,42 +884,44 @@ def make_lorentziantriple_fit(self, x_axis, data, estimator, units=None,
         units = ["arb. units"]
 
     result_str_dict['Position 0'] = {'value': result.params['l0_center'].value,
-                                     'error': result.params['l0_center'].stderr,
                                      'unit': units[0]}
 
     result_str_dict['Position 1'] = {'value': result.params['l1_center'].value,
-                                     'error': result.params['l1_center'].stderr,
                                      'unit': units[0]}
 
     result_str_dict['Position 2'] = {'value': result.params['l2_center'].value,
-                                     'error': result.params['l2_center'].stderr,
                                      'unit': units[0]}
 
     result_str_dict['Contrast 0'] = {'value': abs(result.params['l0_contrast'].value),
-                                     'error': result.params['l0_contrast'].stderr,
                                      'unit': '%'}
 
     result_str_dict['Contrast 1'] = {'value': abs(result.params['l1_contrast'].value),
-                                     'error': result.params['l1_contrast'].stderr,
                                      'unit': '%'}
 
     result_str_dict['Contrast 2'] = {'value': abs(result.params['l2_contrast'].value),
-                                     'error': result.params['l2_contrast'].stderr,
                                      'unit': '%'}
 
     result_str_dict['FWHM 0'] = {'value': result.params['l0_sigma'].value,
-                                 'error': result.params['l0_sigma'].stderr,
                                  'unit': units[0]}
 
     result_str_dict['FWHM 1'] = {'value': result.params['l1_sigma'].value,
-                                 'error': result.params['l1_sigma'].stderr,
                                  'unit': units[0]}
 
     result_str_dict['FWHM 2'] = {'value': result.params['l2_sigma'].value,
-                                 'error': result.params['l2_sigma'].stderr,
                                  'unit': units[0]}
 
     result_str_dict['chi_sqr'] = {'value': result.chisqr, 'unit': ''}
+
+    if result.errorbars:
+        result_str_dict['Position 0']['error'] = result.params['l0_center'].stderr
+        result_str_dict['Position 1']['error'] = result.params['l1_center'].stderr
+        result_str_dict['Position 2']['error'] = result.params['l2_center'].stderr
+        result_str_dict['Contrast 0']['error'] = result.params['l0_contrast'].stderr
+        result_str_dict['Contrast 1']['error'] = result.params['l1_contrast'].stderr
+        result_str_dict['Contrast 2']['error'] = result.params['l2_contrast'].stderr
+        result_str_dict['FWHM 0']['error'] = result.params['l0_sigma'].stderr
+        result_str_dict['FWHM 1']['error'] = result.params['l1_sigma'].stderr
+        result_str_dict['FWHM 2']['error'] = result.params['l2_sigma'].stderr
 
     result.result_str_dict = result_str_dict
     return result

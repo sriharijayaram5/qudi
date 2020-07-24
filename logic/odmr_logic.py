@@ -1013,7 +1013,7 @@ class ODMRLogic(GenericLogic):
             if timeout <= 0:
                 self.log.error('perform_odmr_measurement failed. Logic module was still locked '
                                'and 30 sec timeout has been reached.')
-                return tuple()
+                return -1, None, None, None
 
         # set all relevant parameter:
         self.set_sweep_parameters(freq_start, freq_stop, freq_step, power)
@@ -1032,12 +1032,12 @@ class ODMRLogic(GenericLogic):
         # Perform fit if requested
         if fit_function != 'No Fit':
             self.do_fit(fit_function, channel_index=channel)
-            fit_params = self.fc.current_fit_param
+            fit_result = self.fc.current_fit_result
         else:
-            fit_params = None
+            fit_result = None
 
         # Save data if requested
         if save_after_meas:
             self.save_odmr_data(tag=name_tag)
 
-        return self.odmr_plot_x, self.odmr_plot_y, fit_params
+        return 0, self.odmr_plot_x, self.odmr_plot_y, fit_result

@@ -234,13 +234,14 @@ class CoboltLaserMLD(Base, SimpleLaserInterface):
 
     def on(self):
         """ Turn on laser. Does not open shutter if one is present.
+        
+        @return enum LaserState: actual laser state
 
         Turning the laser on depends on if autostart is enabled (True) or disabled (False).
 
         However, to get around the manual issue, getting into its mode will try and see if
         the key position is in the correct place. 
-        
-        @return enum LaserState: actual laser state
+
         """
         
         #This is for when autostart is Disabled
@@ -419,17 +420,17 @@ class CoboltLaserStandalone():
         """
         self.rm = visa.ResourceManager()
 
-
+        #FIXME
         #Making sure that the comport is correct even if the ConfigOption 
         #Ends up not being the correct one.
-        for entry in self.rm.list_resources():
-            with self.rm.open_resource(entry, open_timeout=0.01) as dev:
-                try:
-                    dev.query('l?')
-                    if comport != entry:
-                        comport = entry
-                except Exception as e:
-                    pass
+        #for entry in self.rm.list_resources():
+        #    with self.rm.open_resource(entry, open_timeout=0.01) as dev:
+        #        try:
+        #            dev.query('l?')
+        #            if comport != entry:
+        #                comport = entry
+        #        except Exception as e:
+        #            pass
 
         self.connect_laser(comport)
 
