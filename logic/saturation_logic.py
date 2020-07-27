@@ -134,6 +134,7 @@ class LaserLogic(GenericLogic):
     sigSaturationStopped = QtCore.Signal()
     # sigAbortedMeasurement = QtCore.Signal()
     sigSaturationFitUpdated = QtCore.Signal(np.ndarray, np.ndarray, dict)
+    sigDoubleFitUpdated = QtCore.Signal(np.ndarray, np.ndarray, dict)
     sigSaturationParameterUpdated = QtCore.Signal()
     sigOOPStarted = QtCore.Signal()
     sigOOPStopped = QtCore.Signal()
@@ -175,7 +176,9 @@ class LaserLogic(GenericLogic):
         self.has_shutter = self._dev.get_shutter_state() != ShutterState.NOSHUTTER
         #Create data containers
         self._saturation_data = {}
+        self._background_data = {}
         self._odmr_data = {}
+        self.is_background = False
 
         # in this threadpool our worker thread will be run
         self.threadpool = QtCore.QThreadPool()
@@ -336,16 +339,20 @@ class LaserLogic(GenericLogic):
         }       
         return params
 
-    def get_saturation_data(self):
+    def get_saturation_data(self, is_background=False):
         """ Get recorded data.
 
         @return dict: contains an np.array with the measured or computed values for each data field
         (e.g. 'Fluorescence', 'Power') .
         """
-        data_copy = copy.deepcopy(self._saturation_data)
+        if is_background:
+            data_copy = copy.deepcopy(self._background_data)
+        else:
+            data_copy = copy.deepcopy(self._saturation_data)
         return data_copy
 
-    def set_saturation_data(self, xdata, ydata, std_dev=None, num_of_points=None):
+    def set_saturation_data(self, xdata, ydata, std_dev=None, num_of_points=None, is_background=False):
+        #TODO: Modify documentation
         """Set the data.
 
         @params np.array xdata: laser power values
@@ -358,21 +365,26 @@ class LaserLogic(GenericLogic):
             num_of_points = len(xdata)
             
         #Setting up the list for data
-        self._saturation_data['Power'] = np.zeros(num_of_points)
-        self._saturation_data['Fluorescence'] = np.zeros(num_of_points)
-        self._saturation_data['Stddev'] = np.zeros(num_of_points)
+        if is_background:
+            data_dict = self._background_data
+        else:
+            data_dict = self._saturation_data
+
+        data_dict['Power'] = np.zeros(num_of_points)
+        data_dict['Fluorescence'] = np.zeros(num_of_points)
+        data_dict['Stddev'] = np.zeros(num_of_points)
 
         for i in range(num_of_points):
-            self._saturation_data['Power'][i] = xdata[i]
-            self._saturation_data['Fluorescence'][i] = ydata[i]
+            data_dict['Power'][i] = xdata[i]
+            data_dict['Fluorescence'][i] = ydata[i]
             if std_dev is not None:
-                self._saturation_data['Stddev'][i] = std_dev[i]
+                data_dict['Stddev'][i] = std_dev[i]
 
         self.sigRefresh.emit()
 
 
-    def saturation_curve_data(self,time_per_point,start_power,stop_power,
-                            num_of_points,final_power):
+    def saturation_curve_data(self, time_per_point, start_power, stop_power,
+                            num_of_points, final_power, is_background=False):
         """ Obtain all necessary data to create a saturation curve
 
         @param int time_per_point: acquisition time of counts per each laser power in seconds.
@@ -437,7 +449,7 @@ class LaserLogic(GenericLogic):
             counts[i] = counts_array.mean()
             std_dev[i] = counts_array.std(ddof=1)
 
-            self.set_saturation_data(laser_power, counts, std_dev, i + 1)
+            self.set_saturation_data(laser_power, counts, std_dev, i + 1, is_background)
 
         #self._counterlogic.stopCount()
 
@@ -460,7 +472,7 @@ class LaserLogic(GenericLogic):
         self._worker_thread = WorkerThread(target=self.saturation_curve_data,
                                             args=(self.time_per_point,self.power_start,
                                                   self.power_stop, self.number_of_points,
-                                                  self.final_power),
+                                                  self.final_power, self.is_background),
                                             name='saturation_curve_points') 
 
         self.threadpool.start(self._worker_thread)
@@ -573,8 +585,8 @@ class LaserLogic(GenericLogic):
         Execute the fit (configured in the fc object) on the measurement data. Optionally on passed 
         data.
 
-        @params np.array x_data: optional, laser power values. By default, values stored in self._data.
-        @params np.array y_data: optional, fluorescence values. By default, values stored in self._data.
+        @params np.array x_data: optional, laser power values. By default, values stored in self._saturation_data.
+        @params np.array y_data: optional, fluorescence values. By default, values stored in self._saturation_data.
 
         Create 3 class attributes
             np.array self.saturation_fit_x: 1D arrays containing the x values of the fitting function
@@ -604,6 +616,63 @@ class LaserLogic(GenericLogic):
             self.result_str_dict = self.fit_result.result_str_dict
         self.sigSaturationFitUpdated.emit(self.saturation_fit_x, self.saturation_fit_y, self.result_str_dict)
         return
+    
+    def do_double_fit(self, x_saturation=None, y_saturation=None, 
+                               x_background=None, y_background=None):
+
+        """
+        Execute the double fit (with the background) on the measurement data. Optionally on passed 
+        data.
+
+        @params np.array x_saturation: optional, laser power values for the saturation measurement (on the NV center). 
+                                       By default, values stored in self._saturation_data.
+        @params np.array y_saturation: optional, fluorescence values for the saturation measurement (on the NV center). 
+                                       By default, values stored in self._saturation_data.
+        @params np.array x_background: optional, laser power values for the background measurement. 
+                                       By default, values stored in self._background_data.
+        @params np.array y_background: optional, fluorescence values for the background measurement. 
+                                       By default, values stored in self._background_data.
+        @return (np.array, np.array, lmfit.model.ModelResult): 
+            2D array containing the x values of the fitting functions: the first row correspond to 
+                the NV saturation curve and the second row to the background curve.
+            2D array containing the y values of the fitting functions: the first row correspond to 
+                the NV saturation curve and the second row to the background curve.
+            result object of lmfit. If additional information is needed from the fit, then they can be obtained from this 
+                                        object. 
+        """
+
+        if x_saturation is None or y_saturation is None or \
+           x_background is None or y_background is None:
+
+            if 'Power' in self._saturation_data and 'Power' in self._background_data:
+                x_saturation = self._saturation_data['Power']
+                y_saturation = self._saturation_data['Fluorescence']
+                x_background = self._background_data['Power']
+                y_background = self._background_data['Fluorescence']
+            else:
+                self.log.warning('You must record saturation curves on the NV center \
+                and on the background to do this fit')
+                return
+            
+        if len(x_saturation) < 3 or len(x_background) < 2:
+            self.log.warning('There is not enough data points to fit the curve. Fitting aborted.')
+            return
+
+        x_axis = []
+        x_axis.append(x_saturation)
+        x_axis.append(x_background)
+        x_axis = np.array(x_axis)
+
+        data = []
+        data.append(y_saturation)
+        data.append(y_background)
+        data = np.array(data)
+
+        fit_x, fit_y, result = self.fitlogic().make_hyperbolicsaturation_fit_with_background(x_axis, data, 
+                        self.fitlogic().estimate_hyperbolicsaturation_with_background, units=['W', 'c/s'])
+        self.sigDoubleFitUpdated.emit(fit_x, fit_y, result.result_str_dict)
+        return fit_x, fit_y, result
+        
 
     ###########################################################################
     #              Optimal operation point measurement methods                #

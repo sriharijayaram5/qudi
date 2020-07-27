@@ -114,12 +114,19 @@ class LaserGUI(GUIBase):
                                                   symbol='o', symbolPen=palette.c1,
                                                   symbolBrush=palette.c1,
                                                   symbolSize=7 )
-        self.errorbar = pg.ErrorBarItem(x=np.array([0]), y =np.array([0]), pen=pg.mkPen(palette.c6, style=QtCore.Qt.SolidLine), beam=1)
+        self.background_curve = pg.PlotDataItem(pen=pg.mkPen(palette.c4, style=QtCore.Qt.DotLine), 
+                                                  symbol='o', symbolPen=palette.c4,
+                                                  symbolBrush=palette.c4,
+                                                  symbolSize=7 )
+        self.sat_errorbar = pg.ErrorBarItem(x=np.array([0]), y =np.array([0]), pen=pg.mkPen(palette.c6, style=QtCore.Qt.SolidLine), beam=1)
+        self.bg_errorbar = pg.ErrorBarItem(x=np.array([0]), y =np.array([0]), pen=pg.mkPen(palette.c6, style=QtCore.Qt.SolidLine), beam=1)
         self.saturation_fit_image = pg.PlotDataItem(pen=pg.mkPen(palette.c2), symbol=None)  
+        self.double_fit_image_saturation = pg.PlotDataItem(pen=pg.mkPen(palette.c2), symbol=None)
+        self.double_fit_image_background = pg.PlotDataItem(pen=pg.mkPen(palette.c2), symbol=None)
         self.matrix_image = pg.ImageItem()                
         
         self._pw.addItem(self.saturation_curve)
-        self._pw.addItem(self.errorbar)
+        self._pw.addItem(self.sat_errorbar)
         self._matrix_pw.addItem(self.matrix_image)
 
         # Get the colorscales at set LUT
@@ -223,7 +230,9 @@ class LaserGUI(GUIBase):
         self._mw.action_RestoreDefault.triggered.connect(self.restore_defaultview)
         self._mw.controlModeButtonGroup.buttonClicked.connect(self.changeControlMode)
         self._mw.dofit_Button.clicked.connect(self.dofit_button_clicked)
+        self._mw.double_fit_Button.clicked.connect(self.double_fit_button_clicked)
         self._mw.run_stop_measurement_Action.triggered.connect(self.run_stop_OOP_measurement)
+        self._mw.background_PushButton.clicked.connect(self.background_button_clicked)
 
         # Control/values-changed signals to logic
         self.sigSaveMeasurement.connect(self._laser_logic.save_saturation_data, QtCore.Qt.QueuedConnection)
@@ -246,6 +255,7 @@ class LaserGUI(GUIBase):
         self._laser_logic.sigSaturationStarted.connect(self.saturation_started)
         self._laser_logic.sigSaturationStopped.connect(self.saturation_stopped)
         self._laser_logic.sigSaturationFitUpdated.connect(self.update_fit, QtCore.Qt.QueuedConnection)
+        self._laser_logic.sigDoubleFitUpdated.connect(self.update_double_fit)
         self._laser_logic.sigRefresh.connect(self.update_gui)
         # self._laser_logic.sigAbortedMeasurement.connect(self.aborted_saturation_measurement)
         self._laser_logic.sigSaturationParameterUpdated.connect(self.update_saturation_params)
@@ -453,15 +463,45 @@ class LaserGUI(GUIBase):
         """ Update labels, the plot and errorbars with new data. 
         """
         sat_data = self._laser_logic.get_saturation_data()
-        counts_value = sat_data['Fluorescence'][-1]
-        scale_fact = units.ScaledFloat(counts_value).scale_val
-        unit_prefix = units.ScaledFloat(counts_value).scale
-        self._mw.saturation_Curve_Label.setText('{0:6.3f} {1}{2}'.format(counts_value / scale_fact,  unit_prefix, 'counts/s'))
-        self.saturation_curve.setData(sat_data['Power'], sat_data['Fluorescence'])    
-        self.errorbar.setData(x=sat_data['Power'], y=sat_data['Fluorescence'], height=sat_data['Stddev'])
+        #Background data if it has been measured
+        bg_data = self._laser_logic.get_saturation_data(is_background=True)
+
+        if sat_data:
+            counts_value = sat_data['Fluorescence'][-1]
+            scale_fact = units.ScaledFloat(counts_value).scale_val
+            unit_prefix = units.ScaledFloat(counts_value).scale
+            self._mw.saturation_Curve_Label.setText('{0:6.3f} {1}{2}'.format(counts_value / scale_fact,  unit_prefix, 'counts/s'))
+
+        elif bg_data:
+            counts_value = bg_data['Fluorescence'][-1]
+            scale_fact = units.ScaledFloat(counts_value).scale_val
+            unit_prefix = units.ScaledFloat(counts_value).scale
+            self._mw.saturation_Curve_Label.setText('{0:6.3f} {1}{2}'.format(counts_value / scale_fact,  unit_prefix, 'counts/s'))
+        
+        if sat_data:
+            self.saturation_curve.setData(sat_data['Power'], sat_data['Fluorescence'])    
+            self.sat_errorbar.setData(x=sat_data['Power'], y=sat_data['Fluorescence'], height=sat_data['Stddev'])
+            if len(sat_data['Power']) > 1:
+                self.sat_errorbar.setData(beam=(sat_data['Power'][1] - sat_data['Power'][0])/4) 
+        
+        if bg_data:
+            self.background_curve.setData(bg_data['Power'], bg_data['Fluorescence'])    
+            self.bg_errorbar.setData(x=bg_data['Power'], y=bg_data['Fluorescence'], height=bg_data['Stddev'])
+            if len(bg_data['Power']) > 1:
+                self.bg_errorbar.setData(beam=(bg_data['Power'][1] - bg_data['Power'][0])/4)
                               
-        if len(sat_data['Power']) > 1:
-            self.errorbar.setData(beam=(sat_data['Power'][1] - sat_data['Power'][0])/4) 
+    def background_button_clicked(self, is_checked):
+        """ Display/remove the background data on the plot widget when the button
+        is pressed/released.
+        """
+        if is_checked:
+            self._pw.addItem(self.background_curve)
+            self._pw.addItem(self.bg_errorbar)
+        else:
+            self._pw.removeItem(self.background_curve)
+            self._pw.removeItem(self.bg_errorbar)
+            self._mw.double_fit_Button.setChecked(False)
+            self.double_fit_button_clicked(False)
 
     @QtCore.Slot()       
     def restore_defaultview(self):
@@ -497,14 +537,50 @@ class LaserGUI(GUIBase):
             self._pw.addItem(self.saturation_fit_image)
         self._mw.dofit_Button.setChecked(True)
 
+    def update_double_fit(self, x_data, y_data, result_str_dict):
+         """ Update the plot of the fit and the fit results displayed for the fit with the background.
+
+        @params np.array x_data: 2D arrays containing the x values of the fitting functions:
+                                 the first row correspond to the NV saturation curve and the second 
+                                 row to the background curve.
+        @params np.array y_data: 2D arrays containing the y values of the fitting functions, first row 
+                                 for NV curve and second row for background curve. 
+        @params dict result_str_dict: a dictionary with the relevant fit parameters. Each entry has
+                                            to be a dict with two needed keywords 'value' and 'unit'
+                                            and one optional keyword 'error'.
+        """
+        self._mw.double_fit_results_DisplayWidget.clear()
+        try:
+            formated_results = units.create_formatted_output(result_str_dict)
+        except:
+            formated_results = 'this fit does not return formatted results'
+        self._mw.double_fit_results_DisplayWidget.setPlainText(formated_results)
+        self.double_fit_image_saturation.setData(x=x_data[0], y=y_data[0])
+        self.double_fit_image_background.setData(x=x_data[1], y=y_data[1])
+        if self.double_fit_image_saturation not in self._pw.listDataItems():
+            self._pw.addItem(self.double_fit_image_saturation)
+        if self.double_fit_image_background not in self._pw.listDataItems():
+            self._pw.addItem(self.double_fit_image_background)
+        self._mw.double_fit_Button.setChecked(True)
+
+
     @QtCore.Slot(bool)
     def run_stop_saturation(self, is_checked):
         """ Manages what happens if start/stop action is triggered. """
         if is_checked:
+
+            self._laser_logic.is_background = self._mw.background_CheckBox.isChecked()
+            if self._laser_logic.is_background:
+                self._mw.background_PushButton.setChecked(True)
+                self.background_button_clicked(True)
+
             self._mw.start_saturation_Action.setEnabled(False)
             self.sigStartSaturation.emit()
             self._pw.removeItem(self.saturation_fit_image)
+            self._pw.removeItem(self.double_fit_image_saturation)
+            self._pw.removeItem(self.double_fit_image_background)
             self._mw.saturation_fit_results_DisplayWidget.clear()
+            self._mw.double_fit_results_DisplayWidget.clear()
             self._mw.dofit_Button.setChecked(False)
         else:
             self._mw.start_saturation_Action.setEnabled(False)
@@ -519,6 +595,7 @@ class LaserGUI(GUIBase):
         self._mw.start_saturation_Action.setEnabled(True)
         self._mw.laser_power_GroupBox.setEnabled(False)
         self._mw.saturation_GroupBox.setEnabled(False)
+        self._mw.background_CheckBox.setEnabled(False)
         self._mw.start_saturation_Action.setChecked(True)
         self._mw.start_saturation_Action.setText('Stop saturation')
         self._mw.run_stop_measurement_Action.setEnabled(False)
@@ -532,6 +609,7 @@ class LaserGUI(GUIBase):
         self._mw.start_saturation_Action.setEnabled(True)
         self._mw.laser_power_GroupBox.setEnabled(True)
         self._mw.saturation_GroupBox.setEnabled(True)
+        self._mw.background_CheckBox.setEnabled(True)
         self._mw.start_saturation_Action.setChecked(False)
         self._mw.start_saturation_Action.setText('Start saturation')
         self._mw.run_stop_measurement_Action.setEnabled(True)
@@ -577,6 +655,19 @@ class LaserGUI(GUIBase):
         else: 
             self._pw.removeItem(self.saturation_fit_image)
             self._mw.saturation_fit_results_DisplayWidget.clear()
+
+    def double_fit_button_clicked(self, checked):
+        """ Manages what happens when the button for the fit with background is clicked. 
+        """
+        if checked:
+            self._mw.background_PushButton.setChecked(True)
+            self.background_button_clicked(True)
+            self._mw.double_fit_Button.setChecked(False)
+            self._laser_logic.do_double_fit()
+        else: 
+            self._pw.removeItem(self.double_fit_image_saturation)
+            self._pw.removeItem(self.double_fit_image_background)
+            self._mw.double_fit_results_DisplayWidget.clear()
 
     @QtCore.Slot()
     def change_saturation_params(self):
