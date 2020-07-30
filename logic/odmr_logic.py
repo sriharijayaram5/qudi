@@ -203,7 +203,7 @@ class ODMRLogic(GenericLogic):
 
     def _initialize_odmr_plots(self):
         """ Initializing the ODMR plots (line and matrix). """
-        self.odmr_plot_x = np.arange(self.mw_start, self.mw_stop + self.mw_step, self.mw_step)
+        self.odmr_plot_x = np.arange(self.mw_start, self.mw_stop + self.mw_step/2, self.mw_step)
         self.odmr_plot_y = np.zeros([len(self.get_odmr_channels()), self.odmr_plot_x.size])
         self.odmr_fit_x = np.arange(self.mw_start, self.mw_stop + self.mw_step, self.mw_step)
         self.odmr_fit_y = np.zeros(self.odmr_fit_x.size)
@@ -466,7 +466,7 @@ class ODMRLogic(GenericLogic):
 
             # adjust the end frequency in order to have an integer multiple of step size
             # The master module (i.e. GUI) will be notified about the changed end frequency
-            num_steps = int(np.rint((self.mw_stop - self.mw_start) / self.mw_step))
+            num_steps = int(np.rint((self.mw_stop - self.mw_start) / self.mw_step )) 
             end_freq = self.mw_start + num_steps * self.mw_step
             freq_list = np.linspace(self.mw_start, end_freq, num_steps + 1)
             freq_list, self.sweep_mw_power, mode = self._mw_device.set_list(freq_list,
