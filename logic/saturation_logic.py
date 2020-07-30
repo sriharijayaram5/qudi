@@ -693,7 +693,7 @@ class LaserLogic(GenericLogic):
 
         #TODO: do we need a final power ? Or should we turn the laser off ?
         #FIXME: replace laser_power_start by final power
-        self.set_power(self.laser_power_start)
+        self.off()
 
         if save_after_meas :
             self.save_odmr_data(tag=self.OOP_nametag)
