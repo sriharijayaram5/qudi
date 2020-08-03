@@ -435,7 +435,7 @@ class LaserLogic(GenericLogic):
 
             #For later when you actually use the counter.
             self.set_power(laser_power[i])
-            # time.sleep(time_per_point)
+            time.sleep(1)
 
             #For testing only.
             # time.sleep(1)
