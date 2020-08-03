@@ -538,7 +538,7 @@ class LaserGUI(GUIBase):
         self._mw.dofit_Button.setChecked(True)
 
     def update_double_fit(self, x_data, y_data, result_str_dict):
-         """ Update the plot of the fit and the fit results displayed for the fit with the background.
+        """ Update the plot of the fit and the fit results displayed for the fit with the background.
 
         @params np.array x_data: 2D arrays containing the x values of the fitting functions:
                                  the first row correspond to the NV saturation curve and the second 
