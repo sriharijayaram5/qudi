@@ -341,6 +341,7 @@ def estimate_hyperbolicsaturation_with_background(self, x_axis, data, params):
 
 
     #Check the input of the fit 
+    error=0
     if self._check_1D_input(x_axis=x_axis[0], data=data[0], params=params) or \
         self._check_1D_input(x_axis=x_axis[1], data=data[1], params=params):
         error = -1
