@@ -78,6 +78,8 @@ class CameraLogic(GenericLogic):
         self.timer.setSingleShot(True)
         self.timer.timeout.connect(self.loop)
 
+        self.prev_roi = (0, 0)
+
     def on_deactivate(self):
         """ Perform required deactivation. """
         self._hardware.on_deactivate()
@@ -107,6 +109,11 @@ class CameraLogic(GenericLogic):
         size = data['size']
         x1, y1 = (*pos,)
         x2, y2 = (*size,)
+        if not size==(self.get_sensor()):
+            self.prev_roi = tuple(map(sum, zip(self.prev_roi, (x1, y1))))
+            x1, y1 = self.prev_roi
+        else:
+            self.prev_roi = (0, 0)
         self._hardware.cam.roi = tuple(int(el)
                                        for el in (x1, x2 + x1, y1, y2 + y1))
 

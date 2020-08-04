@@ -818,9 +818,9 @@ class ODMRLogic(GenericLogic):
             # The reference images from switch off time should be subtracted as below. For dummy measurements
             # so as to not be just left with noise we can do a dummy
             # subtraction.
-            new_counts = frames[1::2] - frames[0::2]
+            new_counts = (frames[1::2] - frames[0::2]) / (frames[1::2] + frames[0::2])
             # Remove for actual mesurements
-            new_counts = frames[1::2] - np.full_like(frames[0::2], 1)
+            # new_counts = frames[1::2] - np.full_like(frames[0::2], 1)
             # The sweep images are added up and the new counts are taken as the mean of the image which is what
             # ends up being plotted as odmr_plot_y
             self.sweep_images += new_counts
@@ -1080,10 +1080,10 @@ class ODMRLogic(GenericLogic):
                 tag = '_' + tag
             loc = filepath + '/' + \
                 timestamp.strftime("%Y%m%d-%H%M-%S") + tag + '_sweep_images'
-            np.savez_compressed(
-                loc,
-                sweep_images=(self.sweep_images /
-                              self.elapsed_sweeps).astype(np.uint16))
+            #np.savez_compressed(
+            #    loc,
+            #    sweep_images=(self.sweep_images /
+            #                  self.elapsed_sweeps).astype(np.uint16))
             self.log.info('ODMR data saved to:\n{0}'.format(filepath))
         return
 
