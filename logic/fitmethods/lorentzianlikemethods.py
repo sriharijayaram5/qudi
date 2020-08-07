@@ -365,10 +365,10 @@ def make_lorentzian_fit(self, x_axis, data, estimator, units=None,
         result_str_dict['Contrast']['error'] = result.params['contrast'].stderr
         result_str_dict['FWHM']['error'] = result.params['fwhm'].stderr
         result_str_dict['Sensitivity']['error'] = result.params['sensitivity'].stderr
-        result_str_dict['Maximum slope left']['error'] = result.params['center'].stderr + \
-                                          (result.params['sigma'].stderr / np.sqrt(3))
-        result_str_dict['Maximum slope right']['error'] = result.params['center'].stderr + \
-                                          (result.params['sigma'].stderr / np.sqrt(3))
+        result_str_dict['Maximum slope left']['error'] = np.sqrt(result.params['center'].stderr**2 + \
+                                          result.params['sigma'].stderr**2 / 3)
+        result_str_dict['Maximum slope right']['error'] = np.sqrt(result.params['center'].stderr**2 + \
+                                          result.params['sigma'].stderr**2 / 3)
 
     result.result_str_dict = result_str_dict
     return result
@@ -585,14 +585,14 @@ def make_lorentziandouble_fit(self, x_axis, data, estimator, units=None, add_par
         result_str_dict['FWHM 1']['error'] = result.params['l1_fwhm'].stderr
         result_str_dict['Sensitivity 0']['error'] = result.params['l0_sensitivity'].stderr
         result_str_dict['Sensitivity 1']['error'] = result.params['l1_sensitivity'].stderr
-        result_str_dict['Max slope left 0']['error'] = result.params['l0_center'].stderr + \
-                                          (result.params['l0_sigma'].stderr / np.sqrt(3))
-        result_str_dict['Max slope right 0']['error'] = result.params['l0_center'].stderr + \
-                                          (result.params['l0_sigma'].stderr / np.sqrt(3))
-        result_str_dict['Max slope left 1']['error'] = result.params['l1_center'].stderr + \
-                                          (result.params['l1_sigma'].stderr / np.sqrt(3))
-        result_str_dict['Max slope right 1']['error'] = result.params['l1_center'].stderr + \
-                                          (result.params['l1_sigma'].stderr / np.sqrt(3))
+        result_str_dict['Max slope left 0']['error'] = np.sqrt(result.params['l0_center'].stderr**2 + \
+                                          result.params['l0_sigma'].stderr**2 / 3)
+        result_str_dict['Max slope right 0']['error'] = np.sqrt(result.params['l0_center'].stderr**2 + \
+                                          result.params['l0_sigma'].stderr**2 / 3)
+        result_str_dict['Max slope left 1']['error'] = np.sqrt(result.params['l1_center'].stderr**2 + \
+                                          result.params['l1_sigma'].stderr**2 / 3)
+        result_str_dict['Max slope right 1']['error'] = np.sqrt(result.params['l1_center'].stderr**2 + \
+                                          result.params['l1_sigma'].stderr**2 / 3)
 
     result.result_str_dict = result_str_dict
     return result
