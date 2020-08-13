@@ -30,6 +30,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import copy
 import lmfit.model
+from bayes_opt import BayesianOptimization, UtilityFunction
 
 from core.module import Connector, ConfigOption, StatusVar
 from logic.generic_logic import GenericLogic
@@ -125,6 +126,7 @@ class LaserLogic(GenericLogic):
     optimize = StatusVar('optimize', False)
     odmr_fit_function = StatusVar('odmr_fit_function', 'No fit')
     OOP_nametag = StatusVar('OOP_nametag', '')
+    bayopt_num_meas = StatusVar('bayopt_num_meas', 30)
 
     sigRefresh = QtCore.Signal()
     sigLaserStateChanged = QtCore.Signal()
@@ -141,6 +143,9 @@ class LaserLogic(GenericLogic):
     sigOOPUpdateData = QtCore.Signal()
     sigParameterUpdated = QtCore.Signal()
     sigDataAvailableUpdated = QtCore.Signal(list)
+    sigBayoptStarted = QtCore.Signal()
+    sigBayoptStopped = QtCore.Signal()
+    sigBayoptUpdateData = QtCore.Signal(int)
 
     # make a dummy worker thread:
     _worker_thread = WorkerThread(print)
@@ -155,6 +160,7 @@ class LaserLogic(GenericLogic):
         self._odmr_logic = self.odmrlogic()
         self._stop_request = False
         self._OOP_stop_request = False
+        self._bayopt_stop_request = False
         
         #start in cw mode
         if self._dev.get_control_mode() != ControlMode.POWER:
@@ -177,7 +183,9 @@ class LaserLogic(GenericLogic):
         #Create data containers
         self._saturation_data = {}
         self._background_data = {}
+        # TODO: rename _odmr_data 
         self._odmr_data = {}
+        self._bayopt_data = {}
         self.is_background = False
 
         # in this threadpool our worker thread will be run
@@ -426,7 +434,7 @@ class LaserLogic(GenericLogic):
         counts = np.zeros(num_of_points)
         std_dev = np.zeros(num_of_points)
 
-        #self._counterlogic.startCount()
+        self._counterlogic.startCount()
 
         for i in range(len(laser_power)):
 
@@ -451,7 +459,7 @@ class LaserLogic(GenericLogic):
 
             self.set_saturation_data(laser_power, counts, std_dev, i + 1, is_background)
 
-        #self._counterlogic.stopCount()
+        self._counterlogic.stopCount()
 
         self.set_power(final_power)
 
@@ -1040,7 +1048,8 @@ class LaserLogic(GenericLogic):
                   'channel': self.channel,
                   'optimize': self.optimize,
                   'odmr_fit_function': self.odmr_fit_function,
-                  'OOP_nametag': self.OOP_nametag}
+                  'OOP_nametag': self.OOP_nametag,
+                  'bayopt_num_meas': self.bayopt_num_meas}
         return params
 
     def get_odmr_fits(self):
@@ -1059,61 +1068,88 @@ class LaserLogic(GenericLogic):
     #       Setters        #
     ########################
 
-    def set_OOP_laser_params(self, laser_power_start, laser_power_stop, 
-                             laser_power_num):
-        #TODO: check if the module is locked or not before changing the params
-        #FIXME: Prevent laser_power_stop being equal to laser_power_start:
-        # that causes a bug.
+    #TODO: check if the module is locked or not before changing the params
+
+    def set_laser_power_start(self, laser_power_start):
         lpr = self.laser_power_range
         if isinstance(laser_power_start, (int, float)):
             self.laser_power_start = units.in_range(laser_power_start, lpr[0], lpr[1])
+        self.sigParameterUpdated.emit()
+        return self.laser_power_start
+
+
+    def set_laser_power_stop(self, laser_power_stop):
+        #FIXME: Prevent laser_power_stop being equal to laser_power_start:
+        # that causes a bug.
+        lpr = self.laser_power_range
         if isinstance(laser_power_stop, (int, float)):
-            if laser_power_stop < laser_power_start:
-                laser_power_stop = laser_power_start
+            if laser_power_stop < self.laser_power_start:
+                laser_power_stop = self.laser_power_start
             self.laser_power_stop =  units.in_range(laser_power_stop, lpr[0], lpr[1])
+            self.sigParameterUpdated.emit()
+            return self.laser_power_stop
+
+    def set_laser_power_num(self, laser_power_num):
         if isinstance(laser_power_num, int):
             self.laser_power_num = laser_power_num
         self.sigParameterUpdated.emit()
-        return self.laser_power_start, self.laser_power_stop, self.laser_power_num
+        return self.laser_power_num
 
-    def set_OOP_mw_params(self, mw_power_start, mw_power_stop, 
-                             mw_power_num):
-        #TODO: check if the module is locked or not before changing the params
+    def set_mw_power_start(self, mw_power_start):
         limits = self.get_odmr_constraints()
         if isinstance(mw_power_start, (int, float)):
             self.mw_power_start = limits.power_in_range(mw_power_start)
+        self.sigParameterUpdated.emit()
+        return self.mw_power_start
+    
+    def set_mw_power_stop(self, mw_power_stop):
+        limits = self.get_odmr_constraints()
         if isinstance(mw_power_stop, (int, float)):
-            if mw_power_stop < mw_power_start:
-                mw_power_stop = mw_power_start
+            if mw_power_stop < self.mw_power_start:
+                mw_power_stop = self.mw_power_start
             self.mw_power_stop =  limits.power_in_range(mw_power_stop)
+        self.sigParameterUpdated.emit()
+        return self.mw_power_stop
+
+    def set_mw_power_num(self, mw_power_num):
         if isinstance(mw_power_num, int):
             self.mw_power_num = mw_power_num
         self.sigParameterUpdated.emit()
-        return self.mw_power_start, self.mw_power_stop, self.mw_power_num
+        return self.mw_power_num
 
-    def set_OOP_freq_params(self, freq_start, freq_stop, 
-                             freq_num):
-        #TODO: check if the module is locked or not before changing the params
+    def set_freq_start(self, freq_start):
         limits = self.get_odmr_constraints()
         if isinstance(freq_start, (int, float)):
             self.freq_start = limits.frequency_in_range(freq_start)
+        self.sigParameterUpdated.emit()
+        return self.freq_start
+
+    def set_freq_stop(self, freq_stop):
+        limits = self.get_odmr_constraints()
         if isinstance(freq_stop, (int, float)):
-            if freq_stop < freq_start:
-                freq_stop = freq_start
+            if freq_stop < self.freq_start:
+                freq_stop = self.freq_start
             self.freq_stop =  limits.frequency_in_range(freq_stop)
+        self.sigParameterUpdated.emit()
+        return self.freq_stop
+
+    def set_freq_num(self, freq_num):
         if isinstance(freq_num, int):
             self.freq_num = freq_num
         self.sigParameterUpdated.emit()
-        return self.freq_start, self.freq_stop, self.freq_num
+        return self.freq_num
 
-    def set_OOP_runtime_params(self, counter_runtime, odmr_runtime):
-        #TODO: check if the module is locked or not before changing the params
+    def set_counter_runtime(self, counter_runtime):
         if isinstance(counter_runtime, (int, float)):
             self.counter_runtime = counter_runtime
+        self.sigParameterUpdated.emit()
+        return self.counter_runtime
+
+    def set_odmr_runtime(self, odmr_runtime):
         if isinstance(odmr_runtime, (int, float)):
             self.odmr_runtime = odmr_runtime
         self.sigParameterUpdated.emit()
-        return self.counter_runtime, odmr_runtime
+        return self.odmr_runtime
 
     #FIXME: check whether the channel exists or not
     def set_OOP_channel(self, channel):
@@ -1137,3 +1173,154 @@ class LaserLogic(GenericLogic):
         self.sigParameterUpdated.emit()
         return self.OOP_nametag
 
+    def set_bayopt_num_meas(self, num_meas):
+        self.bayopt_num_meas = num_meas
+        self.sigParameterUpdated.emit()
+        return self.bayopt_num_meas
+
+    ###########################################################################
+    #              Bayesian optimization methods                              #
+    ###########################################################################
+        
+    def initialize_optimizer(self):
+        pbounds = {'x': (0, 1), 'y': (0, 1)}
+        self.optimizer = BayesianOptimization(
+            f=None,
+            pbounds=pbounds,
+            verbose=0
+        ) 
+        self.optimizer.set_gp_params(alpha=0.15)
+
+        return self.optimizer
+
+    def measure_sensitivity(self, laser_power, mw_power):
+        self.set_power(laser_power)
+        time.sleep(1)
+
+        freq_step = (self.freq_stop - self.freq_start) / (self.freq_num - 1)
+
+        error, odmr_plot_x, odmr_plot_y, odmr_fit_result = self._odmr_logic.perform_odmr_measurement(
+                                    self.freq_start, freq_step, self.freq_stop, mw_power, self.channel, self.odmr_runtime,
+                                    self.odmr_fit_function, save_after_meas=False, name_tag='')
+
+        if error:
+            self.log.warning('Error occured during ODMR measurement.')
+            return error, 0, np.array([]), np.array([])
+
+        if 'Sensitivity' in odmr_fit_result.result_str_dict:
+            val = odmr_fit_result.result_str_dict['Sensitivity']['value']
+        elif 'Sensitivity 0' in odmr_fit_result.result_str_dict:
+            val = odmr_fit_result.result_str_dict['Sensitivity 0']['value']
+        else:
+            self.log.warning("Sensitivity is not available from the fit chosen. Please choose another fit (e.g. Lorentzian dip)")
+            error = -1
+            return error, 0, np.array([]), np.array([])
+
+        return error, val, odmr_plot_x, odmr_plot_y
+
+    def bayesian_optimization(self):
+
+        #Setting up the stopping mechanism.
+        self._bayopt_stop_request = False
+        self.sigBayoptStarted.emit()
+
+        if self.get_laser_state() == LaserState.OFF:
+            self.log.warning('Measurement Aborted. Laser is not ON.')
+            self.sigBayoptStopped.emit()
+            return
+
+        if self._counterlogic.module_state() == 'locked':
+            self.log.warning('Another measurement is running, stop it first!')
+            self.sigBayoptStopped.emit()
+            return
+
+        self.initialize_optimizer()
+        self.initialize_bayopt_data()
+
+        utility = UtilityFunction(kind='ei', xi=0.1, kappa=1)
+        init_points = int(self.bayopt_num_meas / 3)
+        if init_points == 0:
+            init_points = 1
+
+        for n in range(self.bayopt_num_meas):
+
+            #Stopping mechanism
+            if self._bayopt_stop_request:
+                break
+
+            if n < init_points:
+                x = np.random.random()
+                y = np.random.random()
+            else:
+                next_point = self.optimizer.suggest(utility)
+                x = next_point['x']
+                y = next_point['y']
+
+            las_pw = self.laser_power_start + (self.laser_power_stop - self.laser_power_start) * x
+            mw_pw = self.mw_power_start + (self.mw_power_stop - self.mw_power_start) * y
+            
+            error, value, odmr_plot_x, odmr_plot_y = self.measure_sensitivity(las_pw, mw_pw)
+            if error:
+                self.log.warning("Optimal operation search aborted")
+                self.sigBayoptStopped.emit()
+                return
+
+            target = value * -1e5
+            self.optimizer.register(params={'x': x, 'y': y}, target=target)
+            self._bayopt_data['measured_sensitivity'][n] = value
+            self._bayopt_data['laser_power_list'][n] = las_pw
+            self._bayopt_data['mw_power_list'][n] = mw_pw
+            self._bayopt_data['odmr_data'][n] = np.array([odmr_plot_x, odmr_plot_y[self.channel]])
+            for i in range(100):
+                for j in range(100):
+                    self._bayopt_data['predicted_sensitivity'][i][j] = float(self.optimizer._gp.predict([[x, y]])) * -1e-5
+            self.sigBayoptUpdateData.emit(n)
+
+        self.sigBayoptStopped.emit()
+        return
+
+    def stop_bayopt(self):
+        self._bayopt_stop_request = True
+
+    def start_bayopt(self):
+        """ Starting a Threaded measurement.
+        """
+        if self.check_thread_active():
+            self.log.error("A measurement is currently running, stop it first!")
+            return
+
+        self._worker_thread = WorkerThread(target=self.bayesian_optimization,
+                                            args=(),
+                                            name='bayopt') 
+
+        self.threadpool.start(self._worker_thread)
+
+    def initialize_bayopt_data(self):
+        meas_dict = {'measured_sensitivity': np.zeros(self.bayopt_num_meas),
+                     'laser_power_list': np.zeros(self.bayopt_num_meas),
+                     'mw_power_list': np.zeros(self.bayopt_num_meas),
+                     'odmr_data': np.zeros((self.bayopt_num_meas, 2, self.freq_num)),
+                     'predicted_sensitivity': np.zeros((100, 100)),
+                     'coord0_arr': np.linspace(self.laser_power_start, self.laser_power_stop, 100, endpoint=False),
+                     'coord1_arr': np.linspace(self.mw_power_start, self.mw_power_stop, 100, endpoint=False),
+                     'units': 'T/sqrt(Hz)',
+                     'nice_name': 'Sensitivity',
+                     'params': {'Parameters for': 'Optimize operating point search',
+                                'laser_power_min (W)': self.laser_power_start,
+                                'laser_power_max (W)': self.laser_power_stop,
+                                'mw_power_min (dBm)': self.mw_power_start,
+                                'mw_power_max (dBm)': self.mw_power_stop,
+                                'freq_start (Hz)': self.freq_start,
+                                'freq_stop (Hz)': self.freq_stop,
+                                'freq_num (#)': self.freq_num,
+                                'Number of points (#)': self.bayopt_num_meas,
+                                'ODMR runtime (s)': self.odmr_runtime,
+                                'Fit function': self.odmr_fit_function,
+                                'Channel': self.channel,
+                                },  # !!! here are all the measurement parameter saved
+                    }  
+        self._bayopt_data = meas_dict
+        return self._bayopt_data
+    
+    def get_bayopt_data(self):
+        return self._bayopt_data
