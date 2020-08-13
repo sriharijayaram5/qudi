@@ -1189,7 +1189,7 @@ class LaserLogic(GenericLogic):
             pbounds=pbounds,
             verbose=0
         ) 
-        self.optimizer.set_gp_params(alpha=0.15)
+        self.optimizer.set_gp_params(alpha=0.01)
 
         return self.optimizer
 
@@ -1237,7 +1237,7 @@ class LaserLogic(GenericLogic):
         self.initialize_optimizer()
         self.initialize_bayopt_data()
 
-        utility = UtilityFunction(kind='ei', xi=0.1, kappa=1)
+        utility = UtilityFunction(kind='ei', xi=0.01, kappa=1)
         init_points = int(self.bayopt_num_meas / 3)
         if init_points == 0:
             init_points = 1
@@ -1271,9 +1271,11 @@ class LaserLogic(GenericLogic):
             self._bayopt_data['laser_power_list'][n] = las_pw
             self._bayopt_data['mw_power_list'][n] = mw_pw
             self._bayopt_data['odmr_data'][n] = np.array([odmr_plot_x, odmr_plot_y[self.channel]])
+            X = np.linspace(0, 1, 100)
+            Y = np.linspace(0, 1, 100)
             for i in range(100):
                 for j in range(100):
-                    self._bayopt_data['predicted_sensitivity'][i][j] = float(self.optimizer._gp.predict([[x, y]])) * -1e-5
+                    self._bayopt_data['predicted_sensitivity'][i][j] = float(self.optimizer._gp.predict([[X[i], Y[i]]])) * -1e-5
             self.sigBayoptUpdateData.emit(n)
 
         self.sigBayoptStopped.emit()
