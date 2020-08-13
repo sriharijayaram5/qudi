@@ -1275,7 +1275,7 @@ class LaserLogic(GenericLogic):
             Y = np.linspace(0, 1, 100)
             for i in range(100):
                 for j in range(100):
-                    self._bayopt_data['predicted_sensitivity'][i][j] = float(self.optimizer._gp.predict([[X[i], Y[i]]])) * -1e-5
+                    self._bayopt_data['predicted_sensitivity'][i][j] = float(self.optimizer._gp.predict([[X[i], Y[j]]])) * -1e-5
             self.sigBayoptUpdateData.emit(n)
 
         self.sigBayoptStopped.emit()
