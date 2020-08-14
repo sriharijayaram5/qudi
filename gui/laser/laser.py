@@ -59,7 +59,6 @@ class LaserGUI(GUIBase):
 
     ## declare connectors
     laserlogic = Connector(interface='LaserLogic')
-    counter_logic = Connector(interface='CounterLogic')
 
     sigPower = QtCore.Signal(float)
     sigCurrent = QtCore.Signal(float)
@@ -80,7 +79,6 @@ class LaserGUI(GUIBase):
         """ Definition and initialisation of the GUI.
         """
         self._laser_logic = self.laserlogic()
-        self._counterlogic = self.counter_logic()
 
         #####################
         # Configuring the dock widgets
