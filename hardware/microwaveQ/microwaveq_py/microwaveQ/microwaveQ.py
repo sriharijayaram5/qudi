@@ -417,7 +417,7 @@ class MicrowaveQ(dev.Device):
 
         self._cali_freq_arr = self._freq_gain_power_data[:,0,0]
         self._cali_gain_arr = self._freq_gain_power_data[0,:,1]
-        self._cali_power_arr = self._freq_gain_power_data[:,:,2].transpose()
+        self._cali_power_arr = self.watt_to_dbm(self._freq_gain_power_data[:,:,2].transpose()) 
 
         self._func_2d = interpolate.interp2d(self._cali_freq_arr, self._cali_gain_arr, self._cali_power_arr, kind='cubic')
 
@@ -427,6 +427,9 @@ class MicrowaveQ(dev.Device):
 
     def volt_to_dbm(self, volt_arr):
         return 20*np.log10(volt_arr)
+
+    def watt_to_dbm(self, watt_arr):
+        return 10*np.log10(watt_arr) + 30
 
     def gen_logrange_gain(self, start, stop, num):
         return self.dbm_to_volt(np.linspace(self.volt_to_dbm(start), self.volt_to_dbm(stop), num))
@@ -458,8 +461,8 @@ class MicrowaveQ(dev.Device):
             gain_start = 0.001
             gain_stop = 1.0
             gain_vals = 200
-            gain_range = self.gen_logrange_gain(gain_start, gain_stop, gain_vals)
-            #gain_range = np.linspace(gain_start, gain_stop, gain_vals)
+            #gain_range = self.gen_logrange_gain(gain_start, gain_stop, gain_vals)
+            gain_range = np.linspace(gain_start, gain_stop, gain_vals)
             intp_power = self._func_2d(freq, gain_range).transpose()[0]
 
             # make the inverse function:
