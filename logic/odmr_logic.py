@@ -46,7 +46,7 @@ class ODMRLogic(GenericLogic):
     fitlogic = Connector(interface='FitLogic')
     microwave1 = Connector(interface='mwsourceinterface')
     savelogic = Connector(interface='SaveLogic')
-    taskrunner = Connector(interface='TaskRunner')
+    #taskrunner = Connector(interface='TaskRunner')
 
     # config option
     mw_scanmode = ConfigOption(
