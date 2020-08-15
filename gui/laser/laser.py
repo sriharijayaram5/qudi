@@ -79,6 +79,7 @@ class LaserGUI(GUIBase):
     sigSaturationParamsChanged = QtCore.Signal(float, float, int, float)
     sigStartOOPMeasurement = QtCore.Signal()
     sigStopOOPMeasurement = QtCore.Signal()
+    sigSaveScan = QtCore.Signal(str)
     sigStartBayopt = QtCore.Signal()
     sigStopBayopt = QtCore.Signal()
     sigResumeBayopt = QtCore.Signal()
@@ -228,7 +229,6 @@ class LaserGUI(GUIBase):
         for fit in self._laser_logic.get_odmr_fits():
             self._mw.fit_ComboBox.addItem(fit)
         self._mw.fit_ComboBox.setCurrentText(self._laser_logic.odmr_fit_function)
-        self._mw.nametag_LineEdit.setText(self._laser_logic.OOP_nametag)
 
         #Setting up the values for the Bayesian optimization.
         self._mw.bayopt_laser_power_start_DoubleSpinBox.setRange(lpr[0], lpr[1])
@@ -286,7 +286,6 @@ class LaserGUI(GUIBase):
         self._mw.fit_ComboBox.currentTextChanged.connect(self._laser_logic.set_odmr_fit)
         self._mw.data_ComboBox.currentTextChanged.connect(self.OOP_update_data)
         #FIXME: it may be better to use editingFinished for not to send a signal for each letter typed
-        self._mw.nametag_LineEdit.textChanged.connect(self._laser_logic.set_OOP_nametag)
         self._mw.bayopt_laser_power_start_DoubleSpinBox.valueChanged.connect(self._laser_logic.set_laser_power_start)
         self._mw.bayopt_laser_power_stop_DoubleSpinBox.valueChanged.connect(self._laser_logic.set_laser_power_stop)
         self._mw.bayopt_mw_power_start_DoubleSpinBox.valueChanged.connect(self._laser_logic.set_mw_power_start)
@@ -312,6 +311,7 @@ class LaserGUI(GUIBase):
         self._mw.dofit_Button.clicked.connect(self.dofit_button_clicked)
         self._mw.double_fit_Button.clicked.connect(self.double_fit_button_clicked)
         self._mw.run_stop_measurement_Action.triggered.connect(self.run_stop_OOP_measurement)
+        self._mw.save_scan_Action.triggered.connect(self.save_scan_clicked)
         self._mw.run_stop_bayopt_Action.triggered.connect(self.run_stop_bayopt)
         self._mw.resume_bayopt_Action.triggered.connect(self.resume_bayopt)
         self._mw.background_PushButton.clicked.connect(self.background_button_clicked)
@@ -329,6 +329,7 @@ class LaserGUI(GUIBase):
         self.sigSaturationParamsChanged.connect(self._laser_logic.set_saturation_params)
         self.sigStartOOPMeasurement.connect(self._laser_logic.start_OOP_measurement, QtCore.Qt.QueuedConnection)
         self.sigStopOOPMeasurement.connect(self._laser_logic.stop_OOP_measurement, QtCore.Qt.QueuedConnection)
+        self.sigSaveScan.connect(self._laser_logic.save_scan_data, QtCore.Qt.QueuedConnection)
         self.sigStartBayopt.connect(self._laser_logic.start_bayopt, QtCore.Qt.QueuedConnection)
         self.sigResumeBayopt.connect(self._laser_logic.resume_bayopt, QtCore.Qt.QueuedConnection)
         self.sigStopBayopt.connect(self._laser_logic.stop_bayopt, QtCore.Qt.QueuedConnection)
@@ -383,7 +384,6 @@ class LaserGUI(GUIBase):
         self._mw.optimize_CheckBox.stateChanged.disconnect()
         self._mw.fit_ComboBox.currentTextChanged.disconnect()
         self._mw.data_ComboBox.currentTextChanged.disconnect()
-        self._mw.nametag_LineEdit.textChanged.disconnect()
         self._mw.bayopt_laser_power_start_DoubleSpinBox.valueChanged.disconnect()
         self._mw.bayopt_laser_power_stop_DoubleSpinBox.valueChanged.disconnect()
         self._mw.bayopt_mw_power_start_DoubleSpinBox.valueChanged.disconnect()
@@ -406,6 +406,7 @@ class LaserGUI(GUIBase):
         self._mw.controlModeButtonGroup.buttonClicked.disconnect()
         self._mw.dofit_Button.clicked.disconnect()
         self._mw.run_stop_measurement_Action.triggered.disconnect()
+        self._mw.save_scan_Action.triggered.disconnect()
         self._mw.run_stop_bayopt_Action.triggered.disconnect()
         self._mw.resume_bayopt_Action.triggered.disconnect()
         self._mw.save_bayopt_Action.triggered.disconnect()
@@ -420,6 +421,7 @@ class LaserGUI(GUIBase):
         self.sigSaturationParamsChanged.disconnect()
         self.sigStartOOPMeasurement.disconnect()
         self.sigStopOOPMeasurement.disconnect()
+        self.sigSaveScan.disconnect()
         self.sigStartBayopt.disconnect()
         self.sigStopBayopt.disconnect()
         self.sigResumeBayopt.disconnect()
@@ -865,6 +867,14 @@ class LaserGUI(GUIBase):
         self._mw.run_stop_measurement_Action.setEnabled(True)
 
     @QtCore.Slot()
+    def save_scan_clicked(self):
+        """ Save the scan results and the figure
+        """
+        nametag = self._mw.scan_nametag_LineEdit.text()
+        self.sigSaveScan.emit(nametag)
+        return
+
+    @QtCore.Slot()
     def OOP_update_data(self):
         """ Update the colorbar and display the matrix.
         """
@@ -1015,9 +1025,6 @@ class LaserGUI(GUIBase):
         param = param_dict.get('odmr_fit_function')
         self._mw.fit_ComboBox.setCurrentText(param)
         self._mw.bayopt_fit_ComboBox.setCurrentText(param)
-
-        param = param_dict.get('OOP_nametag')
-        self._mw.nametag_LineEdit.setText(param)
 
         param = param_dict.get('bayopt_num_meas')
         self._mw.bayopt_num_meas_SpinBox.setValue(param)

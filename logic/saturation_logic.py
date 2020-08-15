@@ -125,7 +125,6 @@ class LaserLogic(GenericLogic):
     channel = StatusVar('channel', 0)    
     optimize = StatusVar('optimize', False)
     odmr_fit_function = StatusVar('odmr_fit_function', 'No fit')
-    OOP_nametag = StatusVar('OOP_nametag', '')
     bayopt_num_meas = StatusVar('bayopt_num_meas', 30)
     bayopt_alpha = StatusVar('bayopt_alpha', 0.15)
     bayopt_random_percentage = StatusVar('bayopt_random_percentage', 35)
@@ -775,10 +774,10 @@ class LaserLogic(GenericLogic):
         #FIXME: replace laser_power_start by final power
         self.off()
 
-        if save_after_meas :
-            self.save_odmr_data(tag=self.OOP_nametag)
-            self.do_fit()
-            self.save_saturation_data(tag=self.OOP_nametag)
+        # if save_after_meas :
+        #     self.save_odmr_data(tag=self.OOP_nametag)
+        #     self.do_fit()
+        #     self.save_saturation_data(tag=self.OOP_nametag)
 
         self.sigOOPStopped.emit()
 
@@ -848,23 +847,32 @@ class LaserLogic(GenericLogic):
                     if 'error' in param_dict[param_name]:
                         self._odmr_data['fit_params'][param_name]['errors'][i][j] = param_dict[param_name]['error']
 
-    def save_odmr_data(self, tag=None):
+    def save_scan_data(self, nametag):
+        
+        data = self._odmr_data
+
+        # check whether data has only zeros, skip this then
+        if not 'data' in data or not np.any(data['data']):
+            self.log.warning('The data array contains only zeros and will be not saved.')
+            return
+
+        # Save saturation data
+        self.do_fit()
+        self.save_saturation_data(nametag)
 
         timestamp = datetime.datetime.now()
 
-        if tag is None:
-            tag = ''
+        if nametag is None:
+            nametag = ''
         
         #Path and label to save the Saturation data
         filepath = self._save_logic.get_path_for_module(module_name='Optimal operating point')
 
-        if len(tag) > 0:
-                filelabel = '{0}_ODMR_data'.format(tag)
+        if len(nametag) > 0:
+                filelabel = '{0}_ODMR_data'.format(nametag)
         else:
                 filelabel = 'ODMR_data'
 
-        
-        data = self._odmr_data
 
         parameters = {}
         parameters.update(data['params'])
@@ -876,10 +884,6 @@ class LaserLogic(GenericLogic):
 
         figure_data = data['data']
 
-        # check whether figure has only zeros as data, skip this then
-        if not np.any(figure_data):
-            self.log.debug('The data array contains only zeros and will be not saved.')
-            return
 
         rows, columns, entries = figure_data.shape
 
@@ -1051,7 +1055,6 @@ class LaserLogic(GenericLogic):
                   'channel': self.channel,
                   'optimize': self.optimize,
                   'odmr_fit_function': self.odmr_fit_function,
-                  'OOP_nametag': self.OOP_nametag,
                   'bayopt_num_meas': self.bayopt_num_meas}
         return params
 
@@ -1170,11 +1173,6 @@ class LaserLogic(GenericLogic):
             self.odmr_fit_function = fit_name
         self.sigParameterUpdated.emit()
         return self.odmr_fit_function
-
-    def set_OOP_nametag(self, nametag):
-        self.OOP_nametag = nametag
-        self.sigParameterUpdated.emit()
-        return self.OOP_nametag
 
     def set_bayopt_num_meas(self, num_meas):
         self.bayopt_num_meas = num_meas
@@ -1449,7 +1447,6 @@ class LaserLogic(GenericLogic):
         plt.style.use(self._save_logic.mpl_qd_style)
 
         # Create figure
-        #fig = plt.figure()
         fig, (ax_matrix) = plt.subplots(nrows=1, ncols=1)
 
         ax_matrix.set_xlim(self.mw_power_start, self.mw_power_stop)
