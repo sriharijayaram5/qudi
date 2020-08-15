@@ -688,7 +688,14 @@ class LaserLogic(GenericLogic):
     #              Optimal operation point measurement methods                #
     ###########################################################################
 
-    def perform_measurement(self, save_after_meas=True, stabilization_time=1):
+    def perform_measurement(self, stabilization_time=1, **kwargs):
+
+        for param, value in kwargs.items():
+            try:
+                func = getattr(self, 'set_' + param)
+            except AttributeError:
+                self.log.error("perform_measurement has no argument" + param)
+            func(value)
 
         #Setting up the stopping mechanism.
         self._OOP_stop_request = False
@@ -773,11 +780,6 @@ class LaserLogic(GenericLogic):
         #TODO: do we need a final power ? Or should we turn the laser off ?
         #FIXME: replace laser_power_start by final power
         self.off()
-
-        # if save_after_meas :
-        #     self.save_odmr_data(tag=self.OOP_nametag)
-        #     self.do_fit()
-        #     self.save_saturation_data(tag=self.OOP_nametag)
 
         self.sigOOPStopped.emit()
 
