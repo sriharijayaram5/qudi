@@ -840,7 +840,7 @@
           <item>
            <widget class="QLabel" name="channel_Label">
             <property name="text">
-             <string>Channel:</string>
+             <string>ODMR channel:</string>
             </property>
             <property name="alignment">
              <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
@@ -848,7 +848,7 @@
            </widget>
           </item>
           <item>
-           <widget class="QSpinBox" name="channel_SpinBox"/>
+           <widget class="QComboBox" name="channel_ComboBox"/>
           </item>
           <item>
            <widget class="QLabel" name="odmr_runtime_label">
@@ -1273,7 +1273,7 @@
           <item>
            <widget class="QLabel" name="channel_Label_2">
             <property name="text">
-             <string>Channel:</string>
+             <string>ODMR channel:</string>
             </property>
             <property name="alignment">
              <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
@@ -1281,7 +1281,7 @@
            </widget>
           </item>
           <item>
-           <widget class="QSpinBox" name="bayopt_channel_SpinBox"/>
+           <widget class="QComboBox" name="bayopt_channel_ComboBox"/>
           </item>
           <item>
            <widget class="QLabel" name="fit_function_Label">

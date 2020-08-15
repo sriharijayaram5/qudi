@@ -688,6 +688,9 @@ class LaserLogic(GenericLogic):
     #              Optimal operation point measurement methods                #
     ###########################################################################
 
+    def get_odmr_channels(self):
+        return self._odmr_logic.get_odmr_channels()
+
     def perform_measurement(self, stabilization_time=1, **kwargs):
 
         for param, value in kwargs.items():
@@ -1164,8 +1167,13 @@ class LaserLogic(GenericLogic):
 
     #FIXME: check whether the channel exists or not
     def set_OOP_channel(self, channel):
-        self.channel = channel
-        self.sigParameterUpdated.emit()
+        odmr_channels = self.get_odmr_channels()
+        num = len(odmr_channels)
+        if isinstance(channel, int) and channel < num:
+            self.channel = channel
+            self.sigParameterUpdated.emit()
+        else:
+            self.log.error('Channel must be an int inferior or equal to {0:d}'.format(num - 1))
         return self.channel
 
     def set_OOP_optimize(self, boolean):
