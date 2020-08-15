@@ -127,6 +127,9 @@ class LaserLogic(GenericLogic):
     odmr_fit_function = StatusVar('odmr_fit_function', 'No fit')
     OOP_nametag = StatusVar('OOP_nametag', '')
     bayopt_num_meas = StatusVar('bayopt_num_meas', 30)
+    bayopt_alpha = StatusVar('bayopt_alpha', 0.15)
+    bayopt_random_percentage = StatusVar('bayopt_random_percentage', 35)
+    bayopt_xi = StatusVar('bayopt_xi', 0.1)
 
     sigRefresh = QtCore.Signal()
     sigLaserStateChanged = QtCore.Signal()
@@ -1189,7 +1192,7 @@ class LaserLogic(GenericLogic):
             pbounds=pbounds,
             verbose=0
         ) 
-        self.optimizer.set_gp_params(alpha=0.01)
+        self.optimizer.set_gp_params(alpha=self.bayopt_alpha)
 
         return self.optimizer
 
@@ -1209,16 +1212,24 @@ class LaserLogic(GenericLogic):
 
         if 'Sensitivity' in odmr_fit_result.result_str_dict:
             val = odmr_fit_result.result_str_dict['Sensitivity']['value']
+            if 'error' in odmr_fit_result.result_str_dict['Sensitivity']:
+                std = odmr_fit_result.result_str_dict['Sensitivity']['error']
+            else:
+                std = -1
         elif 'Sensitivity 0' in odmr_fit_result.result_str_dict:
             val = odmr_fit_result.result_str_dict['Sensitivity 0']['value']
+            if 'error' in odmr_fit_result.result_str_dict['Sensitivity 0']:
+                std = odmr_fit_result.result_str_dict['Sensitivity 0']['error']
+            else:
+                std = -1
         else:
             self.log.warning("Sensitivity is not available from the fit chosen. Please choose another fit (e.g. Lorentzian dip)")
             error = -1
             return error, 0, np.array([]), np.array([])
 
-        return error, val, odmr_plot_x, odmr_plot_y
+        return error, val, std, odmr_plot_x, odmr_plot_y
 
-    def bayesian_optimization(self):
+    def bayesian_optimization(self, resume=False):
 
         #Setting up the stopping mechanism.
         self._bayopt_stop_request = False
@@ -1235,31 +1246,42 @@ class LaserLogic(GenericLogic):
             return
 
         self.initialize_optimizer()
-        self.initialize_bayopt_data()
+        self.initialize_bayopt_data(resume)
 
-        utility = UtilityFunction(kind='ei', xi=0.01, kappa=1)
-        init_points = int(self.bayopt_num_meas / 3)
-        if init_points == 0:
-            init_points = 1
+    
+        old_num_points = np.count_nonzero(self._bayopt_data['measured_sensitivity'])
+        for n in range(old_num_points):
+            target = self._bayopt_data['measured_sensitivity'][n] * -1e5
+            x = (self._bayopt_data['laser_power_list'][n] - self.laser_power_start) / (self.laser_power_stop - self.laser_power_start)
+            y = (self._bayopt_data['mw_power_list'][n] - self.mw_power_start) / (self.mw_power_stop - self.mw_power_start)
+            self.optimizer.register(params={'x': x, 'y': y}, target=target)
+        
+        utility = UtilityFunction(kind='ei', xi=self.bayopt_xi, kappa=1)
 
-        for n in range(self.bayopt_num_meas):
+        init_points = int((self.bayopt_num_meas - old_num_points) * self.bayopt_random_percentage / 100)
+
+        for n in range(old_num_points, self.bayopt_num_meas):
 
             #Stopping mechanism
             if self._bayopt_stop_request:
                 break
 
-            if n < init_points:
+            if n < old_num_points + init_points :
                 x = np.random.random()
                 y = np.random.random()
             else:
-                next_point = self.optimizer.suggest(utility)
-                x = next_point['x']
-                y = next_point['y']
+                try:
+                    next_point = self.optimizer.suggest(utility)
+                    x = next_point['x']
+                    y = next_point['y']
+                except ValueError:
+                    x = np.random.random()
+                    y = np.random.random()
 
             las_pw = self.laser_power_start + (self.laser_power_stop - self.laser_power_start) * x
             mw_pw = self.mw_power_start + (self.mw_power_stop - self.mw_power_start) * y
             
-            error, value, odmr_plot_x, odmr_plot_y = self.measure_sensitivity(las_pw, mw_pw)
+            error, value, std, odmr_plot_x, odmr_plot_y = self.measure_sensitivity(las_pw, mw_pw)
             if error:
                 self.log.warning("Optimal operation search aborted")
                 self.sigBayoptStopped.emit()
@@ -1267,15 +1289,23 @@ class LaserLogic(GenericLogic):
 
             target = value * -1e5
             self.optimizer.register(params={'x': x, 'y': y}, target=target)
+            try:
+                self.optimizer._gp.fit(self.optimizer._space.params, self.optimizer._space.target)
+            except ValueError:
+                pass
             self._bayopt_data['measured_sensitivity'][n] = value
+            self._bayopt_data['measured_sensitivity_std'][n] = std
             self._bayopt_data['laser_power_list'][n] = las_pw
             self._bayopt_data['mw_power_list'][n] = mw_pw
             self._bayopt_data['odmr_data'][n] = np.array([odmr_plot_x, odmr_plot_y[self.channel]])
             X = np.linspace(0, 1, 100)
             Y = np.linspace(0, 1, 100)
-            for i in range(100):
-                for j in range(100):
-                    self._bayopt_data['predicted_sensitivity'][i][j] = float(self.optimizer._gp.predict([[X[i], Y[j]]])) * -1e-5
+            try: 
+                for i in range(100):
+                    for j in range(100):
+                        self._bayopt_data['predicted_sensitivity'][i][j] = float(self.optimizer._gp.predict([[X[i], Y[j]]])) * -1e-5
+            except AttributeError:
+                pass
             self.sigBayoptUpdateData.emit(n)
 
         self.sigBayoptStopped.emit()
@@ -1296,9 +1326,30 @@ class LaserLogic(GenericLogic):
                                             name='bayopt') 
 
         self.threadpool.start(self._worker_thread)
+    
+    def resume_bayopt(self):
+        
+        if self.check_thread_active():
+            self.log.error("A measurement is currently running, stop it first!")
+            return
+            
+        self._worker_thread = WorkerThread(target=self.bayesian_optimization,
+                                            kwargs={'resume': True},
+                                            name='bayopt') 
 
-    def initialize_bayopt_data(self):
+        self.threadpool.start(self._worker_thread)
+
+    def initialize_bayopt_data(self, resume=False):
+        
+        old_num_points = 0
+        if resume:
+            old_dict = self._bayopt_data
+            old_num_points = np.count_nonzero(old_dict['measured_sensitivity'])
+            if self.bayopt_num_meas <= old_num_points:
+                self.set_bayopt_num_meas(old_num_points + 1)
+
         meas_dict = {'measured_sensitivity': np.zeros(self.bayopt_num_meas),
+                     'measured_sensitivity_std': np.zeros(self.bayopt_num_meas),
                      'laser_power_list': np.zeros(self.bayopt_num_meas),
                      'mw_power_list': np.zeros(self.bayopt_num_meas),
                      'odmr_data': np.zeros((self.bayopt_num_meas, 2, self.freq_num)),
@@ -1320,9 +1371,132 @@ class LaserLogic(GenericLogic):
                                 'Fit function': self.odmr_fit_function,
                                 'Channel': self.channel,
                                 },  # !!! here are all the measurement parameter saved
-                    }  
+                    }
+
+        for n in range(old_num_points):
+            meas_dict['measured_sensitivity'][n] = old_dict['measured_sensitivity'][n]
+            meas_dict['measured_sensitivity_std'][n] = old_dict['measured_sensitivity_std'][n]
+            meas_dict['laser_power_list'][n] = old_dict['laser_power_list'][n]
+            meas_dict['mw_power_list'][n] = old_dict['mw_power_list'][n]
+            # FIXME: If the number of points for the odmr measurement changes, they can not be 
+            # stored in the data array.
+            if meas_dict['odmr_data'][n].shape == old_dict['odmr_data'][n]:
+                meas_dict['odmr_data'][n] = old_dict['odmr_data'][n]
+
         self._bayopt_data = meas_dict
         return self._bayopt_data
     
     def get_bayopt_data(self):
         return self._bayopt_data
+
+    def save_bayopt_data(self, tag=None):
+
+        timestamp = datetime.datetime.now()
+
+        if tag is None:
+            tag = ''
+        
+        #Path and label to save the Saturation data
+        filepath = self._save_logic.get_path_for_module(module_name='Sensitivity optimization')
+
+        if len(tag) > 0:
+                filelabel = '{0}_measures'.format(tag)
+        else:
+                filelabel = 'measures'
+
+        
+        if not 'measured_sensitivity' in self._bayopt_data or not np.any(self._bayopt_data['measured_sensitivity']):
+            self.log.warning('The data array is empty and will be not saved.')
+            return
+
+        parameters = {}
+        parameters.update(self._bayopt_data['params'])
+        nice_name = self._bayopt_data['nice_name']
+        unit = self._bayopt_data['units']
+        parameters['Name of measured signal'] = nice_name
+        parameters['Units of measured signal'] = unit
+
+        data = {}
+        data['Laser_power (W)'] = self._bayopt_data['laser_power_list']
+        data['MW power (dBm)'] = self._bayopt_data['mw_power_list']
+        data['Sensitivity (T/sqrt(Hz))'] = self._bayopt_data['measured_sensitivity']
+        data['Stddev (T/sqrt(Hz))'] = self._bayopt_data['measured_sensitivity_std']
+
+        fig = self.draw_optimization_figure()
+        self._save_logic.save_data(data, parameters=parameters,
+                                       filepath=filepath,
+                                       filelabel=filelabel,
+                                       fmt='%.6e',
+                                       delimiter='\t',
+                                       timestamp=timestamp,
+                                       plotfig=fig)
+
+        self.log.info('Optimization data saved to:\n{0}'.format(filepath))
+
+        return
+
+    def draw_optimization_figure(self):
+        
+        matrix = self._bayopt_data['predicted_sensitivity']
+        unit = 'T/sqrt(Hz)'
+        scale_fact = units.ScaledFloat(np.max(matrix)).scale_val
+        unit_prefix = units.ScaledFloat(np.max(matrix)).scale
+        matrix_scaled = matrix / scale_fact
+        cbar_range = np.array([np.min(matrix_scaled), np.max(matrix_scaled)])
+        unit_scaled = unit_prefix + unit
+
+        # Use qudi style
+        plt.style.use(self._save_logic.mpl_qd_style)
+
+        # Create figure
+        #fig = plt.figure()
+        fig, (ax_matrix) = plt.subplots(nrows=1, ncols=1)
+
+        ax_matrix.set_xlim(self.mw_power_start, self.mw_power_stop)
+        ax_matrix.set_ylim(self.laser_power_start, self.laser_power_stop)
+
+        matrixplot = ax_matrix.imshow(matrix_scaled,
+                                cmap=plt.get_cmap('viridis'),  # reference the right place in qd
+                                origin='lower',
+                                vmin=cbar_range[0],
+                                vmax=cbar_range[1],
+                                extent=[self.mw_power_start,
+                                    self.mw_power_stop,
+                                    self.laser_power_start,
+                                    self.laser_power_stop
+                                    ],
+                                aspect='auto',
+                                interpolation='nearest')
+
+        n = np.count_nonzero(self._bayopt_data['measured_sensitivity'])
+        ax_matrix.plot(self._bayopt_data['mw_power_list'][:n], self._bayopt_data['laser_power_list'][:n], linestyle='', marker='o', color='cyan')
+
+        index_min = np.argmin(self._bayopt_data['measured_sensitivity'][:n])
+        min_mw_power = self._bayopt_data['mw_power_list'][index_min]
+        min_laser_power = self._bayopt_data['laser_power_list'][index_min]
+        ax_matrix.axvline(x=min_mw_power, color='darkorange', linewidth=1)
+        ax_matrix.axhline(y=min_laser_power, color='darkorange', linewidth=1)
+
+        ax_matrix.set_xlabel('MW power (dBm)')
+        ax_matrix.set_ylabel('Laser power (W)')
+
+        # Adjust subplot to make room for colorbar
+        fig.subplots_adjust(right=0.8)
+
+        # Add colorbar axis to figure
+        cbar_ax = fig.add_axes([0.85, 0.15, 0.02, 0.7])
+
+        # Draw colorbar
+        cbar = fig.colorbar(matrixplot, cax=cbar_ax)
+        cbar.set_label('Sensitivity (' + unit_scaled + ')')
+
+        return fig
+
+    def set_bayopt_parameters(self, alpha, xi, percent):
+        self.bayopt_alpha = alpha
+        self.bayopt_xi = xi
+        if percent > 100:
+            percent = 100
+        elif percent < 0:
+            percent = 0
+        self.bayopt_random_percentage = percent

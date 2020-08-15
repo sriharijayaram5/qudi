@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>1705</width>
-    <height>1523</height>
+    <height>1556</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -436,8 +436,11 @@
    <addaction name="laser_OFF_Action"/>
    <addaction name="separator"/>
    <addaction name="run_stop_measurement_Action"/>
+   <addaction name="save_scan_Action"/>
    <addaction name="separator"/>
    <addaction name="run_stop_bayopt_Action"/>
+   <addaction name="resume_bayopt_Action"/>
+   <addaction name="save_bayopt_Action"/>
   </widget>
   <widget class="QStatusBar" name="statusbar"/>
   <widget class="QMenuBar" name="menubar">
@@ -451,19 +454,26 @@
    </property>
    <widget class="QMenu" name="menuFile">
     <property name="title">
-     <string>File</string>
+     <string>&amp;File</string>
     </property>
     <addaction name="action_Save"/>
     <addaction name="action_Close"/>
    </widget>
    <widget class="QMenu" name="menuView">
     <property name="title">
-     <string>View</string>
+     <string>&amp;View</string>
     </property>
     <addaction name="action_RestoreDefault"/>
    </widget>
+   <widget class="QMenu" name="menuO_ptions">
+    <property name="title">
+     <string>O&amp;ptions</string>
+    </property>
+    <addaction name="settings_Action"/>
+   </widget>
    <addaction name="menuFile"/>
    <addaction name="menuView"/>
+   <addaction name="menuO_ptions"/>
   </widget>
   <widget class="QDockWidget" name="laser_power_DockWidget">
    <property name="sizePolicy">
@@ -970,6 +980,40 @@
    <widget class="QWidget" name="dockWidgetContents">
     <layout class="QVBoxLayout" name="verticalLayout_12">
      <item>
+      <layout class="QHBoxLayout" name="horizontalLayout_11">
+       <item>
+        <widget class="QLabel" name="figure_name_Label">
+         <property name="text">
+          <string>Figure name : </string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QLineEdit" name="bayopt_nametag_LineEdit">
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <spacer name="horizontalSpacer_3">
+         <property name="orientation">
+          <enum>Qt::Horizontal</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>40</width>
+           <height>20</height>
+          </size>
+         </property>
+        </spacer>
+       </item>
+      </layout>
+     </item>
+     <item>
       <widget class="QGroupBox" name="bayopt_parameters_GroupBox">
        <property name="title">
         <string>Parameters</string>
@@ -1367,7 +1411,7 @@
      <normaloff>../../../qnami-qudi/artwork/icons/oxygen/22x22/document-save.png</normaloff>../../../qnami-qudi/artwork/icons/oxygen/22x22/document-save.png</iconset>
    </property>
    <property name="text">
-    <string>Save Curve</string>
+    <string>Save Saturation Curve</string>
    </property>
    <property name="toolTip">
     <string>Save curve to file</string>
@@ -1450,6 +1494,52 @@
    </property>
    <property name="text">
     <string>Start Optimization</string>
+   </property>
+  </action>
+  <action name="resume_bayopt_Action">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="icon">
+    <iconset>
+     <normaloff>../../../qnami-qudi/artwork/icons/qudiTheme/22x22/restart-counter.png</normaloff>
+     <normalon>../../../qnami-qudi/artwork/icons/qudiTheme/22x22/stop-counter.png</normalon>../../../qnami-qudi/artwork/icons/qudiTheme/22x22/restart-counter.png</iconset>
+   </property>
+   <property name="text">
+    <string notr="true">Resume optimization</string>
+   </property>
+   <property name="iconText">
+    <string>Resume</string>
+   </property>
+  </action>
+  <action name="save_bayopt_Action">
+   <property name="icon">
+    <iconset>
+     <normaloff>../../../qnami-qudi/artwork/icons/oxygen/22x22/document-save.png</normaloff>../../../qnami-qudi/artwork/icons/oxygen/22x22/document-save.png</iconset>
+   </property>
+   <property name="text">
+    <string>Save optimization result</string>
+   </property>
+  </action>
+  <action name="settings_Action">
+   <property name="icon">
+    <iconset>
+     <normaloff>../../../qnami-qudi/artwork/icons/oxygen/22x22/configure.png</normaloff>../../../qnami-qudi/artwork/icons/oxygen/22x22/configure.png</iconset>
+   </property>
+   <property name="text">
+    <string>&amp;Settings</string>
+   </property>
+  </action>
+  <action name="save_scan_Action">
+   <property name="icon">
+    <iconset>
+     <normaloff>../../../qnami-qudi/artwork/icons/oxygen/22x22/document-save.png</normaloff>../../../qnami-qudi/artwork/icons/oxygen/22x22/document-save.png</iconset>
+   </property>
+   <property name="text">
+    <string>Save scan</string>
    </property>
   </action>
  </widget>
