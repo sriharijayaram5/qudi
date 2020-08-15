@@ -975,7 +975,10 @@ class LaserLogic(GenericLogic):
         scale_fact = units.ScaledFloat(np.max(matrix)).scale_val
         unit_prefix = units.ScaledFloat(np.max(matrix)).scale
         matrix_scaled = matrix / scale_fact
-        cbar_range = np.array([np.min(matrix_scaled), np.max(matrix_scaled)])
+        matrix_scaled_nonzero = matrix_scaled[np.nonzero(matrix_scaled)]
+        cb_min = np.percentile(matrix_scaled_nonzero, 5)
+        cb_max = np.percentile(matrix_scaled_nonzero, 95)
+        cbar_range = [cb_min, cb_max]
         unit_scaled = unit_prefix + unit
 
         # Use qudi style
