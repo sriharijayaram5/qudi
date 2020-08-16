@@ -29,7 +29,6 @@ from qtpy import QtCore
 import matplotlib.pyplot as plt
 import numpy as np
 import copy
-import lmfit.model
 from bayes_opt import BayesianOptimization, UtilityFunction
 
 from core.module import Connector, ConfigOption, StatusVar
@@ -189,6 +188,43 @@ class LaserLogic(GenericLogic):
         self._odmr_data = {}
         self._bayopt_data = {}
         self.is_background = False
+        self.fit_parameters_list = {'lorentzian': {'Count rate': ('offset', 'c/s'), 'Contrast': ('contrast', '%'), 'FWHM': ('fwhm', 'Hz'),
+                                                  'Sensitivity': ('sensitivity', 'T/sqrt(Hz)'), 'Position': ('center', 'Hz')},
+                                    'lorentziandouble': {'Count rate': ('offset', 'c/s'), 'Contrast 0': ('l0_contrast', '%'), 
+                                                         'Contrast 1': ('l1_contrast', '%'), 'FWHM 0': ('l0_fwhm', 'Hz'), 
+                                                         'FWHM 1': ('l1_fwhm', 'Hz'), 'Sensitvity 0': ('l0_sensitivity', 'T/sqrt(Hz)'),
+                                                         'Sensitivity 1': ('l1_sensitivity', 'T/sqrt(Hz)')},
+                                    'lorentziantriple': {'Count rate': ('offset', 'c/s'), 'Contrast 0': ('l0_contrast', '%'), 
+                                                         'Contrast 1': ('l1_contrast', '%'), 'Contrast 2': ('l2_contrast', '%'), 
+                                                         'FWHM 0': ('l0_fwhm', 'Hz'), 'FWHM 1': ('l1_fwhm', 'Hz'), 'FWHM 2': ('l2_fwhm', 'Hz'),
+                                                         'Sensitvity 0': ('l0_sensitivity', 'T/sqrt(Hz)'), 'Sensitivity 1': ('l1_sensitivity', 'T/sqrt(Hz)'),
+                                                         'Sensitivity 2': ('l2_sensitivity', 'T/sqrt(Hz)')},
+                                    'gaussian': {'Count rate': ('offset', 'c/s'), 'Contrast': ('contrast', '%'), 'FWHM': ('fwhm', 'Hz'),
+                                                 'Position': ('center', 'Hz')},
+                                    'gaussiandouble': {'Count rate': ('offset', 'c/s'), 'Contrast 0': ('g0_contrast', '%'), 
+                                                         'Contrast 1': ('g1_contrast', '%'), 'FWHM 0': ('g0_fwhm', 'Hz'), 
+                                                         'FWHM 1': ('g1_fwhm', 'Hz')},
+                                    'voigt': {'Count rate': ('offset', 'c/s'), 'Contrast': ('contrast', '%'), 'FWHM': ('fwhm', 'Hz'), 
+                                              'Sensitivity': ('sensitivity', 'T/sqrt(Hz)'), 'Lorentzian fraction': ('fraction', '%'), 'Position': ('center', 'Hz')},
+                                    'voigtdouble': {'Count rate': ('v0_offset', 'c/s'), 'Contrast 0': ('v0_contrast', '%'), 
+                                                         'Contrast 1': ('v1_contrast', '%'), 'FWHM 0': ('v0_fwhm', 'Hz'), 
+                                                         'FWHM 1': ('v1_fwhm', 'Hz'), 'Sensitvity 0': ('v0_sensitivity', 'T/sqrt(Hz)'),
+                                                         'Sensitivity 1': ('v1_sensitivity', 'T/sqrt(Hz)'), 'Lorentzian fraction 0': ('v0_fraction', '%'),
+                                                         'Lorentzian fraction 1': ('v1_fraction', '%')},
+                                    'voigtequalized': {'Count rate': ('offset', 'c/s'), 'Contrast': ('contrast', '%'), 'FWHM': ('fwhm', 'Hz'), 
+                                                       'Sensitvity': ('sensitivity', 'T/sqrt(Hz)'), 'Position': ('center', 'Hz')},
+                                    'voigtdoubleequalized': {'Count rate': ('v0_offset', 'c/s'), 'Contrast 0': ('v0_contrast', '%'), 
+                                                         'Contrast 1': ('v1_contrast', '%'), 'FWHM 0': ('v0_fwhm', 'Hz'), 
+                                                         'FWHM 1': ('v1_fwhm', 'Hz'), 'Sensitvity 0': ('v0_sensitivity', 'T/sqrt(Hz)'),
+                                                         'Sensitivity 1': ('v1_sensitivity', 'T/sqrt(Hz)')},
+                                    'pseudovoigt': {'Count rate': ('offset', 'c/s'), 'Contrast': ('contrast', '%'), 'FWHM': ('fwhm', 'Hz'), 
+                                              'Sensitivity': ('sensitivity', 'T/sqrt(Hz)'), 'Lorentzian fraction': ('fraction', '%'), 'Position': ('center', 'Hz')},
+                                    'pseudovoigtdouble': {'Count rate': ('v0_offset', 'c/s'), 'Contrast 0': ('v0_contrast', '%'), 
+                                                         'Contrast 1': ('v1_contrast', '%'), 'FWHM 0': ('v0_fwhm', 'Hz'), 
+                                                         'FWHM 1': ('v1_fwhm', 'Hz'), 'Sensitvity 0': ('v0_sensitivity', 'T/sqrt(Hz)'),
+                                                         'Sensitivity 1': ('v1_sensitivity', 'T/sqrt(Hz)'), 'Lorentzian fraction 0': ('v0_fraction', '%'),
+                                                         'Lorentzian fraction 1': ('v1_fraction', '%')},
+                                    }
 
         # in this threadpool our worker thread will be run
         self.threadpool = QtCore.QThreadPool()
@@ -791,14 +827,9 @@ class LaserLogic(GenericLogic):
     def initialize_odmr_data(self):
 
         meas_dict = {'data': np.zeros((self.laser_power_num, self.mw_power_num, self.freq_num)),
-                     # FIXME: get the odmr data std
-                     # 'data_std': np.zeros((self.laser_power_num, self.mw_power_num, self.freq_num)),
-                     #TODO : replace np array by list
                      'saturation_data': np.zeros(self.laser_power_num),
                      'saturation_data_std': np.zeros(self.laser_power_num),
-                     # 'background_data': np.zeros(self.laser_power_num),
-                     # 'background_data_std': np.zeros(self.laser_power_num),
-                     'fit_results': np.zeros((self.laser_power_num, self.mw_power_num), dtype = lmfit.model.ModelResult),
+                     'fit_results': [[0] * self.mw_power_num for _ in range(self.laser_power_num)],
                      'fit_params': {},
                      'coord0_arr': np.linspace(self.laser_power_start, self.laser_power_stop, self.laser_power_num, endpoint=True),
                      'coord1_arr': np.linspace(self.mw_power_start, self.mw_power_stop, self.mw_power_num, endpoint=True),
@@ -825,32 +856,52 @@ class LaserLogic(GenericLogic):
                                 },  # !!! here are all the measurement parameter saved
                     }  
 
+        if self.odmr_fit_function == 'No fit':
+            self.log.error("No fit function has been chosen, no result will be displayed. Please choose a fit function")
+            return
+
+        available_fits = self._odmr_logic.fc.fit_list
+
+        if self.odmr_fit_function not in available_fits:
+            self.log.error("The chosen fit function is unknown. Please chose another fit function.")
+            return
+        
+        if not available_fits[self.odmr_fit_function]['fit_name'] in self.fit_parameters_list:
+            self.log.error("The selected fit function is not supported by this module. Please chose another fit function.")
+            return
+
+        fit_name = available_fits[self.odmr_fit_function]['fit_name']
+        param_dict = self.fit_parameters_list[fit_name]
+
+        for param_name in param_dict.keys():
+            meas_dict['fit_params'][param_name] = {}
+            meas_dict['fit_params'][param_name]['values'] = np.zeros((self.laser_power_num, self.mw_power_num))
+            meas_dict['fit_params'][param_name]['stderr'] = np.zeros((self.laser_power_num, self.mw_power_num))
+            meas_dict['fit_params'][param_name]['unit'] = param_dict[param_name][1]
+        self.sigDataAvailableUpdated.emit(list(param_dict))
+
         self._odmr_data = meas_dict
 
         return self._odmr_data
 
     def update_fit_params(self, i, j):
-        if self.odmr_fit_function != 'No fit':
-            if not hasattr(self._odmr_data['fit_results'][0][0], 'result_str_dict'):
-                self.log.warning("The selected fit does not allow to access the fit parameters. Please chose another fit.")
-                return
 
-            param_dict = self._odmr_data['fit_results'][i][j].result_str_dict
-            if (i, j) == (0, 0):
-                for param_name in param_dict.keys():
-                    if not 'slope' in param_name :
-                        self._odmr_data['fit_params'][param_name] = {}
-                        self._odmr_data['fit_params'][param_name]['values'] = np.zeros((self.laser_power_num, self.mw_power_num))
-                        if 'error' in param_dict[param_name]:
-                            self._odmr_data['fit_params'][param_name]['errors'] = np.zeros((self.laser_power_num, self.mw_power_num))
-                        self._odmr_data['fit_params'][param_name]['unit'] = param_dict[param_name]['unit']
-                self.sigDataAvailableUpdated.emit(list(self._odmr_data['fit_params'].keys()))
-                #self.sigDataAvailableUpdated.emit(list(param_dict.keys()))
-            for param_name in param_dict:
-                if not 'slope' in param_name:
-                    self._odmr_data['fit_params'][param_name]['values'][i][j] = param_dict[param_name]['value']
-                    if 'error' in param_dict[param_name]:
-                        self._odmr_data['fit_params'][param_name]['errors'][i][j] = param_dict[param_name]['error']
+        available_fits = self._odmr_logic.fc.fit_list
+
+        if self.odmr_fit_function in available_fits and available_fits[self.odmr_fit_function]['fit_name'] in self.fit_parameters_list:
+
+            fit_name = available_fits[self.odmr_fit_function]['fit_name']
+            param_dict = self.fit_parameters_list[fit_name]
+            fit_params = self._odmr_data['fit_results'][i][j].params
+            is_error = self._odmr_data['fit_results'][i][j].errorbars
+
+            for param_name in param_dict.keys():
+                param = param_dict[param_name][0]
+                assert(param in fit_params), "The parameter {0} does not match any parameter of the fit. Please edit fit_parameters_list.".format(param)
+                # FIXME: The contrast has negative values. We take the absolute value of all the parameters for now.
+                self._odmr_data['fit_params'][param_name]['values'][i][j] = abs(fit_params[param].value)
+                if is_error:
+                    self._odmr_data['fit_params'][param_name]['stderr'][i][j] = fit_params[param].stderr
 
     def save_scan_data(self, nametag):
         
@@ -943,7 +994,7 @@ class LaserLogic(GenericLogic):
                                        timestamp=timestamp)
 
         # Save fit result if they are computed
-        if self._odmr_data['fit_results'].any():
+        if self._odmr_data['fit_params']:
             for param_name in self._odmr_data['fit_params']:
                 data_matrix, unit = self.get_data(param_name)
                 data_dict = {param_name + ' (' + unit + ')': data_matrix}
@@ -956,8 +1007,8 @@ class LaserLogic(GenericLogic):
                                         delimiter='\t',
                                         timestamp=timestamp,
                                         plotfig=fig)
-                if 'errors' in self._odmr_data['fit_params'][param_name]:
-                    std_matrix = self._odmr_data['fit_params'][param_name]['errors']                       
+                if 'stderr' in self._odmr_data['fit_params'][param_name]:
+                    std_matrix = self._odmr_data['fit_params'][param_name]['stderr']                       
                     std_dict = {param_name + ' Error (' + unit + ')': std_matrix}
                     std_filelabel = filelabel + '_' + param_name + '_stddev'
                     self._save_logic.save_data(std_dict, parameters=parameters,
@@ -1067,7 +1118,11 @@ class LaserLogic(GenericLogic):
         return params
 
     def get_odmr_fits(self):
-        fit_list = self._odmr_logic.fc.fit_list.keys()
+        fit_list = []
+        available_fits = self._odmr_logic.fc.fit_list
+        for fit in available_fits.keys():
+            if available_fits[fit]['fit_name'] in self.fit_parameters_list:
+                fit_list.append(fit)
         return fit_list
 
     def get_data(self, data_name):
