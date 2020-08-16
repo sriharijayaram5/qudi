@@ -122,6 +122,8 @@ def make_voigtequalized_model(self, prefix=None):
 
     voigt_offset_model.set_param_hint('{0}contrast'.format(prefix),
                                       expr='({0}height/{0}offset)*100'.format(prefix))
+    voigt_offset_model.set_param_hint('{0}sensitivity'.format(prefix),
+                                        expr='2.75e-11 * {0}fwhm / (abs({0}contrast) * 0.01 * sqrt({0}offset))'.format(prefix))
 
     params = voigt_offset_model.make_params()
 
@@ -143,7 +145,8 @@ def make_voigtdoubleequalized_model(self):
 
     double_voigt_model.set_param_hint('v1_offset', value=0, vary=False)
     double_voigt_model.set_param_hint('v1_contrast', expr='(v1_height/v0_offset)*100')
-
+    double_voigt_model.set_param_hint('v1_sensitivity',
+        expr='2.75e-11 * v1_fwhm / (abs(v1_contrast) * 0.01 * sqrt(v0_offset))')
     params = double_voigt_model.make_params()
 
     return double_voigt_model, params
@@ -179,8 +182,9 @@ def make_voigt_model(self, prefix=None):
     #voigt_offset_model.set_param_hint('{0}fwhm2'.format(prefix), 
     #                                  expr='((2.3548 * {0}sigma)**5 + 2.69269 * (2.3548 * {0}sigma)**4 * (2 * {0}gamma) + 2.42843 * (2.3548 * {0}sigma)**3 * (2 * {0}gamma)**2 + 4.47163 * (2.3548 * {0}sigma)**2 * (2 * {0}gamma)**3 + 0.07842 * (2.3548 * {0}sigma) * (2 * {0}gamma)**4 + (2 * {0}gamma)**5) ** (1/5)'.format(prefix))
     voigt_offset_model.set_param_hint('{0}fraction'.format(prefix), 
-                                      expr='1.36603 * (2 * {0}gamma / {0}fwhm) - 0.47719 * (2 * {0}gamma / {0}fwhm)**2 + 0.11116 * (2 * {0}gamma / {0}fwhm)**3'.format(prefix))
-    
+                                      expr='(1.36603 * (2 * {0}gamma / {0}fwhm) - 0.47719 * (2 * {0}gamma / {0}fwhm)**2 + 0.11116 * (2 * {0}gamma / {0}fwhm)**3) * 100'.format(prefix))
+    voigt_offset_model.set_param_hint('{0}sensitivity'.format(prefix),
+                                        expr='2.75e-11 * {0}fwhm / (abs({0}contrast) * 0.01 * sqrt({0}offset))'.format(prefix))
     params = voigt_offset_model.make_params()
 
     return voigt_offset_model, params
@@ -202,7 +206,8 @@ def make_voigtdouble_model(self):
 
     double_voigt_model.set_param_hint('v1_offset', value=0, vary=False)
     double_voigt_model.set_param_hint('v1_contrast', expr='(v1_height/v0_offset)*100')
-
+    double_voigt_model.set_param_hint('v1_sensitivity',
+        expr='2.75e-11 * v1_fwhm / (abs(v1_contrast) * 0.01 * sqrt(v0_offset))')
     params = double_voigt_model.make_params()
 
     return double_voigt_model, params
@@ -229,7 +234,8 @@ def make_pseudovoigt_model(self, prefix=None):
 
     pseudovoigt_offset_model.set_param_hint('{0}contrast'.format(prefix),
                                  expr='({0}height/{0}offset)*100'.format(prefix))
-
+    pseudovoigt_offset_model.set_param_hint('{0}sensitivity'.format(prefix),
+                                        expr='2.75e-11 * {0}fwhm / (abs({0}contrast) * 0.01 * sqrt({0}offset))'.format(prefix))
     params = pseudovoigt_offset_model.make_params()
 
     return pseudovoigt_offset_model, params
@@ -249,7 +255,8 @@ def make_pseudovoigtdouble_model(self):
 
     double_pseudovoigt_model.set_param_hint('v1_offset', value=0, vary=False)
     double_pseudovoigt_model.set_param_hint('v1_contrast', expr='(v1_height/v0_offset)*100')
-
+    double_pseudovoigt_model.set_param_hint('v1_sensitivity',
+        expr='2.75e-11 * v1_fwhm / (abs(v1_contrast) * 0.01 * sqrt(v0_offset))')
     params = double_pseudovoigt_model.make_params()
 
     return double_pseudovoigt_model, params
@@ -293,6 +300,16 @@ def make_voigtequalized_fit(self, x_axis, data, estimator, units=None, add_param
         result = model.fit(data, x=x_axis, params=params, **kwargs)
         self.log.warning('The 1D Voigt fit did not work. Error '
                          'message: {0}\n'.format(result.message))
+    
+    #Overwrite the standart deviation of the sensitivity
+    if result.errorbars:
+        result.params['sensitivity'].stderr = result.params['sensitivity'].value * \
+                                          np.sqrt((result.params['fwhm'].stderr /
+                                          result.params['fwhm'].value)**2 +
+                                          (result.params['contrast'].stderr /
+                                          result.params['contrast'].value)**2 +
+                                          (result.params['offset'].stderr /
+                                          (2 * result.params['offset'].value))**2)
 
     # Write the parameters to allow human-readable output to be generated
     result_str_dict = {}
@@ -300,23 +317,29 @@ def make_voigtequalized_fit(self, x_axis, data, estimator, units=None, add_param
         units = ["arb. units", "arb. units"]
 
     result_str_dict['Position'] = {'value': result.params['center'].value,
-                                   'error': result.params['center'].stderr,
                                    'unit': units[0]}
 
     result_str_dict['Contrast'] = {'value': abs(result.params['contrast'].value),
-                                   'error': result.params['contrast'].stderr,
                                    'unit': '%'}
 
     result_str_dict['FWHM'] = {'value': result.params['fwhm'].value,
-                               'error': result.params['fwhm'].stderr,
                                'unit': units[0]}
 
     result_str_dict['Offset'] = {'value': result.params['offset'].value,
-                                   'error': result.params['offset'].stderr,
                                    'unit': units[1]}
+
+    result_str_dict['Sensitivity'] = {'value': result.params['sensitivity'].value,
+                                      'unit': 'T/sqrt(Hz)'}
 
     result_str_dict['chi_sqr'] = {'value': result.chisqr, 'unit': ''}
 
+    if result.errorbars:
+        result_str_dict['Position']['error'] = result.params['center'].stderr
+        result_str_dict['Contrast']['error'] = result.params['contrast'].stderr
+        result_str_dict['FWHM']['error'] = result.params['fwhm'].stderr
+        result_str_dict['Offset']['error'] = result.params['offset'].stderr
+        result_str_dict['Sensitivity']['error'] = result.params['sensitivity'].stderr
+    
     result.result_str_dict = result_str_dict
     return result
 
@@ -414,6 +437,24 @@ def make_voigtdoubleequalized_fit(self, x_axis, data, estimator, units=None, add
         self.log.error('The double voigt fit did not '
                      'work: {0}'.format(result.message))
 
+    #Overwrite the standart deviation of the sensitivity
+    if result.errorbars:
+        result.params['v0_sensitivity'].stderr = result.params['v0_sensitivity'].value * \
+                                          np.sqrt((result.params['v0_fwhm'].stderr /
+                                          result.params['v0_fwhm'].value)**2 +
+                                          (result.params['v0_contrast'].stderr /
+                                          result.params['v0_contrast'].value)**2 +
+                                          (result.params['v0_offset'].stderr /
+                                          (2 * result.params['v0_offset'].value))**2)
+
+        result.params['v1_sensitivity'].stderr = result.params['v1_sensitivity'].value * \
+                                          np.sqrt((result.params['v1_fwhm'].stderr /
+                                          result.params['v1_fwhm'].value)**2 +
+                                          (result.params['v1_contrast'].stderr /
+                                          result.params['v1_contrast'].value)**2 +
+                                          (result.params['v0_offset'].stderr /
+                                          (2 * result.params['v0_offset'].value))**2)
+
     # Write the parameters to allow human-readable output to be generated
     result_str_dict = {}
 
@@ -421,40 +462,50 @@ def make_voigtdoubleequalized_fit(self, x_axis, data, estimator, units=None, add
         units = ["arb. units", "arb. units"]
 
     result_str_dict['Position 0'] = {'value': result.params['v0_center'].value,
-                                     'error': result.params['v0_center'].stderr,
                                      'unit': units[0]}
 
     result_str_dict['Position 1'] = {'value': result.params['v1_center'].value,
-                                     'error': result.params['v1_center'].stderr,
                                      'unit': units[0]}
 
     result_str_dict['Splitting'] = {'value': (result.params['v1_center'].value -
                                               result.params['v0_center'].value),
-                                    'error': (result.params['v0_center'].stderr +
-                                              result.params['v1_center'].stderr),
                                     'unit': units[0]}
 
     result_str_dict['Contrast 0'] = {'value': abs(result.params['v0_contrast'].value),
-                                     'error': result.params['v0_contrast'].stderr,
                                      'unit': '%'}
 
     result_str_dict['Contrast 1'] = {'value': abs(result.params['v1_contrast'].value),
-                                     'error': result.params['v1_contrast'].stderr,
                                      'unit': '%'}
 
     result_str_dict['FWHM 0'] = {'value': result.params['v0_fwhm'].value,
-                                 'error': result.params['v0_fwhm'].stderr,
                                  'unit': units[0]}
 
     result_str_dict['FWHM 1'] = {'value': result.params['v1_fwhm'].value,
-                                 'error': result.params['v1_fwhm'].stderr,
                                  'unit': units[0]}
 
     result_str_dict['Offset'] = {'value': result.params['v0_offset'].value,
-                                 'error': result.params['v0_offset'].stderr,
                                  'unit': units[1]}
 
+    result_str_dict['Sensitivity 0'] = {'value': result.params['v0_sensitivity'].value,
+                                        'unit': 'T/sqrt(Hz)'}
+
+    result_str_dict['Sensitivity 1'] = {'value': result.params['v1_sensitivity'].value,
+                                        'unit': 'T/sqrt(Hz)'}
+
     result_str_dict['chi_sqr'] = {'value': result.chisqr, 'unit': ''}
+
+    if result.errorbars:
+        result_str_dict['Position 0']['error'] = result.params['v0_center'].stderr
+        result_str_dict['Position 1']['error'] = result.params['v1_center'].stderr
+        result_str_dict['Splitting']['error'] = (result.params['v0_center'].stderr + \
+                                                result.params['v1_center'].stderr)
+        result_str_dict['Contrast 0']['error'] = result.params['v0_contrast'].stderr
+        result_str_dict['Contrast 1']['error'] = result.params['v1_contrast'].stderr
+        result_str_dict['FWHM 0']['error'] = result.params['v0_fwhm'].stderr
+        result_str_dict['FWHM 1']['error'] = result.params['v1_fwhm'].stderr
+        result_str_dict['Offset']['error'] = result.params['v0_offset'].stderr
+        result_str_dict['Sensitivity 0']['error'] = result.params['v0_sensitivity'].stderr
+        result_str_dict['Sensitivity 1']['error'] = result.params['v1_sensitivity'].stderr
 
     result.result_str_dict = result_str_dict
     return result
@@ -618,27 +669,42 @@ def make_voigt_fit(self, x_axis, data, estimator, units=None, add_params=None, *
         self.log.warning('The 1D Voigt fit did not work. Error '
                          'message: {0}\n'.format(result.message))
 
+    #Overwrite the standart deviation of the sensitivity
+    if result.errorbars:
+        result.params['sensitivity'].stderr = result.params['sensitivity'].value * \
+                                          np.sqrt((result.params['fwhm'].stderr /
+                                          result.params['fwhm'].value)**2 +
+                                          (result.params['contrast'].stderr /
+                                          result.params['contrast'].value)**2 +
+                                          (result.params['offset'].stderr /
+                                          (2 * result.params['offset'].value))**2)
+
     # Write the parameters to allow human-readable output to be generated
     result_str_dict = {}
     if units is None:
         units = ["arb. units", "arb. units"]
 
     result_str_dict['Position'] = {'value': result.params['center'].value,
-                                   'error': result.params['center'].stderr,
                                    'unit': units[0]}
     result_str_dict['Contrast'] = {'value': abs(result.params['contrast'].value),
-                                   'error': result.params['contrast'].stderr,
                                    'unit': '%'}
     result_str_dict['FWHM'] = {'value': result.params['fwhm'].value,
-                               'error': result.params['fwhm'].stderr,
                                'unit': units[0]}
     result_str_dict['Offset'] = {'value': result.params['offset'].value,
-                                   'error': result.params['offset'].stderr,
-                                   'unit': units[1]}
-    result_str_dict['Lorentzian fraction'] = {'value': result.params['fraction'].value * 100,
-                                   'error': result.params['fraction'].stderr * 100,
-                                   'unit': '%'}
+                                 'unit': units[1]}
+    result_str_dict['Sensitivity'] = {'value': result.params['sensitivity'].value,
+                                      'unit': 'T/sqrt(Hz)'}
+    result_str_dict['Lorentzian fraction'] = {'value': result.params['fraction'].value,
+                                              'unit': '%'}
     result_str_dict['chi_sqr'] = {'value': result.chisqr, 'unit': ''}
+
+    if result.errorbars:
+        result_str_dict['Position']['error'] = result.params['center'].stderr
+        result_str_dict['Contrast']['error'] = result.params['contrast'].stderr
+        result_str_dict['FWHM']['error'] = result.params['fwhm'].stderr
+        result_str_dict['Offset']['error'] = result.params['offset'].stderr
+        result_str_dict['Sensitivity']['error'] = result.params['sensitivity'].stderr
+        result_str_dict['Lorentzian fraction']['error'] = result.params['fraction'].stderr
 
     result.result_str_dict = result_str_dict
     return result
@@ -703,6 +769,24 @@ def make_voigtdouble_fit(self, x_axis, data, estimator, units=None, add_params=N
         result = model.fit(data, x=x_axis, params=params, **kwargs)
         self.log.error('The double voigt fit did not '
                      'work: {0}'.format(result.message))
+                     
+    #Overwrite the standart deviation of the sensitivity
+    if result.errorbars:
+        result.params['v0_sensitivity'].stderr = result.params['v0_sensitivity'].value * \
+                                          np.sqrt((result.params['v0_fwhm'].stderr /
+                                          result.params['v0_fwhm'].value)**2 +
+                                          (result.params['v0_contrast'].stderr /
+                                          result.params['v0_contrast'].value)**2 +
+                                          (result.params['v0_offset'].stderr /
+                                          (2 * result.params['v0_offset'].value))**2)
+
+        result.params['v1_sensitivity'].stderr = result.params['v1_sensitivity'].value * \
+                                          np.sqrt((result.params['v1_fwhm'].stderr /
+                                          result.params['v1_fwhm'].value)**2 +
+                                          (result.params['v1_contrast'].stderr /
+                                          result.params['v1_contrast'].value)**2 +
+                                          (result.params['v0_offset'].stderr /
+                                          (2 * result.params['v0_offset'].value))**2)
 
     # Write the parameters to allow human-readable output to be generated
     result_str_dict = {}
@@ -711,48 +795,58 @@ def make_voigtdouble_fit(self, x_axis, data, estimator, units=None, add_params=N
         units = ["arb. units", "arb. units"]
 
     result_str_dict['Position 0'] = {'value': result.params['v0_center'].value,
-                                     'error': result.params['v0_center'].stderr,
                                      'unit': units[0]}
 
     result_str_dict['Position 1'] = {'value': result.params['v1_center'].value,
-                                     'error': result.params['v1_center'].stderr,
                                      'unit': units[0]}
 
     result_str_dict['Splitting'] = {'value': (result.params['v1_center'].value -
                                               result.params['v0_center'].value),
-                                    'error': (result.params['v0_center'].stderr +
-                                              result.params['v1_center'].stderr),
                                     'unit': units[0]}
 
     result_str_dict['Contrast 0'] = {'value': abs(result.params['v0_contrast'].value),
-                                     'error': result.params['v0_contrast'].stderr,
                                      'unit': '%'}
 
     result_str_dict['Contrast 1'] = {'value': abs(result.params['v1_contrast'].value),
-                                     'error': result.params['v1_contrast'].stderr,
                                      'unit': '%'}
 
     result_str_dict['FWHM 0'] = {'value': result.params['v0_fwhm'].value,
-                                 'error': result.params['v0_fwhm'].stderr,
                                  'unit': units[0]}
 
     result_str_dict['FWHM 1'] = {'value': result.params['v1_fwhm'].value,
-                                 'error': result.params['v1_fwhm'].stderr,
                                  'unit': units[0]}
 
-    result_str_dict['Lorentzian fraction 0'] = {'value': result.params['v0_fraction'].value * 100,
-                                                'error': result.params['v0_fraction'].stderr * 100,
+    result_str_dict['Lorentzian fraction 0'] = {'value': result.params['v0_fraction'].value,
                                                 'unit': '%'}
 
-    result_str_dict['Lorentzian fraction 1'] = {'value': result.params['v1_fraction'].value * 100,
-                                                'error': result.params['v1_fraction'].stderr * 100,
+    result_str_dict['Lorentzian fraction 1'] = {'value': result.params['v1_fraction'].value,
                                                 'unit': '%'} 
 
     result_str_dict['Offset'] = {'value': result.params['v0_offset'].value,
-                                 'error': result.params['v0_offset'].stderr,
                                  'unit': units[1]} 
 
+    result_str_dict['Sensitivity 0'] = {'value': result.params['v0_sensitivity'].value,
+                                        'unit': 'T/sqrt(Hz)'}
+
+    result_str_dict['Sensitivity 1'] = {'value': result.params['v1_sensitivity'].value,
+                                        'unit': 'T/sqrt(Hz)'}
+
     result_str_dict['chi_sqr'] = {'value': result.chisqr, 'unit': ''}
+
+    if result.errorbars:
+        result_str_dict['Position 0']['error'] = result.params['v0_center'].stderr
+        result_str_dict['Position 1']['error'] = result.params['v1_center'].stderr
+        result_str_dict['Splitting']['error'] = (result.params['v0_center'].stderr + \
+                                                result.params['v1_center'].stderr)
+        result_str_dict['Contrast 0']['error'] = result.params['v0_contrast'].stderr
+        result_str_dict['Contrast 1']['error'] = result.params['v1_contrast'].stderr
+        result_str_dict['FWHM 0']['error'] = result.params['v0_fwhm'].stderr
+        result_str_dict['FWHM 1']['error'] = result.params['v1_fwhm'].stderr
+        result_str_dict['Lorentzian fraction 0']['error'] = result.params['v0_fraction'].stderr
+        result_str_dict['Lorentzian fraction 1']['error'] = result.params['v1_fraction'].stderr
+        result_str_dict['Offset']['error'] = result.params['v0_offset'].stderr
+        result_str_dict['Sensitivity 0']['error'] = result.params['v0_sensitivity'].stderr
+        result_str_dict['Sensitivity 1']['error'] = result.params['v1_sensitivity'].stderr
 
     result.result_str_dict = result_str_dict
     return result
@@ -855,6 +949,16 @@ def make_pseudovoigt_fit(self, x_axis, data, estimator, units=None, add_params=N
         result = model.fit(data, x=x_axis, params=params, **kwargs)
         self.log.warning('The 1D Pseudo-Voigt fit did not work. Error '
                          'message: {0}\n'.format(result.message))
+    
+    #Overwrite the standart deviation of the sensitivity
+    if result.errorbars:
+        result.params['sensitivity'].stderr = result.params['sensitivity'].value * \
+                                          np.sqrt((result.params['fwhm'].stderr /
+                                          result.params['fwhm'].value)**2 +
+                                          (result.params['contrast'].stderr /
+                                          result.params['contrast'].value)**2 +
+                                          (result.params['offset'].stderr /
+                                          (2 * result.params['offset'].value))**2)
 
     # Write the parameters to allow human-readable output to be generated
     result_str_dict = {}
@@ -862,27 +966,33 @@ def make_pseudovoigt_fit(self, x_axis, data, estimator, units=None, add_params=N
         units = ["arb. units", "arb. units"]
 
     result_str_dict['Position'] = {'value': result.params['center'].value,
-                                   'error': result.params['center'].stderr,
                                    'unit': units[0]}
 
     result_str_dict['Contrast'] = {'value': abs(result.params['contrast'].value),
-                                   'error': result.params['contrast'].stderr,
                                    'unit': '%'}
 
     result_str_dict['FWHM'] = {'value': result.params['fwhm'].value,
-                               'error': result.params['fwhm'].stderr,
                                'unit': units[0]}
 
     result_str_dict['Offset'] = {'value': result.params['offset'].value,
-                                   'error': result.params['offset'].stderr,
                                    'unit': units[1]}
 
-    result_str_dict['Lorentzian fraction'] = {'value': result.params['fraction'].value * 100,
-                                   'error': result.params['fraction'].stderr * 100,
+    result_str_dict['Sensitivity'] = {'value': result.params['sensitivity'].value,
+                                      'unit': 'T/sqrt(Hz)'}
+
+    result_str_dict['Lorentzian fraction'] = {'value': result.params['fraction'].value,
                                    'unit': '%'}
 
     result_str_dict['chi_sqr'] = {'value': result.chisqr, 'unit': ''}
 
+    if result.errorbars:
+        result_str_dict['Position']['error'] = result.params['center'].stderr
+        result_str_dict['Contrast']['error'] = result.params['contrast'].stderr
+        result_str_dict['FWHM']['error'] = result.params['fwhm'].stderr
+        result_str_dict['Offset']['error'] = result.params['offset'].stderr
+        result_str_dict['Lorentzian fraction']['error'] = result.params['fraction'].stderr
+        result_str_dict['Sensitivity']['error'] = result.params['sensitivity'].stderr
+    
     result.result_str_dict = result_str_dict
     return result
 
@@ -902,7 +1012,7 @@ def estimate_pseudovoigt_dip(self, x_axis, data, params):
     """
     error, params = self.estimate_voigtequalized_dip(x_axis, data, params)
 
-    params['fraction'].set(value=0.5)
+    params['fraction'].set(value=50)
 
     return error, params
 
@@ -941,6 +1051,24 @@ def make_pseudovoigtdouble_fit(self, x_axis, data, estimator, units=None, add_pa
         result = model.fit(data, x=x_axis, params=params, **kwargs)
         self.log.error('The double pseudo-voigt fit did not '
                      'work: {0}'.format(result.message))
+                     
+    #Overwrite the standart deviation of the sensitivity
+    if result.errorbars:
+        result.params['v0_sensitivity'].stderr = result.params['v0_sensitivity'].value * \
+                                          np.sqrt((result.params['v0_fwhm'].stderr /
+                                          result.params['v0_fwhm'].value)**2 +
+                                          (result.params['v0_contrast'].stderr /
+                                          result.params['v0_contrast'].value)**2 +
+                                          (result.params['v0_offset'].stderr /
+                                          (2 * result.params['v0_offset'].value))**2)
+
+        result.params['v1_sensitivity'].stderr = result.params['v1_sensitivity'].value * \
+                                          np.sqrt((result.params['v1_fwhm'].stderr /
+                                          result.params['v1_fwhm'].value)**2 +
+                                          (result.params['v1_contrast'].stderr /
+                                          result.params['v1_contrast'].value)**2 +
+                                          (result.params['v0_offset'].stderr /
+                                          (2 * result.params['v0_offset'].value))**2)
 
     # Write the parameters to allow human-readable output to be generated
     result_str_dict = {}
@@ -949,46 +1077,59 @@ def make_pseudovoigtdouble_fit(self, x_axis, data, estimator, units=None, add_pa
         units = ["arb. units", "arb. units"]
 
     result_str_dict['Position 0'] = {'value': result.params['v0_center'].value,
-                                     'error': result.params['v0_center'].stderr,
                                      'unit': units[0]}
 
     result_str_dict['Position 1'] = {'value': result.params['v1_center'].value,
-                                     'error': result.params['v1_center'].stderr,
                                      'unit': units[0]}
 
     result_str_dict['Splitting'] = {'value': (result.params['v1_center'].value -
                                               result.params['v0_center'].value),
-                                    'error': (result.params['v0_center'].stderr +
-                                              result.params['v1_center'].stderr),
                                     'unit': units[0]}
 
     result_str_dict['Contrast 0'] = {'value': abs(result.params['v0_contrast'].value),
-                                     'error': result.params['v0_contrast'].stderr,
                                      'unit': '%'}
 
     result_str_dict['Contrast 1'] = {'value': abs(result.params['v1_contrast'].value),
-                                     'error': result.params['v1_contrast'].stderr,
                                      'unit': '%'}
 
     result_str_dict['FWHM 0'] = {'value': result.params['v0_fwhm'].value,
-                                 'error': result.params['v0_fwhm'].stderr,
                                  'unit': units[0]}
 
     result_str_dict['FWHM 1'] = {'value': result.params['v1_fwhm'].value,
-                                 'error': result.params['v1_fwhm'].stderr,
                                  'unit': units[0]}
 
-    result_str_dict['Lorentzian fraction 0'] = {'value': result.params['v0_fraction'].value * 100,
-                                                'error': result.params['v0_fraction'].stderr * 100,
+    result_str_dict['Lorentzian fraction 0'] = {'value': result.params['v0_fraction'].value,
                                                 'unit': '%'}
 
-    result_str_dict['Lorentzian fraction 1'] = {'value': result.params['v1_fraction'].value * 100,
-                                                'error': result.params['v1_fraction'].stderr * 100,
+    result_str_dict['Lorentzian fraction 1'] = {'value': result.params['v1_fraction'].value,
                                                 'unit': '%'} 
 
+    result_str_dict['Offset'] = {'value': result.params['v0_offset'].value,
+                                 'unit': units[1]}
+
+    result_str_dict['Sensitivity 0'] = {'value': result.params['v0_sensitivity'].value,
+                                        'unit': 'T/sqrt(Hz)'}
+
+    result_str_dict['Sensitivity 1'] = {'value': result.params['v1_sensitivity'].value,
+                                        'unit': 'T/sqrt(Hz)'}
 
     result_str_dict['chi_sqr'] = {'value': result.chisqr, 'unit': ''}
 
+    if result.errorbars:
+        result_str_dict['Position 0']['error'] = result.params['v0_center'].stderr
+        result_str_dict['Position 1']['error'] = result.params['v1_center'].stderr
+        result_str_dict['Splitting']['error'] = (result.params['v0_center'].stderr + \
+                                                result.params['v1_center'].stderr)
+        result_str_dict['Contrast 0']['error'] = result.params['v0_contrast'].stderr
+        result_str_dict['Contrast 1']['error'] = result.params['v1_contrast'].stderr
+        result_str_dict['FWHM 0']['error'] = result.params['v0_fwhm'].stderr
+        result_str_dict['FWHM 1']['error'] = result.params['v1_fwhm'].stderr
+        result_str_dict['Lorentzian fraction 0']['error'] = result.params['v0_fraction'].stderr
+        result_str_dict['Lorentzian fraction 1']['error'] = result.params['v1_fraction'].stderr
+        result_str_dict['Offset']['error'] = result.params['v0_offset'].stderr
+        result_str_dict['Sensitivity 0']['error'] = result.params['v0_sensitivity'].stderr
+        result_str_dict['Sensitivity 1']['error'] = result.params['v1_sensitivity'].stderr
+    
     result.result_str_dict = result_str_dict
     return result
 
@@ -1012,8 +1153,8 @@ def estimate_pseudovoigtdouble_dip(self, x_axis, data, params,
     error, params = self.estimate_voigtdoubleequalized_dip(x_axis, data, params, threshold_fraction,
                                                   minimal_threshold, sigma_threshold_fraction)
 
-    params['v0_fraction'].set(value=0.5)
-    params['v1_fraction'].set(value=0.5)
+    params['v0_fraction'].set(value=50)
+    params['v1_fraction'].set(value=50)
 
     return error, params
 
