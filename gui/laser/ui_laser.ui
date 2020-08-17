@@ -367,61 +367,6 @@
            </property>
           </spacer>
          </item>
-         <item row="4" column="0">
-          <widget class="QCheckBox" name="background_CheckBox">
-           <property name="maximumSize">
-            <size>
-             <width>275</width>
-             <height>16777215</height>
-            </size>
-           </property>
-           <property name="text">
-            <string>Record Background</string>
-           </property>
-          </widget>
-         </item>
-         <item row="5" column="0">
-          <widget class="QPushButton" name="background_PushButton">
-           <property name="maximumSize">
-            <size>
-             <width>275</width>
-             <height>16777215</height>
-            </size>
-           </property>
-           <property name="text">
-            <string>Display Background</string>
-           </property>
-           <property name="checkable">
-            <bool>true</bool>
-           </property>
-          </widget>
-         </item>
-         <item row="6" column="0">
-          <widget class="QPushButton" name="double_fit_Button">
-           <property name="maximumSize">
-            <size>
-             <width>275</width>
-             <height>16777215</height>
-            </size>
-           </property>
-           <property name="text">
-            <string>Do fit with background</string>
-           </property>
-           <property name="checkable">
-            <bool>true</bool>
-           </property>
-          </widget>
-         </item>
-         <item row="7" column="0">
-          <widget class="QTextBrowser" name="double_fit_results_DisplayWidget">
-           <property name="maximumSize">
-            <size>
-             <width>275</width>
-             <height>150</height>
-            </size>
-           </property>
-          </widget>
-         </item>
         </layout>
        </widget>
       </widget>
