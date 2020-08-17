@@ -224,7 +224,7 @@ def estimate_hyperbolicsaturation_2(self, x_axis, data, params):
     params['slope'].min = 0
    
     params['offset'].value = 0
-    params['offset'].vary = False
+    params['offset'].vary = True
 
     return error, params
 
