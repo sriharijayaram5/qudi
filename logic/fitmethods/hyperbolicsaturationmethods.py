@@ -32,6 +32,7 @@ import math
 #                                                                              #
 ################################################################################
 
+
 def make_hyperbolicsaturation_model(self, prefix=None):
     """ Create a model of the fluorescence depending on excitation power with
         linear offset.
@@ -65,8 +66,8 @@ def make_hyperbolicsaturation_model(self, prefix=None):
 
     if not isinstance(prefix, str) and prefix is not None:
         self.log.error('The passed prefix <{0}> of type {1} is not a string and'
-                     'cannot be used as a prefix and will be ignored for now.'
-                     'Correct that!'.format(prefix, type(prefix)))
+                       'cannot be used as a prefix and will be ignored for now.'
+                       'Correct that!'.format(prefix, type(prefix)))
 
         mod_sat = Model(hyperbolicsaturation_function, independent_vars='x')
     else:
@@ -154,21 +155,20 @@ def estimate_hyperbolicsaturation(self, x_axis, data, params):
     data_half = data[len(x_axis)//2:]
 
     results_lin = self.make_linear_fit(x_axis=x_axis_half, data=data_half,
-                                           estimator=self.estimate_linear)
+                                       estimator=self.estimate_linear)
 
     est_slope = results_lin.params['slope'].value
     est_offset = data.min()
 
     data_red = data - est_slope*x_axis - est_offset
     est_I_sat = np.mean(data_red[len(data_red)//2:])
-    #FIXME: It should be f(est_P_sat) = est_I_sat/2, not est_P_sat = est_I_sat/2
+    # FIXME: It should be f(est_P_sat) = est_I_sat/2, not est_P_sat = est_I_sat/2
     est_P_sat = est_I_sat/2
 
     params['I_sat'].value = est_I_sat
     params['slope'].value = est_slope
     params['offset'].value = est_offset
     params['P_sat'].value = est_P_sat
-
 
     return error, params
 
@@ -196,22 +196,24 @@ def estimate_hyperbolicsaturation_2(self, x_axis, data, params):
     n = len(x_axis)
     m = min(math.floor(n*0.8), n-2)
     p = max(math.ceil(n*0.1), 2)
-    
+
     x_tail = x_axis[m:]
     data_tail = data[m:]
-    
-    result_lin_tail = self.make_linear_fit(x_axis=x_tail, data=data_tail, estimator=self.estimate_linear)
+
+    result_lin_tail = self.make_linear_fit(
+        x_axis=x_tail, data=data_tail, estimator=self.estimate_linear)
     est_slope = result_lin_tail.params['slope'].value
-    
+
     data_red = data - est_slope*x_axis
     est_I_sat = np.mean(data_red[m:])
 
     x_red_head = x_axis[:p]
     data_red_head = data_red[:p]
-    
+
     no_offset = Parameters()
-    no_offset.add('offset', value = 0, vary = False)
-    result_lin_head = self.make_linear_fit(x_axis=x_red_head, data=data_red_head, estimator=self.estimate_linear, add_params = no_offset)
+    no_offset.add('offset', value=0, vary=False)
+    result_lin_head = self.make_linear_fit(
+        x_axis=x_red_head, data=data_red_head, estimator=self.estimate_linear, add_params=no_offset)
     origin_slope = result_lin_head.params['slope'].value
 
     est_P_sat = est_I_sat/origin_slope
@@ -222,156 +224,8 @@ def estimate_hyperbolicsaturation_2(self, x_axis, data, params):
     params['I_sat'].min = 0
     params['P_sat'].min = 0
     params['slope'].min = 0
-   
+
     params['offset'].value = 0
-    params['offset'].vary = True
-
-    return error, params
-
-def make_hyperbolicsaturation_fit_with_background(self, x_axis, data, estimator,
-                                                  units=None, add_params=None, **kwargs):                                                  
-    """ Perform a fit on the provided data.
-
-    @param numpy.array x_axis: 2D array, the first row contains the x values for the
-                saturation curve and the second row for the linear curve. The two rows
-                do not need to have the same size.
-    @param numpy.array data: 2D array containing the associated y value (first row:
-                saturation, second row: linear)
-    @param method estimator: Pointer to the estimator method
-    @param list units: List containing the ['horizontal', 'vertical'] units as strings
-    @param Parameters or dict add_params: optional, additional parameters of
-                type lmfit.parameter.Parameters, OrderedDict or dict for the fit
-                which will be used instead of the values from the estimator.
-
-    @return object result: lmfit.minimizer.MinimizerResult object, all parameters
-                           provided about the fitting, like: success,
-                           initial fitting values, best fitting values,...
-    
-    Perform the fit simultaneously on a function following a saturation behaviour 
-    added to a linear component and on a second function corresponding to the linear 
-    part only.
-    """
-    def hyp_sat(x, I_sat, P_sat, slope, offset):
-        return I_sat * x / (x + P_sat) + slope * x + offset
-
-    def linear(x, slope, offset):
-        return slope * x + offset
-
-    def hyp_sat_eval(params, x):
-        I_sat = params['I_sat']
-        P_sat = params['P_sat']
-        slope = params['slope']
-        offset = params['offset']
-        return hyp_sat(x, I_sat, P_sat, slope, offset)
-
-    def linear_eval(params, x):
-        slope = params['slope']
-        offset = params['offset']
-        return linear(x, slope, offset)
-
-    def objective(params, x, data):
-        # make residual 
-        resid = 0 * data
-        resid[0] = data[0] - hyp_sat_eval(params, x_axis[0])
-        resid[1] = data[1] - linear_eval(params, x_axis[1])
-        # now flatten this to a 1D array, as minimize() needs
-        return np.concatenate([resid[0], resid[1]])
-    
-    params = Parameters()
-    params.add('I_sat', min=0)
-    params.add('P_sat', min=0)
-    params.add('slope', min=0)
-    params.add('offset', min=0)
-
-    error, params = estimator(x_axis, data, params)
-
-    result = minimize(objective, params, args=(x_axis, data))
-
-    fit_x = []
-    fit_x.append(np.linspace(start=x_axis[0][0], stop=x_axis[0][-1], num=len(x_axis[0]) * 5))
-    fit_x.append(np.linspace(start=x_axis[1][0], stop=x_axis[1][-1], num=len(x_axis[1]) * 5))
-    fit_x = np.array(fit_x)
-
-    fit_y = []
-    fit_y.append(hyp_sat_eval(result.params, fit_x[0]))
-    fit_y.append(linear_eval(result.params, fit_x[1]))
-    fit_y = np.array(fit_y)
-
-    if units is None:
-        units = ['arb. unit', 'arb. unit']
-
-    result_str_dict = {}
-
-    result_str_dict['I_sat'] = {'value': result.params['I_sat'].value,
-                                'unit': units[1]}
-    result_str_dict['P_sat'] = {'value': result.params['P_sat'].value,
-                                'unit': units[0]}
-    result_str_dict['Slope'] = {'value': result.params['slope'].value,
-                                'unit': '{0}/{1}'.format(units[1], units[0])}
-    result_str_dict['Offset'] = {'value': result.params['offset'].value,
-                                 'unit': units[1]}
-
-    if result.errorbars:
-        result_str_dict['I_sat']['error'] = result.params['I_sat'].stderr
-        result_str_dict['P_sat']['error'] = result.params['P_sat'].stderr
-        result_str_dict['Slope']['error'] = result.params['slope'].stderr
-        result_str_dict['Offset']['error'] = result.params['offset'].stderr
-    result.result_str_dict = result_str_dict
-
-    return fit_x, fit_y, result
-
-def estimate_hyperbolicsaturation_with_background(self, x_axis, data, params):
-    """ Provides an estimation for a saturation like function and a linear function.
-
-    @param numpy.array x_axis: 2D array, the first row contains the x values for the
-                saturation curve and the second row for the linear curve. The two rows
-                do not need to have the same size.
-    @param numpy.array data: 2D data, should have the same dimension as x_axis.
-    @param lmfit.Parameters params: object includes parameter dictionary which
-                                    can be set
-
-    @return tuple (error, params):
-
-    Explanation of the return parameter:
-        int error: error code (0:OK, -1:error)
-        Parameters object params: set parameters of initial values
-
-    Estimator associated to the make_hyperbolicsaturation_fit_with_background method.
-    """
-
-
-    #Check the input of the fit 
-    error=0
-    if self._check_1D_input(x_axis=x_axis[0], data=data[0], params=params) or \
-        self._check_1D_input(x_axis=x_axis[1], data=data[1], params=params):
-        error = -1
-
-    result_lin = self.make_linear_fit(x_axis=x_axis[1], data=data[1], 
-                                      estimator=self.estimate_linear)
-    est_slope = result_lin.params['slope'].value
-    est_offset = result_lin.params['offset'].value
-
-    data_red = data[0] - est_slope*x_axis[0] - est_offset
-
-    n = len(x_axis)
-    m = min(math.floor(n*0.8), n-2)
-    p = max(math.ceil(n*0.1), 2)
-
-    est_I_sat = np.mean(data_red[m:])
-
-    no_offset = Parameters()
-    no_offset.add('offset', value = 0, vary = False)
-    result_lin_head = self.make_linear_fit(x_axis=x_axis[0][:p], data=data_red[:p], 
-                                           estimator=self.estimate_linear, 
-                                           add_params=no_offset)
-
-    origin_slope = result_lin_head.params['slope'].value
-
-    est_P_sat = est_I_sat/origin_slope
-
-    params['I_sat'].value = est_I_sat
-    params['P_sat'].value = est_P_sat
-    params['slope'].value = est_slope
-    params['offset'].value = est_offset
+    params['offset'].vary = False
 
     return error, params
