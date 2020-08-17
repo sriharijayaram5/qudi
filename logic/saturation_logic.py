@@ -299,6 +299,18 @@ class LaserLogic(GenericLogic):
         else:
             return None
 
+    def check_thread_active(self):
+        """ Check whether current worker thread is running. """
+
+        if hasattr(self, '_worker_thread'):
+            if self._worker_thread.is_running():
+                return True
+        return False
+
+    ###########################################################################
+    #                             Laser methods                               #
+    ###########################################################################
+
     def on(self):
         """ Turn on laser. Does not open shutter if one is present.
 
@@ -316,6 +328,14 @@ class LaserLogic(GenericLogic):
         self._dev.off()
         self.sigLaserStateChanged.emit()
         return self.get_laser_state()
+
+    def get_laser_state(self):
+        """ Get laser state.
+
+        @return enum LaserState: laser state
+        """
+
+        return self._dev.get_laser_state()
 
     def get_power(self):
         """ Return laser power independent of the mode.
@@ -373,6 +393,14 @@ class LaserLogic(GenericLogic):
 
         return self.get_current()
 
+    def get_control_mode(self):
+        """ Get control mode of laser.
+
+        @return enum ControlMode: control mode
+        """
+
+        return self._dev.get_control_mode()
+
     def set_control_mode(self, control_mode):
         """ Set laser control mode.
 
@@ -384,21 +412,21 @@ class LaserLogic(GenericLogic):
         self.sigControlModeChanged.emit()
         return self.get_control_mode()
 
-    def get_control_mode(self):
-        """ Get control mode of laser.
+    ###########################################################################
+    #                     Saturation curve  methods                           #
+    ###########################################################################
 
-        @return enum ControlMode: control mode
+    def get_saturation_parameters(self):
+        """ Get the parameters of the saturation curve.
+
+        @return dict
         """
-
-        return self._dev.get_control_mode()
-
-    def get_laser_state(self):
-        """ Get laser state.
-
-        @return enum LaserState: laser state
-        """
-
-        return self._dev.get_laser_state()
+        params = {'power_start': self.power_start,
+                  'power_stop': self.power_stop,
+                  'number_of_points': self.number_of_points,
+                  'time_per_point': self.time_per_point
+                  }
+        return params
 
     def set_saturation_params(self, power_start, power_stop, number_of_points,
                               time_per_point):
@@ -425,18 +453,6 @@ class LaserLogic(GenericLogic):
 
         self.sigSaturationParameterUpdated.emit()
         return self.power_start, self.power_stop, self.number_of_points, self.time_per_point
-
-    def get_saturation_parameters(self):
-        """ Get the parameters of the saturation curve.
-
-        @return dict
-        """
-        params = {'power_start': self.power_start,
-                  'power_stop': self.power_stop,
-                  'number_of_points': self.number_of_points,
-                  'time_per_point': self.time_per_point
-                  }
-        return params
 
     def get_saturation_data(self, is_background=False):
         """ Get recorded data.
@@ -642,14 +658,6 @@ class LaserLogic(GenericLogic):
 
         return fig
 
-    def check_thread_active(self):
-        """ Check whether current worker thread is running. """
-
-        if hasattr(self, '_worker_thread'):
-            if self._worker_thread.is_running():
-                return True
-        return False
-
     def do_fit(self, x_data=None, y_data=None):
         """
         Execute the fit (configured in the fc object) on the measurement data. 
@@ -758,10 +766,279 @@ class LaserLogic(GenericLogic):
     #                    Optimal operation point methods                      #
     ###########################################################################
 
+    ########################
+    #       Getters        #
+    ########################
+
+    def get_OOP_parameters(self):
+        """ Get the parameters of Optimal Operation Point measurement.
+
+        @return dict
+        """
+        params = {'laser_power_start': self.laser_power_start,
+                  'laser_power_stop': self.laser_power_stop,
+                  'laser_power_num': self.laser_power_num,
+                  'mw_power_start': self.mw_power_start,
+                  'mw_power_stop': self.mw_power_stop,
+                  'mw_power_num': self.mw_power_num,
+                  'freq_start': self.freq_start,
+                  'freq_stop': self.freq_stop,
+                  'freq_num': self.freq_num,
+                  'counter_runtime': self.counter_runtime,
+                  'odmr_runtime': self.odmr_runtime,
+                  'channel': self.channel,
+                  'optimize': self.optimize,
+                  'odmr_fit_function': self.odmr_fit_function,
+                  'bayopt_num_meas': self.bayopt_num_meas}
+        return params
+
+    def get_odmr_constraints(self):
+        """ Get the mw power and frequency constraints from the odmr logic.
+
+        @return object: Hardware constraints object.
+        """
+        return self._odmr_logic.get_hw_constraints()
+
     def get_odmr_channels(self):
         """ Return the available channels.
         """
         return self._odmr_logic.get_odmr_channels()
+
+    def get_odmr_fits(self):
+        """ Get the fits available for fitting the ODMR spectra.
+
+        @return list: List containing the names of the fit as string. 
+        """
+        fit_list = []
+        available_fits = self._odmr_logic.fc.fit_list
+        for fit in available_fits.keys():
+            if available_fits[fit]['fit_name'] in self.fit_parameters_list:
+                fit_list.append(fit)
+        return fit_list
+
+    def get_scan_data(self, data_name):
+        """ Return the matrix with the actual values of a given data (e.g. Contrast, FWHM)
+        for the scan and the associated unit
+
+        @param str data_name: The name of the data for which the matrix will be returned. 
+
+        @return (np.ndarray, str): the matrix and the associated unit.
+        """
+        if data_name in self._scan_data['fit_params']:
+            param_dict = self._scan_data['fit_params'][data_name]
+            return param_dict['values'], param_dict['unit']
+        else:
+            self.log.error("This data is not available from the fit, sorry!")
+            return np.array([[0]]), ''
+
+    def get_bayopt_data(self):
+        """ Getter for the data dictionary.
+        """
+        return self._bayopt_data
+
+    ########################
+    #       Setters        #
+    ########################
+
+    # TODO: check if the module is locked or not before changing the params
+
+    def set_laser_power_start(self, laser_power_start):
+        """ Set the minimum laser power for the Optimal Operation Point scan and 
+        Bayesian optimization. 
+
+        @param float laser_power_start: minimum laser power in Watt
+        """
+        lpr = self.laser_power_range
+        if isinstance(laser_power_start, (int, float)):
+            self.laser_power_start = units.in_range(
+                laser_power_start, lpr[0], lpr[1])
+        self.sigParameterUpdated.emit()
+        return self.laser_power_start
+
+    def set_laser_power_stop(self, laser_power_stop):
+        """ Set the maximum laser power for the Optimal Operation Point scan and 
+        Bayesian optimization. 
+
+        @param float laser_power_stop: maximum laser power in Watt
+        """
+        # FIXME: Prevent laser_power_stop being equal to laser_power_start:
+        # that causes a bug.
+        lpr = self.laser_power_range
+        if isinstance(laser_power_stop, (int, float)):
+            if laser_power_stop < self.laser_power_start:
+                laser_power_stop = self.laser_power_start
+            self.laser_power_stop = units.in_range(
+                laser_power_stop, lpr[0], lpr[1])
+            self.sigParameterUpdated.emit()
+            return self.laser_power_stop
+
+    def set_laser_power_num(self, laser_power_num):
+        """ Set the number of laser powers for the Optimal Operation Point scan.
+
+        @param int laser_power_num: number of laser power points 
+        """
+        if isinstance(laser_power_num, int):
+            self.laser_power_num = laser_power_num
+        self.sigParameterUpdated.emit()
+        return self.laser_power_num
+
+    def set_mw_power_start(self, mw_power_start):
+        """ Set the minimum microwave power for the Optimal Operation Point scan and 
+        Bayesian optimization. 
+
+        @param float mw_power_start: minimum mw power in dBm
+        """
+        limits = self.get_odmr_constraints()
+        if isinstance(mw_power_start, (int, float)):
+            self.mw_power_start = limits.power_in_range(mw_power_start)
+        self.sigParameterUpdated.emit()
+        return self.mw_power_start
+
+    def set_mw_power_stop(self, mw_power_stop):
+        """ Set the maximum mw power for the Optimal Operation Point scan and 
+        Bayesian optimization. 
+
+        @param float mw_power_stop: maximum mw power in dBm
+        """
+        limits = self.get_odmr_constraints()
+        if isinstance(mw_power_stop, (int, float)):
+            if mw_power_stop < self.mw_power_start:
+                mw_power_stop = self.mw_power_start
+            self.mw_power_stop = limits.power_in_range(mw_power_stop)
+        self.sigParameterUpdated.emit()
+        return self.mw_power_stop
+
+    def set_mw_power_num(self, mw_power_num):
+        """ Set the number of mw powers for the Optimal Operation Point scan and 
+        Bayesian optimization. 
+
+        @param int mw_power_num: number of mw power points
+        """
+        if isinstance(mw_power_num, int):
+            self.mw_power_num = mw_power_num
+        self.sigParameterUpdated.emit()
+        return self.mw_power_num
+
+    def set_freq_start(self, freq_start):
+        """ Set the minimum frequency for ODMR measurements. 
+
+        @param float freq_start: starting frequency in Hz
+        """
+        limits = self.get_odmr_constraints()
+        if isinstance(freq_start, (int, float)):
+            self.freq_start = limits.frequency_in_range(freq_start)
+        self.sigParameterUpdated.emit()
+        return self.freq_start
+
+    def set_freq_stop(self, freq_stop):
+        """ Set the maximum frequency for ODMR measurements. 
+
+        @param float freq_stop: stopping frequency in Hz
+        """
+        limits = self.get_odmr_constraints()
+        if isinstance(freq_stop, (int, float)):
+            if freq_stop < self.freq_start:
+                freq_stop = self.freq_start
+            self.freq_stop = limits.frequency_in_range(freq_stop)
+        self.sigParameterUpdated.emit()
+        return self.freq_stop
+
+    def set_freq_num(self, freq_num):
+        """ Set the number of points for ODMR measurements. 
+
+        @param int freq_num: number of points
+        """
+        if isinstance(freq_num, int):
+            self.freq_num = freq_num
+        self.sigParameterUpdated.emit()
+        return self.freq_num
+
+    def set_counter_runtime(self, counter_runtime):
+        """ Set the counter runtime for the saturation curve of the Optimal 
+        Operation Point scan.
+
+        @param float counter_runtime: runtime in s 
+        """
+        if isinstance(counter_runtime, (int, float)):
+            self.counter_runtime = counter_runtime
+        self.sigParameterUpdated.emit()
+        return self.counter_runtime
+
+    def set_odmr_runtime(self, odmr_runtime):
+        """ Set the runtime for ODMR measurements. 
+
+        @param float odmr_runtime: runtime in s
+        """
+        if isinstance(odmr_runtime, (int, float)):
+            self.odmr_runtime = odmr_runtime
+        self.sigParameterUpdated.emit()
+        return self.odmr_runtime
+
+    # FIXME: check whether the channel exists or not
+    def set_channel(self, channel):
+        """ Set the channel for ODMR measurements and saturation curve. 
+
+        @param int channel: number of the channel (warning, channel are numbered
+        from zero!)
+        """
+        odmr_channels = self.get_odmr_channels()
+        num = len(odmr_channels)
+        if isinstance(channel, int) and channel < num:
+            self.channel = channel
+            self.sigParameterUpdated.emit()
+        else:
+            self.log.error(
+                'Channel must be an int inferior or equal to {0:d}'.format(num - 1))
+        return self.channel
+
+    def set_scan_optimize(self, boolean):
+        """ Set whether or not to optimize the position during the scan.
+
+        @param bool boolean
+        """
+        self.optimize = boolean
+        self.sigParameterUpdated.emit()
+        return self.optimize
+
+    def set_odmr_fit(self, fit_name):
+        """ Set the fit function used to fit the ODMR spectrum
+
+        @param str fit_name: name of the fit
+        """
+        if fit_name in self.get_odmr_fits():
+            self.odmr_fit_function = fit_name
+        self.sigParameterUpdated.emit()
+        return self.odmr_fit_function
+
+    def set_bayopt_num_meas(self, num_meas):
+        """ Set the number of measurement to be performed during Bayesian optimization
+
+        @param int num_meas
+        """
+        self.bayopt_num_meas = num_meas
+        self.sigParameterUpdated.emit()
+        return self.bayopt_num_meas
+
+    def set_bayopt_parameters(self, alpha, xi, percent):
+        """ Set the hyperparameter used in the bayesian optimization algorithm.
+
+        @param float alpha: noise level that can be handled by the Gaussian process
+        @param float xi: exploration vs exploitation rate
+        @param percent: percentage of random exploration
+
+        See <https://github.com/fmfn/BayesianOptimization> for further explanation.
+        """
+        self.bayopt_alpha = alpha
+        self.bayopt_xi = xi
+        if percent > 100:
+            percent = 100
+        elif percent < 0:
+            percent = 0
+        self.bayopt_random_percentage = percent
+
+    ###########################################################################
+    #                  Optimal operation point scan methods                   #
+    ###########################################################################
 
     def perform_OOP_scan(self, stabilization_time=1, **kwargs):
         """ Measure an ODMR spectrum for each combination of laser power and 
@@ -987,6 +1264,10 @@ class LaserLogic(GenericLogic):
                 if is_error:
                     self._scan_data['fit_params'][param_name]['stderr'][i][j] = fit_params[param].stderr
 
+    ####################################
+    #         Saving methods           #
+    ####################################
+
     def save_scan_data(self, nametag):
         """ Save the data from the Optimal Operation Point scan to files and figures.
         The saturation curve is saved too. 
@@ -1166,9 +1447,9 @@ class LaserLogic(GenericLogic):
 
         return fig
 
-    ##########################
-    #  Start/stop functions  #
-    ##########################
+    ########################################
+    #          Start/stop functions        #
+    ########################################
 
     def start_OOP_scan(self):
         """ Starting a Threaded measurement.
@@ -1189,267 +1470,9 @@ class LaserLogic(GenericLogic):
         """
         self._scan_stop_request = True
 
-    ########################
-    #       Getters        #
-    ########################
-
-    def get_odmr_constraints(self):
-        """ Get the mw power and frequency constraints from the odmr logic.
-
-        @return object: Hardware constraints object.
-        """
-        return self._odmr_logic.get_hw_constraints()
-
-    def get_OOP_parameters(self):
-        """ Get the parameters of Optimal Operation Point measurement.
-
-        @return dict
-        """
-        params = {'laser_power_start': self.laser_power_start,
-                  'laser_power_stop': self.laser_power_stop,
-                  'laser_power_num': self.laser_power_num,
-                  'mw_power_start': self.mw_power_start,
-                  'mw_power_stop': self.mw_power_stop,
-                  'mw_power_num': self.mw_power_num,
-                  'freq_start': self.freq_start,
-                  'freq_stop': self.freq_stop,
-                  'freq_num': self.freq_num,
-                  'counter_runtime': self.counter_runtime,
-                  'odmr_runtime': self.odmr_runtime,
-                  'channel': self.channel,
-                  'optimize': self.optimize,
-                  'odmr_fit_function': self.odmr_fit_function,
-                  'bayopt_num_meas': self.bayopt_num_meas}
-        return params
-
-    def get_odmr_fits(self):
-        """ Get the fits available for fitting the ODMR spectra.
-
-        @return list: List containing the names of the fit as string. 
-        """
-        fit_list = []
-        available_fits = self._odmr_logic.fc.fit_list
-        for fit in available_fits.keys():
-            if available_fits[fit]['fit_name'] in self.fit_parameters_list:
-                fit_list.append(fit)
-        return fit_list
-
-    def get_scan_data(self, data_name):
-        """ Return the matrix with the actual values of a given data (e.g. Contrast, FWHM)
-        for the scan and the associated unit
-
-        @param str data_name: The name of the data for which the matrix will be returned. 
-
-        @return (np.ndarray, str): the matrix and the associated unit.
-        """
-        if data_name in self._scan_data['fit_params']:
-            param_dict = self._scan_data['fit_params'][data_name]
-            return param_dict['values'], param_dict['unit']
-        else:
-            self.log.error("This data is not available from the fit, sorry!")
-            return np.array([[0]]), ''
-
-    ########################
-    #       Setters        #
-    ########################
-
-    # TODO: check if the module is locked or not before changing the params
-
-    def set_laser_power_start(self, laser_power_start):
-        """ Set the minimum laser power for the Optimal Operation Point scan and 
-        Bayesian optimization. 
-
-        @param float laser_power_start: minimum laser power in Watt
-        """
-        lpr = self.laser_power_range
-        if isinstance(laser_power_start, (int, float)):
-            self.laser_power_start = units.in_range(
-                laser_power_start, lpr[0], lpr[1])
-        self.sigParameterUpdated.emit()
-        return self.laser_power_start
-
-    def set_laser_power_stop(self, laser_power_stop):
-        """ Set the maximum laser power for the Optimal Operation Point scan and 
-        Bayesian optimization. 
-
-        @param float laser_power_stop: maximum laser power in Watt
-        """
-        # FIXME: Prevent laser_power_stop being equal to laser_power_start:
-        # that causes a bug.
-        lpr = self.laser_power_range
-        if isinstance(laser_power_stop, (int, float)):
-            if laser_power_stop < self.laser_power_start:
-                laser_power_stop = self.laser_power_start
-            self.laser_power_stop = units.in_range(
-                laser_power_stop, lpr[0], lpr[1])
-            self.sigParameterUpdated.emit()
-            return self.laser_power_stop
-
-    def set_laser_power_num(self, laser_power_num):
-        """ Set the number of laser powers for the Optimal Operation Point scan.
-
-        @param int laser_power_num: number of laser power points 
-        """
-        if isinstance(laser_power_num, int):
-            self.laser_power_num = laser_power_num
-        self.sigParameterUpdated.emit()
-        return self.laser_power_num
-
-    def set_mw_power_start(self, mw_power_start):
-        """ Set the minimum microwave power for the Optimal Operation Point scan and 
-        Bayesian optimization. 
-
-        @param float mw_power_start: minimum mw power in dBm
-        """
-        limits = self.get_odmr_constraints()
-        if isinstance(mw_power_start, (int, float)):
-            self.mw_power_start = limits.power_in_range(mw_power_start)
-        self.sigParameterUpdated.emit()
-        return self.mw_power_start
-
-    def set_mw_power_stop(self, mw_power_stop):
-        """ Set the maximum mw power for the Optimal Operation Point scan and 
-        Bayesian optimization. 
-
-        @param float mw_power_stop: maximum mw power in dBm
-        """
-        limits = self.get_odmr_constraints()
-        if isinstance(mw_power_stop, (int, float)):
-            if mw_power_stop < self.mw_power_start:
-                mw_power_stop = self.mw_power_start
-            self.mw_power_stop = limits.power_in_range(mw_power_stop)
-        self.sigParameterUpdated.emit()
-        return self.mw_power_stop
-
-    def set_mw_power_num(self, mw_power_num):
-        """ Set the number of mw powers for the Optimal Operation Point scan and 
-        Bayesian optimization. 
-
-        @param int mw_power_num: number of mw power points
-        """
-        if isinstance(mw_power_num, int):
-            self.mw_power_num = mw_power_num
-        self.sigParameterUpdated.emit()
-        return self.mw_power_num
-
-    def set_freq_start(self, freq_start):
-        """ Set the minimum frequency for ODMR measurements. 
-
-        @param float freq_start: starting frequency in Hz
-        """
-        limits = self.get_odmr_constraints()
-        if isinstance(freq_start, (int, float)):
-            self.freq_start = limits.frequency_in_range(freq_start)
-        self.sigParameterUpdated.emit()
-        return self.freq_start
-
-    def set_freq_stop(self, freq_stop):
-        """ Set the maximum frequency for ODMR measurements. 
-
-        @param float freq_stop: stopping frequency in Hz
-        """
-        limits = self.get_odmr_constraints()
-        if isinstance(freq_stop, (int, float)):
-            if freq_stop < self.freq_start:
-                freq_stop = self.freq_start
-            self.freq_stop = limits.frequency_in_range(freq_stop)
-        self.sigParameterUpdated.emit()
-        return self.freq_stop
-
-    def set_freq_num(self, freq_num):
-        """ Set the number of points for ODMR measurements. 
-
-        @param int freq_num: number of points
-        """
-        if isinstance(freq_num, int):
-            self.freq_num = freq_num
-        self.sigParameterUpdated.emit()
-        return self.freq_num
-
-    def set_counter_runtime(self, counter_runtime):
-        """ Set the counter runtime for the saturation curve of the Optimal 
-        Operation Point scan.
-
-        @param float counter_runtime: runtime in s 
-        """
-        if isinstance(counter_runtime, (int, float)):
-            self.counter_runtime = counter_runtime
-        self.sigParameterUpdated.emit()
-        return self.counter_runtime
-
-    def set_odmr_runtime(self, odmr_runtime):
-        """ Set the runtime for ODMR measurements. 
-
-        @param float odmr_runtime: runtime in s
-        """
-        if isinstance(odmr_runtime, (int, float)):
-            self.odmr_runtime = odmr_runtime
-        self.sigParameterUpdated.emit()
-        return self.odmr_runtime
-
-    # FIXME: check whether the channel exists or not
-    def set_channel(self, channel):
-        """ Set the channel for ODMR measurements and saturation curve. 
-
-        @param int channel: number of the channel (warning, channel are numbered
-        from zero!)
-        """
-        odmr_channels = self.get_odmr_channels()
-        num = len(odmr_channels)
-        if isinstance(channel, int) and channel < num:
-            self.channel = channel
-            self.sigParameterUpdated.emit()
-        else:
-            self.log.error(
-                'Channel must be an int inferior or equal to {0:d}'.format(num - 1))
-        return self.channel
-
-    def set_scan_optimize(self, boolean):
-        """ Set whether or not to optimize the position during the scan.
-
-        @param bool boolean
-        """
-        self.optimize = boolean
-        self.sigParameterUpdated.emit()
-        return self.optimize
-
-    def set_odmr_fit(self, fit_name):
-        """ Set the fit function used to fit the ODMR spectrum
-
-        @param str fit_name: name of the fit
-        """
-        if fit_name in self.get_odmr_fits():
-            self.odmr_fit_function = fit_name
-        self.sigParameterUpdated.emit()
-        return self.odmr_fit_function
-
-    def set_bayopt_num_meas(self, num_meas):
-        """ Set the number of measurement to be performed during Bayesian optimization
-
-        @param int num_meas
-        """
-        self.bayopt_num_meas = num_meas
-        self.sigParameterUpdated.emit()
-        return self.bayopt_num_meas
-
     ###########################################################################
-    #              Bayesian optimization methods                              #
+    #                       Bayesian optimization methods                     #
     ###########################################################################
-
-    def initialize_optimizer(self):
-        """ Create an optimizer object for bayesian optimization.
-
-        @return object: bayesian optimizer
-        """
-        pbounds = {'x': (0, 1), 'y': (0, 1)}
-        self.optimizer = BayesianOptimization(
-            f=None,
-            pbounds=pbounds,
-            verbose=0
-        )
-        self.optimizer.set_gp_params(alpha=self.bayopt_alpha)
-
-        return self.optimizer
 
     def measure_sensitivity(self, laser_power, mw_power):
         """ Record an ODMR spectrum and fit it with the chosen function to 
@@ -1625,38 +1648,20 @@ class LaserLogic(GenericLogic):
 
         self.sigBayoptStopped.emit()
 
-    def stop_bayopt(self):
-        """ Set a flag to request stopping the bayesian optimization.
+    def initialize_optimizer(self):
+        """ Create an optimizer object for bayesian optimization.
+
+        @return object: bayesian optimizer
         """
-        self._bayopt_stop_request = True
+        pbounds = {'x': (0, 1), 'y': (0, 1)}
+        self.optimizer = BayesianOptimization(
+            f=None,
+            pbounds=pbounds,
+            verbose=0
+        )
+        self.optimizer.set_gp_params(alpha=self.bayopt_alpha)
 
-    def start_bayopt(self):
-        """ Starting a Threaded measurement.
-        """
-        if self.check_thread_active():
-            self.log.error(
-                "A measurement is currently running, stop it first!")
-            return
-
-        self._worker_thread = WorkerThread(target=self.bayesian_optimization,
-                                           args=(),
-                                           name='bayopt')
-
-        self.threadpool.start(self._worker_thread)
-
-    def resume_bayopt(self):
-        """ Starting a Threaded measurement to resume the last measurement
-        """
-        if self.check_thread_active():
-            self.log.error(
-                "A measurement is currently running, stop it first!")
-            return
-
-        self._worker_thread = WorkerThread(target=self.bayesian_optimization,
-                                           kwargs={'resume': True},
-                                           name='bayopt')
-
-        self.threadpool.start(self._worker_thread)
+        return self.optimizer
 
     def initialize_bayopt_data(self, resume=False):
         """" Initialize the dictionary where all the data of the bayesian 
@@ -1712,10 +1717,9 @@ class LaserLogic(GenericLogic):
         self._bayopt_data = meas_dict
         return self._bayopt_data
 
-    def get_bayopt_data(self):
-        """ Getter for the data dictionary.
-        """
-        return self._bayopt_data
+    ####################################
+    #         Saving methods           #
+    ####################################
 
     def save_bayopt_data(self, tag=None):
         """ Save the data from Bayesian Optimization to files and figures.
@@ -1841,19 +1845,39 @@ class LaserLogic(GenericLogic):
 
         return fig
 
-    def set_bayopt_parameters(self, alpha, xi, percent):
-        """ Set the hyperparameter used in the bayesian optimization algorithm.
+    ################################################
+    #      Start/stop bayesian optimization        #
+    ################################################
 
-        @param float alpha: noise level that can be handled by the Gaussian process
-        @param float xi: exploration vs exploitation rate
-        @param percent: percentage of random exploration
-
-        See <https://github.com/fmfn/BayesianOptimization> for further explanation.
+    def start_bayopt(self):
+        """ Starting a Threaded measurement.
         """
-        self.bayopt_alpha = alpha
-        self.bayopt_xi = xi
-        if percent > 100:
-            percent = 100
-        elif percent < 0:
-            percent = 0
-        self.bayopt_random_percentage = percent
+        if self.check_thread_active():
+            self.log.error(
+                "A measurement is currently running, stop it first!")
+            return
+
+        self._worker_thread = WorkerThread(target=self.bayesian_optimization,
+                                           args=(),
+                                           name='bayopt')
+
+        self.threadpool.start(self._worker_thread)
+
+    def stop_bayopt(self):
+        """ Set a flag to request stopping the bayesian optimization.
+        """
+        self._bayopt_stop_request = True
+
+    def resume_bayopt(self):
+        """ Starting a Threaded measurement to resume the last measurement
+        """
+        if self.check_thread_active():
+            self.log.error(
+                "A measurement is currently running, stop it first!")
+            return
+
+        self._worker_thread = WorkerThread(target=self.bayesian_optimization,
+                                           kwargs={'resume': True},
+                                           name='bayopt')
+
+        self.threadpool.start(self._worker_thread)

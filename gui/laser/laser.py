@@ -591,6 +591,11 @@ class LaserGUI(GUIBase):
         self._sd.bayopt_xi_DoubleSpinBox.setValue(self._laser_logic.bayopt_xi)
         self._sd.exec_()
 
+    @QtCore.Slot()
+    def restore_defaultview(self):
+        self._mw.restoreGeometry(self.mwsettings.value("geometry", ""))
+        self._mw.restoreState(self.mwsettings.value("windowState", ""))
+
     ###########################################################################
     #                             Laser methods                               #
     ###########################################################################
@@ -710,6 +715,58 @@ class LaserGUI(GUIBase):
     #                      Saturation curve methods                           #
     ###########################################################################
 
+    @QtCore.Slot(bool)
+    def run_stop_saturation(self, is_checked):
+        """ Manage what happens if start/stop action is triggered. """
+        if is_checked:
+
+            self._laser_logic.is_background = self._mw.background_CheckBox.isChecked()
+            if self._laser_logic.is_background:
+                self._mw.background_PushButton.setChecked(True)
+                self.background_button_clicked(True)
+
+            self._mw.start_saturation_Action.setEnabled(False)
+            self.sigStartSaturation.emit()
+            self._pw.removeItem(self.saturation_fit_image)
+            self._pw.removeItem(self.double_fit_image_saturation)
+            self._pw.removeItem(self.double_fit_image_background)
+            self._mw.saturation_fit_results_DisplayWidget.clear()
+            self._mw.double_fit_results_DisplayWidget.clear()
+            self._mw.dofit_Button.setChecked(False)
+        else:
+            self._mw.start_saturation_Action.setEnabled(False)
+            self.sigStopSaturation.emit()
+
+    @QtCore.Slot()
+    def saturation_started(self):
+        """ Manage what happens when saturation measurement has started. 
+        """
+        self._mw.laser_ON_Action.setEnabled(False)
+        self._mw.laser_OFF_Action.setEnabled(False)
+        self._mw.start_saturation_Action.setEnabled(True)
+        self._mw.laser_power_GroupBox.setEnabled(False)
+        self._mw.saturation_GroupBox.setEnabled(False)
+        self._mw.background_CheckBox.setEnabled(False)
+        self._mw.start_saturation_Action.setChecked(True)
+        self._mw.start_saturation_Action.setText('Stop saturation')
+        self._mw.run_stop_scan_Action.setEnabled(False)
+        self._mw.run_stop_bayopt_Action.setEnabled(False)
+        self._mw.resume_bayopt_Action.setEnabled(False)
+
+    @QtCore.Slot()
+    def saturation_stopped(self):
+        """ Manage what happens when saturation measurement has stopped. 
+        """
+        self.update_laser_buttons()
+        self._mw.start_saturation_Action.setEnabled(True)
+        self._mw.laser_power_GroupBox.setEnabled(True)
+        self._mw.saturation_GroupBox.setEnabled(True)
+        self._mw.background_CheckBox.setEnabled(True)
+        self._mw.start_saturation_Action.setChecked(False)
+        self._mw.start_saturation_Action.setText('Start saturation')
+        self._mw.run_stop_scan_Action.setEnabled(True)
+        self._mw.run_stop_bayopt_Action.setEnabled(True)
+
     @QtCore.Slot()
     def update_gui(self):
         """ Update labels, the plot and errorbars with new data. 
@@ -763,11 +820,6 @@ class LaserGUI(GUIBase):
             self._mw.double_fit_Button.setChecked(False)
             self.double_fit_button_clicked(False)
 
-    @QtCore.Slot()
-    def restore_defaultview(self):
-        self._mw.restoreGeometry(self.mwsettings.value("geometry", ""))
-        self._mw.restoreState(self.mwsettings.value("windowState", ""))
-
     @QtCore.Slot(np.ndarray, np.ndarray, dict)
     def update_fit(self, x_data, y_data, result_str_dict):
         """ Update the plot of the fit and the fit results displayed.
@@ -816,58 +868,6 @@ class LaserGUI(GUIBase):
         if self.double_fit_image_background not in self._pw.listDataItems():
             self._pw.addItem(self.double_fit_image_background)
         self._mw.double_fit_Button.setChecked(True)
-
-    @QtCore.Slot(bool)
-    def run_stop_saturation(self, is_checked):
-        """ Manage what happens if start/stop action is triggered. """
-        if is_checked:
-
-            self._laser_logic.is_background = self._mw.background_CheckBox.isChecked()
-            if self._laser_logic.is_background:
-                self._mw.background_PushButton.setChecked(True)
-                self.background_button_clicked(True)
-
-            self._mw.start_saturation_Action.setEnabled(False)
-            self.sigStartSaturation.emit()
-            self._pw.removeItem(self.saturation_fit_image)
-            self._pw.removeItem(self.double_fit_image_saturation)
-            self._pw.removeItem(self.double_fit_image_background)
-            self._mw.saturation_fit_results_DisplayWidget.clear()
-            self._mw.double_fit_results_DisplayWidget.clear()
-            self._mw.dofit_Button.setChecked(False)
-        else:
-            self._mw.start_saturation_Action.setEnabled(False)
-            self.sigStopSaturation.emit()
-
-    @QtCore.Slot()
-    def saturation_started(self):
-        """ Manage what happens when saturation measurement has started. 
-        """
-        self._mw.laser_ON_Action.setEnabled(False)
-        self._mw.laser_OFF_Action.setEnabled(False)
-        self._mw.start_saturation_Action.setEnabled(True)
-        self._mw.laser_power_GroupBox.setEnabled(False)
-        self._mw.saturation_GroupBox.setEnabled(False)
-        self._mw.background_CheckBox.setEnabled(False)
-        self._mw.start_saturation_Action.setChecked(True)
-        self._mw.start_saturation_Action.setText('Stop saturation')
-        self._mw.run_stop_scan_Action.setEnabled(False)
-        self._mw.run_stop_bayopt_Action.setEnabled(False)
-        self._mw.resume_bayopt_Action.setEnabled(False)
-
-    @QtCore.Slot()
-    def saturation_stopped(self):
-        """ Manage what happens when saturation measurement has stopped. 
-        """
-        self.update_laser_buttons()
-        self._mw.start_saturation_Action.setEnabled(True)
-        self._mw.laser_power_GroupBox.setEnabled(True)
-        self._mw.saturation_GroupBox.setEnabled(True)
-        self._mw.background_CheckBox.setEnabled(True)
-        self._mw.start_saturation_Action.setChecked(False)
-        self._mw.start_saturation_Action.setText('Start saturation')
-        self._mw.run_stop_scan_Action.setEnabled(True)
-        self._mw.run_stop_bayopt_Action.setEnabled(True)
 
     @QtCore.Slot()
     def save_saturation_curve_clicked(self):
@@ -932,7 +932,7 @@ class LaserGUI(GUIBase):
         self._mw.timeDoubleSpinBox.setValue(param)
 
     ###########################################################################
-    #              Optimal operation point measurement methods                #
+    #              Optimal operation point scan methods                       #
     ###########################################################################
 
     @QtCore.Slot(bool)
@@ -1160,6 +1160,61 @@ class LaserGUI(GUIBase):
 
         return
 
+    ###########################################################################
+    #                     Bayesian optimization methods                       #
+    ###########################################################################
+
+    @QtCore.Slot(bool)
+    def run_stop_bayopt(self, is_checked):
+        """ Manage what happens if bayesian optimization is started/stopped. """
+        if is_checked:
+            self._mw.run_stop_bayopt_Action.setEnabled(False)
+            self.sigStartBayopt.emit()
+        else:
+            self.sigStopBayopt.emit()
+            self._mw.run_stop_bayopt_Action.setEnabled(False)
+        return
+
+    def resume_bayopt(self, is_checked):
+        """ Resume the previous bayesian optimization.
+        """
+        if is_checked:
+            self._mw.resume_bayopt_Action.setEnabled(False)
+            self.sigResumeBayopt.emit()
+
+    @QtCore.Slot()
+    def bayopt_started(self):
+        """ Bayesian optimization has started, manage the buttons. 
+        """
+        self._mw.run_stop_bayopt_Action.setChecked(True)
+        self._mw.parameters_GroupBox.setEnabled(False)
+        self._mw.bayopt_parameters_GroupBox.setEnabled(False)
+        self._mw.start_saturation_Action.setEnabled(False)
+        self._mw.laser_ON_Action.setEnabled(False)
+        self._mw.laser_OFF_Action.setEnabled(False)
+        self._mw.run_stop_scan_Action.setEnabled(False)
+        self._mw.laser_power_GroupBox.setEnabled(False)
+        self._mw.saturation_GroupBox.setEnabled(False)
+        self._mw.run_stop_bayopt_Action.setEnabled(True)
+        self._mw.run_stop_bayopt_Action.setText('Stop optimization')
+
+    @QtCore.Slot()
+    def bayopt_stopped(self):
+        """ Bayesian optimization has stopped, manage the buttons. 
+        """
+        self.update_laser_buttons()
+        self._mw.run_stop_bayopt_Action.setChecked(False)
+        self._mw.parameters_GroupBox.setEnabled(True)
+        self._mw.bayopt_parameters_GroupBox.setEnabled(True)
+        self._mw.start_saturation_Action.setEnabled(True)
+        self._mw.run_stop_scan_Action.setEnabled(True)
+        self._mw.laser_power_GroupBox.setEnabled(True)
+        self._mw.saturation_GroupBox.setEnabled(True)
+        self._mw.run_stop_bayopt_Action.setEnabled(True)
+        self._mw.resume_bayopt_Action.setChecked(False)
+        self._mw.resume_bayopt_Action.setEnabled(True)
+        self._mw.run_stop_bayopt_Action.setText('Start optimization')
+
     @QtCore.Slot(int)
     def bayopt_update_data(self, n_iter):
         """ Update the colorbar and display the image of the bayesian optimization.
@@ -1214,57 +1269,6 @@ class LaserGUI(GUIBase):
         self.bayopt_cb.refresh_colorbar(cb_range[0], cb_range[1])
         self.bayopt_image.setImage(
             image=image, axisOrder='row-major', levels=(cb_range[0], cb_range[1]))
-
-    @QtCore.Slot(bool)
-    def run_stop_bayopt(self, is_checked):
-        """ Manage what happens if bayesian optimization is started/stopped. """
-        if is_checked:
-            self._mw.run_stop_bayopt_Action.setEnabled(False)
-            self.sigStartBayopt.emit()
-        else:
-            self.sigStopBayopt.emit()
-            self._mw.run_stop_bayopt_Action.setEnabled(False)
-        return
-
-    def resume_bayopt(self, is_checked):
-        """ Resume the previous bayesian optimization.
-        """
-        if is_checked:
-            self._mw.resume_bayopt_Action.setEnabled(False)
-            self.sigResumeBayopt.emit()
-
-    @QtCore.Slot()
-    def bayopt_started(self):
-        """ Bayesian optimization has started, manage the buttons. 
-        """
-        self._mw.run_stop_bayopt_Action.setChecked(True)
-        self._mw.parameters_GroupBox.setEnabled(False)
-        self._mw.bayopt_parameters_GroupBox.setEnabled(False)
-        self._mw.start_saturation_Action.setEnabled(False)
-        self._mw.laser_ON_Action.setEnabled(False)
-        self._mw.laser_OFF_Action.setEnabled(False)
-        self._mw.run_stop_scan_Action.setEnabled(False)
-        self._mw.laser_power_GroupBox.setEnabled(False)
-        self._mw.saturation_GroupBox.setEnabled(False)
-        self._mw.run_stop_bayopt_Action.setEnabled(True)
-        self._mw.run_stop_bayopt_Action.setText('Stop optimization')
-
-    @QtCore.Slot()
-    def bayopt_stopped(self):
-        """ Bayesian optimization has stopped, manage the buttons. 
-        """
-        self.update_laser_buttons()
-        self._mw.run_stop_bayopt_Action.setChecked(False)
-        self._mw.parameters_GroupBox.setEnabled(True)
-        self._mw.bayopt_parameters_GroupBox.setEnabled(True)
-        self._mw.start_saturation_Action.setEnabled(True)
-        self._mw.run_stop_scan_Action.setEnabled(True)
-        self._mw.laser_power_GroupBox.setEnabled(True)
-        self._mw.saturation_GroupBox.setEnabled(True)
-        self._mw.run_stop_bayopt_Action.setEnabled(True)
-        self._mw.resume_bayopt_Action.setChecked(False)
-        self._mw.resume_bayopt_Action.setEnabled(True)
-        self._mw.run_stop_bayopt_Action.setText('Start optimization')
 
     @QtCore.Slot()
     def save_bayopt_clicked(self):
