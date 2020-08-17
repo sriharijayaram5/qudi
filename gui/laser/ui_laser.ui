@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>1705</width>
-    <height>1556</height>
+    <height>1591</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -145,6 +145,9 @@
               </item>
               <item>
                <widget class="ScienDSpinBox" name="startPowerDoubleSpinBox">
+                <property name="keyboardTracking">
+                 <bool>false</bool>
+                </property>
                 <property name="suffix">
                  <string>W</string>
                 </property>
@@ -174,6 +177,9 @@
               </item>
               <item>
                <widget class="ScienDSpinBox" name="stopPowerDoubleSpinBox">
+                <property name="keyboardTracking">
+                 <bool>false</bool>
+                </property>
                 <property name="suffix">
                  <string>W</string>
                 </property>
@@ -202,7 +208,11 @@
                </widget>
               </item>
               <item>
-               <widget class="QSpinBox" name="numPointsSpinBox"/>
+               <widget class="QSpinBox" name="numPointsSpinBox">
+                <property name="keyboardTracking">
+                 <bool>false</bool>
+                </property>
+               </widget>
               </item>
              </layout>
             </item>
@@ -231,6 +241,9 @@
               </item>
               <item>
                <widget class="ScienDSpinBox" name="timeDoubleSpinBox">
+                <property name="keyboardTracking">
+                 <bool>false</bool>
+                </property>
                 <property name="suffix">
                  <string>s</string>
                 </property>
@@ -435,7 +448,7 @@
    <addaction name="laser_ON_Action"/>
    <addaction name="laser_OFF_Action"/>
    <addaction name="separator"/>
-   <addaction name="run_stop_measurement_Action"/>
+   <addaction name="run_stop_scan_Action"/>
    <addaction name="save_scan_Action"/>
    <addaction name="separator"/>
    <addaction name="run_stop_bayopt_Action"/>
@@ -549,7 +562,11 @@
          </widget>
         </item>
         <item>
-         <widget class="ScienDSpinBox" name="LaserdoubleSpinBox"/>
+         <widget class="ScienDSpinBox" name="LaserdoubleSpinBox">
+          <property name="keyboardTracking">
+           <bool>false</bool>
+          </property>
+         </widget>
         </item>
        </layout>
       </widget>
@@ -665,6 +682,9 @@
           </item>
           <item row="0" column="4">
            <widget class="ScienDSpinBox" name="laser_power_stop_DoubleSpinBox">
+            <property name="keyboardTracking">
+             <bool>false</bool>
+            </property>
             <property name="suffix">
              <string>W</string>
             </property>
@@ -688,7 +708,11 @@
            </widget>
           </item>
           <item row="0" column="6">
-           <widget class="QSpinBox" name="laser_power_num_SpinBox"/>
+           <widget class="QSpinBox" name="laser_power_num_SpinBox">
+            <property name="keyboardTracking">
+             <bool>false</bool>
+            </property>
+           </widget>
           </item>
           <item row="2" column="0">
            <widget class="QLabel" name="freq_Label">
@@ -699,6 +723,9 @@
           </item>
           <item row="1" column="4">
            <widget class="ScienDSpinBox" name="mw_power_stop_DoubleSpinBox">
+            <property name="keyboardTracking">
+             <bool>false</bool>
+            </property>
             <property name="suffix">
              <string>dBm</string>
             </property>
@@ -706,6 +733,9 @@
           </item>
           <item row="2" column="4">
            <widget class="ScienDSpinBox" name="freq_stop_DoubleSpinBox">
+            <property name="keyboardTracking">
+             <bool>false</bool>
+            </property>
             <property name="suffix">
              <string>Hz</string>
             </property>
@@ -719,13 +749,20 @@
           </item>
           <item row="1" column="2">
            <widget class="ScienDSpinBox" name="mw_power_start_DoubleSpinBox">
+            <property name="keyboardTracking">
+             <bool>false</bool>
+            </property>
             <property name="suffix">
              <string>dBm</string>
             </property>
            </widget>
           </item>
           <item row="2" column="6">
-           <widget class="QSpinBox" name="freq_num_SpinBox"/>
+           <widget class="QSpinBox" name="freq_num_SpinBox">
+            <property name="keyboardTracking">
+             <bool>false</bool>
+            </property>
+           </widget>
           </item>
           <item row="1" column="1">
            <widget class="QLabel" name="mw_power_start_Label">
@@ -738,7 +775,11 @@
            </widget>
           </item>
           <item row="1" column="6">
-           <widget class="QSpinBox" name="mw_power_num_SpinBox"/>
+           <widget class="QSpinBox" name="mw_power_num_SpinBox">
+            <property name="keyboardTracking">
+             <bool>false</bool>
+            </property>
+           </widget>
           </item>
           <item row="1" column="3">
            <widget class="QLabel" name="mw_power_stop_Label">
@@ -772,6 +813,9 @@
           </item>
           <item row="2" column="2">
            <widget class="ScienDSpinBox" name="freq_start_DoubleSpinBox">
+            <property name="keyboardTracking">
+             <bool>false</bool>
+            </property>
             <property name="suffix">
              <string>Hz</string>
             </property>
@@ -802,6 +846,9 @@
           </item>
           <item row="0" column="2">
            <widget class="ScienDSpinBox" name="laser_power_start_DoubleSpinBox">
+            <property name="keyboardTracking">
+             <bool>false</bool>
+            </property>
             <property name="suffix">
              <string>W</string>
             </property>
@@ -832,6 +879,9 @@
           </item>
           <item>
            <widget class="ScienDSpinBox" name="counter_runtime_DoubleSpinBox">
+            <property name="keyboardTracking">
+             <bool>false</bool>
+            </property>
             <property name="suffix">
              <string>s</string>
             </property>
@@ -862,6 +912,9 @@
           </item>
           <item>
            <widget class="ScienDSpinBox" name="odmr_runtime_DoubleSpinBox">
+            <property name="keyboardTracking">
+             <bool>false</bool>
+            </property>
             <property name="suffix">
              <string>s</string>
             </property>
@@ -918,6 +971,9 @@
         <layout class="QVBoxLayout" name="verticalLayout_10">
          <item>
           <widget class="ScienDSpinBox" name="cb_high_percentile_DoubleSpinBox">
+           <property name="keyboardTracking">
+            <bool>false</bool>
+           </property>
            <property name="suffix">
             <string>%</string>
            </property>
@@ -956,6 +1012,9 @@
          </item>
          <item>
           <widget class="ScienDSpinBox" name="cb_low_percentile_DoubleSpinBox">
+           <property name="keyboardTracking">
+            <bool>false</bool>
+           </property>
            <property name="suffix">
             <string>%</string>
            </property>
@@ -1066,6 +1125,9 @@
               <height>0</height>
              </size>
             </property>
+            <property name="keyboardTracking">
+             <bool>false</bool>
+            </property>
             <property name="suffix">
              <string>W</string>
             </property>
@@ -1088,6 +1150,9 @@
               <width>80</width>
               <height>0</height>
              </size>
+            </property>
+            <property name="keyboardTracking">
+             <bool>false</bool>
             </property>
             <property name="suffix">
              <string>W</string>
@@ -1122,6 +1187,9 @@
               <height>0</height>
              </size>
             </property>
+            <property name="keyboardTracking">
+             <bool>false</bool>
+            </property>
             <property name="suffix">
              <string>dBm</string>
             </property>
@@ -1144,6 +1212,9 @@
               <width>80</width>
               <height>0</height>
              </size>
+            </property>
+            <property name="keyboardTracking">
+             <bool>false</bool>
             </property>
             <property name="suffix">
              <string>dBm</string>
@@ -1182,6 +1253,9 @@
               <height>0</height>
              </size>
             </property>
+            <property name="keyboardTracking">
+             <bool>false</bool>
+            </property>
             <property name="suffix">
              <string>Hz</string>
             </property>
@@ -1204,6 +1278,9 @@
               <width>80</width>
               <height>0</height>
              </size>
+            </property>
+            <property name="keyboardTracking">
+             <bool>false</bool>
             </property>
             <property name="suffix">
              <string>Hz</string>
@@ -1228,6 +1305,9 @@
               <height>0</height>
              </size>
             </property>
+            <property name="keyboardTracking">
+             <bool>false</bool>
+            </property>
            </widget>
           </item>
           <item>
@@ -1247,6 +1327,9 @@
               <width>80</width>
               <height>0</height>
              </size>
+            </property>
+            <property name="keyboardTracking">
+             <bool>false</bool>
             </property>
             <property name="suffix">
              <string>s</string>
@@ -1268,7 +1351,11 @@
            </widget>
           </item>
           <item>
-           <widget class="QSpinBox" name="bayopt_num_meas_SpinBox"/>
+           <widget class="QSpinBox" name="bayopt_num_meas_SpinBox">
+            <property name="keyboardTracking">
+             <bool>false</bool>
+            </property>
+           </widget>
           </item>
           <item>
            <widget class="QLabel" name="channel_Label_2">
@@ -1350,6 +1437,9 @@
              <verstretch>0</verstretch>
             </sizepolicy>
            </property>
+           <property name="keyboardTracking">
+            <bool>false</bool>
+           </property>
            <property name="suffix">
             <string>%</string>
            </property>
@@ -1384,6 +1474,9 @@
              <horstretch>1</horstretch>
              <verstretch>0</verstretch>
             </sizepolicy>
+           </property>
+           <property name="keyboardTracking">
+            <bool>false</bool>
            </property>
            <property name="suffix">
             <string>%</string>
@@ -1484,7 +1577,7 @@
     <string>Restore &amp;default</string>
    </property>
   </action>
-  <action name="run_stop_measurement_Action">
+  <action name="run_stop_scan_Action">
    <property name="checkable">
     <bool>true</bool>
    </property>

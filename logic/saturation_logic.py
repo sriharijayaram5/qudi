@@ -1,6 +1,7 @@
 #-*- coding: utf-8 -*-
 """
-Laser management.
+This file contains the logic for measuring a saturation curve, scanning the laser 
+and microwave power space and optimizing the sensitivity.
 
 Qudi is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -19,7 +20,6 @@ Copyright (c) the Qudi Developers. See the COPYRIGHT.txt file at the
 top-level directory of this distribution and at <https://github.com/Ulm-IQO/qudi/>
 """
 
-from collections import OrderedDict
 from core.util import units
 import time
 import numpy as np
@@ -27,10 +27,8 @@ import random
 import datetime
 from qtpy import QtCore
 import matplotlib.pyplot as plt
-import numpy as np
 import copy
 from bayes_opt import BayesianOptimization, UtilityFunction
-
 from core.module import Connector, ConfigOption, StatusVar
 from logic.generic_logic import GenericLogic
 from interface.simple_laser_interface import ControlMode, ShutterState, LaserState
@@ -91,7 +89,7 @@ class LaserLogic(GenericLogic):
     _modclass = 'laser'
     _modtype = 'logic'
 
-    # waiting time between queries im milliseconds
+    # Declare connectors
     laser_conn = Connector(interface='SimpleLaserInterface')
     counter_logic = Connector(interface='CounterLogic')
     savelogic = Connector(interface='SaveLogic')
@@ -99,17 +97,17 @@ class LaserLogic(GenericLogic):
     odmrlogic = Connector(interface='ODMRLogic')
     afm_scanner_logic = Connector(interface='AFMConfocalLogic')
 
-    queryInterval = ConfigOption('query_interval', 100)
-
-    #creating a fit container
+    # Create a fit container
     fc = StatusVar('fits', None)
 
-    #For OOP measurement:
+    # Status variable
+    # For the saturation curve
     final_power = StatusVar('final_power', 0.005)
     power_start = StatusVar('power_start', 0.001)
     power_stop = StatusVar('power_stop', 0.022)
     number_of_points = StatusVar('number_of_points', 15)
     time_per_point = StatusVar('time_per_points', 5)
+    # For the scan and bayesian optimization
     laser_power_start = StatusVar('laser_power_start', 0.001)
     laser_power_stop = StatusVar('laser_power_stop', 0.022)
     laser_power_num = StatusVar('laser_power_num', 5)
@@ -124,50 +122,50 @@ class LaserLogic(GenericLogic):
     channel = StatusVar('channel', 0)    
     optimize = StatusVar('optimize', False)
     odmr_fit_function = StatusVar('odmr_fit_function', 'No fit')
+    # For bayesian optimization
     bayopt_num_meas = StatusVar('bayopt_num_meas', 30)
     bayopt_alpha = StatusVar('bayopt_alpha', 0.15)
     bayopt_random_percentage = StatusVar('bayopt_random_percentage', 35)
     bayopt_xi = StatusVar('bayopt_xi', 0.1)
 
-    sigRefresh = QtCore.Signal()
+    # Update signals, e.g. for GUI module
+    sigSaturationDataUpdated = QtCore.Signal()
     sigLaserStateChanged = QtCore.Signal()
     sigControlModeChanged = QtCore.Signal()
     sigPowerSet = QtCore.Signal(float)
     sigSaturationStarted = QtCore.Signal()
     sigSaturationStopped = QtCore.Signal()
-    # sigAbortedMeasurement = QtCore.Signal()
     sigSaturationFitUpdated = QtCore.Signal(np.ndarray, np.ndarray, dict)
     sigDoubleFitUpdated = QtCore.Signal(np.ndarray, np.ndarray, dict)
     sigSaturationParameterUpdated = QtCore.Signal()
-    sigOOPStarted = QtCore.Signal()
-    sigOOPStopped = QtCore.Signal()
-    sigOOPUpdateData = QtCore.Signal()
+    sigScanStarted = QtCore.Signal()
+    sigScanStopped = QtCore.Signal()
+    sigScanUpdateData = QtCore.Signal()
     sigParameterUpdated = QtCore.Signal()
     sigDataAvailableUpdated = QtCore.Signal(list)
     sigBayoptStarted = QtCore.Signal()
     sigBayoptStopped = QtCore.Signal()
     sigBayoptUpdateData = QtCore.Signal(int)
 
-    # make a dummy worker thread:
+    # Make a dummy worker thread
     _worker_thread = WorkerThread(print)
 
 
     def on_activate(self):
-        """ Prepare logic module for work.
         """
+        Initialisation performed during activation of the module.
+        """
+        # Get connectors
         self._dev = self.laser_conn()
         self._counterlogic = self.counter_logic()
         self._save_logic = self.savelogic()
         self._odmr_logic = self.odmrlogic()
-        self._stop_request = False
-        self._OOP_stop_request = False
-        self._bayopt_stop_request = False
         
-        #start in cw mode
+        # Start in cw mode
         if self._dev.get_control_mode() != ControlMode.POWER:
             self._dev.set_control_mode(ControlMode.POWER)
     
-        # get laser capabilities
+        # Get laser capabilities
         self.mode = self._dev.get_control_mode()
         self.laser_state = self._dev.get_laser_state()
         self.laser_power_range = self._dev.get_power_range()
@@ -181,13 +179,18 @@ class LaserLogic(GenericLogic):
         self.laser_can_digital_mod = ControlMode.MODULATION_DIGITAL in self._dev.allowed_control_modes()
         self.laser_control_mode = self._dev.get_control_mode()
         self.has_shutter = self._dev.get_shutter_state() != ShutterState.NOSHUTTER
-        #Create data containers
+
+        # Create data containers
         self._saturation_data = {}
-        self._background_data = {}
-        # TODO: rename _odmr_data 
-        self._odmr_data = {}
+        self._background_data = {} 
+        self._scan_data = {}
         self._bayopt_data = {}
+
+        # Initialize attribute
         self.is_background = False
+        self._stop_request = False
+        self._scan_stop_request = False
+        self._bayopt_stop_request = False
         self.fit_parameters_list = {'lorentzian': {'Count rate': ('offset', 'c/s'), 'Contrast': ('contrast', '%'), 'FWHM': ('fwhm', 'Hz'),
                                                   'Sensitivity': ('sensitivity', 'T/sqrt(Hz)'), 'Position': ('center', 'Hz')},
                                     'lorentziandouble': {'Count rate': ('offset', 'c/s'), 'Contrast 0': ('l0_contrast', '%'), 
@@ -226,19 +229,18 @@ class LaserLogic(GenericLogic):
                                                          'Lorentzian fraction 1': ('v1_fraction', '%')},
                                     }
 
-        # in this threadpool our worker thread will be run
+        # Create threadpool where our worker thread will be run
         self.threadpool = QtCore.QThreadPool()
-
-        pass
 
     def on_deactivate(self):
         """ Deactivate module.
         """
+        # TODO: Stop measurement if it is still running
         pass
 
     @fc.constructor
     def sv_set_fits(self, val):
-        #Setup fit container
+        # Setup fit container
         fc = self.fitlogic().make_fit_container('saturation_curve', '1d')
         fc.set_units(['W', 'c/s'])
         if isinstance(val, dict) and len(val) > 0:
@@ -253,7 +255,7 @@ class LaserLogic(GenericLogic):
 
     @fc.representer
     def sv_get_fits(self, val):
-        """ save configured fits """
+        """ Save configured fits """
         if len(val.fit_list) > 0:
             return val.save_to_dict()
         else:
@@ -281,8 +283,7 @@ class LaserLogic(GenericLogic):
         """ Return laser power independent of the mode.
 
         @return float: Actual laser power in Watts (W).
-        """
-        
+        """        
         return self._dev.get_power()
 
     def set_power(self, power):
@@ -344,9 +345,10 @@ class LaserLogic(GenericLogic):
         """
         self._dev.set_control_mode(control_mode)
         self.sigControlModeChanged.emit()
+        return self.get_control_mode()
 
     def get_control_mode(self):
-        """ Get control mode of laser
+        """ Get control mode of laser.
 
         @return enum ControlMode: control mode
         """
@@ -363,21 +365,35 @@ class LaserLogic(GenericLogic):
     
     def set_saturation_params(self, power_start, power_stop, number_of_points,
                               time_per_point):
+        """ Set the parameters for the saturation curve.
+
+        @param float power_start: laser power for the first point in Watt
+        @param float power_stop: laser power for the last point in Watt
+        @param int number_of_points: number of measured points
+        @param float time_per_point: counter runtime for each point in second
+        """
         lpr = self.laser_power_range
+
         if isinstance(power_start, (int, float)):
             self.power_start = units.in_range(power_start, lpr[0], lpr[1])
+
         if isinstance(power_stop, (int, float)):
-            if power_stop < power_start:
-                power_stop = power_start + 0.001
             self.power_stop =  units.in_range(power_stop, lpr[0], lpr[1])
+
         if isinstance(number_of_points, int):
             self.number_of_points = number_of_points
+
         if isinstance(time_per_point, (int, float)):
             self.time_per_point = time_per_point
+
         self.sigSaturationParameterUpdated.emit()
         return self.power_start, self.power_stop, self.number_of_points, self.time_per_point
 
     def get_saturation_parameters(self):
+        """ Get the parameters of the saturation curve.
+
+        @return dict
+        """
         params = {'power_start': self.power_start,
                   'power_stop': self.power_stop,
                   'number_of_points': self.number_of_points,
@@ -398,13 +414,13 @@ class LaserLogic(GenericLogic):
         return data_copy
 
     def set_saturation_data(self, xdata, ydata, std_dev=None, num_of_points=None, is_background=False):
-        #TODO: Modify documentation
-        """Set the data.
+        """Set the saturation curve data in the dedicated dictionary.
 
         @params np.array xdata: laser power values
         @params np.array ydata: fluorescence values
         @params np.array std_dev: optional, standard deviation values
         @params np.array num_of_points: optional, number of data points. The default value is len(xdata)
+        @params bool is_background: if True, the data is stored in _background_data. Default is False.
         """
 
         if num_of_points is None:
@@ -426,52 +442,44 @@ class LaserLogic(GenericLogic):
             if std_dev is not None:
                 data_dict['Stddev'][i] = std_dev[i]
 
-        self.sigRefresh.emit()
+        self.sigSaturationDataUpdated.emit()
 
 
-    def saturation_curve_data(self, time_per_point, start_power, stop_power,
+    def record_saturation_curve(self, time_per_point, start_power, stop_power,
                             num_of_points, final_power, is_background=False):
-        """ Obtain all necessary data to create a saturation curve
+        """ Record all the point of the saturation curve
 
-        @param int time_per_point: acquisition time of counts per each laser power in seconds.
-        @param int start_power: starting power in Watts.
-        @param int stop_power:  stoping power in Watts.
+        @param float time_per_point: acquisition time of counts per each laser power in seconds.
+        @param float start_power: starting power in Watt.
+        @param float stop_power:  stoping power in Watt.
         @param int num_of_points: number of points for the measurement.
-        
-        @return enum ControlMode: control mode
+        @param float final_power: laser power set at the end of the saturation curve in Watt.
+        @param bool is_background: Whether the saturation curve is recorded on the background.
         """
 
-        #Setting up the stopping mechanism.
+        # Set up the stopping mechanism.
         self._stop_request = False
+
         self.sigSaturationStarted.emit()
 
-        #Creating the list of powers for the measurement.
-        power_calibration = np.zeros(num_of_points)
-        laser_power = np.zeros(num_of_points)
+        # Create the list of powers for the measurement.
+        laser_power = np.linspace(start_power, stop_power, num_of_points)
+        # TODO: Add a list with calibrated power 
 
-        if num_of_points == 1:
-            laser_power[0] = start_power
-        else:
-            step = (stop_power-start_power)/(num_of_points-1)
-            for i in range(len(laser_power)):
-                laser_power[i] = start_power+i*step
-
-        #For later when you actually use the counter.
         count_frequency = self._counterlogic.get_count_frequency()
-        counter_points = int(count_frequency*time_per_point)
+        counter_points = int(count_frequency * time_per_point)
         self._counterlogic.set_count_length(counter_points)
 
         if self.get_laser_state() == LaserState.OFF:
-
-             # self.sigAbortedMeasurement.emit()
-            self.log.warning('Measurement Aborted. Laser is not ON.')
+            self.log.error('Measurement Aborted. Laser is not ON.')
             self.sigSaturationStopped.emit()
             return
 
-        # time.sleep(time_per_point)
         counts = np.zeros(num_of_points)
         std_dev = np.zeros(num_of_points)
 
+        # FIXME: The counter should not have to be started and stopped but it's 
+        # done here because of a bug of counterlogic.request_counts otherwise.
         self._counterlogic.startCount()
 
         for i in range(len(laser_power)):
@@ -479,86 +487,73 @@ class LaserLogic(GenericLogic):
             if self._stop_request:
                 break
 
-            #For later when you actually use the counter.
             self.set_power(laser_power[i])
             time.sleep(1)
 
-            #For testing only.
-            # time.sleep(1)
-            # counts[i] = random.random()
-            # std_dev[i] = random.random()
-
-            #For later when you actually use the counter.
-            # counts[i] = self._counterlogic.countdata[0].mean()
-            # std_dev[i] = self._counterlogic.countdata[0].std(ddof=1)
-            counts_array  = self._counterlogic.request_counts(counter_points)[0]
+            counts_array  = self._counterlogic.request_counts(counter_points)[self.channel]
             counts[i] = counts_array.mean()
             std_dev[i] = counts_array.std(ddof=1)
 
             self.set_saturation_data(laser_power, counts, std_dev, i + 1, is_background)
 
+        # FIXME: The counter should not have to be started and stopped but it's 
+        # done here because of a bug of counterlogic.request_counts otherwise.
         self._counterlogic.stopCount()
 
         self.set_power(final_power)
 
         self.sigSaturationStopped.emit()
 
-        array_of_data = np.vstack((counts,laser_power,power_calibration)).transpose()
-
-        return array_of_data
-
-    def start_saturation_curve_data(self):
-        """ Starting a Threaded measurement.
+    def start_saturation_curve(self):
+        """ Start a threaded measurement for the saturation curve.
         """
         if self.check_thread_active():
             self.log.error("A measurement is currently running, stop it first!")
             self.sigSaturationStopped.emit()
             return
 
-        self._worker_thread = WorkerThread(target=self.saturation_curve_data,
+        self._worker_thread = WorkerThread(target=self.record_saturation_curve,
                                             args=(self.time_per_point,self.power_start,
                                                   self.power_stop, self.number_of_points,
                                                   self.final_power, self.is_background),
-                                            name='saturation_curve_points') 
+                                            name='saturation_curve') 
 
         self.threadpool.start(self._worker_thread)
 
-    def stop_saturation_curve_data(self):
-        """ Set a flag to request stopping counting.
+    def stop_saturation_curve(self):
+        """ Set a flag to request stopping the saturation curve measurement.
         """
-        if self._counterlogic.module_state() == 'locked':
-            self._stop_request = True
-        else:
-            self._stop_request = True
-
-        return
+        self._stop_request = True
 
     def save_saturation_data(self, tag=None):
-        """ Save the current Saturation data to a file, including the figure."""
+        """ Save the current saturation data to a text file and a figure.
+
+        @param str tag: optional, tag added to the filename.
+        """
         timestamp = datetime.datetime.now()
 
         if tag is None:
             tag = ''
         
-        #Path and label to save the Saturation data
-        filepath = self._save_logic.get_path_for_module(module_name='Saturation')
+        # Path and label to save the saturation data
+        filepath = self._save_logic.get_path_for_module(module_name='Saturation curve')
 
         if len(tag) > 0:
                 filelabel = '{0}_Saturation_data'.format(tag)
         else:
                 filelabel = 'Saturation_data'
 
-        #The data is already prepared in a dict so just calling the data.
+        # The data is already prepared in a dict
         data = self._saturation_data
 
-        if data == OrderedDict():
-            self.log.warning('Sorry, there is no data to save. Start a measurement first.')
+        if not data:
+            self.log.warning('There is no data to save. Start a measurement first.')
             return
 
         # Include fit parameters if a fit has been calculated
-        parameters = OrderedDict()
-        if hasattr(self, 'result_str_dict'):
-            parameters = self.result_str_dict
+        parameters = {}
+        if hasattr(self, 'saturation_fit_params'):
+            parameters = self.saturation_fit_params
 
         #Drawing the figure
         fig = self.draw_figure()
@@ -571,50 +566,34 @@ class LaserLogic(GenericLogic):
                                        delimiter='\t',
                                        timestamp=timestamp,
                                        plotfig=fig)
-        
-        if hasattr(self, 'saturation_fit_x'):
-            data_fit = {'Power': self.saturation_fit_x, 
-                        'Fluorescence fit': self.saturation_fit_y}
-            filelabel_fit = filelabel + '_fit'
-            self._save_logic.save_data(data_fit,
-                                       filepath=filepath,
-                                       parameters=parameters,
-                                       filelabel=filelabel_fit,
-                                       fmt='%.6e',
-                                       delimiter='\t',
-                                       timestamp=timestamp)
-
 
         self.log.info('Saturation data saved to:\n{0}'.format(filepath))
 
-        return
-
     def draw_figure(self):
-        """ Draw the summary figure to save with the data.
+        """ Draw the figure to save with the data.
 
-        @return fig fig: a matplotlib figure object to be saved to file.
+        @return matplotlib.figure.Figure fig: a matplotlib figure object to be 
+        saved to file.
         """     
     
         counts = self._saturation_data['Fluorescence']
         stddev = self._saturation_data['Stddev']
         laser_power = self._saturation_data['Power']
-        #For now there is no power calibration, this should change in the future.
-        power_calibration = self._saturation_data['Power']
 
         # Use qudi style
         plt.style.use(self._save_logic.mpl_qd_style)
 
         # Create figure
         fig = plt.figure()
-        plt.errorbar(power_calibration,counts,yerr=stddev)
+        plt.errorbar(laser_power,counts,yerr=stddev)
 
-        # Do not include fit curve if there is no fit calculated.
+        # Include fit curve if there is a fit calculated
         if hasattr(self, 'saturation_fit_x'):
             plt.plot(self.saturation_fit_x, self.saturation_fit_y, marker='None')
 
         #Set the labels
         plt.ylabel('Fluorescence (cts/s)')
-        plt.xlabel('Laser Power (uW)')
+        plt.xlabel('Laser Power (W)')
 
         return fig
 
@@ -637,9 +616,7 @@ class LaserLogic(GenericLogic):
         Create 3 class attributes
             np.array self.saturation_fit_x: 1D arrays containing the x values of the fitting function
             np.array self.saturation_fit_y: 1D arrays containing the y values of the fitting function
-            lmfit.model.ModelResult self.fit_result: the result object of lmfit. If additional information
-                                        is needed from the fit, then they can be obtained from this 
-                                        object. 
+            dict self.saturation_fit_params: Contains the parameters of the fit ready to be displayed
         """
         self.fc.current_fit = 'Hyperbolic_saturation'
 
@@ -655,17 +632,16 @@ class LaserLogic(GenericLogic):
             self.log.warning('There is not enough data points to fit the curve. Fitting aborted.')
             return
 
-        self.saturation_fit_x, self.saturation_fit_y, self.fit_result = self.fc.do_fit(x_data, y_data)
-        if self.fit_result is None:
-            self.result_str_dict = {}
+        self.saturation_fit_x, self.saturation_fit_y, fit_result = self.fc.do_fit(x_data, y_data)
+        if fit_result is None:
+            self.saturation_fit_params = {}
         else:
-            self.result_str_dict = self.fit_result.result_str_dict
-        self.sigSaturationFitUpdated.emit(self.saturation_fit_x, self.saturation_fit_y, self.result_str_dict)
+            self.saturation_fit_params = fit_result.result_str_dict
+        self.sigSaturationFitUpdated.emit(self.saturation_fit_x, self.saturation_fit_y, self.saturation_fit_params)
         return
     
     def do_double_fit(self, x_saturation=None, y_saturation=None, 
                                x_background=None, y_background=None):
-
         """
         Execute the double fit (with the background) on the measurement data. Optionally on passed 
         data.
@@ -678,13 +654,12 @@ class LaserLogic(GenericLogic):
                                        By default, values stored in self._background_data.
         @params np.array y_background: optional, fluorescence values for the background measurement. 
                                        By default, values stored in self._background_data.
-        @return (np.array, np.array, lmfit.model.ModelResult): 
+        @return (np.array, np.array, dict): 
             2D array containing the x values of the fitting functions: the first row correspond to 
                 the NV saturation curve and the second row to the background curve.
             2D array containing the y values of the fitting functions: the first row correspond to 
                 the NV saturation curve and the second row to the background curve.
-            result object of lmfit. If additional information is needed from the fit, then they can be obtained from this 
-                                        object. 
+            Dictionary Containing the parameters of the fit ready to be displayed
         """
 
         if x_saturation is None or y_saturation is None or \
@@ -717,55 +692,70 @@ class LaserLogic(GenericLogic):
         fit_x, fit_y, result = self.fitlogic().make_hyperbolicsaturation_fit_with_background(x_axis, data, 
                         self.fitlogic().estimate_hyperbolicsaturation_with_background, units=['W', 'c/s'])
         self.sigDoubleFitUpdated.emit(fit_x, fit_y, result.result_str_dict)
-        return fit_x, fit_y, result
         
 
     ###########################################################################
-    #              Optimal operation point measurement methods                #
+    #                    Optimal operation point methods                      #
     ###########################################################################
 
     def get_odmr_channels(self):
+        """ Return the available channels.
+        """
         return self._odmr_logic.get_odmr_channels()
 
-    def perform_measurement(self, stabilization_time=1, **kwargs):
+    def perform_OOP_scan(self, stabilization_time=1, **kwargs):
+        """ Measure an ODMR spectrum for each combination of laser power and microwave power. 
 
+        @param float stabilization_time: waiting time added between function call to avoid a crash of the program
+        @param **kwargs: parameters of the measurement (e.g. laser_power_start, mw_power_num) can be passed as kwargs.
+
+        The parameters of the measurement are defined in class attributes (e.g. self.laser_power_start).
+        For each laser power, count rate is first recorded with no microwave power, in order to generate a saturation curve. 
+        Then, for each microwave power, an ODMR spectrum is recorded and fitted with the chosen fit function. The parameters
+        of the fit defined in self.fit_parameters_list are extracted and stored.
+        """
+        # If keyword arguments are passed to the function (e.g. laser_power_start) it will call the 
+        # associated setters.
         for param, value in kwargs.items():
             try:
                 func = getattr(self, 'set_' + param)
             except AttributeError:
-                self.log.error("perform_measurement has no argument" + param)
+                self.log.error("perform_OOP_scan has no argument" + param)
             func(value)
 
         #Setting up the stopping mechanism.
-        self._OOP_stop_request = False
-        self.sigOOPStarted.emit()
+        self._scan_stop_request = False
+
+        self.sigScanStarted.emit()
        
+        # A saturation curve is recorded during the scan, so update the saturation parameters.
         self.set_saturation_params(self.laser_power_start, self.laser_power_stop, self.laser_power_num, self.counter_runtime)
+        
         # Create the lists of powers for the measurement
         laser_power = np.linspace(self.laser_power_start, self.laser_power_stop, self.laser_power_num, endpoint=True)
         mw_power = np.linspace(self.mw_power_start, self.mw_power_stop, self.mw_power_num, endpoint=True)
 
-        #TODO: Check if we need to turn laser on (or should it be done manually ?)
         if self.get_laser_state() == LaserState.OFF:
             self.log.warning('Measurement Aborted. Laser is not ON.')
-            self.sigOOPStopped.emit()
+            self.sigScanStopped.emit()
             return
 
         if self._counterlogic.module_state() == 'locked':
             self.log.warning('Another measurement is running, stop it first!')
-            self.sigOOPStopped.emit()
+            self.sigScanStopped.emit()
             return
 
+        # Deduce the number of points to request to counter from the parameter self.counter_runtime
         count_frequency = self._counterlogic.get_count_frequency()
         counter_num_of_points = int(count_frequency * self.counter_runtime)
         freq_step = (self.freq_stop - self.freq_start) / (self.freq_num - 1)
 
-        self._odmr_data = self.initialize_odmr_data()
+        self._scan_data = self.initialize_scan_data()
 
         for i in range(len(laser_power)):
 
             #Stopping mechanism
-            if self._OOP_stop_request:
+            if self._scan_stop_request:
                 break
 
             self.set_power(laser_power[i])
@@ -778,55 +768,51 @@ class LaserLogic(GenericLogic):
 
             time.sleep(stabilization_time)
 
+            # Record point for the saturation curve
             counts_array  = self._counterlogic.request_counts(counter_num_of_points)[self.channel]
 
-            #To avoid crash
+            # To avoid crash
             time.sleep(stabilization_time)
 
+            # Saturation curve data
             counts = counts_array.mean()
             std_dev = counts_array.std(ddof=1)
-
-            self._odmr_data['saturation_data'][i] = counts
-            self._odmr_data['saturation_data_std'][i] = std_dev          
-
-            self.set_saturation_data(laser_power, self._odmr_data['saturation_data'], self._odmr_data['saturation_data_std'], i + 1)          
+            self._scan_data['saturation_data'][i] = counts
+            self._scan_data['saturation_data_std'][i] = std_dev          
+            self.set_saturation_data(laser_power, self._scan_data['saturation_data'], self._scan_data['saturation_data_std'], i + 1)          
 
             for j in range(len(mw_power)):
 
                 #Stopping mechanism
-                if self._OOP_stop_request:
+                if self._scan_stop_request:
                     break
-
-                if self.optimize:
-                    self.afm_scanner_logic().default_optimize()
             
+                # ODMR spectrum
                 error, odmr_plot_x, odmr_plot_y, odmr_fit_result = self._odmr_logic.perform_odmr_measurement(
                                      self.freq_start, freq_step, self.freq_stop, mw_power[j], self.channel, self.odmr_runtime,
                                      self.odmr_fit_function, save_after_meas=False, name_tag='')
 
                 if error:
-                    self.log.warning('Optimal operation point measurement aborted')
-                    self.sigOOPStopped.emit()
+                    self.log.error('An error occured while recording ODMR. Scan aborted')
+                    self.sigScanStopped.emit()
                     return
 
                 odmr_plot_y  = odmr_plot_y[self.channel, :]
 
-                self._odmr_data['data'][i][j] = odmr_plot_y
-                self._odmr_data['fit_results'][i][j] = odmr_fit_result
+                self._scan_data['odmr_data'][i][j] = odmr_plot_y
+                self._scan_data['fit_results'][i][j] = odmr_fit_result
                 self.update_fit_params(i, j)                
-                self.sigOOPUpdateData.emit()
+                self.sigScanUpdateData.emit()
 
-        #TODO: do we need a final power ? Or should we turn the laser off ?
-        #FIXME: replace laser_power_start by final power
-        self.off()
+        self.set_power(self.final_power)
 
-        self.sigOOPStopped.emit()
-
-        return self._odmr_data
+        self.sigScanStopped.emit()
         
-    def initialize_odmr_data(self):
+    def initialize_scan_data(self):
+        """ Initialize the dictionary where all the data of the Optimal Operation Point scan are stored.
+        """
 
-        meas_dict = {'data': np.zeros((self.laser_power_num, self.mw_power_num, self.freq_num)),
+        meas_dict = {'odmr_data': np.zeros((self.laser_power_num, self.mw_power_num, self.freq_num)),
                      'saturation_data': np.zeros(self.laser_power_num),
                      'saturation_data_std': np.zeros(self.laser_power_num),
                      'fit_results': [[0] * self.mw_power_num for _ in range(self.laser_power_num)],
@@ -836,7 +822,7 @@ class LaserLogic(GenericLogic):
                      'coord2_arr': np.linspace(self.freq_start, self.freq_stop, self.freq_num, endpoint=True),
                      'units': 'c/s',
                      'nice_name': 'Fluorescence',
-                     'params': {'Parameters for': 'Optimize operating point measurement',
+                     'params': {'Parameters for': 'Optimize operating point scan',
                                 'axis name for coord0': 'Laser power',
                                 'axis name for coord1': 'Microwave power',
                                 'axis name for coord2': 'Microwave frequency',
@@ -853,7 +839,7 @@ class LaserLogic(GenericLogic):
                                 'Counter runtime (s)': self.counter_runtime,
                                 'Fit function': self.odmr_fit_function,
                                 'Channel': self.channel,
-                                },  # !!! here are all the measurement parameter saved
+                                },
                     }  
 
         if self.odmr_fit_function == 'No fit':
@@ -873,6 +859,7 @@ class LaserLogic(GenericLogic):
         fit_name = available_fits[self.odmr_fit_function]['fit_name']
         param_dict = self.fit_parameters_list[fit_name]
 
+        # Initialize a dict where all the data to be displayed are stored as matrices
         for param_name in param_dict.keys():
             meas_dict['fit_params'][param_name] = {}
             meas_dict['fit_params'][param_name]['values'] = np.zeros((self.laser_power_num, self.mw_power_num))
@@ -880,35 +867,49 @@ class LaserLogic(GenericLogic):
             meas_dict['fit_params'][param_name]['unit'] = param_dict[param_name][1]
         self.sigDataAvailableUpdated.emit(list(param_dict))
 
-        self._odmr_data = meas_dict
+        self._scan_data = meas_dict
 
-        return self._odmr_data
+        return self._scan_data
 
     def update_fit_params(self, i, j):
+        """ Update the values of the fit parameters for a given point of the scan.
+
+        @param int i: index of the point along the laser power axis
+        @param int j: index of the point along the microwave power axis
+
+        The parameter of the fit (e.g. Contrast, FWHM) are taken from the fit result object and stored in the dedicated matrix
+        at the coordinates [i, j]. Same for the std of each parameter.
+        """
 
         available_fits = self._odmr_logic.fc.fit_list
 
         if self.odmr_fit_function in available_fits and available_fits[self.odmr_fit_function]['fit_name'] in self.fit_parameters_list:
 
             fit_name = available_fits[self.odmr_fit_function]['fit_name']
+            # List of parameters of interest:
             param_dict = self.fit_parameters_list[fit_name]
-            fit_params = self._odmr_data['fit_results'][i][j].params
-            is_error = self._odmr_data['fit_results'][i][j].errorbars
+            # Parameters of the fit:
+            fit_params = self._scan_data['fit_results'][i][j].params
+            # Whether the std has been calculated or not:
+            is_error = self._scan_data['fit_results'][i][j].errorbars
 
             for param_name in param_dict.keys():
                 param = param_dict[param_name][0]
                 assert(param in fit_params), "The parameter {0} does not match any parameter of the fit. Please edit fit_parameters_list.".format(param)
                 # FIXME: The contrast has negative values. We take the absolute value of all the parameters for now.
-                self._odmr_data['fit_params'][param_name]['values'][i][j] = abs(fit_params[param].value)
+                self._scan_data['fit_params'][param_name]['values'][i][j] = abs(fit_params[param].value)
                 if is_error:
-                    self._odmr_data['fit_params'][param_name]['stderr'][i][j] = fit_params[param].stderr
+                    self._scan_data['fit_params'][param_name]['stderr'][i][j] = fit_params[param].stderr
 
     def save_scan_data(self, nametag):
-        
-        data = self._odmr_data
+        """ Save the data from the Optimal Operation Point scan to files and figures.
+        The saturation curve is saved too. 
+        """
+
+        data = self._scan_data
 
         # check whether data has only zeros, skip this then
-        if not 'data' in data or not np.any(data['data']):
+        if not 'odmr_data' in data or not np.any(data['odmr_data']):
             self.log.warning('The data array contains only zeros and will be not saved.')
             return
 
@@ -921,8 +922,8 @@ class LaserLogic(GenericLogic):
         if nametag is None:
             nametag = ''
         
-        #Path and label to save the Saturation data
-        filepath = self._save_logic.get_path_for_module(module_name='Optimal operating point')
+        # Path and label to save the Saturation data
+        filepath = self._save_logic.get_path_for_module(module_name='Optimal operating point scan')
 
         if len(nametag) > 0:
                 filelabel = '{0}_ODMR_data'.format(nametag)
@@ -938,13 +939,13 @@ class LaserLogic(GenericLogic):
         parameters['Name of measured signal'] = nice_name
         parameters['Units of measured signal'] = unit
 
-        figure_data = data['data']
+        figure_data = data['odmr_data']
 
 
         rows, columns, entries = figure_data.shape
 
         image_data = {}
-        # reshape the image before sending out to save logic.
+        # Reshape the image before sending out to save logic.
         image_data[f'ESR scan measurements with {nice_name} signal without axis.\n'
                     'The save data contain directly the fluorescence\n'
                    f'signals of the esr spectrum in {unit}. Each i-th spectrum\n'
@@ -962,6 +963,7 @@ class LaserLogic(GenericLogic):
                                        delimiter='\t',
                                        timestamp=timestamp)
 
+        # Another way to save the same data
         laser_power_column = np.zeros(rows * columns * entries)
         mw_power_column = np.zeros(rows * columns * entries)
         freq_column = np.zeros(rows * columns * entries)
@@ -978,7 +980,6 @@ class LaserLogic(GenericLogic):
                     fluorescence_column[ind] = figure_data[i][j][k]
                     ind += 1
                     
-
         image_data_2 = {'Laser power': laser_power_column,
                         'Microwave power': mw_power_column,
                         'Frequency': freq_column,
@@ -994,9 +995,9 @@ class LaserLogic(GenericLogic):
                                        timestamp=timestamp)
 
         # Save fit result if they are computed
-        if self._odmr_data['fit_params']:
-            for param_name in self._odmr_data['fit_params']:
-                data_matrix, unit = self.get_data(param_name)
+        if self._scan_data['fit_params']:
+            for param_name in self._scan_data['fit_params']:
+                data_matrix, unit = self.get_scan_data(param_name)
                 data_dict = {param_name + ' (' + unit + ')': data_matrix}
                 data_filelabel = filelabel + '_' + param_name
                 fig = self.draw_matrix_figure(param_name)
@@ -1007,8 +1008,9 @@ class LaserLogic(GenericLogic):
                                         delimiter='\t',
                                         timestamp=timestamp,
                                         plotfig=fig)
-                if 'stderr' in self._odmr_data['fit_params'][param_name]:
-                    std_matrix = self._odmr_data['fit_params'][param_name]['stderr']                       
+
+                if 'stderr' in self._scan_data['fit_params'][param_name]:
+                    std_matrix = self._scan_data['fit_params'][param_name]['stderr']                       
                     std_dict = {param_name + ' Error (' + unit + ')': std_matrix}
                     std_filelabel = filelabel + '_' + param_name + '_stddev'
                     self._save_logic.save_data(std_dict, parameters=parameters,
@@ -1020,31 +1022,37 @@ class LaserLogic(GenericLogic):
 
         self.log.info('ODMR data saved to:\n{0}'.format(filepath))
 
-        return
-
     def draw_matrix_figure(self, data_name):
-        if data_name  not in self._odmr_data['fit_params']:
+        """ Draw the figure to save with the data.
+
+        @param str data_name: the name of the parameter for which to draw the matrix.
+
+        @return matplotlib.figure.Figure fig: a matplotlib figure object to be saved to file.
+        """
+
+        if data_name  not in self._scan_data['fit_params']:
             fig = None
             return fig
-        
-        matrix, unit = self.get_data(data_name)
+
+        # Get the matrix and the unit and scale them
+        matrix, unit = self.get_scan_data(data_name)
         scale_fact = units.ScaledFloat(np.max(matrix)).scale_val
         unit_prefix = units.ScaledFloat(np.max(matrix)).scale
         matrix_scaled = matrix / scale_fact
+        unit_scaled = unit_prefix + unit
+        # Define the color range for the colorbar
         matrix_scaled_nonzero = matrix_scaled[np.nonzero(matrix_scaled)]
         cb_min = np.percentile(matrix_scaled_nonzero, 5)
         cb_max = np.percentile(matrix_scaled_nonzero, 95)
         cbar_range = [cb_min, cb_max]
-        unit_scaled = unit_prefix + unit
 
         # Use qudi style
         plt.style.use(self._save_logic.mpl_qd_style)
 
-        # Create figure
-        #fig = plt.figure()
+        # Create figure and draw matrix
         fig, (ax_matrix) = plt.subplots(nrows=1, ncols=1)
         matrixplot = ax_matrix.imshow(matrix_scaled,
-                                cmap=plt.get_cmap('viridis'),  # reference the right place in qd
+                                cmap=plt.get_cmap('viridis'),
                                 origin='lower',
                                 vmin=cbar_range[0],
                                 vmax=cbar_range[1],
@@ -1075,31 +1083,40 @@ class LaserLogic(GenericLogic):
     #  Start/stop functions  #
     ##########################
 
-    def start_OOP_measurement(self):
-
+    def start_OOP_scan(self):
         """ Starting a Threaded measurement.
         """
         if self.check_thread_active():
             self.log.error("A measurement is currently running, stop it first!")
             return
 
-        self._worker_thread = WorkerThread(target=self.perform_measurement,
+        self._worker_thread = WorkerThread(target=self.perform_OOP_scan,
                                             args=(),
-                                            name='operation_point_measurement') 
+                                            name='optimal_operation_point_scan') 
 
         self.threadpool.start(self._worker_thread)
 
-    def stop_OOP_measurement(self):
-        self._OOP_stop_request = True
+    def stop_OOP_scan(self):
+        """ Set a flag to request stopping the OOP scan.
+        """
+        self._scan_stop_request = True
 
     ########################
     #       Getters        #
     ########################
 
     def get_odmr_constraints(self):
+        """ Get the mw power and frequency constraints from the odmr logic.
+
+        @return object: Hardware constraints object.
+        """
         return self._odmr_logic.get_hw_constraints()
 
     def get_OOP_parameters(self):
+        """ Get the parameters of Optimal Operation Point measurement.
+
+        @return dict
+        """
         params = {'laser_power_start': self.laser_power_start,
                   'laser_power_stop': self.laser_power_stop,
                   'laser_power_num': self.laser_power_num,
@@ -1118,6 +1135,10 @@ class LaserLogic(GenericLogic):
         return params
 
     def get_odmr_fits(self):
+        """ Get the fits available for fitting the ODMR spectra.
+
+        @return list: List containing the names of the fit as string. 
+        """
         fit_list = []
         available_fits = self._odmr_logic.fc.fit_list
         for fit in available_fits.keys():
@@ -1125,9 +1146,16 @@ class LaserLogic(GenericLogic):
                 fit_list.append(fit)
         return fit_list
 
-    def get_data(self, data_name):
-        if data_name in self._odmr_data['fit_params']:
-            param_dict = self._odmr_data['fit_params'][data_name]
+    def get_scan_data(self, data_name):
+        """ Return the matrix with the actual values of a given data (e.g. Contrast, FWHM)
+        for the scan and the associated unit
+
+        @param str data_name: The name of the data for which the matrix will be returned. 
+
+        @return (np.ndarray, str): the matrix and the associated unit.
+        """
+        if data_name in self._scan_data['fit_params']:
+            param_dict = self._scan_data['fit_params'][data_name]
             return param_dict['values'], param_dict['unit']
         else:
             self.log.warning("This data is not available from the fit, sorry!")
@@ -1140,6 +1168,11 @@ class LaserLogic(GenericLogic):
     #TODO: check if the module is locked or not before changing the params
 
     def set_laser_power_start(self, laser_power_start):
+        """ Set the minimum laser power for the Optimal Operation Point scan and 
+        Bayesian optimization. 
+
+        @param float laser_power_start: minimum laser power in Watt
+        """
         lpr = self.laser_power_range
         if isinstance(laser_power_start, (int, float)):
             self.laser_power_start = units.in_range(laser_power_start, lpr[0], lpr[1])
@@ -1148,6 +1181,11 @@ class LaserLogic(GenericLogic):
 
 
     def set_laser_power_stop(self, laser_power_stop):
+        """ Set the maximum laser power for the Optimal Operation Point scan and 
+        Bayesian optimization. 
+
+        @param float laser_power_stop: maximum laser power in Watt
+        """
         #FIXME: Prevent laser_power_stop being equal to laser_power_start:
         # that causes a bug.
         lpr = self.laser_power_range
@@ -1159,12 +1197,21 @@ class LaserLogic(GenericLogic):
             return self.laser_power_stop
 
     def set_laser_power_num(self, laser_power_num):
+        """ Set the number of laser powers for the Optimal Operation Point scan.
+
+        @param int laser_power_num: number of laser power points 
+        """
         if isinstance(laser_power_num, int):
             self.laser_power_num = laser_power_num
         self.sigParameterUpdated.emit()
         return self.laser_power_num
 
     def set_mw_power_start(self, mw_power_start):
+        """ Set the minimum microwave power for the Optimal Operation Point scan and 
+        Bayesian optimization. 
+
+        @param float mw_power_start: minimum mw power in dBm
+        """
         limits = self.get_odmr_constraints()
         if isinstance(mw_power_start, (int, float)):
             self.mw_power_start = limits.power_in_range(mw_power_start)
@@ -1172,6 +1219,11 @@ class LaserLogic(GenericLogic):
         return self.mw_power_start
     
     def set_mw_power_stop(self, mw_power_stop):
+        """ Set the maximum mw power for the Optimal Operation Point scan and 
+        Bayesian optimization. 
+
+        @param float mw_power_stop: maximum mw power in dBm
+        """
         limits = self.get_odmr_constraints()
         if isinstance(mw_power_stop, (int, float)):
             if mw_power_stop < self.mw_power_start:
@@ -1181,12 +1233,21 @@ class LaserLogic(GenericLogic):
         return self.mw_power_stop
 
     def set_mw_power_num(self, mw_power_num):
+        """ Set the number of mw powers for the Optimal Operation Point scan and 
+        Bayesian optimization. 
+
+        @param int mw_power_num: number of mw power points
+        """
         if isinstance(mw_power_num, int):
             self.mw_power_num = mw_power_num
         self.sigParameterUpdated.emit()
         return self.mw_power_num
 
     def set_freq_start(self, freq_start):
+        """ Set the minimum frequency for ODMR measurements. 
+
+        @param float freq_start: starting frequency in Hz
+        """
         limits = self.get_odmr_constraints()
         if isinstance(freq_start, (int, float)):
             self.freq_start = limits.frequency_in_range(freq_start)
@@ -1194,6 +1255,10 @@ class LaserLogic(GenericLogic):
         return self.freq_start
 
     def set_freq_stop(self, freq_stop):
+        """ Set the maximum frequency for ODMR measurements. 
+
+        @param float freq_stop: stopping frequency in Hz
+        """
         limits = self.get_odmr_constraints()
         if isinstance(freq_stop, (int, float)):
             if freq_stop < self.freq_start:
@@ -1203,25 +1268,43 @@ class LaserLogic(GenericLogic):
         return self.freq_stop
 
     def set_freq_num(self, freq_num):
+        """ Set the number of points for ODMR measurements. 
+
+        @param int freq_num: number of points
+        """
         if isinstance(freq_num, int):
             self.freq_num = freq_num
         self.sigParameterUpdated.emit()
         return self.freq_num
 
     def set_counter_runtime(self, counter_runtime):
+        """ Set the counter runtime for the saturation curve of the Optimal 
+        Operation Point scan.
+
+        @param float counter_runtime: runtime in s 
+        """
         if isinstance(counter_runtime, (int, float)):
             self.counter_runtime = counter_runtime
         self.sigParameterUpdated.emit()
         return self.counter_runtime
 
     def set_odmr_runtime(self, odmr_runtime):
+        """ Set the runtime for ODMR measurements. 
+
+        @param float odmr_runtime: runtime in s
+        """
         if isinstance(odmr_runtime, (int, float)):
             self.odmr_runtime = odmr_runtime
         self.sigParameterUpdated.emit()
         return self.odmr_runtime
 
     #FIXME: check whether the channel exists or not
-    def set_OOP_channel(self, channel):
+    def set_channel(self, channel):
+        """ Set the channel for ODMR measurements and saturation curve. 
+
+        @param int channel: number of the channel (warning, channel are numbered
+        from zero!)
+        """
         odmr_channels = self.get_odmr_channels()
         num = len(odmr_channels)
         if isinstance(channel, int) and channel < num:
@@ -1231,18 +1314,30 @@ class LaserLogic(GenericLogic):
             self.log.error('Channel must be an int inferior or equal to {0:d}'.format(num - 1))
         return self.channel
 
-    def set_OOP_optimize(self, boolean):
+    def set_scan_optimize(self, boolean):
+        """ Set whether or not to optimize the position during the scan.
+
+        @param bool boolean
+        """
         self.optimize = boolean
         self.sigParameterUpdated.emit()
         return self.optimize 
 
     def set_odmr_fit(self, fit_name):
+        """ Set the fit function used to fit the ODMR spectrum
+
+        @param str fit_name: name of the fit
+        """
         if fit_name in self.get_odmr_fits():
             self.odmr_fit_function = fit_name
         self.sigParameterUpdated.emit()
         return self.odmr_fit_function
 
     def set_bayopt_num_meas(self, num_meas):
+        """ Set the number of measurement to be performed during Bayesian optimization
+
+        @param int num_meas
+        """
         self.bayopt_num_meas = num_meas
         self.sigParameterUpdated.emit()
         return self.bayopt_num_meas
@@ -1252,6 +1347,10 @@ class LaserLogic(GenericLogic):
     ###########################################################################
         
     def initialize_optimizer(self):
+        """ Create an optimizer object for bayesian optimization.
+
+        @return object: bayesian optimizer
+        """
         pbounds = {'x': (0, 1), 'y': (0, 1)}
         self.optimizer = BayesianOptimization(
             f=None,
@@ -1263,6 +1362,18 @@ class LaserLogic(GenericLogic):
         return self.optimizer
 
     def measure_sensitivity(self, laser_power, mw_power):
+        """ Record an ODMR spectrum and fit it with the chosen function to 
+        deduce the sensitivity.
+
+        @param float laser_power: laser used for the measurement in Watt
+        @param float mw_power: microwave power used for the measurement in dBm
+
+        @return int error: -1 if a problem occured during the measurment, 0 otherwise
+                float val: value of the sensitivity
+                float std: std of the sensitivity
+                np.ndarray odmr_plot_x: xaxis values of the odmr plot
+                np.ndarra odmr_plot_y: yaxis values of the odmr plot
+        """
         self.set_power(laser_power)
         time.sleep(1)
 
@@ -1273,29 +1384,50 @@ class LaserLogic(GenericLogic):
                                     self.odmr_fit_function, save_after_meas=False, name_tag='')
 
         if error:
-            self.log.warning('Error occured during ODMR measurement.')
-            return error, 0, np.array([]), np.array([])
+            self.log.error('An error occured during ODMR measurement.')
+            return error, 0, 0, np.array([]), np.array([])
 
-        if 'Sensitivity' in odmr_fit_result.result_str_dict:
-            val = odmr_fit_result.result_str_dict['Sensitivity']['value']
-            if 'error' in odmr_fit_result.result_str_dict['Sensitivity']:
-                std = odmr_fit_result.result_str_dict['Sensitivity']['error']
-            else:
-                std = -1
-        elif 'Sensitivity 0' in odmr_fit_result.result_str_dict:
-            val = odmr_fit_result.result_str_dict['Sensitivity 0']['value']
-            if 'error' in odmr_fit_result.result_str_dict['Sensitivity 0']:
-                std = odmr_fit_result.result_str_dict['Sensitivity 0']['error']
-            else:
-                std = -1
+        # Find the name of the sensitivity parameter
+        fit_list = self._odmr_logic.fc.fit_list
+        fit_name = fit_list[self.odmr_fit_function]['fit_name']
+        param_dict = self.fit_parameters_list[fit_name]
+        if 'Sensitivity' in param_dict:
+            par = param_dict['Sensitivity'][0]
+        elif 'Sensitivity 0' in param_dict:
+            par = param_dict['Sensitivity 0'][0]
         else:
             self.log.warning("Sensitivity is not available from the fit chosen. Please choose another fit (e.g. Lorentzian dip)")
             error = -1
-            return error, 0, np.array([]), np.array([])
+            return error, 0, 0, odmr_plot_x, odmr_plot_y
+
+        # Check whether the stderr are computed
+        is_error = odmr_fit_result.errorbars
+
+        # Get the value of the sensitivity
+        val = odmr_fit_result.params[par].value
+        if is_error:
+            std = odmr_fit_result.params[par].stderr
+        else:
+            std = -1
 
         return error, val, std, odmr_plot_x, odmr_plot_y
 
     def bayesian_optimization(self, resume=False):
+        """ Execute a bayesian optimization algorithm to find the minimum of 
+        sensitivity (optimal operation point).
+
+        @param bool resume: whether to resume the last measurement or create a 
+        new one.
+
+        See <https://distill.pub/2020/bayesian-optimization/> if you want to 
+        learn more about how bayesian optimization works.
+        See <https://github.com/fmfn/BayesianOptimization> for information on 
+        the library used.
+        """
+        # Sensitivity value should be multiplied by a negative factor because 
+        # the library used try to maximize the value instead of minimizing it. 
+        # Plus, the algorithm works better if the values are in the order of 1
+        multiplication_factor = -1e5
 
         #Setting up the stopping mechanism.
         self._bayopt_stop_request = False
@@ -1314,16 +1446,19 @@ class LaserLogic(GenericLogic):
         self.initialize_optimizer()
         self.initialize_bayopt_data(resume)
 
-    
+        # If it resumes a measurement, load the data from the last measurement
+        # into the optimizer
         old_num_points = np.count_nonzero(self._bayopt_data['measured_sensitivity'])
         for n in range(old_num_points):
-            target = self._bayopt_data['measured_sensitivity'][n] * -1e5
+            target = self._bayopt_data['measured_sensitivity'][n] * multiplication_factor
             x = (self._bayopt_data['laser_power_list'][n] - self.laser_power_start) / (self.laser_power_stop - self.laser_power_start)
             y = (self._bayopt_data['mw_power_list'][n] - self.mw_power_start) / (self.mw_power_stop - self.mw_power_start)
             self.optimizer.register(params={'x': x, 'y': y}, target=target)
         
+        # Define the utility function (or acquiqition function)
         utility = UtilityFunction(kind='ei', xi=self.bayopt_xi, kappa=1)
 
+        # How many steps of random exploration are performed
         init_points = int((self.bayopt_num_meas - old_num_points) * self.bayopt_random_percentage / 100)
 
         for n in range(old_num_points, self.bayopt_num_meas):
@@ -1332,6 +1467,7 @@ class LaserLogic(GenericLogic):
             if self._bayopt_stop_request:
                 break
 
+            # Choose next point to evaluate
             if n < old_num_points + init_points :
                 x = np.random.random()
                 y = np.random.random()
@@ -1340,10 +1476,12 @@ class LaserLogic(GenericLogic):
                     next_point = self.optimizer.suggest(utility)
                     x = next_point['x']
                     y = next_point['y']
+                # catch a bug in the suggest function
                 except ValueError:
                     x = np.random.random()
                     y = np.random.random()
 
+            # Measure the sensitivity for this point
             las_pw = self.laser_power_start + (self.laser_power_stop - self.laser_power_start) * x
             mw_pw = self.mw_power_start + (self.mw_power_stop - self.mw_power_start) * y
             
@@ -1353,31 +1491,39 @@ class LaserLogic(GenericLogic):
                 self.sigBayoptStopped.emit()
                 return
 
-            target = value * -1e5
+            target = value * multiplication_factor
+            # Register the result into the optimizer
             self.optimizer.register(params={'x': x, 'y': y}, target=target)
+
+            # Try to create a surrogate model + catch an error that happens when 
+            # there are not enough points for that
             try:
                 self.optimizer._gp.fit(self.optimizer._space.params, self.optimizer._space.target)
             except ValueError:
                 pass
+
+            # Store the data in the dedicated dict
             self._bayopt_data['measured_sensitivity'][n] = value
             self._bayopt_data['measured_sensitivity_std'][n] = std
             self._bayopt_data['laser_power_list'][n] = las_pw
             self._bayopt_data['mw_power_list'][n] = mw_pw
             self._bayopt_data['odmr_data'][n] = np.array([odmr_plot_x, odmr_plot_y[self.channel]])
+            # Prepare the plot that will be displayed
             X = np.linspace(0, 1, 100)
             Y = np.linspace(0, 1, 100)
             try: 
                 for i in range(100):
                     for j in range(100):
-                        self._bayopt_data['predicted_sensitivity'][i][j] = float(self.optimizer._gp.predict([[X[i], Y[j]]])) * -1e-5
+                        self._bayopt_data['predicted_sensitivity'][i][j] = float(self.optimizer._gp.predict([[X[i], Y[j]]])) / multiplication_factor
             except AttributeError:
                 pass
             self.sigBayoptUpdateData.emit(n)
 
         self.sigBayoptStopped.emit()
-        return
 
     def stop_bayopt(self):
+        """ Set a flag to request stopping the bayesian optimization.
+        """
         self._bayopt_stop_request = True
 
     def start_bayopt(self):
@@ -1394,7 +1540,8 @@ class LaserLogic(GenericLogic):
         self.threadpool.start(self._worker_thread)
     
     def resume_bayopt(self):
-        
+        """ Starting a Threaded measurement to resume the last measurement
+        """
         if self.check_thread_active():
             self.log.error("A measurement is currently running, stop it first!")
             return
@@ -1406,11 +1553,17 @@ class LaserLogic(GenericLogic):
         self.threadpool.start(self._worker_thread)
 
     def initialize_bayopt_data(self, resume=False):
-        
+        """" Initialize the dictionary where all the data of the bayesian 
+        optimization are stored.
+
+        @param bool resume: If True, re-load the data from the last measurement.
+                            Default is False.
+        """
         old_num_points = 0
         if resume:
             old_dict = self._bayopt_data
             old_num_points = np.count_nonzero(old_dict['measured_sensitivity'])
+            # If there is no more point to measure, add a new one
             if self.bayopt_num_meas <= old_num_points:
                 self.set_bayopt_num_meas(old_num_points + 1)
 
@@ -1439,23 +1592,28 @@ class LaserLogic(GenericLogic):
                                 },  # !!! here are all the measurement parameter saved
                     }
 
+        # Re-load the data
         for n in range(old_num_points):
             meas_dict['measured_sensitivity'][n] = old_dict['measured_sensitivity'][n]
             meas_dict['measured_sensitivity_std'][n] = old_dict['measured_sensitivity_std'][n]
             meas_dict['laser_power_list'][n] = old_dict['laser_power_list'][n]
             meas_dict['mw_power_list'][n] = old_dict['mw_power_list'][n]
-            # FIXME: If the number of points for the odmr measurement changes, they can not be 
-            # stored in the data array.
-            if meas_dict['odmr_data'][n].shape == old_dict['odmr_data'][n]:
+            # FIXME: If the number of points for the odmr measurement has changed, 
+            # between the measurements, the old ones can not be stored in the new data array.
+            if meas_dict['odmr_data'][n].shape == old_dict['odmr_data'][n].shape:
                 meas_dict['odmr_data'][n] = old_dict['odmr_data'][n]
 
         self._bayopt_data = meas_dict
         return self._bayopt_data
     
     def get_bayopt_data(self):
+        """ Getter for the data dictionary.
+        """
         return self._bayopt_data
 
     def save_bayopt_data(self, tag=None):
+        """ Save the data from Bayesian Optimization to files and figures.
+        """
 
         timestamp = datetime.datetime.now()
 
@@ -1470,7 +1628,7 @@ class LaserLogic(GenericLogic):
         else:
                 filelabel = 'measures'
 
-        
+        # Ensure that there are some data to be saved
         if not 'measured_sensitivity' in self._bayopt_data or not np.any(self._bayopt_data['measured_sensitivity']):
             self.log.warning('The data array is empty and will be not saved.')
             return
@@ -1481,6 +1639,13 @@ class LaserLogic(GenericLogic):
         unit = self._bayopt_data['units']
         parameters['Name of measured signal'] = nice_name
         parameters['Units of measured signal'] = unit
+
+        n = np.count_nonzero(self._bayopt_data['measured_sensitivity'])
+        index_min = np.argmin(self._bayopt_data['measured_sensitivity'][:n])
+        min_mw_power = self._bayopt_data['mw_power_list'][index_min]
+        min_laser_power = self._bayopt_data['laser_power_list'][index_min]
+        parameters['Laser power of the minimum measured'] = min_laser_power
+        parameters['MW power of the minimum measured'] = min_mw_power
 
         data = {}
         data['Laser_power (W)'] = self._bayopt_data['laser_power_list']
@@ -1502,7 +1667,11 @@ class LaserLogic(GenericLogic):
         return
 
     def draw_optimization_figure(self):
+        """ Draw the figure to save with the data.
         
+        @return matplotlib.figure.Figure fig: a matplotlib figure object to be saved to file.
+        """
+        # Matrix, unit and colorbar        
         matrix = self._bayopt_data['predicted_sensitivity']
         unit = 'T/sqrt(Hz)'
         scale_fact = units.ScaledFloat(np.max(matrix)).scale_val
@@ -1520,6 +1689,7 @@ class LaserLogic(GenericLogic):
         ax_matrix.set_xlim(self.mw_power_start, self.mw_power_stop)
         ax_matrix.set_ylim(self.laser_power_start, self.laser_power_stop)
 
+        # Draw matrix
         matrixplot = ax_matrix.imshow(matrix_scaled,
                                 cmap=plt.get_cmap('viridis'),  # reference the right place in qd
                                 origin='lower',
@@ -1533,9 +1703,11 @@ class LaserLogic(GenericLogic):
                                 aspect='auto',
                                 interpolation='nearest')
 
+        # Draw measured points
         n = np.count_nonzero(self._bayopt_data['measured_sensitivity'])
         ax_matrix.plot(self._bayopt_data['mw_power_list'][:n], self._bayopt_data['laser_power_list'][:n], linestyle='', marker='o', color='cyan')
 
+        # Draw a cross to indicate the minimum
         index_min = np.argmin(self._bayopt_data['measured_sensitivity'][:n])
         min_mw_power = self._bayopt_data['mw_power_list'][index_min]
         min_laser_power = self._bayopt_data['laser_power_list'][index_min]
@@ -1558,6 +1730,14 @@ class LaserLogic(GenericLogic):
         return fig
 
     def set_bayopt_parameters(self, alpha, xi, percent):
+        """ Set the hyperparameter used in the bayesian optimization algorithm.
+
+        @param float alpha: noise level that can be handled by the Gaussian process
+        @param float xi: exploration vs exploitation rate
+        @param percent: percentage of random exploration
+
+        See <https://github.com/fmfn/BayesianOptimization> for further explanation.
+        """
         self.bayopt_alpha = alpha
         self.bayopt_xi = xi
         if percent > 100:
