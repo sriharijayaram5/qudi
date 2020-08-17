@@ -736,12 +736,12 @@ class LaserLogic(GenericLogic):
         mw_power = np.linspace(self.mw_power_start, self.mw_power_stop, self.mw_power_num, endpoint=True)
 
         if self.get_laser_state() == LaserState.OFF:
-            self.log.warning('Measurement Aborted. Laser is not ON.')
+            self.log.error('Measurement Aborted. Laser is not ON.')
             self.sigScanStopped.emit()
             return
 
         if self._counterlogic.module_state() == 'locked':
-            self.log.warning('Another measurement is running, stop it first!')
+            self.log.error('Another measurement is running, stop it first!')
             self.sigScanStopped.emit()
             return
 
@@ -843,7 +843,7 @@ class LaserLogic(GenericLogic):
                     }  
 
         if self.odmr_fit_function == 'No fit':
-            self.log.error("No fit function has been chosen, no result will be displayed. Please choose a fit function")
+            self.log.warning("No fit function has been chosen, no result will be displayed. Please choose a fit function")
             return
 
         available_fits = self._odmr_logic.fc.fit_list
@@ -1158,7 +1158,7 @@ class LaserLogic(GenericLogic):
             param_dict = self._scan_data['fit_params'][data_name]
             return param_dict['values'], param_dict['unit']
         else:
-            self.log.warning("This data is not available from the fit, sorry!")
+            self.log.error("This data is not available from the fit, sorry!")
             return np.array([[0]]), ''
 
     ########################
@@ -1396,7 +1396,7 @@ class LaserLogic(GenericLogic):
         elif 'Sensitivity 0' in param_dict:
             par = param_dict['Sensitivity 0'][0]
         else:
-            self.log.warning("Sensitivity is not available from the fit chosen. Please choose another fit (e.g. Lorentzian dip)")
+            self.log.error("Sensitivity is not available from the fit chosen. Please choose another fit (e.g. Lorentzian dip)")
             error = -1
             return error, 0, 0, odmr_plot_x, odmr_plot_y
 
@@ -1434,12 +1434,12 @@ class LaserLogic(GenericLogic):
         self.sigBayoptStarted.emit()
 
         if self.get_laser_state() == LaserState.OFF:
-            self.log.warning('Measurement Aborted. Laser is not ON.')
+            self.log.error('Measurement Aborted. Laser is not ON.')
             self.sigBayoptStopped.emit()
             return
 
         if self._counterlogic.module_state() == 'locked':
-            self.log.warning('Another measurement is running, stop it first!')
+            self.log.error('Another measurement is running, stop it first!')
             self.sigBayoptStopped.emit()
             return
 
@@ -1487,7 +1487,7 @@ class LaserLogic(GenericLogic):
             
             error, value, std, odmr_plot_x, odmr_plot_y = self.measure_sensitivity(las_pw, mw_pw)
             if error:
-                self.log.warning("Optimal operation search aborted")
+                self.log.error("Optimal operation point search aborted")
                 self.sigBayoptStopped.emit()
                 return
 
