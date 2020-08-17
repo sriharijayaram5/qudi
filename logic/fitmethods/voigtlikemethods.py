@@ -368,6 +368,11 @@ def estimate_voigtequalized_dip(self, x_axis, data, params):
 
     data_smooth, offset = self.find_offset_parameter(x_axis, data)
 
+    # FIXME: the method find_offset_parameter returns the most frequent value
+    # among the data as an offset estimation. This leads to bad estimations when 
+    # the spectrum is very wide. Here is a quick fix, though not very elegant:
+    offset = np.percentile(data_smooth, 95)
+
     # data_level = data-offset
     data_level = data_smooth - offset
 
