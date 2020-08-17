@@ -903,13 +903,11 @@ class LaserGUI(GUIBase):
         self.matrix_image.setImage(image=matrix_scaled,
                                    axisOrder='row-major',
                                    levels=(cb_range[0], cb_range[1]))
+                
+        mw_0, mw_1, las_0, las_1 = self._laser_logic.compute_extent(matrix_scaled)
+
         self.matrix_image.setRect(
-            QtCore.QRectF(
-                self._laser_logic.mw_power_start,
-                self._laser_logic.laser_power_start,
-                self._laser_logic.mw_power_stop - self._laser_logic.mw_power_start,
-                self._laser_logic.laser_power_stop - self._laser_logic.laser_power_start
-            )
+            QtCore.QRectF(mw_0, las_0, mw_1 - mw_0, las_1 - las_0)
         )
 
     # FIXME: The matrix should not need to be scaled but it is done here because

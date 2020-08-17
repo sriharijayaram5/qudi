@@ -1373,16 +1373,13 @@ class LaserLogic(GenericLogic):
 
         # Create figure and draw matrix
         fig, (ax_matrix) = plt.subplots(nrows=1, ncols=1)
+        extent = self.compute_extent(matrix_scaled)
         matrixplot = ax_matrix.imshow(matrix_scaled,
                                       cmap=plt.get_cmap('viridis'),
                                       origin='lower',
                                       vmin=cbar_range[0],
                                       vmax=cbar_range[1],
-                                      extent=[self.mw_power_start,
-                                              self.mw_power_stop,
-                                              self.laser_power_start,
-                                              self.laser_power_stop
-                                              ],
+                                      extent=extent,
                                       aspect='auto',
                                       interpolation='nearest')
 
@@ -1400,6 +1397,27 @@ class LaserLogic(GenericLogic):
         cbar.set_label(data_name + ' (' + unit_scaled + ')')
 
         return fig
+
+    def compute_extent(self, matrix):
+        """ Compute the extent parameter for the imshow method so that the 
+        coordinates of each measure point coincide with the coordinates of the 
+        center of the square.
+
+        @param np.ndarray matrix: 2D matrix for which the extent is computed
+
+        @return tuple (left, right, bottom, top): the bounding box in data 
+                                    coordinates that the image will fill.
+        """
+        (n_las, n_mw) = matrix.shape
+        las_0 = ((2 * n_las - 1) * self.laser_power_start -
+                 self.laser_power_stop) / (2 * n_las - 2)
+        las_1 = ((2 * n_las - 1) * self.laser_power_stop -
+                 self.laser_power_start) / (2 * n_las - 2)
+        mw_0 = ((2 * n_mw - 1) * self.mw_power_start -
+                self.mw_power_stop) / (2 * n_mw - 2)
+        mw_1 = ((2 * n_mw - 1) * self.mw_power_stop -
+                self.mw_power_start) / (2 * n_mw - 2)
+        return (mw_0, mw_1, las_0, las_1)
 
     ########################################
     #          Start/stop functions        #
@@ -1770,6 +1788,7 @@ class LaserLogic(GenericLogic):
         ax_matrix.set_ylim(self.laser_power_start, self.laser_power_stop)
 
         # Draw matrix
+
         matrixplot = ax_matrix.imshow(matrix_scaled,
                                       # reference the right place in qd
                                       cmap=plt.get_cmap('viridis'),
