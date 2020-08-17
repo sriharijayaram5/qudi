@@ -1099,9 +1099,9 @@ class LaserLogic(GenericLogic):
             self.sigScanStopped.emit()
             return
 
-        
         if self._odmr_logic.module_state() == 'locked':
-            self.log.error('An ODMR measurement is already running, stop it first!')
+            self.log.error(
+                'An ODMR measurement is already running, stop it first!')
             self.sigScanStopped.emit()
             return
 
@@ -1591,7 +1591,8 @@ class LaserLogic(GenericLogic):
             return
 
         if self._odmr_logic.module_state() == 'locked':
-            self.log.error('An ODMR measurement is already running, stop it first!')
+            self.log.error(
+                'An ODMR measurement is already running, stop it first!')
             self.sigBayoptStopped.emit()
             return
 
