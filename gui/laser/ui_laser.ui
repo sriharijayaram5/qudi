@@ -146,7 +146,7 @@
               <item>
                <widget class="ScienDSpinBox" name="startPowerDoubleSpinBox">
                 <property name="keyboardTracking">
-                 <bool>false</bool>
+                 <bool>true</bool>
                 </property>
                 <property name="suffix">
                  <string>W</string>
@@ -178,7 +178,7 @@
               <item>
                <widget class="ScienDSpinBox" name="stopPowerDoubleSpinBox">
                 <property name="keyboardTracking">
-                 <bool>false</bool>
+                 <bool>true</bool>
                 </property>
                 <property name="suffix">
                  <string>W</string>
@@ -210,7 +210,7 @@
               <item>
                <widget class="QSpinBox" name="numPointsSpinBox">
                 <property name="keyboardTracking">
-                 <bool>false</bool>
+                 <bool>true</bool>
                 </property>
                </widget>
               </item>
@@ -242,7 +242,7 @@
               <item>
                <widget class="ScienDSpinBox" name="timeDoubleSpinBox">
                 <property name="keyboardTracking">
-                 <bool>false</bool>
+                 <bool>true</bool>
                 </property>
                 <property name="suffix">
                  <string>s</string>
@@ -564,7 +564,7 @@
         <item>
          <widget class="ScienDSpinBox" name="LaserdoubleSpinBox">
           <property name="keyboardTracking">
-           <bool>false</bool>
+           <bool>true</bool>
           </property>
          </widget>
         </item>

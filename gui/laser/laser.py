@@ -325,13 +325,13 @@ class LaserGUI(GUIBase):
         self._mw.controlModeButtonGroup.buttonClicked.connect(
             self.changeControlMode)
         # Saturation curve
-        self._mw.startPowerDoubleSpinBox.valueChanged.connect(
+        self._mw.startPowerDoubleSpinBox.editingFinished.connect(
             self.change_saturation_params)
-        self._mw.stopPowerDoubleSpinBox.valueChanged.connect(
+        self._mw.stopPowerDoubleSpinBox.editingFinished.connect(
             self.change_saturation_params)
-        self._mw.numPointsSpinBox.valueChanged.connect(
+        self._mw.numPointsSpinBox.editingFinished.connect(
             self.change_saturation_params)
-        self._mw.timeDoubleSpinBox.valueChanged.connect(
+        self._mw.timeDoubleSpinBox.editingFinished.connect(
             self.change_saturation_params)
         # OOP scan
         self._mw.laser_power_start_DoubleSpinBox.valueChanged.connect(
@@ -482,10 +482,10 @@ class LaserGUI(GUIBase):
         self._mw.LaserdoubleSpinBox.editingFinished.disconnect()
         self._mw.controlModeButtonGroup.buttonClicked.disconnect()
 
-        self._mw.startPowerDoubleSpinBox.valueChanged.disconnect()
-        self._mw.stopPowerDoubleSpinBox.valueChanged.disconnect()
-        self._mw.numPointsSpinBox.valueChanged.disconnect()
-        self._mw.timeDoubleSpinBox.valueChanged.disconnect()
+        self._mw.startPowerDoubleSpinBox.editingFinished.disconnect()
+        self._mw.stopPowerDoubleSpinBox.editingFinished.disconnect()
+        self._mw.numPointsSpinBox.editingFinished.disconnect()
+        self._mw.timeDoubleSpinBox.editingFinished.disconnect()
 
         self._mw.laser_power_start_DoubleSpinBox.valueChanged.disconnect()
         self._mw.laser_power_stop_DoubleSpinBox.valueChanged.disconnect()
@@ -726,6 +726,10 @@ class LaserGUI(GUIBase):
                 self.background_button_clicked(True)
 
             self._mw.start_saturation_Action.setEnabled(False)
+            # Make sure that the parameters used correspond to the parameters
+            # displayed (otherwise it may not be the case if the user does not
+            # press enter after editing parameters)
+            self.change_saturation_params()
             self.sigStartSaturation.emit()
             self._pw.removeItem(self.saturation_fit_image)
             self._pw.removeItem(self.double_fit_image_saturation)
