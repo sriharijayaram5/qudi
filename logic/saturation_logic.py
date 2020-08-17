@@ -517,6 +517,24 @@ class LaserLogic(GenericLogic):
 
         self.sigSaturationStarted.emit()
 
+        if self.get_laser_state() == LaserState.OFF:
+            self.log.error('Measurement Aborted. Laser is not ON.')
+            self.sigSaturationStopped.emit()
+            return
+
+        if self.module_state() == 'locked':
+            self.log.error(
+                'Another measurement is running in this module, stop it first!')
+            self.sigSaturationStopped.emit()
+            return
+
+        if self._counterlogic.module_state() == 'locked':
+            self.log.error('The counter is already running, stop it first!')
+            self.sigSaturationStopped.emit()
+            return
+
+        self.module_state.lock()
+
         # Create the list of powers for the measurement.
         laser_power = np.linspace(start_power, stop_power, num_of_points)
         # TODO: Add a list with calibrated power
@@ -524,11 +542,6 @@ class LaserLogic(GenericLogic):
         count_frequency = self._counterlogic.get_count_frequency()
         counter_points = int(count_frequency * time_per_point)
         self._counterlogic.set_count_length(counter_points)
-
-        if self.get_laser_state() == LaserState.OFF:
-            self.log.error('Measurement Aborted. Laser is not ON.')
-            self.sigSaturationStopped.emit()
-            return
 
         counts = np.zeros(num_of_points)
         std_dev = np.zeros(num_of_points)
@@ -558,7 +571,7 @@ class LaserLogic(GenericLogic):
         self._counterlogic.stopCount()
 
         self.set_power(final_power)
-
+        self.module_state.unlock()
         self.sigSaturationStopped.emit()
 
     def start_saturation_curve(self):
@@ -566,7 +579,7 @@ class LaserLogic(GenericLogic):
         """
         if self.check_thread_active():
             self.log.error(
-                "A measurement is currently running, stop it first!")
+                "A measurement is currently running in this module, stop it first!")
             self.sigSaturationStopped.emit()
             return
 
@@ -1070,6 +1083,30 @@ class LaserLogic(GenericLogic):
 
         self.sigScanStarted.emit()
 
+        if self.get_laser_state() == LaserState.OFF:
+            self.log.error('Measurement Aborted. Laser is not ON.')
+            self.sigScanStopped.emit()
+            return
+
+        if self.module_state() == 'locked':
+            self.log.error(
+                'Another measurement is running in this module, stop it first!')
+            self.sigScanStopped.emit()
+            return
+
+        if self._counterlogic.module_state() == 'locked':
+            self.log.error('The counter is already running, stop it first!')
+            self.sigScanStopped.emit()
+            return
+
+        
+        if self._odmr_logic.module_state() == 'locked':
+            self.log.error('An ODMR measurement is already running, stop it first!')
+            self.sigScanStopped.emit()
+            return
+
+        self.module_state.lock()
+
         # A saturation curve is recorded during the scan, so update the saturation
         # parameters.
         self.set_saturation_params(self.laser_power_start, self.laser_power_stop,
@@ -1080,16 +1117,6 @@ class LaserLogic(GenericLogic):
             self.laser_power_start, self.laser_power_stop, self.laser_power_num)
         mw_power = np.linspace(
             self.mw_power_start, self.mw_power_stop, self.mw_power_num)
-
-        if self.get_laser_state() == LaserState.OFF:
-            self.log.error('Measurement Aborted. Laser is not ON.')
-            self.sigScanStopped.emit()
-            return
-
-        if self._counterlogic.module_state() == 'locked':
-            self.log.error('Another measurement is running, stop it first!')
-            self.sigScanStopped.emit()
-            return
 
         # Deduce the number of points to request to counter from the parameter
         # self.counter_runtime
@@ -1146,6 +1173,7 @@ class LaserLogic(GenericLogic):
                 if error:
                     self.log.error(
                         'An error occured while recording ODMR. Scan aborted')
+                    self.module_state.unlock()
                     self.sigScanStopped.emit()
                     return
 
@@ -1157,7 +1185,7 @@ class LaserLogic(GenericLogic):
                 self.sigScanUpdateData.emit()
 
         self.set_power(self.final_power)
-
+        self.module_state.unlock()
         self.sigScanStopped.emit()
 
     def initialize_scan_data(self):
@@ -1456,7 +1484,8 @@ class LaserLogic(GenericLogic):
         """
         if self.check_thread_active():
             self.log.error(
-                "A measurement is currently running, stop it first!")
+                "A measurement is currently running in this module, stop it first!")
+            self.sigScanStopped.emit()
             return
 
         self._worker_thread = WorkerThread(target=self.perform_OOP_scan,
@@ -1547,6 +1576,7 @@ class LaserLogic(GenericLogic):
 
         # Setting up the stopping mechanism.
         self._bayopt_stop_request = False
+
         self.sigBayoptStarted.emit()
 
         if self.get_laser_state() == LaserState.OFF:
@@ -1554,10 +1584,18 @@ class LaserLogic(GenericLogic):
             self.sigBayoptStopped.emit()
             return
 
-        if self._counterlogic.module_state() == 'locked':
-            self.log.error('Another measurement is running, stop it first!')
+        if self.module_state() == 'locked':
+            self.log.error(
+                'Another measurement is running in this module, stop it first!')
             self.sigBayoptStopped.emit()
             return
+
+        if self._odmr_logic.module_state() == 'locked':
+            self.log.error('An ODMR measurement is already running, stop it first!')
+            self.sigBayoptStopped.emit()
+            return
+
+        self.module_state.lock()
 
         self.initialize_optimizer()
         self.initialize_bayopt_data(resume)
@@ -1612,6 +1650,7 @@ class LaserLogic(GenericLogic):
                 las_pw, mw_pw)
             if error:
                 self.log.error("Optimal operation point search aborted")
+                self.module_state.unlock()
                 self.sigBayoptStopped.emit()
                 return
 
@@ -1646,6 +1685,7 @@ class LaserLogic(GenericLogic):
                 pass
             self.sigBayoptUpdateData.emit(n)
 
+        self.module_state.unlock()
         self.sigBayoptStopped.emit()
 
     def initialize_optimizer(self):
@@ -1854,7 +1894,8 @@ class LaserLogic(GenericLogic):
         """
         if self.check_thread_active():
             self.log.error(
-                "A measurement is currently running, stop it first!")
+                "A measurement is currently running in this module, stop it first!")
+            self.sigBayoptStopped.emit()
             return
 
         self._worker_thread = WorkerThread(target=self.bayesian_optimization,
