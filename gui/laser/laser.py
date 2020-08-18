@@ -388,9 +388,12 @@ class LaserGUI(GUIBase):
             self.bayopt_colorscale_changed)
 
         # Action signals
-        # FIXME: action_Save = save all the data ?
         self._mw.action_Save.triggered.connect(
             self.save_saturation_curve_clicked)
+        self._mw.action_Save.triggered.connect(
+            self.save_scan_clicked)
+        self._mw.action_Save.triggered.connect(
+            self.save_bayopt_clicked)
         self._mw.action_RestoreDefault.triggered.connect(
             self.restore_defaultview)
         self._mw.laser_ON_Action.triggered.connect(self._laser_logic.on)
@@ -903,8 +906,9 @@ class LaserGUI(GUIBase):
         self.matrix_image.setImage(image=matrix_scaled,
                                    axisOrder='row-major',
                                    levels=(cb_range[0], cb_range[1]))
-                
-        mw_0, mw_1, las_0, las_1 = self._laser_logic.compute_extent(matrix_scaled)
+
+        mw_0, mw_1, las_0, las_1 = self._laser_logic.compute_extent(
+            matrix_scaled)
 
         self.matrix_image.setRect(
             QtCore.QRectF(mw_0, las_0, mw_1 - mw_0, las_1 - las_0)
