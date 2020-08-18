@@ -84,10 +84,10 @@ class WorkerThread(QtCore.QRunnable):
         return self._is_running
 
 
-class LaserLogic(GenericLogic):
+class OOPLogic(GenericLogic):
     """ Logic module agreggating multiple hardware switches.
     """
-    _modclass = 'laser'
+    _modclass = 'oop'
     _modtype = 'logic'
 
     # Declare connectors

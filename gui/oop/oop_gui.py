@@ -66,14 +66,14 @@ class LaserSettingDialog(QtWidgets.QDialog):
         uic.loadUi(ui_file, self)
 
 
-class LaserGUI(GUIBase):
+class OOPGui(GUIBase):
     """ FIXME: Please document
     """
-    _modclass = 'lasergui'
+    _modclass = 'oop'
     _modtype = 'gui'
 
     # Declare connectors
-    laserlogic = Connector(interface='LaserLogic')
+    ooplogic = Connector(interface='OOPLogic')
 
     # Declare signals
     sigPower = QtCore.Signal(float)
@@ -98,7 +98,7 @@ class LaserGUI(GUIBase):
     def on_activate(self):
         """ Definition and initialisation of the GUI.
         """
-        self._laser_logic = self.laserlogic()
+        self._oop_logic = self.ooplogic()
         self._sd = LaserSettingDialog()
 
         #####################
@@ -199,106 +199,106 @@ class LaserGUI(GUIBase):
         ########################################################################
 
         # Set up the constraints and values for the saturation measurement.
-        lpr = self._laser_logic.laser_power_range
+        lpr = self._oop_logic.laser_power_range
         self._mw.startPowerDoubleSpinBox.setRange(lpr[0], lpr[1])
         self._mw.startPowerDoubleSpinBox.setValue(
-            self._laser_logic.power_start)
+            self._oop_logic.power_start)
         self._mw.stopPowerDoubleSpinBox.setRange(lpr[0], lpr[1])
-        self._mw.stopPowerDoubleSpinBox.setValue(self._laser_logic.power_stop)
+        self._mw.stopPowerDoubleSpinBox.setValue(self._oop_logic.power_stop)
         self._mw.numPointsSpinBox.setRange(1, 100)
-        self._mw.numPointsSpinBox.setValue(self._laser_logic.number_of_points)
+        self._mw.numPointsSpinBox.setValue(self._oop_logic.number_of_points)
         self._mw.timeDoubleSpinBox.setRange(1, 1000)
-        self._mw.timeDoubleSpinBox.setValue(self._laser_logic.time_per_point)
+        self._mw.timeDoubleSpinBox.setValue(self._oop_logic.time_per_point)
 
         # Set up the constraints and values for the OOP scan.
-        odmr_constraints = self._laser_logic.get_odmr_constraints()
+        odmr_constraints = self._oop_logic.get_odmr_constraints()
         self._mw.laser_power_start_DoubleSpinBox.setRange(lpr[0], lpr[1])
         self._mw.laser_power_start_DoubleSpinBox.setValue(
-            self._laser_logic.laser_power_start)
+            self._oop_logic.laser_power_start)
         self._mw.laser_power_stop_DoubleSpinBox.setRange(lpr[0], lpr[1])
         self._mw.laser_power_stop_DoubleSpinBox.setValue(
-            self._laser_logic.laser_power_stop)
+            self._oop_logic.laser_power_stop)
         self._mw.laser_power_num_SpinBox.setValue(
-            self._laser_logic.laser_power_num)
+            self._oop_logic.laser_power_num)
         self._mw.mw_power_start_DoubleSpinBox.setRange(
             odmr_constraints.min_power, odmr_constraints.max_power)
         self._mw.mw_power_start_DoubleSpinBox.setValue(
-            self._laser_logic.mw_power_start)
+            self._oop_logic.mw_power_start)
         self._mw.mw_power_stop_DoubleSpinBox.setRange(
             odmr_constraints.min_power, odmr_constraints.max_power)
         self._mw.mw_power_stop_DoubleSpinBox.setValue(
-            self._laser_logic.mw_power_stop)
-        self._mw.mw_power_num_SpinBox.setValue(self._laser_logic.mw_power_num)
+            self._oop_logic.mw_power_stop)
+        self._mw.mw_power_num_SpinBox.setValue(self._oop_logic.mw_power_num)
         self._mw.freq_start_DoubleSpinBox.setRange(
             odmr_constraints.min_frequency, odmr_constraints.max_frequency)
         self._mw.freq_start_DoubleSpinBox.setValue(
-            self._laser_logic.freq_start)
+            self._oop_logic.freq_start)
         self._mw.freq_stop_DoubleSpinBox.setRange(
             odmr_constraints.min_frequency, odmr_constraints.max_frequency)
-        self._mw.freq_stop_DoubleSpinBox.setValue(self._laser_logic.freq_stop)
+        self._mw.freq_stop_DoubleSpinBox.setValue(self._oop_logic.freq_stop)
         self._mw.freq_num_SpinBox.setRange(1, 1000)
-        self._mw.freq_num_SpinBox.setValue(self._laser_logic.freq_num)
+        self._mw.freq_num_SpinBox.setValue(self._oop_logic.freq_num)
         self._mw.counter_runtime_DoubleSpinBox.setRange(1, 1000)
         self._mw.counter_runtime_DoubleSpinBox.setValue(
-            self._laser_logic.counter_runtime)
+            self._oop_logic.counter_runtime)
         self._mw.odmr_runtime_DoubleSpinBox.setRange(1, 1000)
         self._mw.odmr_runtime_DoubleSpinBox.setValue(
-            self._laser_logic.odmr_runtime)
-        odmr_channels = self._laser_logic.get_odmr_channels()
+            self._oop_logic.odmr_runtime)
+        odmr_channels = self._oop_logic.get_odmr_channels()
         for n, ch in enumerate(odmr_channels):
             self._mw.channel_ComboBox.addItem(str(ch), n)
-        self._mw.channel_ComboBox.setCurrentIndex(self._laser_logic.channel)
-        self._mw.optimize_CheckBox.setChecked(self._laser_logic.optimize)
-        for fit in self._laser_logic.get_odmr_fits():
+        self._mw.channel_ComboBox.setCurrentIndex(self._oop_logic.channel)
+        self._mw.optimize_CheckBox.setChecked(self._oop_logic.optimize)
+        for fit in self._oop_logic.get_odmr_fits():
             self._mw.fit_ComboBox.addItem(fit)
         self._mw.fit_ComboBox.setCurrentText(
-            self._laser_logic.odmr_fit_function)
+            self._oop_logic.odmr_fit_function)
 
         # Set up the constraints and values for the Bayesian optimization.
         self._mw.bayopt_laser_power_start_DoubleSpinBox.setRange(
             lpr[0], lpr[1])
         self._mw.bayopt_laser_power_start_DoubleSpinBox.setValue(
-            self._laser_logic.laser_power_start)
+            self._oop_logic.laser_power_start)
         self._mw.bayopt_laser_power_stop_DoubleSpinBox.setRange(lpr[0], lpr[1])
         self._mw.bayopt_laser_power_stop_DoubleSpinBox.setValue(
-            self._laser_logic.laser_power_stop)
+            self._oop_logic.laser_power_stop)
         self._mw.bayopt_mw_power_start_DoubleSpinBox.setRange(
             odmr_constraints.min_power, odmr_constraints.max_power)
         self._mw.bayopt_mw_power_start_DoubleSpinBox.setValue(
-            self._laser_logic.mw_power_start)
+            self._oop_logic.mw_power_start)
         self._mw.bayopt_mw_power_stop_DoubleSpinBox.setRange(
             odmr_constraints.min_power, odmr_constraints.max_power)
         self._mw.bayopt_mw_power_stop_DoubleSpinBox.setValue(
-            self._laser_logic.mw_power_stop)
+            self._oop_logic.mw_power_stop)
         self._mw.bayopt_freq_start_DoubleSpinBox.setRange(
             odmr_constraints.min_frequency, odmr_constraints.max_frequency)
         self._mw.bayopt_freq_start_DoubleSpinBox.setValue(
-            self._laser_logic.freq_start)
+            self._oop_logic.freq_start)
         self._mw.bayopt_freq_stop_DoubleSpinBox.setRange(
             odmr_constraints.min_frequency, odmr_constraints.max_frequency)
         self._mw.bayopt_freq_stop_DoubleSpinBox.setValue(
-            self._laser_logic.freq_stop)
+            self._oop_logic.freq_stop)
         self._mw.bayopt_freq_num_SpinBox.setRange(1, 1000)
-        self._mw.bayopt_freq_num_SpinBox.setValue(self._laser_logic.freq_num)
+        self._mw.bayopt_freq_num_SpinBox.setValue(self._oop_logic.freq_num)
         self._mw.bayopt_odmr_runtime_DoubleSpinBox.setRange(1, 1000)
         self._mw.bayopt_odmr_runtime_DoubleSpinBox.setValue(
-            self._laser_logic.odmr_runtime)
-        odmr_channels = self._laser_logic.get_odmr_channels()
+            self._oop_logic.odmr_runtime)
+        odmr_channels = self._oop_logic.get_odmr_channels()
         for n, ch in enumerate(odmr_channels):
             self._mw.bayopt_channel_ComboBox.addItem(str(ch), n)
         self._mw.bayopt_channel_ComboBox.setCurrentIndex(
-            self._laser_logic.channel)
-        for fit in self._laser_logic.get_odmr_fits():
+            self._oop_logic.channel)
+        for fit in self._oop_logic.get_odmr_fits():
             self._mw.bayopt_fit_ComboBox.addItem(fit)
         self._mw.bayopt_fit_ComboBox.setCurrentText(
-            self._laser_logic.odmr_fit_function)
+            self._oop_logic.odmr_fit_function)
         self._mw.bayopt_num_meas_SpinBox.setValue(
-            self._laser_logic.bayopt_num_meas)
+            self._oop_logic.bayopt_num_meas)
         self._sd.bayopt_alpha_DoubleSpinBox.setValue(
-            self._laser_logic.bayopt_alpha)
+            self._oop_logic.bayopt_alpha)
         self._sd.bayopt_random_percentage_DoubleSpinBox.setValue(
-            self._laser_logic.bayopt_random_percentage)
-        self._sd.bayopt_xi_DoubleSpinBox.setValue(self._laser_logic.bayopt_xi)
+            self._oop_logic.bayopt_random_percentage)
+        self._sd.bayopt_xi_DoubleSpinBox.setValue(self._oop_logic.bayopt_xi)
 
         # Set up laser state
         self.update_laser_buttons()
@@ -325,58 +325,58 @@ class LaserGUI(GUIBase):
             self.change_saturation_params)
         # OOP scan
         self._mw.laser_power_start_DoubleSpinBox.valueChanged.connect(
-            self._laser_logic.set_laser_power_start)
+            self._oop_logic.set_laser_power_start)
         self._mw.laser_power_stop_DoubleSpinBox.valueChanged.connect(
-            self._laser_logic.set_laser_power_stop)
+            self._oop_logic.set_laser_power_stop)
         self._mw.laser_power_num_SpinBox.valueChanged.connect(
-            self._laser_logic.set_laser_power_num)
+            self._oop_logic.set_laser_power_num)
         self._mw.mw_power_start_DoubleSpinBox.valueChanged.connect(
-            self._laser_logic.set_mw_power_start)
+            self._oop_logic.set_mw_power_start)
         self._mw.mw_power_stop_DoubleSpinBox.valueChanged.connect(
-            self._laser_logic.set_mw_power_stop)
+            self._oop_logic.set_mw_power_stop)
         self._mw.mw_power_num_SpinBox.valueChanged.connect(
-            self._laser_logic.set_mw_power_num)
+            self._oop_logic.set_mw_power_num)
         self._mw.freq_start_DoubleSpinBox.valueChanged.connect(
-            self._laser_logic.set_freq_start)
+            self._oop_logic.set_freq_start)
         self._mw.freq_stop_DoubleSpinBox.valueChanged.connect(
-            self._laser_logic.set_freq_stop)
+            self._oop_logic.set_freq_stop)
         self._mw.freq_num_SpinBox.valueChanged.connect(
-            self._laser_logic.set_freq_num)
+            self._oop_logic.set_freq_num)
         self._mw.counter_runtime_DoubleSpinBox.valueChanged.connect(
-            self._laser_logic.set_counter_runtime)
+            self._oop_logic.set_counter_runtime)
         self._mw.odmr_runtime_DoubleSpinBox.valueChanged.connect(
-            self._laser_logic.set_odmr_runtime)
+            self._oop_logic.set_odmr_runtime)
         self._mw.channel_ComboBox.currentIndexChanged.connect(
-            self._laser_logic.set_channel)
+            self._oop_logic.set_channel)
         self._mw.optimize_CheckBox.stateChanged.connect(
-            self._laser_logic.set_scan_optimize)
+            self._oop_logic.set_scan_optimize)
         self._mw.fit_ComboBox.currentTextChanged.connect(
-            self._laser_logic.set_odmr_fit)
+            self._oop_logic.set_odmr_fit)
         self._mw.data_ComboBox.currentTextChanged.connect(
             self.update_scan_data)
         # Bayesian optimization
         self._mw.bayopt_laser_power_start_DoubleSpinBox.valueChanged.connect(
-            self._laser_logic.set_laser_power_start)
+            self._oop_logic.set_laser_power_start)
         self._mw.bayopt_laser_power_stop_DoubleSpinBox.valueChanged.connect(
-            self._laser_logic.set_laser_power_stop)
+            self._oop_logic.set_laser_power_stop)
         self._mw.bayopt_mw_power_start_DoubleSpinBox.valueChanged.connect(
-            self._laser_logic.set_mw_power_start)
+            self._oop_logic.set_mw_power_start)
         self._mw.bayopt_mw_power_stop_DoubleSpinBox.valueChanged.connect(
-            self._laser_logic.set_mw_power_stop)
+            self._oop_logic.set_mw_power_stop)
         self._mw.bayopt_freq_start_DoubleSpinBox.valueChanged.connect(
-            self._laser_logic.set_freq_start)
+            self._oop_logic.set_freq_start)
         self._mw.bayopt_freq_stop_DoubleSpinBox.valueChanged.connect(
-            self._laser_logic.set_freq_stop)
+            self._oop_logic.set_freq_stop)
         self._mw.bayopt_freq_num_SpinBox.valueChanged.connect(
-            self._laser_logic.set_freq_num)
+            self._oop_logic.set_freq_num)
         self._mw.bayopt_odmr_runtime_DoubleSpinBox.valueChanged.connect(
-            self._laser_logic.set_odmr_runtime)
+            self._oop_logic.set_odmr_runtime)
         self._mw.bayopt_channel_ComboBox.currentIndexChanged.connect(
-            self._laser_logic.set_channel)
+            self._oop_logic.set_channel)
         self._mw.bayopt_fit_ComboBox.currentTextChanged.connect(
-            self._laser_logic.set_odmr_fit)
+            self._oop_logic.set_odmr_fit)
         self._mw.bayopt_num_meas_SpinBox.valueChanged.connect(
-            self._laser_logic.set_bayopt_num_meas)
+            self._oop_logic.set_bayopt_num_meas)
         # Colorbars
         self._mw.cb_high_percentile_DoubleSpinBox.valueChanged.connect(
             self.colorscale_changed)
@@ -396,8 +396,8 @@ class LaserGUI(GUIBase):
             self.save_bayopt_clicked)
         self._mw.action_RestoreDefault.triggered.connect(
             self.restore_defaultview)
-        self._mw.laser_ON_Action.triggered.connect(self._laser_logic.on)
-        self._mw.laser_OFF_Action.triggered.connect(self._laser_logic.off)
+        self._mw.laser_ON_Action.triggered.connect(self._oop_logic.on)
+        self._mw.laser_OFF_Action.triggered.connect(self._oop_logic.off)
         self._mw.start_saturation_Action.triggered.connect(
             self.run_stop_saturation)
         self._mw.save_curve_Action.triggered.connect(
@@ -411,53 +411,53 @@ class LaserGUI(GUIBase):
 
         # Connect signals to logic
         self.sigSaveMeasurement.connect(
-            self._laser_logic.save_saturation_data, QtCore.Qt.QueuedConnection)
-        self.sigCurrent.connect(self._laser_logic.set_current)
-        self.sigPower.connect(self._laser_logic.set_power)
-        self.sigCtrlMode.connect(self._laser_logic.set_control_mode)
+            self._oop_logic.save_saturation_data, QtCore.Qt.QueuedConnection)
+        self.sigCurrent.connect(self._oop_logic.set_current)
+        self.sigPower.connect(self._oop_logic.set_power)
+        self.sigCtrlMode.connect(self._oop_logic.set_control_mode)
         self.sigStartSaturation.connect(
-            self._laser_logic.start_saturation_curve)
-        self.sigStopSaturation.connect(self._laser_logic.stop_saturation_curve)
+            self._oop_logic.start_saturation_curve)
+        self.sigStopSaturation.connect(self._oop_logic.stop_saturation_curve)
         self.sigSaturationParamsChanged.connect(
-            self._laser_logic.set_saturation_params)
+            self._oop_logic.set_saturation_params)
         self.sigStartOOPScan.connect(
-            self._laser_logic.start_OOP_scan, QtCore.Qt.QueuedConnection)
+            self._oop_logic.start_OOP_scan, QtCore.Qt.QueuedConnection)
         self.sigStopOOPScan.connect(
-            self._laser_logic.stop_OOP_scan, QtCore.Qt.QueuedConnection)
+            self._oop_logic.stop_OOP_scan, QtCore.Qt.QueuedConnection)
         self.sigSaveScan.connect(
-            self._laser_logic.save_scan_data, QtCore.Qt.QueuedConnection)
+            self._oop_logic.save_scan_data, QtCore.Qt.QueuedConnection)
         self.sigStartBayopt.connect(
-            self._laser_logic.start_bayopt, QtCore.Qt.QueuedConnection)
+            self._oop_logic.start_bayopt, QtCore.Qt.QueuedConnection)
         self.sigResumeBayopt.connect(
-            self._laser_logic.resume_bayopt, QtCore.Qt.QueuedConnection)
+            self._oop_logic.resume_bayopt, QtCore.Qt.QueuedConnection)
         self.sigStopBayopt.connect(
-            self._laser_logic.stop_bayopt, QtCore.Qt.QueuedConnection)
+            self._oop_logic.stop_bayopt, QtCore.Qt.QueuedConnection)
         self.sigSaveBayopt.connect(
-            self._laser_logic.save_bayopt_data, QtCore.Qt.QueuedConnection)
+            self._oop_logic.save_bayopt_data, QtCore.Qt.QueuedConnection)
         self.sigChangeBayoptParameters.connect(
-            self._laser_logic.set_bayopt_parameters)
+            self._oop_logic.set_bayopt_parameters)
 
         # Update signals coming from logic:
-        self._laser_logic.sigLaserStateChanged.connect(
+        self._oop_logic.sigLaserStateChanged.connect(
             self.update_laser_buttons)
-        self._laser_logic.sigControlModeChanged.connect(
+        self._oop_logic.sigControlModeChanged.connect(
             self.update_control_mode)
-        self._laser_logic.sigPowerSet.connect(self.update_power)
-        self._laser_logic.sigSaturationParameterUpdated.connect(
+        self._oop_logic.sigPowerSet.connect(self.update_power)
+        self._oop_logic.sigSaturationParameterUpdated.connect(
             self.update_saturation_params)
-        self._laser_logic.sigSaturationStarted.connect(self.saturation_started)
-        self._laser_logic.sigSaturationStopped.connect(self.saturation_stopped)
-        self._laser_logic.sigSaturationDataUpdated.connect(self.update_gui)
-        self._laser_logic.sigSaturationFitUpdated.connect(
+        self._oop_logic.sigSaturationStarted.connect(self.saturation_started)
+        self._oop_logic.sigSaturationStopped.connect(self.saturation_stopped)
+        self._oop_logic.sigSaturationDataUpdated.connect(self.update_gui)
+        self._oop_logic.sigSaturationFitUpdated.connect(
             self.update_fit, QtCore.Qt.QueuedConnection)
-        self._laser_logic.sigParameterUpdated.connect(self.update_parameters)
-        self._laser_logic.sigScanStarted.connect(self.OOP_scan_started)
-        self._laser_logic.sigScanStopped.connect(self.OOP_scan_stopped)
-        self._laser_logic.sigScanUpdateData.connect(self.update_scan_data)
-        self._laser_logic.sigDataAvailableUpdated.connect(self.fill_combobox)
-        self._laser_logic.sigBayoptStarted.connect(self.bayopt_started)
-        self._laser_logic.sigBayoptStopped.connect(self.bayopt_stopped)
-        self._laser_logic.sigBayoptUpdateData.connect(self.bayopt_update_data)
+        self._oop_logic.sigParameterUpdated.connect(self.update_parameters)
+        self._oop_logic.sigScanStarted.connect(self.OOP_scan_started)
+        self._oop_logic.sigScanStopped.connect(self.OOP_scan_stopped)
+        self._oop_logic.sigScanUpdateData.connect(self.update_scan_data)
+        self._oop_logic.sigDataAvailableUpdated.connect(self.fill_combobox)
+        self._oop_logic.sigBayoptStarted.connect(self.bayopt_started)
+        self._oop_logic.sigBayoptStopped.connect(self.bayopt_stopped)
+        self._oop_logic.sigBayoptUpdateData.connect(self.bayopt_update_data)
 
         # Connect settings signals
         self._mw.settings_Action.triggered.connect(self._menu_settings)
@@ -537,22 +537,22 @@ class LaserGUI(GUIBase):
         self.sigSaveBayopt.disconnect()
         self.sigChangeBayoptParameters.disconnect()
 
-        self._laser_logic.sigLaserStateChanged.disconnect()
-        self._laser_logic.sigControlModeChanged.disconnect()
-        self._laser_logic.sigPowerSet.disconnect()
-        self._laser_logic.sigSaturationParameterUpdated.disconnect()
-        self._laser_logic.sigSaturationStarted.disconnect()
-        self._laser_logic.sigSaturationStopped.disconnect()
-        self._laser_logic.sigSaturationDataUpdated.disconnect()
-        self._laser_logic.sigSaturationFitUpdated.disconnect()
-        self._laser_logic.sigParameterUpdated.disconnect()
-        self._laser_logic.sigScanStarted.disconnect()
-        self._laser_logic.sigScanStopped.disconnect()
-        self._laser_logic.sigScanUpdateData.disconnect()
-        self._laser_logic.sigDataAvailableUpdated.disconnect()
-        self._laser_logic.sigBayoptStarted.disconnect()
-        self._laser_logic.sigBayoptStopped.disconnect()
-        self._laser_logic.sigBayoptUpdateData.disconnect()
+        self._oop_logic.sigLaserStateChanged.disconnect()
+        self._oop_logic.sigControlModeChanged.disconnect()
+        self._oop_logic.sigPowerSet.disconnect()
+        self._oop_logic.sigSaturationParameterUpdated.disconnect()
+        self._oop_logic.sigSaturationStarted.disconnect()
+        self._oop_logic.sigSaturationStopped.disconnect()
+        self._oop_logic.sigSaturationDataUpdated.disconnect()
+        self._oop_logic.sigSaturationFitUpdated.disconnect()
+        self._oop_logic.sigParameterUpdated.disconnect()
+        self._oop_logic.sigScanStarted.disconnect()
+        self._oop_logic.sigScanStopped.disconnect()
+        self._oop_logic.sigScanUpdateData.disconnect()
+        self._oop_logic.sigDataAvailableUpdated.disconnect()
+        self._oop_logic.sigBayoptStarted.disconnect()
+        self._oop_logic.sigBayoptStopped.disconnect()
+        self._oop_logic.sigBayoptUpdateData.disconnect()
 
         self._mw.settings_Action.triggered.disconnect()
         self._sd.accepted.disconnect()
@@ -570,10 +570,10 @@ class LaserGUI(GUIBase):
     def _menu_settings(self):
         """ Open the settings menu with updated values"""
         self._sd.bayopt_alpha_DoubleSpinBox.setValue(
-            self._laser_logic.bayopt_alpha)
+            self._oop_logic.bayopt_alpha)
         self._sd.bayopt_random_percentage_DoubleSpinBox.setValue(
-            self._laser_logic.bayopt_random_percentage)
-        self._sd.bayopt_xi_DoubleSpinBox.setValue(self._laser_logic.bayopt_xi)
+            self._oop_logic.bayopt_random_percentage)
+        self._sd.bayopt_xi_DoubleSpinBox.setValue(self._oop_logic.bayopt_xi)
         self._sd.exec_()
 
     @QtCore.Slot()
@@ -589,11 +589,11 @@ class LaserGUI(GUIBase):
     def update_laser_buttons(self):
         """ Enable the appropriate button depending on the laser state.
         """
-        laser_state = self._laser_logic.get_laser_state()
+        laser_state = self._oop_logic.get_laser_state()
         if laser_state == LaserState.ON:
             self._mw.laser_ON_Action.setEnabled(False)
             self._mw.laser_OFF_Action.setEnabled(True)
-        elif self._laser_logic.get_laser_state() == LaserState.OFF:
+        elif self._oop_logic.get_laser_state() == LaserState.OFF:
             self._mw.laser_OFF_Action.setEnabled(False)
             self._mw.laser_ON_Action.setEnabled(True)
         else:
@@ -625,56 +625,56 @@ class LaserGUI(GUIBase):
         it on the GUI.
         """
         # Enabling the right buttons
-        if self._laser_logic.laser_can_power:
+        if self._oop_logic.laser_can_power:
             self._mw.powerRadioButton.setEnabled(True)
         else:
             self._mw.powerRadioButton.setEnabled(False)
 
-        if self._laser_logic.laser_can_current:
+        if self._oop_logic.laser_can_current:
             self._mw.currentRadioButton.setEnabled(True)
         else:
             self._mw.currentRadioButton.setEnabled(False)
 
-        if self._laser_logic.laser_can_digital_mod:
+        if self._oop_logic.laser_can_digital_mod:
             self._mw.digModulationRadioButton.setEnabled(True)
         else:
             self._mw.digModulationRadioButton.setEnabled(False)
 
-        if self._laser_logic.laser_can_analog_mod:
+        if self._oop_logic.laser_can_analog_mod:
             self._mw.analogModulationRadioButton.setEnabled(True)
         else:
             self._mw.analogModulationRadioButton.setEnabled(False)
 
         # Updating the spin box
-        control_mode = self._laser_logic.get_control_mode()
+        control_mode = self._oop_logic.get_control_mode()
         if control_mode == ControlMode.POWER:
             self._mw.powerRadioButton.setChecked(True)
             self._mw.LaserdoubleSpinBox.setSuffix('W')
-            lpr = self._laser_logic.laser_power_range
+            lpr = self._oop_logic.laser_power_range
             self._mw.LaserdoubleSpinBox.setRange(lpr[0], lpr[1])
             self._mw.LaserdoubleSpinBox.setValue(
-                self._laser_logic.laser_power_setpoint)
+                self._oop_logic.laser_power_setpoint)
         elif control_mode == ControlMode.CURRENT:
             self._mw.currentRadioButton.setChecked(True)
             self._mw.LaserdoubleSpinBox.setSuffix('mA')
-            lcr = self._laser_logic.laser_current_range
+            lcr = self._oop_logic.laser_current_range
             self._mw.LaserdoubleSpinBox.setRange(lcr[0], lcr[1])
             self._mw.LaserdoubleSpinBox.setValue(
-                self._laser_logic.laser_current_setpoint)
+                self._oop_logic.laser_current_setpoint)
         elif control_mode == ControlMode.MODULATION_DIGITAL:
             self._mw.digModulationRadioButton.setChecked(True)
             self._mw.LaserdoubleSpinBox.setSuffix('W')
-            lpr = self._laser_logic.laser_power_range
+            lpr = self._oop_logic.laser_power_range
             self._mw.LaserdoubleSpinBox.setRange(lpr[0], lpr[1])
             self._mw.LaserdoubleSpinBox.setValue(
-                self._laser_logic.laser_power_setpoint)
+                self._oop_logic.laser_power_setpoint)
         elif control_mode == ControlMode.MODULATION_ANALOG:
             self._mw.analogModulationRadioButton.setChecked(True)
             self._mw.LaserdoubleSpinBox.setSuffix('W')
-            lpr = self._laser_logic.laser_power_range
+            lpr = self._oop_logic.laser_power_range
             self._mw.LaserdoubleSpinBox.setRange(lpr[0], lpr[1])
             self._mw.LaserdoubleSpinBox.setValue(
-                self._laser_logic.laser_power_setpoint)
+                self._oop_logic.laser_power_setpoint)
 
     @QtCore.Slot()
     def updatePowerFromSpinBox(self):
@@ -749,7 +749,7 @@ class LaserGUI(GUIBase):
     def update_gui(self):
         """ Update labels, the plot and errorbars with new data. 
         """
-        sat_data = self._laser_logic.get_saturation_data()
+        sat_data = self._oop_logic.get_saturation_data()
         counts_value = sat_data['Fluorescence'][-1]
         scale_fact = units.ScaledFloat(counts_value).scale_val
         unit_prefix = units.ScaledFloat(counts_value).scale
@@ -801,7 +801,7 @@ class LaserGUI(GUIBase):
         """
         if checked:
             self._mw.dofit_Button.setChecked(False)
-            self._laser_logic.do_fit()
+            self._oop_logic.do_fit()
         else:
             self._pw.removeItem(self.saturation_fit_image)
             self._mw.saturation_fit_results_DisplayWidget.clear()
@@ -821,7 +821,7 @@ class LaserGUI(GUIBase):
     def update_saturation_params(self):
         """ The parameters have changed in the logic, update them in the GUI.
         """
-        param_dict = self._laser_logic.get_saturation_parameters()
+        param_dict = self._oop_logic.get_saturation_parameters()
 
         param = param_dict.get('power_start')
         self._mw.startPowerDoubleSpinBox.setValue(param)
@@ -907,7 +907,7 @@ class LaserGUI(GUIBase):
                                    axisOrder='row-major',
                                    levels=(cb_range[0], cb_range[1]))
 
-        mw_0, mw_1, las_0, las_1 = self._laser_logic.compute_extent(
+        mw_0, mw_1, las_0, las_1 = self._oop_logic.compute_extent(
             matrix_scaled)
 
         self.matrix_image.setRect(
@@ -923,7 +923,7 @@ class LaserGUI(GUIBase):
         data_name = self._mw.data_ComboBox.currentText()
         if data_name != '':
 
-            matrix, unit = self._laser_logic.get_scan_data(data_name)
+            matrix, unit = self._oop_logic.get_scan_data(data_name)
 
             scale_fact = units.ScaledFloat(np.max(matrix)).scale_val
             unit_prefix = units.ScaledFloat(np.max(matrix)).scale
@@ -1004,7 +1004,7 @@ class LaserGUI(GUIBase):
     def update_parameters(self):
         """ The measurement parameters have changed in the logic, update the GUI.
         """
-        param_dict = self._laser_logic.get_OOP_parameters()
+        param_dict = self._oop_logic.get_OOP_parameters()
 
         param = param_dict.get('laser_power_start')
         self._mw.laser_power_start_DoubleSpinBox.setValue(param)
@@ -1122,7 +1122,7 @@ class LaserGUI(GUIBase):
     def bayopt_update_data(self, n_iter):
         """ Update the colorbar and display the image of the bayesian optimization.
         """
-        bayopt_data = self._laser_logic.get_bayopt_data()
+        bayopt_data = self._oop_logic.get_bayopt_data()
         # FIXME: The value of the sensitivity is here multiplied by 1e6 because of a bug in the
         # colorbar displaying otherwise. Note that the unit is also changed in the on_activate function.
         image = bayopt_data['predicted_sensitivity'] * 1e6
@@ -1140,10 +1140,10 @@ class LaserGUI(GUIBase):
 
         self.bayopt_image.setRect(
             QtCore.QRectF(
-                self._laser_logic.mw_power_start,
-                self._laser_logic.laser_power_start,
-                self._laser_logic.mw_power_stop - self._laser_logic.mw_power_start,
-                self._laser_logic.laser_power_stop - self._laser_logic.laser_power_start
+                self._oop_logic.mw_power_start,
+                self._oop_logic.laser_power_start,
+                self._oop_logic.mw_power_stop - self._oop_logic.mw_power_start,
+                self._oop_logic.laser_power_stop - self._oop_logic.laser_power_start
             )
         )
 
