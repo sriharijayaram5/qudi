@@ -113,7 +113,7 @@
             </size>
            </property>
            <property name="toolTip">
-            <string>Enter a nametag which will be added to the filename.</string>
+            <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Enter a nametag which will &lt;/p&gt;&lt;p&gt;be added to the filename&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
            </property>
           </widget>
          </item>
@@ -241,6 +241,9 @@
               </item>
               <item>
                <widget class="ScienDSpinBox" name="timeDoubleSpinBox">
+                <property name="toolTip">
+                 <string>Acquisition time of counts for each laser power</string>
+                </property>
                 <property name="keyboardTracking">
                  <bool>true</bool>
                 </property>
@@ -313,6 +316,9 @@
              <width>275</width>
              <height>16777215</height>
             </size>
+           </property>
+           <property name="toolTip">
+            <string>Fit the measured curve with an hyperbolic function</string>
            </property>
            <property name="text">
             <string>Do Hyperbolic Fit</string>
@@ -564,6 +570,9 @@
            <verstretch>0</verstretch>
           </sizepolicy>
          </property>
+         <property name="toolTip">
+          <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Enter a nametag which will &lt;/p&gt;&lt;p&gt;be added to the filename&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+         </property>
         </widget>
        </item>
        <item>
@@ -678,6 +687,9 @@
           </item>
           <item row="2" column="4">
            <widget class="ScienDSpinBox" name="freq_stop_DoubleSpinBox">
+            <property name="toolTip">
+             <string>Parameter for the ODMR measurement</string>
+            </property>
             <property name="keyboardTracking">
              <bool>false</bool>
             </property>
@@ -704,6 +716,9 @@
           </item>
           <item row="2" column="6">
            <widget class="QSpinBox" name="freq_num_SpinBox">
+            <property name="toolTip">
+             <string>Parameter for the ODMR measurement</string>
+            </property>
             <property name="keyboardTracking">
              <bool>false</bool>
             </property>
@@ -758,6 +773,9 @@
           </item>
           <item row="2" column="2">
            <widget class="ScienDSpinBox" name="freq_start_DoubleSpinBox">
+            <property name="toolTip">
+             <string>Parameter for the ODMR measurement</string>
+            </property>
             <property name="keyboardTracking">
              <bool>false</bool>
             </property>
@@ -824,6 +842,9 @@
           </item>
           <item>
            <widget class="ScienDSpinBox" name="counter_runtime_DoubleSpinBox">
+            <property name="toolTip">
+             <string>Acquisition time of counts for the saturation curve</string>
+            </property>
             <property name="keyboardTracking">
              <bool>false</bool>
             </property>
@@ -857,6 +878,9 @@
           </item>
           <item>
            <widget class="ScienDSpinBox" name="odmr_runtime_DoubleSpinBox">
+            <property name="toolTip">
+             <string>Acquisition time of the ODMR spetrum</string>
+            </property>
             <property name="keyboardTracking">
              <bool>false</bool>
             </property>
@@ -871,6 +895,9 @@
          <layout class="QHBoxLayout" name="horizontalLayout_3">
           <item>
            <widget class="QCheckBox" name="optimize_CheckBox">
+            <property name="toolTip">
+             <string>Check it to optimize the position of the laser before each row of the scan</string>
+            </property>
             <property name="layoutDirection">
              <enum>Qt::RightToLeft</enum>
             </property>
@@ -893,7 +920,29 @@
            </widget>
           </item>
           <item>
-           <widget class="FitSettingsComboBox" name="fit_ComboBox"/>
+           <widget class="FitSettingsComboBox" name="fit_ComboBox">
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+              <horstretch>0</horstretch>
+              <verstretch>0</verstretch>
+             </sizepolicy>
+            </property>
+            <property name="minimumSize">
+             <size>
+              <width>300</width>
+              <height>0</height>
+             </size>
+            </property>
+            <property name="baseSize">
+             <size>
+              <width>300</width>
+              <height>0</height>
+             </size>
+            </property>
+            <property name="toolTip">
+             <string>Function used to fit the ODMR spectrum</string>
+            </property>
+           </widget>
           </item>
          </layout>
         </item>
@@ -986,6 +1035,9 @@
          <height>16777215</height>
         </size>
        </property>
+       <property name="toolTip">
+        <string>Choose the data that you want to display</string>
+       </property>
       </widget>
      </item>
     </layout>
@@ -1016,6 +1068,9 @@
            <horstretch>0</horstretch>
            <verstretch>0</verstretch>
           </sizepolicy>
+         </property>
+         <property name="toolTip">
+          <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Enter a nametag which will &lt;/p&gt;&lt;p&gt;be added to the filename&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
          </property>
         </widget>
        </item>
@@ -1198,6 +1253,9 @@
               <height>0</height>
              </size>
             </property>
+            <property name="toolTip">
+             <string>Parameter for the ODMR measurement</string>
+            </property>
             <property name="keyboardTracking">
              <bool>false</bool>
             </property>
@@ -1223,6 +1281,9 @@
               <width>80</width>
               <height>0</height>
              </size>
+            </property>
+            <property name="toolTip">
+             <string>Parameter for the ODMR measurement</string>
             </property>
             <property name="keyboardTracking">
              <bool>false</bool>
@@ -1250,6 +1311,9 @@
               <height>0</height>
              </size>
             </property>
+            <property name="toolTip">
+             <string>Parameter for the ODMR measurement</string>
+            </property>
             <property name="keyboardTracking">
              <bool>false</bool>
             </property>
@@ -1272,6 +1336,9 @@
               <width>80</width>
               <height>0</height>
              </size>
+            </property>
+            <property name="toolTip">
+             <string>Acquisition time of the ODMR spetrum</string>
             </property>
             <property name="keyboardTracking">
              <bool>false</bool>
@@ -1297,6 +1364,9 @@
           </item>
           <item>
            <widget class="QSpinBox" name="bayopt_num_meas_SpinBox">
+            <property name="toolTip">
+             <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Number of ODMR measurements &lt;/p&gt;&lt;p&gt;performed to optimize the sensitivity.&lt;/p&gt;&lt;p&gt;The more measurements are recorded, &lt;/p&gt;&lt;p&gt;the more accurate the optimization will&lt;/p&gt;&lt;p&gt;be. &lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+            </property>
             <property name="keyboardTracking">
              <bool>false</bool>
             </property>
@@ -1326,7 +1396,11 @@
            </widget>
           </item>
           <item>
-           <widget class="QComboBox" name="bayopt_fit_ComboBox"/>
+           <widget class="QComboBox" name="bayopt_fit_ComboBox">
+            <property name="toolTip">
+             <string>Function used to fit the ODMR spectrum</string>
+            </property>
+           </widget>
           </item>
          </layout>
         </item>
@@ -1454,7 +1528,7 @@
     <string>Start Saturation</string>
    </property>
    <property name="toolTip">
-    <string>Start the Saturation Curve</string>
+    <string>Start a saturation curve measurement</string>
    </property>
   </action>
   <action name="save_curve_Action">
@@ -1466,10 +1540,13 @@
      <normaloff>../../../qnami-qudi/artwork/icons/oxygen/22x22/document-save.png</normaloff>../../../qnami-qudi/artwork/icons/oxygen/22x22/document-save.png</iconset>
    </property>
    <property name="text">
-    <string>Save Saturation Curve</string>
+    <string>Save Saturation</string>
+   </property>
+   <property name="iconText">
+    <string>Save Saturation</string>
    </property>
    <property name="toolTip">
-    <string>Save curve to file</string>
+    <string>Save the saturation curve to file</string>
    </property>
   </action>
   <action name="laser_ON_Action">
@@ -1483,6 +1560,9 @@
    <property name="text">
     <string>Laser ON</string>
    </property>
+   <property name="toolTip">
+    <string>Turn the laser on</string>
+   </property>
   </action>
   <action name="laser_OFF_Action">
    <property name="checkable">
@@ -1493,10 +1573,10 @@
      <normaloff>../../../qnami-qudi/artwork/icons/oxygen/22x22/media-playback-stop.png</normaloff>../../../qnami-qudi/artwork/icons/oxygen/22x22/media-playback-stop.png</iconset>
    </property>
    <property name="text">
-    <string>Laser_OFF</string>
+    <string>Laser OFF</string>
    </property>
    <property name="toolTip">
-    <string>Laser OFF</string>
+    <string>Turn the laser off</string>
    </property>
   </action>
   <action name="action_Save">
@@ -1532,10 +1612,13 @@
      <normalon>../../../qnami-qudi/artwork/icons/qudiTheme/22x22/stop-scan.png</normalon>../../../qnami-qudi/artwork/icons/qudiTheme/22x22/scan-depth-loop.png</iconset>
    </property>
    <property name="text">
-    <string/>
+    <string>Start Scan</string>
    </property>
    <property name="iconText">
-    <string/>
+    <string>Start Scan</string>
+   </property>
+   <property name="toolTip">
+    <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Start a scan on the laser and &lt;/p&gt;&lt;p&gt;microwave powers&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
    </property>
   </action>
   <action name="run_stop_bayopt_Action">
@@ -1549,6 +1632,9 @@
    </property>
    <property name="text">
     <string>Start Optimization</string>
+   </property>
+   <property name="toolTip">
+    <string>Start sensitivity optimization</string>
    </property>
   </action>
   <action name="resume_bayopt_Action">
@@ -1564,10 +1650,13 @@
      <normalon>../../../qnami-qudi/artwork/icons/qudiTheme/22x22/stop-counter.png</normalon>../../../qnami-qudi/artwork/icons/qudiTheme/22x22/restart-counter.png</iconset>
    </property>
    <property name="text">
-    <string notr="true">Resume optimization</string>
+    <string notr="true">Resume the previous optimization</string>
    </property>
    <property name="iconText">
     <string>Resume</string>
+   </property>
+   <property name="toolTip">
+    <string>Resume the previous optimization</string>
    </property>
   </action>
   <action name="save_bayopt_Action">
@@ -1576,7 +1665,10 @@
      <normaloff>../../../qnami-qudi/artwork/icons/oxygen/22x22/document-save.png</normaloff>../../../qnami-qudi/artwork/icons/oxygen/22x22/document-save.png</iconset>
    </property>
    <property name="text">
-    <string>Save optimization result</string>
+    <string>Save Optimization </string>
+   </property>
+   <property name="toolTip">
+    <string>Save optimization results</string>
    </property>
   </action>
   <action name="settings_Action">
@@ -1595,6 +1687,12 @@
    </property>
    <property name="text">
     <string>Save scan</string>
+   </property>
+   <property name="iconText">
+    <string>Save Scan</string>
+   </property>
+   <property name="toolTip">
+    <string>Save the scan to file</string>
    </property>
   </action>
  </widget>
