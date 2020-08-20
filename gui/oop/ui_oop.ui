@@ -540,7 +540,7 @@
   </widget>
   <widget class="QDockWidget" name="OOP_DockWidget">
    <property name="windowTitle">
-    <string>Optimal operation point</string>
+    <string>Optimal Operation Point Scan</string>
    </property>
    <attribute name="dockWidgetArea">
     <number>2</number>
@@ -1045,7 +1045,7 @@
   </widget>
   <widget class="QDockWidget" name="BayOpt_DockWidget">
    <property name="windowTitle">
-    <string>Quick optimization</string>
+    <string>Sensitivity optimization</string>
    </property>
    <attribute name="dockWidgetArea">
     <number>2</number>
