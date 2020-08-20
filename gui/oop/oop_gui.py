@@ -67,7 +67,16 @@ class LaserSettingDialog(QtWidgets.QDialog):
 
 
 class OOPGui(GUIBase):
-    """ FIXME: Please document
+    """
+    This is the GUI Class for Saturation and OOP measurements.
+
+    Example for the config file:
+
+    gui:
+        oopgui:
+        module.Class: 'oop.oop_gui.OOPGui'
+        connect:
+            ooplogic: 'ooplogic'
     """
     _modclass = 'oop'
     _modtype = 'gui'

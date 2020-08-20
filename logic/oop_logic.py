@@ -86,6 +86,19 @@ class WorkerThread(QtCore.QRunnable):
 
 class OOPLogic(GenericLogic):
     """ Logic module agreggating multiple hardware switches.
+
+    Example for the config file :
+
+    logic:
+        ooplogic:
+            module.Class: 'oop_logic.OOPLogic'
+            connect:
+                laser_conn: 'cobolt'
+                counter_logic: 'counterlogic'
+                savelogic: 'savelogic'
+                fitlogic: 'fitlogic'
+                odmrlogic: 'odmrlogic'
+                afm_scanner_logic: 'afm_scanner_logic'
     """
     _modclass = 'oop'
     _modtype = 'logic'
