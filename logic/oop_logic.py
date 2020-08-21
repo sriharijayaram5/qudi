@@ -135,10 +135,11 @@ class OOPLogic(GenericLogic):
     odmr_runtime = StatusVar('odmr_runtime', 10)
     channel = StatusVar('channel', 0)
     optimize = StatusVar('optimize', False)
-    odmr_fit_function = StatusVar('odmr_fit_function', 'No fit')
+    odmr_fit_function = StatusVar('odmr_fit_function', 'Lorentzian dip')
     # For bayesian optimization
     bayopt_num_meas = StatusVar('bayopt_num_meas', 30)
-    bayopt_alpha = StatusVar('bayopt_alpha', 0.15)
+    bayopt_noise_level = StatusVar('bayopt_noise_level', 7e-6)
+    bayopt_mult_factor = StatusVar('bayopt_mult_factor', 1e5)
     bayopt_random_percentage = StatusVar('bayopt_random_percentage', 35)
     bayopt_xi = StatusVar('bayopt_xi', 0.1)
 
@@ -971,16 +972,19 @@ class OOPLogic(GenericLogic):
         self.sigParameterUpdated.emit()
         return self.bayopt_num_meas
 
-    def set_bayopt_parameters(self, alpha, xi, percent):
+    def set_bayopt_parameters(self, noise_level, mult_factor, xi, percent):
         """ Set the hyperparameter used in the bayesian optimization algorithm.
 
-        @param float alpha: noise level that can be handled by the Gaussian process
+        @param float noise_level: noise level that can be handled by the Gaussian process
+        @param float mult_factor: factor by which sensitivity will be multiplied in 
+                                  the Bayesian optimizaton algorithm
         @param float xi: exploration vs exploitation rate
         @param percent: percentage of random exploration
 
         See <https://github.com/fmfn/BayesianOptimization> for further explanation.
         """
-        self.bayopt_alpha = alpha
+        self.bayopt_mult_factor = mult_factor
+        self.bayopt_noise_level = noise_level
         self.bayopt_xi = xi
         if percent > 100:
             percent = 100
@@ -1526,10 +1530,6 @@ class OOPLogic(GenericLogic):
         See <https://github.com/fmfn/BayesianOptimization> for information on 
         the library used.
         """
-        # Sensitivity value should be multiplied by a negative factor because
-        # the library used try to maximize the value instead of minimizing it.
-        # Plus, the algorithm works better if the values are in the order of 1
-        multiplication_factor = -1e5
 
         # Setting up the stopping mechanism.
         self._bayopt_stop_request = False
@@ -1564,7 +1564,7 @@ class OOPLogic(GenericLogic):
             self._bayopt_data['measured_sensitivity'])
         for n in range(old_num_points):
             target = self._bayopt_data['measured_sensitivity'][n] * \
-                multiplication_factor
+                self.bayopt_mult_factor * -1
             x = (self._bayopt_data['laser_power_list'][n] - self.laser_power_start) / (
                 self.laser_power_stop - self.laser_power_start)
             y = (self._bayopt_data['mw_power_list'][n] - self.mw_power_start) / \
@@ -1612,7 +1612,11 @@ class OOPLogic(GenericLogic):
                 self.sigBayoptStopped.emit()
                 return
 
-            target = value * multiplication_factor
+            # Sensitivity value should be multiplied by -1 because the library
+            # used try to maximize the value instead of minimizing it.
+            # Plus, the algorithm works better if the function values are in the
+            # order of 1
+            target = value * self.bayopt_mult_factor * -1
             # Register the result into the optimizer
             self.optimizer.register(params={'x': x, 'y': y}, target=target)
 
@@ -1638,7 +1642,7 @@ class OOPLogic(GenericLogic):
                 for i in range(100):
                     for j in range(100):
                         self._bayopt_data['predicted_sensitivity'][i][j] = float(
-                            self.optimizer._gp.predict([[X[i], Y[j]]])) / multiplication_factor
+                            self.optimizer._gp.predict([[X[i], Y[j]]])) / self.bayopt_mult_factor * -1
             except AttributeError:
                 pass
             self.sigBayoptUpdateData.emit(n)
@@ -1657,7 +1661,10 @@ class OOPLogic(GenericLogic):
             pbounds=pbounds,
             verbose=0
         )
-        self.optimizer.set_gp_params(alpha=self.bayopt_alpha)
+        # The alpha parameter should be equal to the square of the scaled noise
+        # level
+        alpha = (self.bayopt_noise_level * self.bayopt_mult_factor)**2
+        self.optimizer.set_gp_params(alpha=alpha)
 
         return self.optimizer
 

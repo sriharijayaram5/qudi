@@ -99,7 +99,7 @@ class OOPGui(GUIBase):
     sigStopBayopt = QtCore.Signal()
     sigResumeBayopt = QtCore.Signal()
     sigSaveBayopt = QtCore.Signal(str)
-    sigChangeBayoptParameters = QtCore.Signal(float, float, float)
+    sigChangeBayoptParameters = QtCore.Signal(float, float, float, float)
 
     def __init__(self, config, **kwargs):
         super().__init__(config=config, **kwargs)
@@ -303,8 +303,10 @@ class OOPGui(GUIBase):
             self._oop_logic.odmr_fit_function)
         self._mw.bayopt_num_meas_SpinBox.setValue(
             self._oop_logic.bayopt_num_meas)
-        self._sd.bayopt_alpha_DoubleSpinBox.setValue(
-            self._oop_logic.bayopt_alpha)
+        self._sd.bayopt_mult_factor_DoubleSpinBox.setValue(
+            self._oop_logic.bayopt_mult_factor)
+        self._sd.bayopt_noise_level_DoubleSpinBox.setValue(
+            self._oop_logic.bayopt_noise_level)
         self._sd.bayopt_random_percentage_DoubleSpinBox.setValue(
             self._oop_logic.bayopt_random_percentage)
         self._sd.bayopt_xi_DoubleSpinBox.setValue(self._oop_logic.bayopt_xi)
@@ -578,8 +580,10 @@ class OOPGui(GUIBase):
 
     def _menu_settings(self):
         """ Open the settings menu with updated values"""
-        self._sd.bayopt_alpha_DoubleSpinBox.setValue(
-            self._oop_logic.bayopt_alpha)
+        self._sd.bayopt_mult_factor_DoubleSpinBox.setValue(
+            self._oop_logic.bayopt_mult_factor)
+        self._sd.bayopt_noise_level_DoubleSpinBox.setValue(
+            self._oop_logic.bayopt_noise_level)
         self._sd.bayopt_random_percentage_DoubleSpinBox.setValue(
             self._oop_logic.bayopt_random_percentage)
         self._sd.bayopt_xi_DoubleSpinBox.setValue(self._oop_logic.bayopt_xi)
@@ -1193,7 +1197,8 @@ class OOPGui(GUIBase):
     def update_settings(self):
         """ Write the new bayesian optimization settings from the gui to the logic. 
         """
-        alpha = self._sd.bayopt_alpha_DoubleSpinBox.value()
+        bayopt_mult_factor = self._sd.bayopt_mult_factor_DoubleSpinBox.value()
+        noise_level = self._sd.bayopt_noise_level_DoubleSpinBox.value()
         percent = self._sd.bayopt_random_percentage_DoubleSpinBox.value()
         xi = self._sd.bayopt_xi_DoubleSpinBox.value()
-        self.sigChangeBayoptParameters.emit(alpha, xi, percent)
+        self.sigChangeBayoptParameters.emit(noise_level, bayopt_mult_factor, xi, percent)
