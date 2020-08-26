@@ -402,6 +402,7 @@ class CoboltLaserStandalone():
     MODEL = '06-MLD 515nm'
     BRAND = 'Cobolt'
     SERIAL_NUM = 0
+    BAUD_RATE = 115200
 
     # Laser safety:
     OD_NUM = '3 OD' # optical density number
@@ -444,6 +445,7 @@ class CoboltLaserStandalone():
         @param str comport: comport name, e.g. 'ASRL3::INSTR' or 'COM3'
         """
         self._device = self.rm.open_resource(comport)
+        self._device.baud_rate = self.BAUD_RATE
 
         self.SERIAL_NUM = self.get_serialnumber()
 
