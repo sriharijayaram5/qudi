@@ -988,9 +988,14 @@ class MicrowaveQ(Base, SlowCounterInterface):
 
         self._mw_mode = 'cw'
 
-        if (power is not None) and (frequency is not None):
-            self._dev.set_freq_power(frequency, power)
-            self._mw_cw_frequency, self._mw_cw_power = self._dev.get_freq_power()
+        # take the previously setted power or frequency
+        if power is None:
+            power = self._mw_cw_power
+        if frequency is None:
+            frequency = self._mw_cw_frequency
+
+        self._dev.set_freq_power(frequency, power)
+        self._mw_cw_frequency, self._mw_cw_power = self._dev.get_freq_power()
 
         return self._mw_cw_frequency, self._mw_cw_power,  self._mw_mode
 
@@ -1112,7 +1117,7 @@ class MicrowaveQ(Base, SlowCounterInterface):
         limits.min_frequency = 2.5e9
         limits.max_frequency = 3.5e9
         limits.min_power = -50
-        limits.max_power = 30
+        limits.max_power = 35
 
         limits.list_minstep = 1
         limits.list_maxstep = 1e9
