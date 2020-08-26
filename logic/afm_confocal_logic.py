@@ -3386,7 +3386,7 @@ class AFMConfocalLogic(GenericLogic):
         #FIXME: this is mostly for debugging reasons, but it should be removed later.
         # unlock the state in case an error has happend.
         if not self._worker_thread.is_running() or not self._counter.is_measurement_running:
-            self._counter.cond.wakeAll()
+            self._counter.meas_cond.wakeAll()
             if self.module_state() != 'idle':
                 self.module_state.unlock()
 
