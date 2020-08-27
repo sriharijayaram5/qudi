@@ -1431,7 +1431,6 @@ class ProteusQGUI(GUIBase):
 
     def start_qafm_scan_clicked(self):
         """ Manages what happens if the xy scan is started. """
-        #self.disable_scan_actions()
 
         self.disable_scan_actions()
 
@@ -1538,9 +1537,7 @@ class ProteusQGUI(GUIBase):
         ret_val = self._qafm_logic.set_optimize_request(True)
         # if the request is valid, then True will be returned, if not False
 
-        self._mw.actionOptimize_Pos.setEnabled(not ret_val)
-
-
+        self._mw.actionOptimize_Pos.setEnabled(not ret_val)  
 
     def stop_any_scanning(self):
         ret_val = self._qafm_logic.stop_measure()
@@ -1579,6 +1576,10 @@ class ProteusQGUI(GUIBase):
 
     def enable_optimizer_action(self):
         self._mw.actionOptimize_Pos.setEnabled(True)
+
+        # check the state of the logic and enable the buttons.
+        if self._qafm_logic.module_state() == 'idle':
+            self.enable_scan_actions()
 
 
     def update_shown_dockwidget(self, make_visible, name):
