@@ -806,7 +806,7 @@ class AFMConfocalLogic(GenericLogic):
 
                 self._counter.prepare_pixelclock()
 
-                self.log.info('optimizer finished.')
+                self.log.debug('optimizer finished.')
 
         stop_time_afm_scan = datetime.datetime.now()
         self._afm_meas_duration = self._afm_meas_duration + (stop_time_afm_scan - start_time_afm_scan).total_seconds()
@@ -3034,23 +3034,27 @@ class AFMConfocalLogic(GenericLogic):
                          z_start, z_stop, res_z, int_time_xy, int_time_z):
         """ Optimize position for x, y and z by going to maximal value"""
 
-        # FIXME: Remove after tests!
-        # opti_scan_arr = self.scan_area_obj_by_point_opti(x_start, x_stop, res_x,
-        #                                                  y_start, y_stop, res_y,
-        #                                                  int_time_xy,
-        #                                                  wait_first_point=True)
-
         self._opt_val[0], self._opt_val[1], self._opt_val[3] = self.get_optimizer_target()
 
-        #FIXME: Module state
-        # self.module_state.lock()
+        # If the optimizer is called by itself, the the module state needs to be
+        # locked, else we need to take care not to unlock it after finalizing
+        # the process.
+        optimizer_standalone_call = False
+        
+        if self.module_state() == 'idle':
+            self.module_state.lock()
+            optimizer_standalone_call = True
 
         opti_scan_arr = self.scan_area_obj_by_line_opti(x_start, x_stop, res_x,
                                                         y_start, y_stop, res_y,
                                                         int_time_xy)
 
         if self._stop_request:
-            # self.module_state.unlock()
+            
+            # only unlock, if it is a standalone call.
+            if optimizer_standalone_call:
+                self.module_state.unlock()
+
             self.sigOptimizeScanFinished.emit()
             return
 
@@ -3063,7 +3067,11 @@ class AFMConfocalLogic(GenericLogic):
         self._opti_scan_array['opti_xy']['params']['signal at optimal pos (c/s)'] = c_max
 
         if self._stop_request:
-            # self.module_state.unlock()
+            
+            # only unlock, if it is a standalone call.
+            if optimizer_standalone_call:
+                self.module_state.unlock()
+
             self.sigOptimizeScanFinished.emit()
             return
 
@@ -3093,11 +3101,16 @@ class AFMConfocalLogic(GenericLogic):
                                                         integration_time=int_time_z)
 
         if self._stop_request:
-            # self.module_state.unlock()
+            
+            # only unlock, if it is a standalone call.
+            if optimizer_standalone_call:
+                self.module_state.unlock()
+            
             self.sigOptimizeScanFinished.emit()
             return
 
-        z_max, c_max_z = self._calc_max_val_z(opti_scan_arr['opti_z']['data'], z_start, z_stop)
+        z_max, c_max_z = self._calc_max_val_z(opti_scan_arr['opti_z']['data'], 
+                                              z_start, z_stop)
 
         self._opti_scan_array['opti_z']['params']['coord0 optimal pos (nm)'] = z_max
         self._opti_scan_array['opti_z']['params']['signal at optimal pos (c/s)'] = c_max_z
@@ -3106,24 +3119,25 @@ class AFMConfocalLogic(GenericLogic):
 
         self.set_obj_pos({'x': x_max, 'y': y_max, 'z': z_max})
 
-        # self.set_obj_pos(x_max, y_max, z_max)
-        # time.sleep(2)
-        # self.set_obj_pos(x_max, y_max, z_max)
 
         self._optimizer_x_target_pos = x_max
         self._optimizer_y_target_pos = y_max
         self._optimizer_z_target_pos = z_max
 
         self._opt_val = [x_max, y_max, c_max, z_max, c_max_z]
-        # self.module_state.unlock()
+        
+        # only unlock, if it is a standalone call.
+        if optimizer_standalone_call:
+            self.module_state.unlock()
+
         self.sigOptimizeScanFinished.emit()
         self._counter.stop_measurement()
 
         return x_max, y_max, c_max, z_max, c_max_z
 
 
-    def start_optimize_pos(self, x_start, x_stop, res_x, y_start, y_stop, res_y, z_start, z_stop, res_z,
-                           int_time_xy, int_time_z):
+    def start_optimize_pos(self, x_start, x_stop, res_x, y_start, y_stop, res_y, 
+                           z_start, z_stop, res_z, int_time_xy, int_time_z):
 
         if self.check_thread_active():
             self.log.error("A measurement is currently running, stop it first!")
@@ -3171,12 +3185,10 @@ class AFMConfocalLogic(GenericLogic):
             if (time.time() - time_start) > self._afm_meas_optimize_interval:
                 self.stop_measure()
 
-
-
                 timeout = 60
                 counter = 0
                 # make a timeout for waiting
-                while self.module_state.current != 'idle':
+                while self.module_state() != 'idle':
                     time.sleep(1)
                     counter += 1
 
@@ -3207,7 +3219,7 @@ class AFMConfocalLogic(GenericLogic):
                 time.sleep(0.1)
 
 
-            if self.module_state.current == 'idle':
+            if self.module_state() == 'idle':
                 break
 
 
