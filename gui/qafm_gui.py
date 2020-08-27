@@ -1427,27 +1427,11 @@ class ProteusQGUI(GUIBase):
         self._mw.obj_target_y_DSpinBox.setValue(15e-6)
         self._mw.obj_target_z_DSpinBox.setValue(5e-6)
 
-    #FIXME: THIS IS A QUICKFIX, NEEDS TO BE REMOVED AS SOON AS POSSIBLE!!!!
-    def _check_counter_running(self):
 
-        if self._manager.tree['loaded']['logic'].get('counterlogic') is not None:
-            ctr = self._manager.tree['loaded']['logic'].get('counterlogic')
-            if ctr.module_state() != 'idle':
-                return True
-            else:
-                return False
-
-        else:
-            return False
 
     def start_qafm_scan_clicked(self):
         """ Manages what happens if the xy scan is started. """
         #self.disable_scan_actions()
-
-        #FIXME: THIS IS A QUICKFIX, NEEDS TO BE REMOVED AS SOON AS POSSIBLE!!!!
-        # if self._check_counter_running():
-        #     self.log.error('Counter is still running, close it before proceeding.')
-        #     return
 
         self.disable_scan_actions()
 
@@ -1477,12 +1461,6 @@ class ProteusQGUI(GUIBase):
 
     def start_obj_scan_xy_scan_clicked(self):
 
-        #FIXME: THIS IS A QUICKFIX, NEEDS TO BE REMOVED AS SOON AS POSSIBLE!!!!
-        # if self._check_counter_running():
-        #     self.log.error('Counter is still running, close it before proceeding.')
-        #     return
-
-
         self.disable_scan_actions()
 
         x_start = self._mw.obj_x_min_DSpinBox.value()
@@ -1502,11 +1480,6 @@ class ProteusQGUI(GUIBase):
                                                       continue_meas=False)
 
     def start_obj_scan_xz_scan_clicked(self):
-
-        #FIXME: THIS IS A QUICKFIX, NEEDS TO BE REMOVED AS SOON AS POSSIBLE!!!!
-        # if self._check_counter_running():
-        #     self.log.error('Counter is still running, close it before proceeding.')
-        #     return
 
         self.disable_scan_actions()
 
@@ -1529,13 +1502,6 @@ class ProteusQGUI(GUIBase):
 
     def start_obj_scan_yz_scan_clicked(self):
 
-
-        #FIXME: THIS IS A QUICKFIX, NEEDS TO BE REMOVED AS SOON AS POSSIBLE!!!!
-        # if self._check_counter_running():
-        #     self.log.error('Counter is still running, close it before proceeding.')
-        #     return
-
-
         self.disable_scan_actions()
 
         y_start = self._mw.obj_y_min_DSpinBox.value()
@@ -1556,11 +1522,6 @@ class ProteusQGUI(GUIBase):
 
 
     def start_optimize_clicked(self):
-
-        #FIXME: THIS IS A QUICKFIX, NEEDS TO BE REMOVED AS SOON AS POSSIBLE!!!!
-        # if self._check_counter_running():
-        #     self.log.error('Counter is still running, close it before proceeding.')
-        #     return
 
         self.disable_scan_actions()
 
