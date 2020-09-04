@@ -62,7 +62,6 @@ class TScanMode(CtypesEnum):
     POINT_SCAN = 1
 
 
-
 class SmartSPM(Base):
     """ Smart SPM wrapper for the communication with the module.
 
@@ -81,8 +80,8 @@ class SmartSPM(Base):
     _modtype = 'hardware'
 
     _threaded = True
-    _version_comp = 'aist-nt_v3.5.114'   # indicates the compatibility of the version.
-    __version__ = '0.4.1'
+    _version_comp = 'aist-nt_v3.5.132'   # indicates the compatibility of the version.
+    __version__ = '0.5.2'
 
     # Default values for measurement
     # ------------------------------
@@ -191,7 +190,8 @@ class SmartSPM(Base):
     _wait_cond = QtCore.QWaitCondition()
     # a stop request:
     _stop_request = False
-
+    # the current setting of the point trigger
+    _ext_trigger_state = False
 
     # external signal: signature: (line number, number of _curr_meas_params, datalist)
     sig_line_finished = QtCore.Signal(int, int, object)
@@ -332,6 +332,15 @@ class SmartSPM(Base):
 
         #self._lib.ExecScanPoint.argtypes = [POINTER(c_int), POINTER(c_float)]
         self._lib.ExecScanPoint.restype = c_bool
+
+        self._lib.SetTriggering.argtypes = [c_bool]
+
+        self._lib.ProbeSweepZ.restype = c_bool
+
+        self._lib.ProbeLift.argtypes = [c_float, c_float]
+        self._lib.ProbeLift.restype = c_bool
+
+        self._lib.ProbeLand.restype = c_bool
 
         self._lib.FinitScan.restype = None
 
@@ -1308,8 +1317,11 @@ class SmartSPM(Base):
         return self._lib.FinitScan()
 
 
-    def enable_point_trigger(self):
-        """ Enable the point trigger after setting up the scan mode.
+    def set_ext_trigger(self, trigger_state):
+        """ Set up an external trigger after performing a line or point scan.
+
+        @param bool trigger_state: declare whether enable (=True) or disable 
+                                  (=False) triggering.
 
         This method has to be called once, after setup_spm, otherwise triggering
         will be disabled.
@@ -1320,9 +1332,127 @@ class SmartSPM(Base):
                          performed. 
               One extra trigger is performed at the beginning of the measurement
               of first point of the line.
+        """    
+        c_trigger_state = c_bool(trigger_state)
+        self._ext_trigger_state = trigger_state
+        self._lib.SetTriggering(c_trigger_state)
+
+    def get_ext_trigger(self):
+        """ Check whether external triggering is enabled.
+
+        @return bool: True: trigger enabled, False: trigger disabled.
         """
-    
-        self._lib.EnablePtTrigger()
+        return self._ext_trigger_state
+
+    def probe_sweep_z(self, start_z, stop_z, num_points, sweep_time, 
+                      idle_move_time, meas_params=[]):
+
+        """ Prepare the z sweep towards and from the surface away. 
+
+        @param float start_z: start value in m, positive value means the probe 
+                              goes up from the surface, a negative value will 
+                              move it closer to the surface
+        @param float stop_z: stop value in m, positive value means the probe 
+                              goes up from the surface, a negative value will 
+                              move it closer to the surface
+        @param int num_points: number of points in the movement process
+        @param float sweep_time: time for the actual z scan
+        @param float idle_move_time: time for idle movement to prepare probe to
+                                     the position from where measurement can 
+                                     start. This can speed up the idle parts of
+                                     the scan.
+        @param list meas_params: list of possible strings of the measurement 
+                                 parameter. Have a look at MEAS_PARAMS to see 
+                                 the available parameters. If nothing is passed,
+                                 an empty string array will be created.
+
+        @return bool: returns true if only Z-feedback is on, i.e. the probe is 
+                      on surface also situation, when SenZ signal is Z-feedback
+                      input is permissible; it is useful for tests Function uses
+                      TScanCallback to send back signals.
+
+        After execution ends the process returns the probe to place, i.e. set 
+        Z-feedback to its initial state.
+        You may call BreakProbeSweepZ at any moment if only if the 
+        len(meas_params) == 0.
+        """
+
+        ret_val = self._check_spm_scan_params(z_afm_start=start_z, z_afm_stop=stop_z)
+
+        if ret_val:
+            return False
+
+
+        from_c = c_float(start_z^1e9)   # convert to nm, function expects in nm
+        to_c = c_float(stop_z^1e9)      # convert to nm, function expects in nm
+        pts_c = c_int(num_points)
+
+        sweepT_c = c_float(sweep_time)
+        kIdleMove_c = c_float(idle_move_time)
+
+        sigs_buffers = self._create_meas_params(meas_params)
+        # extract the actual set parameter:
+        self._curr_meas_params = [param.value.decode() for param in sigs_buffers]
+
+        sigsCnt_c = len(sigs_buffers)
+
+        self._lib.ProbeSweepZ.argtypes = [c_float,  # from
+                                          c_float,  # to
+                                          c_int,    # pts
+                                          c_float,  #sweepT
+                                          c_float,
+                                          c_int,
+                                          POINTER((c_char * self.MAX_SIG_NAME_LEN) * sigsCnt_c.value)]
+
+        ret_val = self._lib.ProbeSweepZ(from_c, 
+                                        to_c, 
+                                        pts_c, 
+                                        sweepT_c, 
+                                        kIdleMove_c,
+                                        sigsCnt_c,
+                                        byref(sigs_buffers))
+
+        return ret_val
+
+
+    def break_probe_sweep_z(self):
+        """ Stops the z sweep procedure of the z probe."""
+        self._lib.BreakProbeSweepZ()
+
+    def probe_lift(self, lift_by, trigger_time):
+        """ Lift the current Probe (perform basically a retract)
+
+        @param float lift_by: in m, in taken from current state, i.e. added to 
+                              previous lift(s)
+        @param float trigger_time: if triggering is enabled via 
+                                        self.set_ext_trigger(True) 
+                                   first trigger pulse is applied when the probe
+                                   is just lifted. Second trigger is applied 
+                                   after trigger_time in seconds.
+
+        @return bool: Function returns true if Z-feedback is on, i.e. the probe
+                      is on surface.
+         """
+
+         lift_c =  c_float(lift_by*1e9) # function expects in nm
+         triggerTime_c = c_float(trigger_time)
+
+         return self._lib.ProbeLift(lift_c, triggerTime_c)
+
+    def probe_land(self):
+        """ Land the probe on the surface.
+
+        @return bool: Function returns true if the probe was first lifted, i.e.
+                      Z-feedback input is SenZ
+
+        Z-feedback input is switched to previous (Mag, Nf, etc.), the same is 
+        for other parameters: gain, setpoint land may be too slow if starting 
+        from big lifts, say from 1 micron; then it will be possible to rework 
+        the function or implement some new.
+        """
+
+        return self._lib.ProbeLand()
+
 
     # ==========================================================================
     #                       Higher level functions
