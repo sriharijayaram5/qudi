@@ -641,7 +641,7 @@ class AFMConfocalLogic(GenericLogic):
         spm_start_idx = 0
 
         if 'counts' in meas_params:
-            self._spm.enable_point_trigger()
+            self._spm.set_ext_trigger(True)
             curr_scan_params.insert(0, 'counts')  # insert the fluorescence parameter
             
             if self._sg_single_iso_b_operation == True:
@@ -774,7 +774,7 @@ class AFMConfocalLogic(GenericLogic):
                                               meas_params=meas_params,
                                               scan_mode=0)  # line scan
                 if 'counts' in meas_params:
-                    self._spm.enable_point_trigger()
+                    self._spm.set_ext_trigger(True)
 
                 self.log.info('optimizer finished.')
 
@@ -2242,7 +2242,7 @@ class AFMConfocalLogic(GenericLogic):
 
         curr_scan_params.insert(0, 'counts')  # insert the fluorescence parameter
 
-        self._spm.enable_point_trigger()
+        self._spm.set_ext_trigger(True)
 
 
         # FIXME: Implement an better initialization procedure
@@ -2576,7 +2576,7 @@ class AFMConfocalLogic(GenericLogic):
                                                            line_points=coord0_num,
                                                            meas_params=meas_params,
                                                            scan_mode=0) # line scan
-        self._spm.enable_point_trigger()
+        self._spm.set_ext_trigger(True)
 
         self._opti_scan_array = self.initialize_opti_xy_scan_array(coord0_start,
                                                                    coord0_stop,
@@ -2845,7 +2845,7 @@ class AFMConfocalLogic(GenericLogic):
                                                            meas_params=meas_params,
                                                            scan_mode=0) # line scan
 
-        self._spm.enable_point_trigger()
+        self._spm.set_ext_trigger(True)
 
         self._opti_scan_array = self.initialize_opti_z_scan_array(coord1_start,
                                                                   coord1_stop,
