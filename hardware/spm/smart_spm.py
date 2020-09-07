@@ -81,7 +81,7 @@ class SmartSPM(Base):
 
     _threaded = True
     _version_comp = 'aist-nt_v3.5.132'   # indicates the compatibility of the version.
-    __version__ = '0.5.2'
+    __version__ = '0.5.3'
 
     # Default values for measurement
     # ------------------------------
@@ -326,8 +326,8 @@ class SmartSPM(Base):
         self._lib.SetupScanCommon.restype = c_bool                          
 
         self._lib.SetupScanLine.argtypes = [c_float, c_float, 
-                                           c_float, c_float,
-                                           c_float, c_float]
+                                            c_float, c_float,
+                                            c_float, c_float]
         self._lib.SetupScanLine.restype = c_bool
 
         #self._lib.ExecScanPoint.argtypes = [POINTER(c_int), POINTER(c_float)]
@@ -343,6 +343,15 @@ class SmartSPM(Base):
         self._lib.ProbeLand.restype = c_bool
 
         self._lib.FinitScan.restype = None
+
+        self._lib.ProbeLand2.restype = c_bool
+
+        self._lib.SetupScanLineXYZ.argtypes = [c_float, c_float, 
+                                               c_float, c_float, 
+                                               c_float, c_float,
+                                               c_float, c_float, c_float]
+        self._lib.SetupScanLineXYZ.restype = c_bool
+
 
     def _unload_library(self):
         if hasattr(self, '_lib'):
@@ -968,7 +977,7 @@ class SmartSPM(Base):
 
             for index, axis_label in enumerate(valid_axis_dict):
                 axesIds[index].value = axis_label.encode()
-                values[index] = valid_axis_dict[axis_label]*1e6
+                values[index] = valid_axis_dict[axis_label]*1e6 # spm library expects um.
 
             self._lib.SetAxesPositions.argtypes = [c_int, 
                                                   POINTER((c_char * self.MAX_AXIS_ID_LEN) * axesCnt.value), 
@@ -1004,7 +1013,7 @@ class SmartSPM(Base):
 
         """
 
-        pos_val = c_float(pos*1e6) # position is set in um
+        pos_val = c_float(pos*1e6) # spm library needs position in um
         sweepTime = c_float(move_time)
         return self._lib.SetAxisPosition(valid_axis.encode(), 
                                          byref(pos_val), 
@@ -1214,18 +1223,18 @@ class SmartSPM(Base):
         return names_buffers
     
 
-    #FIXME: Also, change naming of arguments: x_start, x_stop, y_start, y_stop
-    #FIXME: utilize SI units, meters not micrometers! Adjust also all the other parameters
-    #FIXME: check whether the input parameters for scan line are valid for the current plane, maybe not directly to be checked in setup_scan_line
+    #FIXME: Check consistent naming of arguments: x_start, x_stop, y_start, y_stop
+    #FIXME: check whether the input parameters for scan line are valid for the 
+    #       current plane, maybe not directly to be checked in setup_scan_line.
     #
     def setup_scan_line(self, corr0_start, corr0_stop, corr1_start, corr1_stop, 
                         time_forward, time_back):
         """ Setup the scan line parameters
         
-        @param float coord0_start: start point for coordinate 0 in micrometer
-        @param float coord0_stop: stop point for coordinate 0 in micrometer
-        @param float coord1_start: start point for coordinate 1 in micrometer
-        @param float coord1_stop: stop point for coordinate 1 in micrometer
+        @param float coord0_start: start point for coordinate 0 in m
+        @param float coord0_stop: stop point for coordinate 0 in m
+        @param float coord1_start: start point for coordinate 1 in m
+        @param float coord1_stop: stop point for coordinate 1 in m
         @param float time_forward: time for forward movement during linescan in s
                                    For line-scan mode time_forward is equal to 
                                    the time-interval between starting of the 
@@ -1238,7 +1247,9 @@ class SmartSPM(Base):
                                 the forward displacement, it also defines the 
                                 time interval when move to first scan point.
         
-        @return int: status variable with: 0 = call failed, 1 = call successful
+        @return bool: status variable with: 
+                        False (=0) call failed
+                        True (=1) call successful
 
         This is a general function, a line is scanned in a previously configured
         plane. It is possible to set zero scan area, then some reasonable 
@@ -1453,6 +1464,81 @@ class SmartSPM(Base):
 
         return self._lib.ProbeLand()
 
+    def probe_land_soft(self):
+        """ A softer probe landing procedure
+
+        Landing with constant and always reasonable value for Z-move rate unlike
+        in the case of self.probe_land(). The method is useful when start 
+        landing from big tip-sample gaps, say, more than 1 micron. When call the
+        function after ProbeLift, it switches the Z-feedback input same as 
+        self.probe_land().
+        Otherwise it does not switch Z-feedback input, does not set setpoint and
+        feedback gain.
+        """
+        return self._lib.ProbeLand2()
+
+    #FIXME: make function name consistent, choose either x_val, y_val, z_val or
+    #       a general name e.g. coord0, coord1, coord2
+    def setup_scan_line_xyz(self, x_start, x_stop, y_start, y_stop, z_start, 
+                            z_stop, time_forward, time_back, liftback):
+        """ Setup the scan line in an arbitrary 3D direction. 
+
+        @param float x_start: start point for x movement in m
+        @param float x_stop: stop point for x movement in m
+        @param float y_start: start point for y movement in m
+        @param float y_stop: stop point for y movement in m
+        @param float z_start: start point for z movement in m
+        @param float z_stop: stop point for z movement in m
+        @param float time_forward: time for forward movement during the linescan
+                                   procedure in seconds.
+                                   For line-scan mode time_forward is equal to 
+                                   the time-interval between starting of the 
+                                   first scanned point and ending of the last 
+                                   scan point. 
+                                   For point-scan tforw is the sum of all 
+                                   time-intervals between scan points.
+        @param float time_back: sets the time-interval for back (idle) movement 
+                                in second when the back displacement is abs 
+                                equal to the forward displacement, it also 
+                                defines the time interval when move to first 
+                                scan point.
+        @param float liftback: Provide an additional lift in m over the plane 
+                               when performing line backward moves.
+                               For backward moves there is NO CRASH DETECTION, 
+                               i.e. NO PROTECTION AGAINST THE PROBE TOUCHING THE
+                               SURFACE. So be aware what you are doing!
+
+        To start "plane-scan" or XYZ-scan mode, first define the plane equation.
+        For this use self.probe_lift(...), self.set_sample_scanner_pos(...) and 
+        self.probe_land or self.probe_land_soft functions to touch the surface
+        in different points and call self.get_sample_scanner_pos('Z1') to get
+        the z value.
+        For safe moves in XY-plane to prevent the probe from touching the 
+        surface, consider the sample surface inclination to be about 4-5 microns
+        per 100 microns in XY-plane (+ some add due to surface topography). 
+        After all move the probe to be in the plane using self.probe_list 
+        (scan process will be executed only when Z-feedback is SenZ).
+        Call self.setup_spm(...) before the measurement to set up the required
+        measurement parameters, and continue with this method. Some call logic
+        applies to this method as it is to self.setup_scan_line.
+
+        """
+
+        # remember to convert to micrometer units, since the spm library uses
+        # this.
+        x0 = c_float(x_start*1e6)
+        x1 = c_float(x_stop*1e6)
+        y0 = c_float(y_start*1e6)
+        y1 = c_float(y_stop*1e6)
+        z0 = c_float(z_start*1e6)
+        z1 = c_float(z_stop*1e6)
+
+        tforw_c = c_float(time_forward)
+        tback_c = c_float(time_back)
+        liftback_c = c_float(liftback*1e6)
+        
+        return self._lib.SetupScanLineXYZ(x0, y0, x1, y1, tforw_c, tback_c, 
+                                          liftback_c)
 
     # ==========================================================================
     #                       Higher level functions
