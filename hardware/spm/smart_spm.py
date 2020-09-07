@@ -180,6 +180,7 @@ class SmartSPM(Base):
     # keep a list of the created callbacks
     _TCallback_ref_dict = {}
     _TScanCallback_ref_dict = {}
+    _TRestartCallback_ref_dict = {}
 
     # internal signal for data processing.
     _sig_scan_data = QtCore.Signal(int, ctypes.POINTER(c_float))
@@ -460,15 +461,18 @@ class SmartSPM(Base):
         return self._lib.InitTestCallback()
     
     def set_TScanCallback(self, func):
-        """ Set the scanner callback function. The function must have the signature
+        """ Set the scanner callback function. 
+
+        @param reference func: a reference to a function with the following
+                               signature:
         
-        def func_name(size, arr):
-            # int size: size of the passed array
-            # float arr[size]: float array of size 'size'.
-            
-            # do something
-            
-            return 0
+                def func_name(size, arr):
+                    # int size: size of the passed array
+                    # float arr[size]: float array of size 'size'.
+                    
+                    # do something
+                    
+                    return 0
         
         @return int: status variable with: 0 = call failed, 1 = call successfull
         """
@@ -488,6 +492,40 @@ class SmartSPM(Base):
         
         
         return self._lib.SetScanCallback(self._TScanCallback_ref_dict[func.__name__])
+
+
+    def set_RestartLineCallback(self, func):
+        """ Set the restart line callback function. 
+
+        @param reference func: a reference to a function with the following
+                               signature:
+        
+                def func_name():
+                    # no arguments expected.
+                    
+                    # do something
+                    
+                    return 0
+
+        @return int: status variable with: 0 = call failed, 1 = call successful
+
+        Called back after self.scan_line(), when PC-controller connection error 
+        occurs. Call implies that the scan-line execution was restarted. This 
+        call may occur at any moment after self.scan_line(), say, even during 
+        movement to first scan point, i.e. when there was no trigger pulses 
+        performed and no AFM signals points were measured/sent.
+        """
+
+        # typedef void ( *TRestartLineCallback )();
+        restart_callback_type = ctypes.CFUNCTYPE(c_void_p)
+
+        # store the reference to the callback, so that it does not get removed
+        # by python
+        self._TRestartCallback_ref_dict[func.__name__] = restart_callback_type(func)
+
+        return self._lib.SetRestartLineCallback(self._TRestartCallback_ref_dict[func.__name__])
+
+
 
     def create_test_TScanCallback(self):
         """ Create a callback function which receives a number and a float array.
@@ -1384,6 +1422,18 @@ class SmartSPM(Base):
 
         After execution ends the process returns the probe to place, i.e. set 
         Z-feedback to its initial state.
+
+        To break the process call self.break_probe_sweep_z(), BUT (!!!!) only at
+        certain moments!
+
+        To setup the sweep, register at first via self.set_TScanCallback(...) 
+        to receive the measurement parameters during the scan. Then run the
+        self.setup_spm(...) method for general configuration and then this 
+        method self.probe_sweep_z(...) for the precise scanning configuration.
+        The scan can be executed via self.scan_line() and can be stopped via
+        self.finish_scan().
+
+
         You may call BreakProbeSweepZ at any moment if only if the 
         len(meas_params) == 0.
         """
