@@ -81,7 +81,7 @@ class SmartSPM(Base):
 
     _threaded = True
     _version_comp = 'aist-nt_v3.5.132'   # indicates the compatibility of the version.
-    __version__ = '0.5.3'
+    __version__ = '0.5.4'
 
     # Default values for measurement
     # ------------------------------
@@ -194,8 +194,11 @@ class SmartSPM(Base):
     # the current setting of the point trigger
     _ext_trigger_state = False
 
+    # Signals:
     # external signal: signature: (line number, number of _curr_meas_params, datalist)
-    sig_line_finished = QtCore.Signal(int, int, object)
+    sigLineFinished = QtCore.Signal(int, int, object)
+    sigLineRestarted = QtCore.Signal()    # signal will be emitted if loss of 
+                                        # connection error occurred.
 
     _libpath = ConfigOption('libpath', missing='error')
 
@@ -260,6 +263,9 @@ class SmartSPM(Base):
         #self._sig_scan_data.connect(self.process_data)
         #self._sig_scan_data.connect(self.process_data2)
         self._sig_scan_data.connect(self.process_data3)
+
+        # connect to the restart signal
+        self.set_restart_line_callback()
 
         self._line_end_reached = False
         self.scan_forward = True
@@ -494,7 +500,7 @@ class SmartSPM(Base):
         return self._lib.SetScanCallback(self._TScanCallback_ref_dict[func.__name__])
 
 
-    def set_RestartLineCallback(self, func):
+    def set_TRestartLineCallback(self, func):
         """ Set the restart line callback function. 
 
         @param reference func: a reference to a function with the following
@@ -525,7 +531,28 @@ class SmartSPM(Base):
 
         return self._lib.SetRestartLineCallback(self._TRestartCallback_ref_dict[func.__name__])
 
+    def create_restart_callback(self):
+        """ Create a callback function which can be registered.
 
+        @return: reference to a function connected to emit functionality.
+        """
+
+        def restart_linescan():
+            self.log.warning('Loss of connection occurred! Check if reconnect was successful.')
+            self.sigLineRestarted.emit()
+            return 0
+
+        return restart_linescan
+
+    def set_restart_line_callback(self):
+        """ Setup the restart line callback functionality. 
+
+        Call this higher order function to connect a Restart event to the 
+        emission of the signal from sigLineRestarted.
+        """
+        # prepare a test scan callback
+        TRestartCallback = self.create_restart_callback()
+        self.set_TRestartLineCallback(TRestartCallback)
 
     def create_test_TScanCallback(self):
         """ Create a callback function which receives a number and a float array.
@@ -646,9 +673,9 @@ class SmartSPM(Base):
         if size == 0:
             print(f'Line {self._line_counter} finished.')
 
-            self.sig_line_finished.emit(self._line_counter, 
-                                        len(self._curr_meas_params),
-                                        self._meas_line_scan)
+            self.sigLineFinished.emit(self._line_counter, 
+                                      len(self._curr_meas_params),
+                                      self._meas_line_scan)
             self._line_counter += 1
             self._meas_array_scan.append(self._meas_line_scan)
             self._meas_line_scan = []
