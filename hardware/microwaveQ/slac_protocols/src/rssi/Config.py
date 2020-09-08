@@ -2,7 +2,7 @@ import yaml
 import numbers
 import random
 
-from . import Segment
+from .Segment import ExtraSynBitField, SynHeader
 
 def toMachineUnits(naturalVal, minusLog10unit):
     return int(naturalVal / 10.**(-minusLog10unit))
@@ -75,8 +75,8 @@ class Config:
     def toSynHeader(self):
         self.connectionId = (self.connectionId + 1) % (2**32)
         conf = self.conf
-        extraBitField = Segment.ExtraSynBitField(version=0x1, chk=conf['useChecksum'])
-        return Segment.SynHeader(extraBitField,
+        extraBitField = ExtraSynBitField(version=0x1, chk=conf['useChecksum'])
+        return SynHeader(extraBitField,
             maxOutstandingSegments  = conf['maxOutstandingSegments'],
             maxSegmentSize          = conf['maxSegmentSize'],
             retransmissionTimeout_s = conf['retransmissionTimeout_s'],

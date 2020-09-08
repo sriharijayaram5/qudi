@@ -21,7 +21,6 @@ top-level directory of this distribution and at <https://github.com/Ulm-IQO/qudi
 
 from datetime import datetime
 from qtpy import QtCore
-
 import threading
 import numpy as np
 import time
@@ -48,7 +47,7 @@ class MicrowaveQ(Base, SlowCounterInterface):
         module.Class: 'simple_data_dummy.SimpleDummy'
         ip_address: '192.168.2.10'
         port: 55555
-        unlock_key: <your obtained key, either in hex or number> e.g. of the form: 58293468969010369791345065897427835159
+        unlock_key: <your obtained key, either in hex or number> e.g. of the form: 51233412369010369791345065897427812359
 
     """
 
@@ -62,14 +61,13 @@ class MicrowaveQ(Base, SlowCounterInterface):
     ip_address = ConfigOption('ip_address', default='192.168.2.10')
     port = ConfigOption('port', default=55555, missing='info')
     unlock_key = ConfigOption('unlock_key', missing='error')
+    gain_cali_name = ConfigOption('gain_cali_name', default='')
 
 
 
     sigNewData = QtCore.Signal(tuple)
-
     sigLineFinished = QtCore.Signal()
-
-    sigNewESRData = QtCore.Signal(np.ndarray) # indicate whether new ESR data is present.
+    #sigNewESRData = QtCore.Signal(np.ndarray) # indicate whether new ESR data is present.
 
     _threaded = True
 
@@ -78,13 +76,15 @@ class MicrowaveQ(Base, SlowCounterInterface):
     _CONSTRAINTS = SlowCounterConstraints()
 
     _meas_mode = 'pixel'  # measurement modes: counter, pixel, esr
-    _meas_mode_available = ['counter', 'pixel', 'esr', 'single-isob']
+    _meas_mode_available = ['dummy', 'counter', 'pixel', 'esr', 'single-isob']
 
     _device_status = 'idle'  # can be idle, armed or running
-    _meas_running = False
+    _meas_running = False   # this variable will be set whenever a measurement has stopped
+
+    _stop_request = False   # this variable will be internally set to request a stop
 
     # measurement variables
-    _DEBUG_MODE = True
+    _DEBUG_MODE = False
     _curr_frame = []
     _curr_frame_int = None
     _curr_frame_int_arr = []
@@ -121,15 +121,15 @@ class MicrowaveQ(Base, SlowCounterInterface):
         self._counting_window = 0.01 # the counting window in seconds
 
         self.__measurements = 0
-        try:
-            self._dev = microwaveQ.MicrowaveQ(self.ip_address,
-                                             self.port,
-                                             self.streamCb,
-                                             self._CLK_FREQ_FPGA)
-            self._dev.ctrl.unlock(self.unlock_key)
-            self._dev.initialize()
-        except Exception as e:
-            self.log.error(f'Cannot establish connection to MicrowaveQ due to {str(e)}.')
+        # try:
+        self._dev = microwaveQ.MicrowaveQ(self.ip_address,
+                                         self.port,
+                                         self.streamCb,
+                                         self._CLK_FREQ_FPGA)
+        self._dev.ctrl.unlock(self.unlock_key)
+        self._dev.initialize()
+        # except Exception as e:
+        #     self.log.error(f'Cannot establish connection to MicrowaveQ due to {str(e)}.')
 
 
         self._create_constraints()
@@ -146,29 +146,43 @@ class MicrowaveQ(Base, SlowCounterInterface):
         self._esr_process_lock = Mutex()
         self._esr_process_cond = QtCore.QWaitCondition()
 
-        self.cond = QtCore.QWaitCondition()
-        self._cond_waiting = False
-
-
-
-        self.meas_thread = threading.Thread(target=self._measure_counts,
-                                            name='meas_thread')
+        self.meas_cond = QtCore.QWaitCondition()
 
         self._current_esr_meas = []
 
         # set the main RF port (RF OUT 2H) to on
         self._dev.gpio.rfswitch.set(1)
 
+        # test gain compensation:
+        if self.gain_cali_name != '':
+            self._dev._setGainCalibration(self.gain_cali_name)
+
     def on_deactivate(self):
+        self.stop_measurement()
         self.disconnect_mq()
 
 
     def trf_off(self):
-        #Turn off trf completely
-        self._dev.spiTrf.write(4,0x440e400)
+        """ Turn completely off the local oscillator for rf creation. 
+
+        Usually, the local oscillator is running in the background and leaking
+        through the microwaveQ. The amount of power leaking through is quite 
+        small, but still, if desired, then the trf can be also turned off 
+        completely. """
+
+        self._dev.spiTrf.write(4, 0x440e400)
+
+
+    def vco_off(self):
+        """Turn off completely the Voltage controlled oscillator.
+
+        NOTE: By turning this off, you need to make sure that you turn it on 
+        again if you start a measurement, otherwise nothing will be outputted.
+        """
+        self._dev.spiTrf.write(4, 0x440e404)
 
     # ==========================================================================
-    # Enhance the current module by threading capabilities:
+    # Enhance the current module by Qudi threading capabilities:
     # ==========================================================================
 
     @QtCore.Slot(QtCore.QThread)
@@ -177,11 +191,10 @@ class MicrowaveQ(Base, SlowCounterInterface):
 
 
     def connect_mq(self):
-
+        """ Establish a connection to microwaveQ. """
         if hasattr(self, '_dev'):
             if self.is_connected():
                 self.disconnect_mq()
-
 
         try:
             self._dev = microwaveQ.MicrowaveQ(self.ip_address,
@@ -194,12 +207,14 @@ class MicrowaveQ(Base, SlowCounterInterface):
             self.log.error(f'Cannot establish connection to MicrowaveQ due to {str(e)}.')
 
     def is_connected(self):
+        """Check whether connection protocol is initialized and ready. """
         if hasattr(self._dev.com.conn, 'axiConn'):
             return self._dev.com.conn.isConnected()
         else:
             return False
 
     def reconnect_mq(self):
+        """ Reconnect to the microwaveQ. """
         self.disconnect_mq()
         self.connect_mq()
         #FIXME: This should be removed later on!
@@ -226,6 +241,11 @@ class MicrowaveQ(Base, SlowCounterInterface):
         self._CONSTRAINTS.min_count_frequency = 1e-3
         self._CONSTRAINTS.max_count_frequency = 1e+3
         self._CONSTRAINTS.counting_mode = [CountingMode.CONTINUOUS]
+
+    # ==========================================================================
+    #                 power setting handling
+    # ==========================================================================
+
 
 
     # ==========================================================================
@@ -294,6 +314,11 @@ class MicrowaveQ(Base, SlowCounterInterface):
             return self._dev.gpio.output3.set(int(state))
         else:
             self.log.warning('Incorrect state of the GPO-4 port, will be ignored.')
+
+
+    def is_measurement_running(self):
+        return self._meas_running
+
 
     # ==========================================================================
     #                 Begin: Slow Counter Interface Implementation
@@ -400,13 +425,9 @@ class MicrowaveQ(Base, SlowCounterInterface):
 
         self._device_status = 'running'
         self._dev.ctrl.start(cnt_num_actual)
-        # self.meas_thread = threading.Thread(target=self._measure_counts,
-        #                                     name='meas_thread')
-        # self.meas_thread.start()
-        # self.meas_thread.join()
 
-        #while self._meas_running:
-        #   time.sleep(0.001)
+       # with self.threadlock:
+       #     self.meas_cond.wait(self.threadlock)
 
         self.result_available.wait()
         self.skip_data = True
@@ -435,6 +456,7 @@ class MicrowaveQ(Base, SlowCounterInterface):
         @return int: error code (0:OK, -1:error)
         """
         self._dev.ctrl.stop()
+        self.stop_measurement()
         return 0
 
     # ==========================================================================
@@ -447,11 +469,13 @@ class MicrowaveQ(Base, SlowCounterInterface):
     def getMeasurements(self):
         return self.__measurements
 
+
+    #FIXME: USE THIS FUNCTIONALITY, RIGHT NOW NOT USED!!!!
     def get_meas_method(self):
-        return self._meas_method
+        return self.meas_method
 
     def get_meas_method_name(self):
-        return self._meas_method.__name__
+        return self.meas_method.__name__
 
     def set_meas_method(self, meas_method):
 
@@ -461,7 +485,7 @@ class MicrowaveQ(Base, SlowCounterInterface):
             else:
                 self.log.warning('No proper measurement method found. Call skipped.')
                 return
-        self._meas_method = meas_method
+        self.meas_method = meas_method
 
 
     def streamCb(self, frame):
@@ -469,9 +493,8 @@ class MicrowaveQ(Base, SlowCounterInterface):
             arrival of new data.
 
         @param bytes frame: The received data are a byte array containing the
-                            results. This function will be called from
-                            unsolicited by the device, whenever there is new
-                            data available.
+                            results. This function will be called unsolicitedly
+                            by the device, whenever there is new data available.
         """
 
         if self.skip_data:
@@ -486,18 +509,24 @@ class MicrowaveQ(Base, SlowCounterInterface):
 
         self.meas_method(frame_int)
 
-
-    def meas_method(self, frame_int):
-        """ this measurement methods becomes overwritten by the required mode. """
+    def meas_method_dummy(self, frame_int):
         pass
 
-    def _measure_counts(self):
+    def meas_method(self, frame_int):
+        """ This measurement methods becomes overwritten by the required mode. 
+            Just here as a placeholder.
+        """
+        pass
 
-        self._dev.ctrl.start(self._count_number)
-        self.result_available.wait()
-
+    def prepare_dummy(self):
+        self._meas_mode = 'dummy'
+        self.meas_method = self.meas_method_dummy
 
     def prepare_counter(self, counting_window=0.001):
+
+        if self._meas_running:
+            self.log.error('A measurement is still running. Stop it first.')
+            return -1
 
         self._meas_mode = 'counter'
 
@@ -519,7 +548,9 @@ class MicrowaveQ(Base, SlowCounterInterface):
 
         self._counting_window = counting_window
 
-        self._dev.configureCW(frequency=500e6, countingWindowLength=self._counting_window)
+        # for just the counter, set the gain to zero.
+        self._dev.configureCW(frequency=500e6, 
+                              countingWindowLength=self._counting_window)
         self._dev.rfpulse.setGain(0.0)
 
         self.meas_method = self.meas_method_SlowCounting
@@ -537,24 +568,18 @@ class MicrowaveQ(Base, SlowCounterInterface):
 
             # until here it is just counting upwards
             if self._count_ext_index < self._count_extender:
-                #print(f'Count index: {self._count_ext_index}')
-
                 return
 
         else:
-
             self.__counts_temp = frame_int[1]
 
-        #print(f'Finished yeah!: {self.__counts_temp}')
         self._count_ext_index = 0
 
         self.num[self._array_num] = [timestamp, self.__counts_temp]
         self.count_data[0][self._array_num] = self.__counts_temp
 
         self.__counts_temp = 0
-
         self._array_num += 1
-
 
         if self._count_number/self._count_extender <= self._array_num:
             #print('Cancelling the waiting loop!')
@@ -563,36 +588,31 @@ class MicrowaveQ(Base, SlowCounterInterface):
 
 
     def meas_method_PixelClock(self, frame_int):
+        """ Process the received pixelclock data and store to array. """
 
         self._meas_res[self._counted_pulses] = (frame_int[0], frame_int[1], time.time())
 
-
         if self._counted_pulses > (self._total_pulses - 2):
             self._meas_running = False
-            self.cond.wakeAll()
+            self.meas_cond.wakeAll()
             self.skip_data = True
 
         self._counted_pulses += 1
-        #print(frame_int)
-        #self.log.info(f'Frame_int: {frame_int}')
 
-    def meas_esr(self, frame_int):
 
-        #self.log.info('result')
-        # print(f' frame_int:{frame_int}')
+    def meas_method_esr(self, frame_int):
+        """ Process the received esr data and store to array."""
 
         self._meas_esr_res[self._esr_counter][0] = time.time()
         self._meas_esr_res[self._esr_counter][1:] = frame_int
 
         self._current_esr_meas.append(self._meas_esr_res[self._esr_counter][2:])
 
-        self.sigNewESRData.emit(self._meas_esr_res[self._esr_counter][2:])
-
-
+        #self.sigNewESRData.emit(self._meas_esr_res[self._esr_counter][2:])
 
         if self._esr_counter > (len(self._meas_esr_res) - 2):
             self._meas_running = False
-            self.cond.wakeAll()
+            self.meas_cond.wakeAll()
             self.skip_data = True
 
         self._esr_counter += 1
@@ -607,6 +627,10 @@ class MicrowaveQ(Base, SlowCounterInterface):
 
     def prepare_pixelclock(self):
         """ Setup the device to count upon an external clock. """
+
+        if self._meas_running:
+            self.log.error('A measurement is still running. Stop it first.')
+            return -1
 
         self._meas_mode = 'pixel'
 
@@ -625,6 +649,10 @@ class MicrowaveQ(Base, SlowCounterInterface):
         @param float gain: the linear power gain of the device, from 0.0 to 1.0
 
         """
+        if self._meas_running:
+            self.log.error('A measurement is still running. Stop it first.')
+            return -1
+        
 
         self._meas_mode = 'single-isob'
 
@@ -660,9 +688,10 @@ class MicrowaveQ(Base, SlowCounterInterface):
 
         if self._meas_running:
             with self.threadlock:
-                self._cond_waiting = True
-                self.cond.wait(self.threadlock)
-                self._cond_waiting = False
+                #self._cond_waiting = True
+                #self.cond.wait(self.threadlock)
+                #self._cond_waiting = False
+                self.meas_cond.wait(self.threadlock)
 
         self._device_status = 'idle'
         self.skip_data = True
@@ -678,11 +707,15 @@ class MicrowaveQ(Base, SlowCounterInterface):
     def stop_measurement(self):
 
         self._dev.ctrl.stop()
-        self.cond.wakeAll()
+        self.meas_cond.wakeAll()
         self.skip_data = True
         self._device_status = 'idle'
 
         self._esr_process_cond.wakeAll()
+        self._meas_running = False
+
+        #FIXME, just temporarily, needs to be fixed in a different way
+        time.sleep(2)
 
     #===========================================================================
     #       ESR measurements: ODMRCounterInterface Implementation
@@ -694,6 +727,11 @@ class MicrowaveQ(Base, SlowCounterInterface):
         @param list freq_list: containing the frequency list entries
         @param float count_freq: count frequency in Hz
         """
+
+        if self._meas_running:
+            self.log.error('A measurement is still running . Stop it first.')
+            return -1
+
 
         self._meas_mode = 'esr'
 
@@ -712,9 +750,15 @@ class MicrowaveQ(Base, SlowCounterInterface):
         # and the time
         self._meas_esr_line = np.zeros(len(freq_list)+2)
 
-        self.meas_method = self.meas_esr
+        self.meas_method = self.meas_method_esr
 
-    def start_esr(self, num_meas):
+        return 0
+
+    def start_esr(self, num_meas=1000):
+        """ Start esr.
+
+        @param int num_meas: number of measurement runs, zero means infinity.
+        """
 
         self._esr_counter = 0
         self._meas_esr_res = np.zeros((num_meas, len(self._meas_esr_line)))
@@ -735,9 +779,7 @@ class MicrowaveQ(Base, SlowCounterInterface):
 
         if self._meas_running:
             with self.threadlock:
-                self._cond_waiting = True
-                self.cond.wait(self.threadlock)
-                self._cond_waiting = False
+                self.meas_cond.wait(self.threadlock)
 
         self._meas_esr_res[:, 2:] = self._meas_esr_res[:, 2:] * self._esr_count_frequency
 
@@ -760,6 +802,10 @@ class MicrowaveQ(Base, SlowCounterInterface):
 
         if clock_frequency is not None:
             self._esr_count_frequency = clock_frequency
+
+        if self._meas_running:
+            self.log.error('A measurement is still running. Stop it first.')
+            return -1
 
         return 0
 
@@ -803,7 +849,7 @@ class MicrowaveQ(Base, SlowCounterInterface):
             if self._current_esr_meas != []:
                 # remove the first element from the list
                 with self._esr_process_lock:
-                    return False,  self._current_esr_meas.pop(0)*self._esr_count_frequency
+                    return False,  np.array( [self._current_esr_meas.pop(0)*self._esr_count_frequency] )
 
             else:
                 with self._esr_process_lock:
@@ -811,10 +857,10 @@ class MicrowaveQ(Base, SlowCounterInterface):
                     timeout = 15 # in seconds
                     self._esr_process_cond.wait(self._esr_process_lock, timeout*1000)
 
-                return False,  self._current_esr_meas.pop(0)*self._esr_count_frequency
+                return False,  np.array( [self._current_esr_meas.pop(0)*self._esr_count_frequency] )
 
         else:
-            return True, np.zeros(length)
+            return True, np.zeros((1, length))
 
 
     def close_odmr(self):
@@ -823,6 +869,8 @@ class MicrowaveQ(Base, SlowCounterInterface):
         @return int: error code (0:OK, -1:error)
         """
         self._dev.ctrl.stop()
+        self._meas_running = False
+        self.stop_measurement()
         return 0
 
     def close_odmr_clock(self):
@@ -869,6 +917,9 @@ class MicrowaveQ(Base, SlowCounterInterface):
         self._mw_running = False
         self._dev.rfpulse.setGain(0.0)
         self._dev.ctrl.stop()
+        self.trf_off()
+        #self.vco_off()
+        self.stop_measurement()
 
         return 0
 
@@ -909,12 +960,14 @@ class MicrowaveQ(Base, SlowCounterInterface):
         @return int: error code (0:OK, -1:error)
         """
 
+        self.prepare_dummy()
+
         self._mw_mode = 'cw'
 
         #FIXME: power is set arbitrary
 
         self._dev.configureCW(frequency=self._mw_cw_frequency, countingWindowLength=0.5)
-        self._dev.rfpulse.setGain(0.1)
+        self._dev.ctrl.start(0)
 
         self._mw_running = True
 
@@ -935,11 +988,14 @@ class MicrowaveQ(Base, SlowCounterInterface):
 
         self._mw_mode = 'cw'
 
-        if power is not None:
-            self._mw_cw_power = power
+        # take the previously setted power or frequency
+        if power is None:
+            power = self._mw_cw_power
+        if frequency is None:
+            frequency = self._mw_cw_frequency
 
-        if frequency is not None:
-            self._mw_cw_frequency = frequency
+        self._dev.set_freq_power(frequency, power)
+        self._mw_cw_frequency, self._mw_cw_power = self._dev.get_freq_power()
 
         return self._mw_cw_frequency, self._mw_cw_power,  self._mw_mode
 
@@ -952,7 +1008,7 @@ class MicrowaveQ(Base, SlowCounterInterface):
         @return int: error code (0:OK, -1:error)
         """
 
-        self.start_esr(1000)
+        self.start_esr()
         self._mw_running = True
 
         return 0
@@ -969,14 +1025,21 @@ class MicrowaveQ(Base, SlowCounterInterface):
 
         self._mw_mode = 'list'
 
+        mean_freq = None
+
         if frequency is not None:
             self._mw_freq_list = frequency
             self.prepare_cw_esr(self._mw_freq_list, self._esr_count_frequency, self._mw_gain)
-        
-        #FIXME: use a separate variable for this!
-        if power is not None:
-            self._mw_cw_power = power
 
+            mean_freq = np.mean(self._mw_freq_list)
+
+        # #FIXME: use a separate variable for this!
+        # if power is not None:
+        #     self._mw_cw_power = power
+
+        self._dev.set_freq_power(mean_freq, power)
+
+        set_freq, self._mw_cw_power = self._dev.get_freq_power()
 
         return self._mw_freq_list, self._mw_cw_power, self._mw_mode
 
@@ -1054,7 +1117,7 @@ class MicrowaveQ(Base, SlowCounterInterface):
         limits.min_frequency = 2.5e9
         limits.max_frequency = 3.5e9
         limits.min_power = -50
-        limits.max_power = 30
+        limits.max_power = 35
 
         limits.list_minstep = 1
         limits.list_maxstep = 1e9
@@ -1065,14 +1128,3 @@ class MicrowaveQ(Base, SlowCounterInterface):
         limits.sweep_maxentries = 2000
         return limits
 
-class MeasThread(QtCore.QThread):
-
-    def __init__(self):
-        QtCore.QThread.__init__(self)
-
-    def __del__(self):
-        self.wait()
-
-    def run(self):
-    # your logic here
-        pass

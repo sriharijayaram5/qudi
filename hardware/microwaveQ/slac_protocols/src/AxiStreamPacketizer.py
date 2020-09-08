@@ -3,14 +3,18 @@ import copy
 import zlib
 import logging
 
-from .rssi import Connection
+# subcomponents related to this package
+from .rssi.Connection import Connection
 
-# NOTE: The channel is encoded in the TDEST field of the header - here we use 'channel' and
-# 'tdest' interchangeably.
+
+# NOTE: The channel is encoded in the TDEST field of the header - here we use 
+#       'channel' and 'tdest' interchangeably.
 
 logger = logging.getLogger(__name__)
 
+
 class AxiStreamPacketHeader:
+
     def __init__(self, version=0x2, crcType=0, tuser=2, channel=0, tid=0, seq=0, sof=False):
         self.version = version
         self.crcType = crcType
@@ -40,7 +44,9 @@ class AxiStreamPacketHeader:
             .format(self.version, self.crcType, self.tuser,
                 self.channel, self.tid, self.seq, self.sof)
 
+
 class AxiStreamPacketTail:
+
     def __init__(self, tuserLast=0, eof=False, lastByteCnt=8, crc=0):
         self.tuserLast = tuserLast
         self.eof = eof
@@ -62,12 +68,15 @@ class AxiStreamPacketTail:
         return 'TUSER_LAST: {}, EOF: {}, LAST_BYTE_CNT: {}, CRC: 0x{:04x}' \
             .format(self.tuserLast, self.eof, self.lastByteCnt, self.crc)
 
+
 class AxiStreamPacket:
-    # This class stores the entire payload, which must have a length which is a multiple of 8
-    # bytes. If a payload for which this is not the case is passed to the constructor, zero
-    # padding bytes are added to the end. The number of valid bytes in the last 8-byte chunk
-    # are always calculated and stored in self.tail.lastByteCnt. The valid portion of the
-    # payload is available through getValidPayload().
+    # This class stores the entire payload, which must have a length which is a 
+    # multiple of 8 bytes. If a payload for which this is not the case is passed
+    # to the constructor, zero padding bytes are added to the end. The number of
+    # valid bytes in the last 8-byte chunk are always calculated and stored in 
+    #   self.tail.lastByteCnt. 
+    # The valid portion of the payload is available through getValidPayload().
+
     def __init__(self, header, fullPayload, tail):
         self.header = header
         self.fullPayload = fullPayload
@@ -122,12 +131,14 @@ class AxiStreamPacket:
             retStr += '; Payload: {}'.format(self.fullPayload)
         return retStr
 
-# Wraps the rssi connection, forwards connection callback, handles data received callback,
-# buffers data until EOF, and forwards the channel thing. Actually should have a map between
-# channels and callbacks.
+# Wraps the rssi connection, forwards connection callback, handles data received
+# callback, buffers data until EOF, and forwards the channel thing. Actually 
+# should have a map between channels and callbacks.
+
 class AxiStreamPacketConnection:
+
     def __init__(self, rssiConfig):
-        self.rssi = Connection.Connection(rssiConfig)
+        self.rssi = Connection(rssiConfig)
         self.dataCbDict = {}
         self.partialPacket = {}
 
@@ -147,8 +158,7 @@ class AxiStreamPacketConnection:
     def __dataCallback(self, data):
         axiPacket = AxiStreamPacket.fromRaw(data)
 
-        # COMMENT OUT SINCE IT OVERFLOWS THE LOGGER
-        #logger.debug('Recvd ASP packet: ' + axiPacket.toString())
+        logger.debug('Recvd ASP packet: ' + axiPacket.toString())
 
         channel = axiPacket.header.channel
 
@@ -187,8 +197,7 @@ class AxiStreamPacketConnection:
             packet.padPayload()
             packet.calcCrc()
 
-            # COMMENT OUT SINCE IT OVERFLOWS THE LOGGER
-            #logger.debug('Sending ASP packet: ' + packet.toString())
+            logger.debug('Sending ASP packet: ' + packet.toString())
 
             self.rssi.sendData(packet.toRaw())
 
