@@ -461,8 +461,8 @@ class MicrowaveQ(dev.Device):
             gain_start = 0.001
             gain_stop = 1.0
             gain_vals = 200
-            #gain_range = self.gen_logrange_gain(gain_start, gain_stop, gain_vals)
-            gain_range = np.linspace(gain_start, gain_stop, gain_vals)
+            gain_range = self.gen_logrange_gain(gain_start, gain_stop, gain_vals)
+            #gain_range = np.linspace(gain_start, gain_stop, gain_vals)
             intp_power = self._func_2d(freq, gain_range).transpose()[0]
 
             # make the inverse function:

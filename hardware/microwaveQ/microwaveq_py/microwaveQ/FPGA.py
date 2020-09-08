@@ -33,7 +33,7 @@ class FPGA:
         except RssiConfig.VerificationError as e:
             logging.error('Error parsing config: {}'.format(e.desc))
             return
-        self.conn = MqConn(rssiConfig,streamCb)
+        self.conn = MqConn(rssiConfig, streamCb)
         self.conn.connectAndStartCallbackThread(ip, local_port)
         self.conn.waitConnected()
 
