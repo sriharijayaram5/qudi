@@ -80,8 +80,8 @@ class SmartSPM(Base):
     _modtype = 'hardware'
 
     _threaded = True
-    _version_comp = 'aist-nt_v3.5.132'   # indicates the compatibility of the version.
-    __version__ = '0.5.4'
+    _version_comp = 'aist-nt_v3.5.136'   # indicates the compatibility of the version.
+    __version__ = '0.6.1'
 
     # Default values for measurement
     # ------------------------------
@@ -270,6 +270,26 @@ class SmartSPM(Base):
         self._line_end_reached = False
         self.scan_forward = True
 
+        # initialize trigger state for normal scans
+        self._ext_trigger_state = c_bool(False)
+
+        # initialize new array values for plane scan
+        self._ps_x_c = (c_float * 2)() # float array        
+        self._ps_y_c = (c_float * 2)() # float array   
+        self._ps_z_c = (c_float * 2)() # float array 
+
+        # initialize the lift value
+        self._lift_c = c_float(0.0)
+        self._liftback_c = c_float(0.0)
+
+        # initialize the lift value for 2pass mode
+        self._lift_2pass_c = c_float(0.0)
+        self._liftback_2pass_c = c_float(0.0)
+
+        # initialize trigger state for 2pass scan
+        self._trigger_pass1_c = c_bool(False)
+        self._trigger_pass2_c = c_bool(False)
+
     def on_deactivate(self):
         """ Clean up and deactivate the spm module. """
         self.disconnect_spm()
@@ -341,6 +361,7 @@ class SmartSPM(Base):
         self._lib.ExecScanPoint.restype = c_bool
 
         self._lib.SetTriggering.argtypes = [c_bool]
+        self._lib.SetTriggering.restype = c_bool
 
         self._lib.ProbeSweepZ.restype = c_bool
 
@@ -359,6 +380,33 @@ class SmartSPM(Base):
                                                c_float, c_float, c_float]
         self._lib.SetupScanLineXYZ.restype = c_bool
 
+        self._lib.SetupPlaneScan.argtypes = [c_int, c_int, 
+                                             POINTER((c_char * self.MAX_SIG_NAME_LEN) * self.MAX_SIG_NUM)]
+        self._lib.SetupPlaneScan.restype = c_bool   
+
+        self._lib.SetPlanePoints.argtypes = [c_int, POINTER(c_float), 
+                                             POINTER(c_float), POINTER(c_float)]
+        self._lib.SetPlanePoints.restype = c_bool
+
+        self._lib.SetPlaneLift.argtypes = [c_float, c_float]
+        #FIXME: test the return parameter
+        #self._lib.SetPlaneLift.restype = None
+
+        self._lib.SetupScan2Pass.argtypes = [c_int, c_int, c_int, 
+                                             POINTER((c_char * self.MAX_SIG_NAME_LEN) * self.MAX_SIG_NUM)]
+        self._lib.SetupScan2Pass.restype = c_bool   
+
+        self._lib.Setup2PassLine.argtypes = [c_float, c_float, c_float, c_float,
+                                             c_float, c_float, c_float]
+        self._lib.Setup2PassLine.restype = c_bool  
+
+         self._lib.Set2PassLift.argtypes = [c_float, c_float]
+        #FIXME: test the return parameter
+        #self._lib.Set2PassLift.restype = None 
+        
+        self._lib.Set2PassTriggering.argtypes = [c_bool, c_bool]
+        #FIXME: test the return parameter
+        #self._lib.Set2PassTriggering.restype = None             
 
     def _unload_library(self):
         if hasattr(self, '_lib'):
@@ -1409,20 +1457,18 @@ class SmartSPM(Base):
               One extra trigger is performed at the beginning of the measurement
               of first point of the line.
         """    
-        c_trigger_state = c_bool(trigger_state)
-        self._ext_trigger_state = trigger_state
-        self._lib.SetTriggering(c_trigger_state)
+        self._ext_trigger_state = c_bool(trigger_state)
+        return self._lib.SetTriggering(self._ext_trigger_state)
 
     def get_ext_trigger(self):
         """ Check whether external triggering is enabled.
 
         @return bool: True: trigger enabled, False: trigger disabled.
         """
-        return self._ext_trigger_state
+        return self._ext_trigger_state.value
 
     def probe_sweep_z(self, start_z, stop_z, num_points, sweep_time, 
                       idle_move_time, meas_params=[]):
-
         """ Prepare the z sweep towards and from the surface away. 
 
         @param float start_z: start value in m, positive value means the probe 
@@ -1616,6 +1662,240 @@ class SmartSPM(Base):
         
         return self._lib.SetupScanLineXYZ(x0, y0, x1, y1, tforw_c, tback_c, 
                                           liftback_c)
+
+    def setup_plane_scan(self, line_point=100, meas_params=[]):
+        """ Set up a general plane scan.
+
+        @param int line_points: number of points to scan
+        @param list meas_params: optional, list of possible strings of the 
+                                 measurement parameter. Have a look at 
+                                 MEAS_PARAMS to see the available parameters. 
+                                 If nothing is passed, an empty string array 
+                                 will be created.
+        
+        @return (status_variable, plane,  with: 
+                       -1 = input parameter error 
+                        0 = call failed, 
+                        1 = call successful
+
+        """
+
+        linePts_c = c_int(line_point)
+
+        sigs_buffers = self._create_meas_params(meas_params)
+        # extract the actual set parameter:
+        self._curr_meas_params = [param.value.decode() for param in sigs_buffers]
+
+        sigsCnt_c = len(sigs_buffers)
+
+        self._lib.SetupPlaneScan.argtypes = [c_int,  # linePts
+                                             c_int,  # sigsCnt
+                                             POINTER((c_char * self.MAX_SIG_NAME_LEN) * sigsCnt_c.value)]
+
+        ret_val = self._lib.SetupPlaneScan(linePts_c, 
+                                           sigsCnt_c,
+                                           byref(sigs_buffers))
+        return ret_val
+
+
+    def set_plane_points(self, x_start, x_stop, y_start, y_stop, z_start, 
+                         z_stop):
+        """ Set the general scan plane. 
+
+        @param float x_start: start x value of the scan in m
+        @param float x_stop: stop x value of the scan in m
+        @param float y_start: start y value of the scan in m
+        @param float y_stop: stop y value of the scan in m
+        @param float z_start: start z value of the scan in m
+        @param float z_stop: stop z value of the scan in m
+
+        Use this method after setting up the general scan with 
+            self.setup_plane_scan(...)
+        """
+
+        # initialize new array values for plane scan
+        self._ps_x_c = (c_float * 2)() # float array        
+        self._ps_y_c = (c_float * 2)() # float array   
+        self._ps_z_c = (c_float * 2)() # float array   
+
+        # assign the proper values in c style, convert to um for library call
+        self._ps_x_c[:] = [x_start/1e-6, x_stop/1e-6]
+        self._ps_y_c[:] = [y_start/1e-6, y_stop/1e-6]
+        self._ps_z_c[:] = [z_start/1e-6, z_stop/1e-6]
+
+        ret_val = self._lib.SetPlanePoints(ctypes.byref(self._ps_x_c), 
+                                           ctypes.byref(self._ps_y_c),
+                                           ctypes.byref(self._ps_z_c)) 
+
+        return ret_val
+
+
+    def get_plane_points(self):
+        """ Obtain the currently set plane points. 
+
+        @return tuple(list x_val, list y_val, list z_val):
+                    the list contains the start and stop values of the scan
+
+        """
+
+        # convert on the fly the list back from um to m
+        return ([val*1e-6 for val in self._ps_x_c[:]], 
+                [val*1e-6 for val in self._ps_y_c[:]],
+                [val*1e-6 for val in self._ps_z_c[:]])
+
+
+    def set_plane_lift(self, lift, liftback):
+        """ Set the lift parameters. 
+
+        @param float lift: lift of the scan in m
+        @param float liftback: liftback of the scan in m
+
+        During back-movement the lift over the surface plane is the sum of the 
+        'lift' and 'liftback' values.
+        """
+
+        # convert to nm for library call
+        self._lift_c = c_float(lift/1e-9)
+        self._liftback_c = c_float(liftback/1e-9)
+
+        return self._lib.SetPlaneLift(self.lift_c, self.liftback_c)
+
+    def get_plane_lift(self):
+        """ Obtain the currently set plain lift parameters. 
+
+        @return tuple(float lift, float liftback) 
+            lift in m
+            liftback in m    
+        """
+        return (self._lift_c.value * 1e-9, self._liftback_c.value * 1e-9)
+
+
+    def setup_scan_2pass(self, line_point=100, meas_params=[])::
+        """ Setup the two pass scan mode.
+
+        @param int line_points: number of points to scan
+        @param list meas_params: optional, list of possible strings of the 
+                                 measurement parameter. Have a look at 
+                                 MEAS_PARAMS to see the available parameters. 
+                                 If nothing is passed, an empty string array 
+                                 will be created.
+        
+        @return (status_variable, plane,  with: 
+                       -1 = input parameter error 
+                        0 = call failed, 
+                        1 = call successful
+
+        For the general setup for a 2 pass scan, apply the following methods 
+        in this order:
+
+            self.setup_scan_2pass(...), Set2PassLift, Set2PassTriggering, Setup2PassLine, ExecScanLine
+            self.set_2pass_lift(...)
+            self.set_2pass_trigger(...)
+            self.setup_2pass_line(...)
+            self.scan_line()
+        """
+
+        linePts_c = c_int(line_point)
+
+        sigs_buffers = self._create_meas_params(meas_params)
+        # extract the actual set parameter:
+        self._curr_meas_params = [param.value.decode() for param in sigs_buffers]
+
+        sigsCnt_c = len(sigs_buffers)
+
+        #TODO: check whether this is a relevant setting
+        # You can select how many parameters you want to obtain for the 1pass 
+        # scan, for now use the same parameter
+        sigsCnt_1pass_c = sigsCnt_c
+
+        self._lib.SetupScan2Pass.argtypes = [c_int,  # linePts
+                                             c_int,  # sigsCnt
+                                             c_int,  # pass1SigsCnt
+                                             POINTER((c_char * self.MAX_SIG_NAME_LEN) * sigsCnt_c.value)]
+
+        return self._lib.SetupScan2Pass(linePts_c, 
+                                           sigsCnt_c,
+                                           sigsCnt_1pass_c,
+                                           byref(sigs_buffers))
+
+    def setup_2pass_line(self, x_start, x_stop, y_start, y_stop, time_pass1,
+                         time_pass2, time_pass2_back):
+        """ Setup the 2pass scan line. 
+
+        @param float x_start: start x value of the scan in m
+        @param float x_stop: stop x value of the scan in m
+        @param float y_start: start y value of the scan in m
+        @param float y_stop: stop y value of the scan in m
+        @param float time_pass1: time for the line scan in the first pass
+        @param float time_pass2: tíme for the line scan in the second pass
+        @param float time_pass2_back: time for the backmovement
+        """
+
+        # convert to um for library call
+        x_start_c = c_float(x_start/1e-6)
+        x_stop_c = c_float(x_stop/1e-6)
+        y_start_c = c_float(y_start/1e-6)
+        y_stop_c = c_float(y_stop/1e-6)
+        time_pass1_c = c_float(time_pass1)
+        time_pass2_c = c_float(time_pass2)
+        time_pass2_back_c = c_float(time_pass2_back)
+
+        return self._lib.Setup2PassLine(x_start_c, y_start_c, x_stop_c, 
+                                        y_stop_c, time_pass1_c, time_pass2_c, 
+                                        time_pass2_back_c)
+
+
+    def set_2pass_lift(self, lift, liftback):
+        """ Set lift parameter for the 2 pass scan
+
+        @param float lift: lift of the scan in m
+        @param float liftback: liftback of the scan in m
+
+        During back-movement the lift over the surface plane is the sum of the 
+        'lift' and 'liftback' values.
+        """
+
+        # convert to nm for library call
+        self._lift_2pass_c = c_float(lift/1e-9)
+        self._liftback_2pass_c = c_float(liftback/1e-9)
+
+        return self._lib.Set2PassLift(self._lift_2pass_c, self._liftback_2pass_c)    
+
+    def get_2pass_lift(self):
+        """ Obtain the currently set plain lift parameters for 2pass scan. 
+
+        @return tuple(float lift, float liftback) 
+            lift in m
+            liftback in m    
+        """
+        return (self._lift_2pass_c.value * 1e-9, 
+                self._liftback_2pass_c.value * 1e-9)
+
+    def set_ext_trigger_2pass(self, trigger_pass1, trigger_pass2):
+        """ Set up an external trigger after performing a line in a two pass scan.
+
+        @param bool trigger_pass1: declare whether enable (=True) or disable 
+                                  (=False) triggering in first pass
+        @param bool trigger_pass2: declare whether enable (=True) or disable 
+                                  (=False) triggering in second pass
+
+        This method has to be called once, after self.setup_scan_2pass(...) and
+        self.setup_2pass_line(...), otherwise triggering will be disabled.
+
+        Note: One extra trigger is performed at the beginning of the measurement
+              of first point of the line.
+        """    
+
+        self._trigger_pass1_c = c_bool(trigger_pass1)
+        self._trigger_pass2_c = c_bool(trigger_pass2)
+        self._lib.Set2PassTriggering(c_trigger_state)
+
+    def get_ext_trigger(self):
+        """ Check whether external triggering is enabled.
+
+        @return tuple(bool trigger_pass1, bool trigger_pass2)
+        """
+        return self._trigger_pass1_c.value, self._trigger_pass2_c.value
 
     # ==========================================================================
     #                       Higher level functions
