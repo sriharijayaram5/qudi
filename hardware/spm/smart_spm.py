@@ -295,15 +295,22 @@ class SmartSPM(Base):
         self.disconnect_spm()
         self._unload_library()
         
-    def _load_library(self, path):
+    def _load_library(self, path=''):
         """ Helper to load the spm library. 
         
-        @params str path: path to the folder, where library is situated.
+        @params str path: absolute path to the folder, where library is situated.
         """
-        
+
+        if (path == '') or os.path.exists(path):
+            this_dir = os.path.dirname(__file__)
+            path = os.path.join(this_dir, 'spm-library') # default location of
+                                                         # the library
+
         libname = 'remote_spm.dll'
         curr_path = os.path.abspath(os.curdir) # get the current absolute path
         
+        #FIXME: Find out why the call CDLL cannot handle absolute paths and 
+        #       only library names.
         # the load function requires that current path is set to library path
         os.chdir(path)
         self._lib = ctypes.CDLL(libname)
@@ -1386,7 +1393,8 @@ class SmartSPM(Base):
         """Execute a scan line measurement. 
 
         @param float int_time: integration time in s while staying on one point.
-                               this setting is only valid for point-scan mode. 
+                               this setting is only valid for point-scan mode 
+                               and will be ignored for a line-scan mode.  
         
         Every scan procedure starts with setup_spm method. Then
         setup_scan_line follows (first time and then next time current 
@@ -1493,11 +1501,14 @@ class SmartSPM(Base):
                       input is permissible; it is useful for tests Function uses
                       TScanCallback to send back signals.
 
-        After execution ends the process returns the probe to place, i.e. set 
-        Z-feedback to its initial state.
+        IMPORTANT:
+        After execution ends the process returns the probe to the initial 
+        configuration, i.e. set Z-feedback to its initial state and probe to 
+        initial place.
 
-        To break the process call self.break_probe_sweep_z(), BUT (!!!!) only at
-        certain moments!
+        Stopping the process CAN ONLY BE DONE at certain moments, i.e. at 
+        moments where the return of the current parameters is zero in size 
+        (usually equivalent to reaching the end of scan).
 
         To setup the sweep, register at first via self.set_TScanCallback(...) 
         to receive the measurement parameters during the scan. Then run the
@@ -1550,7 +1561,11 @@ class SmartSPM(Base):
 
 
     def break_probe_sweep_z(self):
-        """ Stops the z sweep procedure of the z probe."""
+        """ Stops the z sweep procedure of the z probe. 
+
+        Please check in the method self.probe_sweep_z(...), when this function 
+        call can be executed. 
+        """
         self._lib.BreakProbeSweepZ()
 
     def probe_lift(self, lift_by, trigger_time):
@@ -1564,8 +1579,10 @@ class SmartSPM(Base):
                                    is just lifted. Second trigger is applied 
                                    after trigger_time in seconds.
 
-        @return bool: Function returns true if Z-feedback is on, i.e. the probe
-                      is on surface.
+        @return bool: Function returns True if Z-feedback is on, i.e. the probe
+                      is on surface, otherwise if Z-feedback if off (and is 
+                      taken to be the SenZ postion feedback) indicating that you
+                      are not on the surface, then return value is False.
          """
 
          lift_c =  c_float(lift_by*1e9) # function expects in nm
@@ -1788,7 +1805,7 @@ class SmartSPM(Base):
         For the general setup for a 2 pass scan, apply the following methods 
         in this order:
 
-            self.setup_scan_2pass(...), Set2PassLift, Set2PassTriggering, Setup2PassLine, ExecScanLine
+            self.setup_scan_2pass(...)
             self.set_2pass_lift(...)
             self.set_2pass_trigger(...)
             self.setup_2pass_line(...)
