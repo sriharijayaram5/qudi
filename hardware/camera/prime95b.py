@@ -64,6 +64,7 @@ class Prime95B(Base, CameraInterface):
         nx_px, ny_px = self._get_detector()
         self._width, self._height = nx_px, ny_px
         self._live = False
+        self.cam.speed_table_index = 1
 
     def on_deactivate(self):
         """ Deinitialisation performed during deactivation of the module.
@@ -149,12 +150,13 @@ class Prime95B(Base, CameraInterface):
         return True
 
     def get_exposure(self):
-        """ Get the exposure time in mseconds. Different from get_param which returns the true value. This returns
+        """ Get the exposure time in the current exposure res in mseconds. Different from get_param which returns the true value. This returns
         the value as assigned to the camera class.
 
         @return float exposure time
         """
-        return self.cam.exp_time
+        exp_res_dict = {0: 1, 1: 1000}
+        return self.cam.exp_time / exp_res_dict[self.get_exp_res()]
 
     def set_gain(self, gain):
         """ Set the gain
@@ -213,7 +215,21 @@ class Prime95B(Base, CameraInterface):
         '''
         return self.cam.get_param(const.PARAM_EXPOSURE_TIME,
                                   const.ATTR_MAX)
+    
+    def get_exp_res(self):
+        '''Returns exposure resolution index: 0~ms, 1~us, 2~s
+        '''
+        return self.cam.exp_res_index
 
+    
+    def set_exp_res(self, index):
+        '''Set exposure resolution index: 0~ms, 1~us, 2~s
+        '''
+        if index < 3:
+            self.cam.exp_res = index
+            return True
+        else:
+            return False
     def set_exposure_mode(self, exp_mode):
         '''Sets the exposure to exp_mode passed. Determines trigger behaviour. See constants.py for
         allowed values

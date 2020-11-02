@@ -236,11 +236,17 @@ class CameraGUI(GUIBase):
         """ Write new settings from the gui to the file. """
         self._logic.set_exposure(self._sd.exposureDSpinBox.value())
         self._logic.set_gain(self._sd.gainSpinBox.value())
+        exp_res = self._sd.rescomboBox.currentIndex()
+        self._logic.set_exposure_resolution(exp_res)
 
     def keep_former_settings(self):
         """ Keep the old settings and restores them in the gui. """
         self._sd.exposureDSpinBox.setValue(self._logic._exposure)
         self._sd.gainSpinBox.setValue(self._logic._gain)
+        if self._sd.rescomboBox.currentIndex() == 0:
+            self._sd.exposureDSpinBox.setMaximum(10000)
+        else:
+            self._sd.exposureDSpinBox.setMaximum(10000000)
 
     def menu_settings(self):
         """ This method opens the settings menu. """
