@@ -133,6 +133,9 @@ class CameraLogic(GenericLogic):
 
     def set_exposure_resolution(self, index):
         return self._hardware.set_exp_res(index)
+    
+    def get_exposure_resolution(self):
+        return self._hardware.get_exp_res()
 
     def set_gain(self, gain):
         '''Sets the gain of camera. Changes the camera class variable basically. Max values is 1 for 16bit and

@@ -90,7 +90,7 @@ class ODMRGui(GUIBase):
     sigNumberOfLinesChanged = QtCore.Signal(int)
     sigRuntimeChanged = QtCore.Signal(float)
     ##
-    sigExpTimeChanged = QtCore.Signal(int)
+    sigExpTimeChanged = QtCore.Signal(int, int)
     sigDoFit = QtCore.Signal(str, object, object, int, bool)
     sigSaveMeasurement = QtCore.Signal(str, list, list)
     sigAverageLinesChanged = QtCore.Signal(int)
@@ -273,6 +273,7 @@ class ODMRGui(GUIBase):
             self.change_runtime)
         ##
         self._mw.exp_time_SpinBox.editingFinished.connect(self.change_exp_time)
+        self._mw.rescomboBox.currentIndexChanged.connect(self.change_exp_time)
         self._mw.odmr_cb_max_DoubleSpinBox.valueChanged.connect(
             self.colorscale_changed)
         self._mw.odmr_cb_min_DoubleSpinBox.valueChanged.connect(
@@ -535,6 +536,7 @@ class ODMRGui(GUIBase):
             self._mw.cw_frequency_DoubleSpinBox.setEnabled(False)
             ##
             self._mw.exp_time_SpinBox.setEnabled(False)
+            self._mw.rescomboBox.setEnabled(False)
             if mw_mode != 'cw':
                 self._mw.clear_odmr_PushButton.setEnabled(True)
                 self._mw.action_run_stop.setEnabled(True)
@@ -586,6 +588,7 @@ class ODMRGui(GUIBase):
             self._mw.action_toggle_cw.setChecked(False)
             ##
             self._mw.exp_time_SpinBox.setEnabled(True)
+            self._mw.rescomboBox.setEnabled(True)
 
         # Unblock signal firing
         self._mw.action_run_stop.blockSignals(False)
@@ -879,10 +882,16 @@ class ODMRGui(GUIBase):
 
     def change_exp_time(self):
         """ Change exp. time of each frame in ms, also control clock frequency """
+        exp_res_dict = {0: 1000., 1: 1000000.}
+        cur_res_index = self._mw.rescomboBox.currentIndex()
+        if cur_res_index == 1:
+            self._mw.exp_time_SpinBox.setMaximum(10000000)
+        else:
+            self._mw.exp_time_SpinBox.setMaximum(10000)
         exp_time = self._mw.exp_time_SpinBox.value()
         self._sd.clock_frequency_DoubleSpinBox.setValue(
-            1. / ((exp_time / 1000.) + 0.2))
-        self.sigExpTimeChanged.emit(exp_time)
+            1. / ((exp_time / exp_res_dict[cur_res_index]) + 0.2))
+        self.sigExpTimeChanged.emit(exp_time, cur_res_index)
         return
 
     def save_data(self):

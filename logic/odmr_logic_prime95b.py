@@ -305,7 +305,8 @@ class ODMRLogic(GenericLogic):
         # checks if scanner is still running
         if self.module_state() != 'locked' and isinstance(clock_frequency, (int, float)):
             ##self.clock_frequency = int(clock_frequency)
-            self.clock_frequency = 1. / ((self.exp_time / 1000.) + 0.2)
+            exp_res_dict = {0: 1000., 1: 1000000.}
+            self.clock_frequency = 1. / ((self.exp_time / exp_res_dict[self._camera.get_exposure_resolution()]) + 0.2)
         else:
             self.log.warning(
                 'set_clock_frequency failed. Logic is either locked or input value is '
@@ -604,16 +605,18 @@ class ODMRLogic(GenericLogic):
         self.sigOutputStateUpdated.emit(mode, is_running)
         return mode, is_running
 
-    def set_exp_time(self, exp):
+    def set_exp_time(self, exp, cur_res_index):
         '''Exp time in mseconds in set from the GUI and updated for the cam class as well as in the variable
         in the ODMR logic class. The clock frequency variable is updated as well since it depends on the exp
         time of the camera.
 
         @param int: exp ~ 1ms - 10000ms
         '''
+        self._camera.set_exposure_resolution(cur_res_index)
         self._camera.set_exposure(exp)
         self.exp_time = exp
-        self.clock_frequency = 1. / ((exp / 1000.) + 0.2)
+        exp_res_dict = {0: 1000., 1: 1000000.}
+        self.clock_frequency = 1. / ((exp / exp_res_dict[cur_res_index]) + 0.2)
 
     def _start_odmr_counter(self):
         """
