@@ -92,6 +92,8 @@ class NationalInstrumentsXSeries(Base, ODMRCounterInterface):
         self._oversampling = 0
         self._lock_in_active = False
         self._scanner_counter_channels = ['Prime95B']
+        self.pseudo_pulsed = False
+        self.duty_value = 1e-3
 
     def reset_hardware(self):
         """ Resets the NI hardware, so the connection is lost and other
@@ -302,7 +304,14 @@ class NationalInstrumentsXSeries(Base, ODMRCounterInterface):
                     'Another clock is already running, close this one first '
                     'in order to use it for your purpose!')
                 return -1
-
+        if self.pseudo_pulsed:
+            self.clock_duty = self.duty_value/(1/self._scanner_clock_frequency)/2
+            self.switch_duty = self.duty_value/(1/self._switch_clock_frequency)/2
+            self.switch_delay = 0
+        else:
+            self.clock_duty = 0.9998
+            self.switch_duty = 0.5
+            self.switch_delay = 0
         # Adjust the idle state if necessary
         my_idle = daq.DAQmx_Val_High if idle else daq.DAQmx_Val_Low
         try:
@@ -327,7 +336,7 @@ class NationalInstrumentsXSeries(Base, ODMRCounterInterface):
                 # initial delay
                 delay,
                 my_clock_frequency / 2,
-                0.5)
+                self.clock_duty)
 
             daq.DAQmxCfgImplicitTiming(
                 # Define task
@@ -388,12 +397,12 @@ class NationalInstrumentsXSeries(Base, ODMRCounterInterface):
                 daq.DAQmx_Val_Hz,  # The units in which to specify freq.
                 daq.DAQmx_Val_High,
                 # The resting state of the output terminal.
-                d,
+                self.switch_delay,
                 # The amount of time in seconds to wait before generating the
                 # first pulse.
                 self._switch_clock_frequency,
                 # The frequency at which to generate pulses.
-                duty_cycle,
+                self.switch_duty,
                 # The width of the pulse divided by the pulse period.
             )
 
@@ -416,6 +425,7 @@ class NationalInstrumentsXSeries(Base, ODMRCounterInterface):
             ##############################
             duty_cycle = 0.1
             d = (1. / self._cam_clock_frequency) / 4.
+            d = 0
             daq.DAQmxCreateTask('myCamTask', daq.byref(cam))
             # Create channel to generate digital pulses that freq and dutyCycle
             # define and adds the channel to the task
@@ -479,7 +489,7 @@ class NationalInstrumentsXSeries(Base, ODMRCounterInterface):
             clock_frequency=clock_frequency,
             clock_channel=clock_channel,
             scanner=True,
-            idle=False)
+            idle=True)
 
     def set_odmr_length(self, length=100):
         """ Sets up the trigger sequence for the ODMR and the triggered microwave.
