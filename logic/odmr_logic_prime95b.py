@@ -177,7 +177,7 @@ class ODMRLogic(GenericLogic):
     def sv_set_fits(self, val):
         # Setup fit container
         fc = self.fitlogic().make_fit_container('ODMR sum', '1d')
-        fc.set_units(['Hz', 'c'])
+        fc.set_units(['Hz', 'contrast'])
         if isinstance(val, dict) and len(val) > 0:
             fc.load_from_dict(val)
         else:
