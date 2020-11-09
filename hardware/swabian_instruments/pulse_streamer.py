@@ -48,6 +48,10 @@ class PulseStreamer(Base, PulserInterface):
 
     _pulsestreamer_ip = ConfigOption('pulsestreamer_ip', '192.168.1.100', missing='warn')
     _laser_channel = ConfigOption('laser_channel', 1, missing='warn')
+    _cam_channel = ConfigOption('cam_channel', 0, missing='warn')
+    _smiq_channel = ConfigOption('smiq_channel', 2, missing='warn')
+    _switch_channel = ConfigOption('switch_channel', 3, missing='warn')
+
     _uw_x_channel = ConfigOption('uw_x_channel', 3, missing='warn')
     _use_external_clock = ConfigOption('use_external_clock', False, missing='info')
     _external_clock_option = ConfigOption('external_clock_option', 0, missing='info')
@@ -223,12 +227,16 @@ class PulseStreamer(Base, PulserInterface):
         return constraints
 
     
-    def pulser_on(self):
+    def pulser_on(self, trigger=False):
         """ Switches the pulsing device on.
 
         @return int: error code (0:OK, -1:error)
         """
         if self._seq:
+            if trigger:
+                self.pulse_streamer.setTrigger(start=ps.TriggerStart.HARDWARE_RISING)
+            else:
+                self.pulse_streamer.setTrigger(start=ps.TriggerStart.SOFTWARE)
             self.pulse_streamer.stream(self._seq)
             self.pulse_streamer.startNow()
             self.__current_status = 1
@@ -770,3 +778,22 @@ class PulseStreamer(Base, PulserInterface):
         @return: bool, True for yes, False for no.
         """
         return False
+
+    def set_up_odmr_clock(self, clock_frequency, no_x):
+        """Sets up an ODMR clock for the contrast ODMR measurement using Prime95B ODMR logic.
+        """
+        exp_time = (1/clock_frequency)*1e9
+        cam_patt = [(exp_time, 1), (2e6, 0), (exp_time, 1)]
+        smiq_patt = [(exp_time, 1), (2e6, 0), (exp_time, 0)]
+        switch_patt = [(exp_time, 1), (2e6, 0), (exp_time, 0)]
+        laser_patt = [(exp_time, 1), (2e6, 0), (exp_time, 1)]
+
+        self._seq = self.pulse_streamer.createSequence()
+        self._seq.setDigital(self._cam_channel, cam_patt)
+        self._seq.setDigital(self._smiq_channel, smiq_patt)
+        self._seq.setDigital(self._switch_channel, switch_patt)
+        self._seq.setDigital(self._laser_channel, laser_patt)
+
+        self._seq = self._seq * no_x
+
+        return 0
