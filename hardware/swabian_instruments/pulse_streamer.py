@@ -52,7 +52,6 @@ class PulseStreamer(Base, PulserInterface):
     _smiq_channel = ConfigOption('smiq_channel', 2, missing='warn')
     _switch_channel = ConfigOption('switch_channel', 3, missing='warn')
 
-    _uw_x_channel = ConfigOption('uw_x_channel', 3, missing='warn')
     _use_external_clock = ConfigOption('use_external_clock', False, missing='info')
     _external_clock_option = ConfigOption('external_clock_option', 0, missing='info')
     # 0: Internal (default), 1: External 125 MHz, 2: External 10 MHz
@@ -69,7 +68,7 @@ class PulseStreamer(Base, PulserInterface):
         self.__currently_loaded_waveform = ''  # loaded and armed waveform name
         self.__samples_written = 0
         self._trigger = ps.TriggerStart.SOFTWARE
-        self._laser_mw_on_state = ps.OutputState([self._laser_channel, self._uw_x_channel], 0, 0)
+        self._laser_mw_on_state = ps.OutputState([self._laser_channel], 0, 0)
 
     def on_activate(self):
         """ Establish connection to pulse streamer and tell it to cancel all operations """
