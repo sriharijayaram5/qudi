@@ -66,6 +66,7 @@ class Prime95B(Base, CameraInterface):
         self._live = False
         self.cam.speed_table_index = 1 #16 bit mode
         self.cam.exp_out_mode = 2 #Any row expose out mode
+        self.cam.clear_mode = 3 #Post-sequence expose out mode
 
     def on_deactivate(self):
         """ Deinitialisation performed during deactivation of the module.

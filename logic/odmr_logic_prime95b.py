@@ -58,7 +58,7 @@ class ODMRLogic(GenericLogic):
     # milliseconds.
     f = 1
     exp_time = StatusVar('exp_time', f)
-    clock_frequency = StatusVar('clock_frequency', 1. / ((f / 1000.) + 0.2))
+    clock_frequency = StatusVar('clock_frequency', 1. / ((f / 1000.) + 0.0))
     cw_mw_frequency = StatusVar('cw_mw_frequency', 2870e6)
     cw_mw_power = StatusVar('cw_mw_power', -30)
     sweep_mw_power = StatusVar('sweep_mw_power', -30)
@@ -108,8 +108,8 @@ class ODMRLogic(GenericLogic):
         self.mw_start = limits.frequency_in_range(self.mw_start)
         self.mw_stop = limits.frequency_in_range(self.mw_stop)
         self.mw_step = limits.list_step_in_range(self.mw_step)
-        self._odmr_counter.oversampling = self._oversampling
-        self._odmr_counter.lock_in_active = self._lock_in_active
+        # self._odmr_counter.oversampling = self._oversampling
+        # self._odmr_counter.lock_in_active = self._lock_in_active
 
         # Set the trigger polarity (RISING/FALLING) of the mw-source input trigger
         # theoretically this can be changed, but the current counting scheme
@@ -306,7 +306,7 @@ class ODMRLogic(GenericLogic):
         if self.module_state() != 'locked' and isinstance(clock_frequency, (int, float)):
             ##self.clock_frequency = int(clock_frequency)
             exp_res_dict = {0: 1000., 1: 1000000.}
-            self.clock_frequency = 1. / ((self.exp_time / exp_res_dict[self._camera.get_exposure_resolution()]) + 0.2)
+            self.clock_frequency = 1. / ((self.exp_time / exp_res_dict[self._camera.get_exposure_resolution()]) + 0.0)
         else:
             self.log.warning(
                 'set_clock_frequency failed. Logic is either locked or input value is '
@@ -330,7 +330,7 @@ class ODMRLogic(GenericLogic):
         # checks if scanner is still running
         if self.module_state() != 'locked' and isinstance(oversampling, (int, float)):
             self._oversampling = int(oversampling)
-            self._odmr_counter.oversampling = self._oversampling
+            # self._odmr_counter.oversampling = self._oversampling
         else:
             self.log.warning(
                 'setter of oversampling failed. Logic is either locked or input value is '
@@ -357,7 +357,7 @@ class ODMRLogic(GenericLogic):
         # checks if scanner is still running
         if self.module_state() != 'locked' and isinstance(active, bool):
             self._lock_in_active = active
-            self._odmr_counter.lock_in_active = self._lock_in_active
+            # self._odmr_counter.lock_in_active = self._lock_in_active
         else:
             self.log.warning(
                 'setter of lock in failed. Logic is either locked or input value is no boolean.')
@@ -616,7 +616,7 @@ class ODMRLogic(GenericLogic):
         self._camera.set_exposure(exp)
         self.exp_time = exp
         exp_res_dict = {0: 1000., 1: 1000000.}
-        self.clock_frequency = 1. / ((exp / exp_res_dict[cur_res_index]) + 0.2)
+        self.clock_frequency = 1. / ((exp / exp_res_dict[cur_res_index]) + 0.0)
 
     def _start_odmr_counter(self):
         """
@@ -628,7 +628,7 @@ class ODMRLogic(GenericLogic):
         """
 
         clock_status = self._odmr_counter.set_up_odmr_clock(
-            clock_frequency=self.clock_frequency)
+            clock_frequency=self.clock_frequency, no_x=self.odmr_plot_x.size)
         # Seting exposure mode on camera via logic "Ext Trig Internal"
         # self._camera.set_trigger_seq("Ext Trig Internal")
         self._camera.set_trigger_seq("Ext Trig Edge Rising")
@@ -653,12 +653,12 @@ class ODMRLogic(GenericLogic):
         ret_val1 = self._odmr_counter.close_odmr()
         if ret_val1 != 0:
             self.log.error('ODMR counter could not be stopped!')
-        ret_val2 = self._odmr_counter.close_odmr_clock()
-        if ret_val2 != 0:
-            self.log.error('ODMR clock could not be stopped!')
-
+        # ret_val2 = self._odmr_counter.close_odmr_clock()
+        # if ret_val2 != 0:
+        #     self.log.error('ODMR clock could not be stopped!')
+        
         # Check with a bitwise or:
-        return ret_val1 | ret_val2
+        return ret_val1
 
     def start_odmr_scan(self):
         """ Starting an ODMR scan.
@@ -693,7 +693,7 @@ class ODMRLogic(GenericLogic):
 
             mode, is_running = self.mw_sweep_on()
             if not is_running:
-                # self._stop_odmr_counter()
+                self._stop_odmr_counter()
                 self.module_state.unlock()
                 return -1
 
@@ -749,7 +749,7 @@ class ODMRLogic(GenericLogic):
 
             mode, is_running = self.mw_sweep_on()
             if not is_running:
-                # self._stop_odmr_counter()
+                self._stop_odmr_counter()
                 self.module_state.unlock()
                 return -1
 
@@ -814,7 +814,7 @@ class ODMRLogic(GenericLogic):
             error, new_counts = self._odmr_counter.count_odmr(
                 length=self.odmr_plot_x.size)
             self._camera.start_trigger_seq(self.odmr_plot_x.size * 2)
-            self._odmr_counter.stop_tasks()
+            # self._odmr_counter.stop_tasks()
             # The collected frames are then acquired by the logic here from cam logic Should consider memory issues
             # for the future.
             frames = self._camera.get_last_image()
@@ -829,7 +829,7 @@ class ODMRLogic(GenericLogic):
             self.sweep_images += new_counts
             new_counts = np.mean(new_counts, axis=(1, 2))
 
-            if error:
+            if error==-1:
                 self.stopRequested = True
                 self.sigNextLine.emit()
                 return
@@ -893,7 +893,7 @@ class ODMRLogic(GenericLogic):
             return
 
     def get_odmr_channels(self):
-        return self._odmr_counter.get_odmr_channels()
+        return 'Prime95B'
 
     def get_hw_constraints(self):
         """ Return the names of all ocnfigured fit functions.
