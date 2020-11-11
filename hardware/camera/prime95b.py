@@ -28,7 +28,8 @@ from core.module import Base
 from core.configoption import ConfigOption
 
 from interface.camera_interface import CameraInterface
-from interface.odmr_counter_interface import ODMRCounterInterface
+# from interface.odmr_counter_interface import ODMRCounterInterface
+from interface.fast_counter_interface import FastCounterInterface
 
 # Python wrapper for wrapping over the PVCAM SDK. Functions can be found
 # in PyVCAM/camera.py
@@ -38,7 +39,7 @@ from pyvcam.camera import Camera
 from pyvcam import constants as const
 
 
-class Prime95B(Base, CameraInterface):
+class Prime95B(Base, CameraInterface, FastCounterInterface):
     """ Hardware class for Prime95B
 
     Example config for copy-paste:
@@ -232,7 +233,7 @@ class Prime95B(Base, CameraInterface):
             return True
         else:
             return False
-    def set_exposure_mode(self, exp_mode):
+def set_exposure_mode(self, exp_mode):
         '''Sets the exposure to exp_mode passed. Determines trigger behaviour. See constants.py for
         allowed values
 
@@ -283,4 +284,174 @@ class Prime95B(Base, CameraInterface):
             self.frames = self.cam.get_sequence(num_frames)
             return self.frames
         else:
-            return False
+            return 
+    
+    def get_constraints(self):
+        """ Retrieve the hardware constrains from the Fast counting device.
+
+        @return dict: dict with keys being the constraint names as string and
+                      items are the definition for the constaints.
+
+         The keys of the returned dictionary are the str name for the constraints
+        (which are set in this method).
+
+                    NO OTHER KEYS SHOULD BE INVENTED!
+
+        If you are not sure about the meaning, look in other hardware files to
+        get an impression. If still additional constraints are needed, then they
+        have to be added to all files containing this interface.
+
+        The items of the keys are again dictionaries which have the generic
+        dictionary form:
+            {'min': <value>,
+             'max': <value>,
+             'step': <value>,
+             'unit': '<value>'}
+
+        Only the key 'hardware_binwidth_list' differs, since they
+        contain the list of possible binwidths.
+
+        If the constraints cannot be set in the fast counting hardware then
+        write just zero to each key of the generic dicts.
+        Note that there is a difference between float input (0.0) and
+        integer input (0), because some logic modules might rely on that
+        distinction.
+
+        ALL THE PRESENT KEYS OF THE CONSTRAINTS DICT MUST BE ASSIGNED!
+
+        # Example for configuration with default values:
+
+        constraints = dict()
+
+        # the unit of those entries are seconds per bin. In order to get the
+        # current binwidth in seonds use the get_binwidth method.
+        constraints['hardware_binwidth_list'] = []
+
+        """
+        constraints = dict()
+
+        # the unit of those entries are seconds per bin. In order to get the
+        # current binwidth in seonds use the get_binwidth method.
+        constraints['hardware_binwidth_list'] = [1 / 1e6]
+
+        # TODO: think maybe about a software_binwidth_list, which will
+        #      postprocess the obtained counts. These bins must be integer
+        #      multiples of the current hardware_binwidth
+
+        return constraints
+
+    
+    def configure(self, bin_width_s, record_length_s, number_of_gates=0):
+        """ Configuration of the fast counter.
+
+        @param float bin_width_s: Length of a single time bin in the time
+                                  trace histogram in seconds.
+        @param float record_length_s: Total length of the timetrace/each
+                                      single gate in seconds.
+        @param int number_of_gates: optional, number of gates in the pulse
+                                    sequence. Ignore for not gated counter.
+
+        @return tuple(binwidth_s, record_length_s, number_of_gates):
+                    binwidth_s: float the actual set binwidth in seconds
+                    gate_length_s: the actual record length in seconds
+                    number_of_gates: the number of gated, which are accepted, None if not-gated
+        """
+        self.stop_acquisition()
+        mode = 'EXT_TRIG_LEVEL'
+        self.set_exposure_mode(mode)
+        mode = 0 #EXPOSE_OUT_FIRST_ROW check and set
+        self.cam.exp_out_mode = mode
+        
+        exp_res_dict = {0: 1000., 1: 1000000.}
+        self.set_exposure(bin_width_s * exp_res_dict[self.get_exp_res()])
+        if record_length_s != bin_width_s:
+            self.log.info('Bin not equal to record length. Camera cannot implement.')
+
+        self.number_of_gates = number_of_gates
+
+        return bin_width_s, record_length_s, None
+
+    
+    def get_status(self):
+        """ Receives the current status of the Fast Counter and outputs it as
+            return value.
+
+        0 = unconfigured
+        1 = idle
+        2 = running
+        3 = paused
+      -1 = error state
+        """
+        state = self.get_ready_state()
+        if state:
+            return 1
+        else:
+            return 2
+
+    
+    def start_measure(self):
+        """ Start the fast counter. """
+        return self.get_sequence(1) #For now take a single image
+
+    
+    def stop_measure(self):
+        """ Stop the fast counter. """
+        self.stop_acquisition()
+
+    
+    def pause_measure(self):
+        """ Pauses the current measurement.
+
+        Fast counter must be initially in the run state to make it pause.
+        """
+        self.stop_acquisition()
+
+    
+    def continue_measure(self):
+        """ Continues the current measurement.
+
+        If fast counter is in pause state, then fast counter will be continued.
+        """
+        pass
+
+    
+    def is_gated(self):
+        """ Check the gated counting possibility.
+
+        @return bool: Boolean value indicates if the fast counter is a gated
+                      counter (TRUE) or not (FALSE).
+        """
+        return False
+
+    
+    def get_binwidth(self):
+        """ Returns the width of a single timebin in the timetrace in seconds.
+
+        @return float: current length of a single bin in seconds (seconds/bin)
+        """
+        exp_res_dict = {0: 1000., 1: 1000000.}
+        return self.get_exposure() / exp_res_dict[self.get_exp_res()]
+
+    
+    def get_data_trace(self):
+        """ Polls the current timetrace data from the fast counter.
+
+        Return value is a numpy array (dtype = int64).
+        The binning, specified by calling configure() in forehand, must be
+        taken care of in this hardware class. A possible overflow of the
+        histogram bins must be caught here and taken care of.
+        If the counter is NOT GATED it will return a tuple (1D-numpy-array, info_dict) with
+            returnarray[timebin_index]
+        If the counter is GATED it will return a tuple (2D-numpy-array, info_dict) with
+            returnarray[gate_index, timebin_index]
+
+        info_dict is a dictionary with keys :
+            - 'elapsed_sweeps' : the elapsed number of sweeps
+            - 'elapsed_time' : the elapsed time in seconds
+
+        If the hardware does not support these features, the values should be None
+        """
+        info_dict = {'elapsed_sweeps': None,
+                     'elapsed_time': None}  # TODO : implement that according to hardware capabilities
+        frame_data = np.mean(self.frames)
+        return np.array(frame_data, dtype='int64'), info_dict
