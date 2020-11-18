@@ -113,6 +113,8 @@ class PulsedMeasurementLogic(GenericLogic):
     sigStartTimer = QtCore.Signal()
     sigStopTimer = QtCore.Signal()
 
+    sigStartSequence = QtCore.Signal()
+
     def __init__(self, config, **kwargs):
         super().__init__(config=config, **kwargs)
 
@@ -211,6 +213,7 @@ class PulsedMeasurementLogic(GenericLogic):
         # Connect internal signals
         self.sigStartTimer.connect(self.__analysis_timer.start, QtCore.Qt.QueuedConnection)
         self.sigStopTimer.connect(self.__analysis_timer.stop, QtCore.Qt.QueuedConnection)
+        self.sigStartSequence.connect(self.do_camera_seq_loop, QtCore.Qt.QueuedConnection)
         return
 
     def on_deactivate(self):
@@ -331,6 +334,7 @@ class PulsedMeasurementLogic(GenericLogic):
 
         @return int: error code (0:OK, -1:error)
         """
+        self._stop_requested = True
         return self.fastcounter().pause_measure()
 
     def fast_counter_continue(self):
@@ -479,7 +483,7 @@ class PulsedMeasurementLogic(GenericLogic):
     def pulse_generator_on(self):
         """Switching on the pulse generator. """
         # self.pulsegenerator().pulse_streamer.setTrigger(start=ps.TriggerStart.HARDWARE_RISING)
-        err = self.pulsegenerator().pulser_on(trigger=True, laser=False, n=1)
+        err = self.pulsegenerator().pulser_on(trigger=True, laser=False, n=-1)
         if err < 0:
             self.log.error('Failed to turn on pulse generator output.')
             self.sigPulserRunningUpdated.emit(False)
@@ -796,7 +800,7 @@ class PulsedMeasurementLogic(GenericLogic):
                 # start pulse generator
                 self.pulse_generator_on()
                 # start fast counter
-                self.fast_counter_on()
+                # self.fast_counter_on()
 
                 # initialize analysis_timer
                 self.__elapsed_time = 0.0
@@ -811,9 +815,20 @@ class PulsedMeasurementLogic(GenericLogic):
 
                 # Set measurement paused flag
                 self.__is_paused = False
+                self._stop_requested = False
+                self.sigStartSequence.emit()
             else:
                 self.log.warning('Unable to start pulsed measurement. Measurement already running.')
         return
+    
+    def do_camera_seq_loop(self):
+
+        if not self._stop_requested:
+            self.fast_counter_on()          
+            self.sigStartSequence.emit()
+        else:
+            self._stop_requested = False
+        return 0
 
     @QtCore.Slot(str)
     def stop_pulsed_measurement(self, stash_raw_data_tag=''):
@@ -821,6 +836,7 @@ class PulsedMeasurementLogic(GenericLogic):
         Stop the measurement
         """
         # Get raw data and analyze it a last time just before stopping the measurement.
+        self._stop_requested = True
         try:
             self._pulsed_analysis_loop()
         except:
@@ -831,6 +847,7 @@ class PulsedMeasurementLogic(GenericLogic):
                 # stopping the timer
                 self.sigStopTimer.emit()
                 # Turn off fast counter
+                self._stop_requested = True
                 self.fast_counter_off()
                 self.fastcounter().pulsed_done()
                 # Turn off pulse generator
@@ -903,7 +920,7 @@ class PulsedMeasurementLogic(GenericLogic):
                 if self.__use_ext_microwave:
                     self.microwave_on()
                 self.pulse_generator_on()
-                self.fast_counter_continue()
+                # self.fast_counter_continue()
                 
                 # un-pausing the timer
                 if not self.__analysis_timer.isActive():
@@ -914,6 +931,8 @@ class PulsedMeasurementLogic(GenericLogic):
                 self.__start_time += time.time() - self._time_of_pause
 
                 self.sigMeasurementStatusUpdated.emit(True, False)
+                self._stop_requested = False
+                self.sigStartSequence.emit()
             else:
                 self.log.warning('Unable to continue pulsed measurement. No measurement running.')
                 self.sigMeasurementStatusUpdated.emit(False, False)
