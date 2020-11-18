@@ -68,6 +68,10 @@ class Prime95B(Base, CameraInterface, FastCounterInterface):
         self.cam.speed_table_index = 1 #16 bit mode
         self.cam.exp_out_mode = 2 #Any row expose out mode
         self.cam.clear_mode = 3 #Post-sequence expose out mode
+        #For pulsed
+        self._number_of_gates = int(0)
+        self._bin_width = 1
+        self._record_length = int(1)
 
     def on_deactivate(self):
         """ Deinitialisation performed during deactivation of the module.
@@ -233,15 +237,16 @@ class Prime95B(Base, CameraInterface, FastCounterInterface):
             return True
         else:
             return False
-def set_exposure_mode(self, exp_mode):
-        '''Sets the exposure to exp_mode passed. Determines trigger behaviour. See constants.py for
-        allowed values
 
-        @param exp_mode str: string which is the key to the exposure mode dict in constants.py
-        @return bool: always True
-        '''
-        self.cam.exp_mode = exp_mode
-        return True
+    def set_exposure_mode(self, exp_mode):
+            '''Sets the exposure to exp_mode passed. Determines trigger behaviour. See constants.py for
+            allowed values
+
+            @param exp_mode str: string which is the key to the exposure mode dict in constants.py
+            @return bool: always True
+            '''
+            self.cam.exp_mode = exp_mode
+            return True
 
     def get_exposure_mode(self):
         '''Returns the current exposure mode of the cammera.
@@ -340,6 +345,17 @@ def set_exposure_mode(self, exp_mode):
 
         return constraints
 
+    def ready_pulsed(self):
+        self.stop_acquisition()
+        self.set_exposure_mode("Ext Trig Edge Rising")
+        mode = 1 #EXPOSE_OUT_ALL_ROWS
+        self.cam.exp_out_mode = mode
+    
+    def pulsed_done(self):
+        self.stop_acquisition()
+        self.set_exposure_mode("Ext Trig Internal")
+        mode = 2 #EXPOSE_OUT_ANY_ROWS
+        self.cam.exp_out_mode = mode
     
     def configure(self, bin_width_s, record_length_s, number_of_gates=0):
         """ Configuration of the fast counter.
@@ -356,20 +372,15 @@ def set_exposure_mode(self, exp_mode):
                     gate_length_s: the actual record length in seconds
                     number_of_gates: the number of gated, which are accepted, None if not-gated
         """
-        self.stop_acquisition()
-        mode = 'EXT_TRIG_LEVEL'
-        self.set_exposure_mode(mode)
-        mode = 0 #EXPOSE_OUT_FIRST_ROW check and set
-        self.cam.exp_out_mode = mode
-        
-        exp_res_dict = {0: 1000., 1: 1000000.}
-        self.set_exposure(bin_width_s * exp_res_dict[self.get_exp_res()])
+        # exp_res_dict = {0: 1000., 1: 1000000.}
+        # self.set_exposure(bin_width_s * exp_res_dict[self.get_exp_res()])
         if record_length_s != bin_width_s:
             self.log.info('Bin not equal to record length. Camera cannot implement.')
 
-        self.number_of_gates = number_of_gates
+        self._number_of_gates = number_of_gates
+        self._bin_width_s = bin_width_s
 
-        return bin_width_s, record_length_s, None
+        return 1, 1, number_of_gates
 
     
     def get_status(self):
@@ -389,14 +400,20 @@ def set_exposure_mode(self, exp_mode):
             return 2
 
     
-    def start_measure(self):
+    def start_measure(self, no_of_laser_pulses):
         """ Start the fast counter. """
-        return self.get_sequence(1) #For now take a single image
+        self.ready_pulsed()
+        print('here at start measure', no_of_laser_pulses)
+        self.get_sequence(no_of_laser_pulses)
+        print('here at measure end', no_of_laser_pulses)
+        return 0
 
     
     def stop_measure(self):
         """ Stop the fast counter. """
         self.stop_acquisition()
+        self.pulsed_done()
+        return 0
 
     
     def pause_measure(self):
@@ -407,12 +424,12 @@ def set_exposure_mode(self, exp_mode):
         self.stop_acquisition()
 
     
-    def continue_measure(self):
+    def continue_measure(self, no_of_laser_pulses):
         """ Continues the current measurement.
 
         If fast counter is in pause state, then fast counter will be continued.
         """
-        pass
+        return self.start_measure(no_of_laser_pulses)
 
     
     def is_gated(self):
@@ -453,5 +470,5 @@ def set_exposure_mode(self, exp_mode):
         """
         info_dict = {'elapsed_sweeps': None,
                      'elapsed_time': None}  # TODO : implement that according to hardware capabilities
-        frame_data = np.mean(self.frames)
-        return np.array(frame_data, dtype='int64'), info_dict
+        frame_data = np.mean(self.frames, axis=(1,2))
+        return np.array(frame_data, dtype='float32'), info_dict

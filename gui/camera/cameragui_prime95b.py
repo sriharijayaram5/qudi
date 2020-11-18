@@ -102,6 +102,7 @@ class CameraGUI(GUIBase):
         self._mw.centralwidget.hide()
         self._mw.setDockNestingEnabled(True)
         self.initSettingsUI()
+        self._sd.exposureDSpinBox.setDecimals(5)
 
         self._mw.start_video_Action.setEnabled(True)
         self._mw.start_video_Action.setChecked(self._logic.enabled)
@@ -244,9 +245,9 @@ class CameraGUI(GUIBase):
         self._sd.exposureDSpinBox.setValue(self._logic._exposure)
         self._sd.gainSpinBox.setValue(self._logic._gain)
         if self._sd.rescomboBox.currentIndex() == 0:
-            self._sd.exposureDSpinBox.setMaximum(10000)
-        else:
             self._sd.exposureDSpinBox.setMaximum(10000000)
+        else:
+            self._sd.exposureDSpinBox.setMaximum(1000000000)
 
     def menu_settings(self):
         """ This method opens the settings menu. """

@@ -229,7 +229,7 @@ class PulseStreamer(Base, PulserInterface, ODMRCounterInterface):
         return constraints
 
     
-    def pulser_on(self, trigger=False, laser=False):
+    def pulser_on(self, trigger=False, laser=False, n=-1):
         """ Switches the pulsing device on.
 
         @return int: error code (0:OK, -1:error)
@@ -239,7 +239,7 @@ class PulseStreamer(Base, PulserInterface, ODMRCounterInterface):
                 self.pulse_streamer.setTrigger(start=ps.TriggerStart.HARDWARE_RISING)
             else:
                 self.pulse_streamer.setTrigger(start=ps.TriggerStart.SOFTWARE)
-            self.pulse_streamer.stream(self._seq)
+            self.pulse_streamer.stream(self._seq, n_runs = n)
             self.pulse_streamer.startNow()
             self.__current_status = 1
             return 0
