@@ -846,7 +846,7 @@ class PulsedMeasurementLogic(GenericLogic):
         try:
             self._pulsed_analysis_loop()
         except:
-            pass
+            self.log.debug('Pulsed analysis loop failed')
 
         with self._threadlock:
             if self.module_state() == 'locked':
@@ -1195,7 +1195,7 @@ class PulsedMeasurementLogic(GenericLogic):
         if self.laser_data.any():
             tmp_signal, tmp_error = self._pulseanalyzer.analyse_laser_pulses(
                 self.laser_data)
-            print('laser data any success', tmp_signal)
+            # print('Analyzed data: ', tmp_signal)
         else:
             tmp_signal = np.zeros(self.laser_data.shape[0])
             tmp_error = np.zeros(self.laser_data.shape[0])

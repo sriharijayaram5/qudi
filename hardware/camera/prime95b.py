@@ -72,6 +72,7 @@ class Prime95B(Base, CameraInterface, FastCounterInterface):
         self._number_of_gates = int(0)
         self._bin_width = 1
         self._record_length = int(1)
+        self.pulsed_frames = None
 
     def on_deactivate(self):
         """ Deinitialisation performed during deactivation of the module.
@@ -345,19 +346,22 @@ class Prime95B(Base, CameraInterface, FastCounterInterface):
 
         return constraints
 
-    def ready_pulsed(self):
+    def ready_pulsed(self, no_of_laser_pulses):
         self.stop_acquisition()
         # self.set_exposure_mode("Ext Trig Edge Rising")
         self.set_exposure_mode("Ext Trig Level")
         mode = 1 #EXPOSE_OUT_ALL_ROWS
         mode = 3 #MAX
         self.cam.exp_out_mode = mode
+        if self.pulsed_frames is None:
+            self.pulsed_frames = np.zeros(no_of_laser_pulses, dtype='float32')
     
     def pulsed_done(self):
         self.stop_acquisition()
         self.set_exposure_mode("Ext Trig Internal")
         mode = 2 #EXPOSE_OUT_ANY_ROWS
         self.cam.exp_out_mode = mode
+        self.pulsed_frames = None
     
     def configure(self, bin_width_s, record_length_s, number_of_gates=0):
         """ Configuration of the fast counter.
@@ -404,10 +408,10 @@ class Prime95B(Base, CameraInterface, FastCounterInterface):
     
     def start_measure(self, no_of_laser_pulses):
         """ Start the fast counter. """
-        self.ready_pulsed()
-        print('here at start measure', no_of_laser_pulses)
+        self.ready_pulsed(no_of_laser_pulses)
         self.get_sequence(no_of_laser_pulses)
-        print('here at measure end', no_of_laser_pulses)
+        frame_data = np.mean(self.frames, axis=(1,2))
+        self.pulsed_frames += frame_data
         return 0
 
     
@@ -472,5 +476,4 @@ class Prime95B(Base, CameraInterface, FastCounterInterface):
         """
         info_dict = {'elapsed_sweeps': None,
                      'elapsed_time': None}  # TODO : implement that according to hardware capabilities
-        frame_data = np.mean(self.frames, axis=(1,2))
-        return np.array(frame_data, dtype='float32'), info_dict
+        return np.array(self.pulsed_frames, dtype='float32'), info_dict
