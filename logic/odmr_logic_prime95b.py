@@ -893,7 +893,7 @@ class ODMRLogic(GenericLogic):
             return
 
     def get_odmr_channels(self):
-        return 'Prime95B'
+        return ['Prime95B']
 
     def get_hw_constraints(self):
         """ Return the names of all ocnfigured fit functions.
