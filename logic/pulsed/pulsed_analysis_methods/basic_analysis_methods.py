@@ -113,7 +113,7 @@ class BasicPulseAnalyzer(PulseAnalyzerBase):
         # loop over all laser pulses and analyze them
         for ii, laser_arr in enumerate(laser_data):
             # calculate the sum of the data in the signal window
-            signal = laser_arr[signal_start_bin:signal_end_bin].sum()
+            signal = laser_arr[:].sum()
             signal_error = np.sqrt(signal)
 
             # Avoid numpy C type variables overflow and NaN values
@@ -140,6 +140,7 @@ class BasicPulseAnalyzer(PulseAnalyzerBase):
         bin_width = self.fast_counter_settings.get('bin_width')
 
         if not isinstance(bin_width, float):
+            self.log.debug(f'Bin width not a float: {bin_width}')
             return np.zeros(num_of_lasers), np.zeros(num_of_lasers)
 
         # Convert the times in seconds to bins (i.e. array indices)
@@ -153,9 +154,9 @@ class BasicPulseAnalyzer(PulseAnalyzerBase):
         # loop over all laser pulses and analyze them
         for ii, laser_arr in enumerate(laser_data):
             # calculate the mean of the data in the signal window
-            signal = laser_arr[signal_start_bin:signal_end_bin].mean()
-            signal_sum = laser_arr[signal_start_bin:signal_end_bin].sum()
-            signal_error = np.sqrt(signal_sum) / (signal_end_bin - signal_start_bin)
+            signal = laser_arr[:].mean()
+            signal_sum = laser_arr[:].sum()
+            signal_error = np.sqrt(signal_sum)# / (signal_end_bin - signal_start_bin)
 
             # Avoid numpy C type variables overflow and NaN values
             if signal < 0 or signal != signal:
