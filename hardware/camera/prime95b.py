@@ -347,8 +347,10 @@ class Prime95B(Base, CameraInterface, FastCounterInterface):
 
     def ready_pulsed(self):
         self.stop_acquisition()
-        self.set_exposure_mode("Ext Trig Edge Rising")
+        # self.set_exposure_mode("Ext Trig Edge Rising")
+        self.set_exposure_mode("Ext Trig Level")
         mode = 1 #EXPOSE_OUT_ALL_ROWS
+        mode = 3 #MAX
         self.cam.exp_out_mode = mode
     
     def pulsed_done(self):

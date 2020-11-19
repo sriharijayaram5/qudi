@@ -483,7 +483,7 @@ class PulsedMeasurementLogic(GenericLogic):
     def pulse_generator_on(self):
         """Switching on the pulse generator. """
         # self.pulsegenerator().pulse_streamer.setTrigger(start=ps.TriggerStart.HARDWARE_RISING)
-        err = self.pulsegenerator().pulser_on(trigger=True, laser=False, n=-1)
+        err = self.pulsegenerator().pulser_on(trigger=True, laser=False, n=1, rearm=False)
         if err < 0:
             self.log.error('Failed to turn on pulse generator output.')
             self.sigPulserRunningUpdated.emit(False)
@@ -493,7 +493,7 @@ class PulsedMeasurementLogic(GenericLogic):
 
     def pulse_generator_off(self):
         """Switching off the pulse generator. """
-        self.pulsegenerator().pulse_streamer.setTrigger(start=ps.TriggerStart.SOFTWARE)
+        # self.pulsegenerator().pulse_streamer.setTrigger(start=ps.TriggerStart.SOFTWARE)
         err = self.pulsegenerator().pulser_off()
         if err < 0:
             self.log.error('Failed to turn off pulse generator output.')
@@ -798,7 +798,7 @@ class PulsedMeasurementLogic(GenericLogic):
                 if self.__use_ext_microwave:
                     self.microwave_on()
                 # start pulse generator
-                self.pulse_generator_on()
+                # self.pulse_generator_on()
                 # start fast counter
                 # self.fast_counter_on()
 
@@ -822,9 +822,15 @@ class PulsedMeasurementLogic(GenericLogic):
         return
     
     def do_camera_seq_loop(self):
+        """
+        Called from start or continue measurement. Call the camera get sequence in a loop to continuously collect data until stop requested.
+        """
 
         if not self._stop_requested:
+            # self.pulsegenerator().pulse_streamer.rearm()
+            self.pulse_generator_on()
             self.fast_counter_on()          
+            # self.pulsegenerator().pulse_streamer.forceFinal()
             self.sigStartSequence.emit()
         else:
             self._stop_requested = False
@@ -919,7 +925,7 @@ class PulsedMeasurementLogic(GenericLogic):
             if self.module_state() == 'locked':
                 if self.__use_ext_microwave:
                     self.microwave_on()
-                self.pulse_generator_on()
+                # self.pulse_generator_on()
                 # self.fast_counter_continue()
                 
                 # un-pausing the timer
