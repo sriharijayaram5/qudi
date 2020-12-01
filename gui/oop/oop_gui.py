@@ -604,10 +604,10 @@ class OOPGui(GUIBase):
         """
         laser_state = self._oop_logic.get_laser_state()
         if laser_state == LaserState.ON:
-            self._mw.laser_ON_Action.setEnabled(False)
+            self._mw.laser_ON_Action.setEnabled(True)
             self._mw.laser_OFF_Action.setEnabled(True)
         elif self._oop_logic.get_laser_state() == LaserState.OFF:
-            self._mw.laser_OFF_Action.setEnabled(False)
+            self._mw.laser_OFF_Action.setEnabled(True)
             self._mw.laser_ON_Action.setEnabled(True)
         else:
             self._mw.laser_ON_Action.setText('Laser: ?')
