@@ -129,18 +129,18 @@ else:
 
 # Install the pyzmq ioloop. This has to be done before anything else from
 # tornado is imported.
-try:
-    from zmq.eventloop import ioloop
-    ioloop.install()
+#try:
+#     from zmq.eventloop import ioloop
+#     ioloop.install()
 
-    # The previous command is deprecated and no event loop is required for the 
-    # startup. Consider either to use this, or to remove the event loop 
-    # installation completely. 
-    # import zmq.asyncio
-    # zmq.asyncio.install()
+#     # The previous command is deprecated and no event loop is required for the 
+#     # startup. Consider either to use this, or to remove the event loop 
+#     # installation completely. 
+#     # import zmq.asyncio
+#     # zmq.asyncio.install()
 
-except:
-    logger.error('Preparing ZMQ failed, probably no IPython possible!')
+# except:
+#     logger.error('Preparing ZMQ failed, probably no IPython possible!')
 
 
 # Disable standard garbage collector and run it from the event loop to
