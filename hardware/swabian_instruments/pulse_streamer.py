@@ -224,6 +224,7 @@ class PulseStreamer(Base, PulserInterface, ODMRCounterInterface):
         # names should be used. The names for the different configurations can be customary chosen.
         activation_config = OrderedDict()
         activation_config['all'] = frozenset({'d_ch1', 'd_ch2', 'd_ch3', 'd_ch4', 'd_ch5', 'd_ch6', 'd_ch7', 'd_ch8'})
+        activation_config['pulsed_1'] = frozenset({'d_ch1', 'd_ch2', 'd_ch3', 'd_ch4'})
         constraints.activation_config = activation_config
 
         return constraints
@@ -261,7 +262,7 @@ class PulseStreamer(Base, PulserInterface, ODMRCounterInterface):
         """
 
         self.__current_status = 0
-        self.pulse_streamer.constant(self._laser_mw_on_state)
+        self.pulse_streamer.constant(ps.OutputState([], 0, 0))
         return 0
 
     
@@ -615,8 +616,7 @@ class PulseStreamer(Base, PulserInterface, ODMRCounterInterface):
         digital channel 1. All other available channels will remain unchanged.
         """
         if ch is None:
-            ch = {}
-        d_ch_dict = {
+            d_ch_dict = {
             'd_ch1': True,
             'd_ch2': True,
             'd_ch3': True,
@@ -625,6 +625,8 @@ class PulseStreamer(Base, PulserInterface, ODMRCounterInterface):
             'd_ch6': True,
             'd_ch7': True,
             'd_ch8': True}
+        else:
+            d_ch_dict = ch
         return d_ch_dict
 
     
