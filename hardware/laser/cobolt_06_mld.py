@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Dummy implementation for simple data acquisition.
+Hardware module for communication with cobolt lasers.
 
 Qudi is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -215,11 +215,11 @@ class CoboltLaserMLD(Base, SimpleLaserInterface):
                 if self.mode.value == 3:
                     self._dev.enter_modulation_mode()
                     self._dev.set_analog_modulation(0)
-                    self._dev.set_digital_modulation(1)
+                    self._dev.set_digital_modulation(True)
 
                 if self.mode.value == 4:
                     self._dev.enter_modulation_mode()
-                    self._dev.set_digital_modulation(0)
+                    self._dev.set_digital_modulation(False)
                     self._dev.set_analog_modulation(1)
 
             else:
@@ -248,8 +248,13 @@ class CoboltLaserMLD(Base, SimpleLaserInterface):
         #self._dev.set_laser_output(LaserState.ON.value)
         #return self.get_laser_state()
 
-        self._dev.restart_laser()
-        self.set_control_mode(self.get_control_mode())
+        if self._dev.get_autostart():
+            self._dev.restart_laser()
+        else:
+            self._dev.set_laser_output(bool(LaserState.ON.value))
+        
+        #self.set_control_mode(self.get_control_mode())
+        #self.log.warning('The Laser state is OFF, because the Key switch trigger is required!')
         return self.get_laser_state()
 
     def off(self):
@@ -264,73 +269,42 @@ class CoboltLaserMLD(Base, SimpleLaserInterface):
 
     def get_laser_state(self):
         """ Get laser state.
+
         Specific for Cobolt_06_MLD due to some issues with the l? command.
         
         @return enum LaserState: laser state
         """
 
-        laser_output = self._dev.get_laser_output()
         laser_operating_mode = self._dev.get_operatingmode()
-        trials = 10
 
-        #For loop to make sure you get the correct value when asking for the 
-        #operating mode
-        for i in range(0,trials):
-            if laser_operating_mode == 'OK':
-                time.sleep(0.01)
-                laser_operating_mode = self._dev.get_operatingmode()
-            else:
-                break
+        if laser_operating_mode == 0:
+            self.lstate = LaserState.OFF
 
-        #For loop to make sure you get the correct value when asking for the 
-        #laser output value. 
-        for i in range(0,trials):
-            if laser_output == 'OK':
-                time.sleep(0.01)
-                laser_output = self._dev.get_laser_output()
-            else:
-                break
+        elif laser_operating_mode == 1:
+            self.log.warning('The Laser state is OFF, because the Key switch trigger is required!')
+            
+            self.lstate = LaserState.OFF
 
-        if laser_operating_mode == '0':
-            if laser_output == '0':
-                self.lstate = LaserState.OFF
-            else:
-                self.lstate = LaserState.OFF
-        elif laser_operating_mode == '1':
-            if laser_output == '0':
-                self.lstate = LaserState.OFF
-            else:
-                self.lstate = LaserState.OFF
-        elif laser_operating_mode == '2':
-            if laser_output == '0':
-                self.lstate = LaserState.ON
-            else:
-                self.lstate = LaserState.ON
-        elif laser_operating_mode == '3':
-            if laser_output == '0':
-                self.lstate = LaserState.ON
-            else:
-                self.lstate = LaserState.ON
-        elif laser_operating_mode == '4':
-            if laser_output == '0':
-                self.lstate = LaserState.ON
-            else:
-                self.lstate = LaserState.ON
-        elif laser_operating_mode == '5':
+        elif laser_operating_mode == 2:
+            self.lstate = LaserState.ON
+
+        elif laser_operating_mode == 3:
+            self.lstate = LaserState.ON
+
+        elif laser_operating_mode == 4:
+            self.lstate = LaserState.ON
+
+        elif laser_operating_mode == 5:
             self.log.warning('There is a fault in the laser, please check!')
-            if laser_output == '0':
-                self.lstate = LaserState.OFF
-            else:
-                self.lstate = LaserState.OFF
-        elif laser_operating_mode == '6':
+            self.lstate = LaserState.OFF
+
+        elif laser_operating_mode == 6:
             self.log.warning('The operating mode of the laser is OFF, everything is Aborted.')
-            if laser_output == '0':
-                self.lstate = LaserState.OFF
-            else:
-                self.lstate = LaserState.OFF
+            self.lstate = LaserState.OFF
+
         else:
             self.log.error('No possible laser state could be detected, turning the laser OFF.')
-            self._dev.set_laser_output(LaserState.OFF.value)
+            self._dev.set_laser_output(bool(LaserState.OFF.value))
 
         return self.lstate
 
@@ -342,8 +316,14 @@ class CoboltLaserMLD(Base, SimpleLaserInterface):
         
         @return enum LaserState: actual laser state
         """
-        self.lstate = state
-        return self._dev.set_laser_output(state)
+        curr_state = self._dev.set_laser_output(bool(state))
+
+        if curr_state:
+            self.lstate = LaserState.ON
+        else:
+            self.lstate = LaserState.OFF
+
+        return self.lstate
 
     def get_shutter_state(self):
         """ Get shutter state. Has a state for no shutter present.
@@ -395,7 +375,7 @@ class CoboltLaserMLD(Base, SimpleLaserInterface):
           @return str: diagnostic info as a string
         """
 
-        return "Dummy laser v0.9.9\nnot used very much\nvery cheap price very good quality"
+        return str(self._dev.extra_info)
 
 class CoboltLaserStandalone():
 
@@ -410,9 +390,7 @@ class CoboltLaserStandalone():
     extra_info = {}
 
     log = logger
-    
-    def test_method(self):
-        return "test"
+    _is_connected = False
 
     def __init__(self, comport):
         """ Initialize the laser connection.
@@ -420,33 +398,26 @@ class CoboltLaserStandalone():
         @param str comport: the name of the comport, e.g. 'ASRL3::INSTR' or 'COM3'
         """
         self.rm = visa.ResourceManager()
-
-        #FIXME
-        #Making sure that the comport is correct even if the ConfigOption 
-        #Ends up not being the correct one.
-        #for entry in self.rm.list_resources():
-        #    with self.rm.open_resource(entry, open_timeout=0.01) as dev:
-        #        try:
-        #            dev.query('l?')
-        #            if comport != entry:
-        #                comport = entry
-        #        except Exception as e:
-        #            pass
-
         self.connect_laser(comport)
 
-        #Used to make sure you do not initiate in analog
-        if self.get_analog_modulation() != 0:
-            self.set_analog_modulation(0)
-        
-    def connect_laser(self, comport):
+    def __del__(self):
+        """ Handle what happens if object is distroyed. """
+        self.disconnect_laser()
+
+    def connect_laser(self, comport, timeout=2.0):
         """ Connect method for the laser.
 
         @param str comport: comport name, e.g. 'ASRL3::INSTR' or 'COM3'
+        @param float timeout: timeout of a communication request in seconds
         """
-        self._device = self.rm.open_resource(comport)
-        self._device.baud_rate = self.BAUD_RATE
 
+        self._device = self.rm.open_resource(comport, open_timeout=int(timeout*1000))
+        # super stupid, new implementation of the timeout parameter in visa library
+        # specifies the timeout now in milliseconds and should be an integer!
+        # Hence, make sure to pass the right convertion!
+        self._is_connected = True
+
+        self._device.baud_rate = self.BAUD_RATE
         self.SERIAL_NUM = self.get_serialnumber()
 
         self.extra_info = {'brand': self.BRAND, 'model': self.MODEL, 
@@ -467,7 +438,9 @@ class CoboltLaserStandalone():
         
     def disconnect_laser(self):
         """ Disconnect the laser."""
-        self._device.close()
+        if self._is_connected:
+            self._device.close()
+            self._is_connected = False
         
     def query(self, question):
         """ General method for query questions from laser. 
@@ -476,39 +449,39 @@ class CoboltLaserStandalone():
         
         @return str: the raw response of the laser.
         """
-        #Time could help on debugging int() error.
-        time.sleep(0.01)
+
+        # VERY IMPORTANT!! before asking, clear buffer
+        self._device.clear() 
         return self._device.query(question)
-    
+
     def write(self, message):
         """General method to write messages to laser. 
 
         @param str message: message to the laser.
         """
-        #Time could help on debugging int() error.
-        time.sleep(0.01)
         self._device.write(message)
-        self._device.clear()
         
     def get_laser_output(self):
         """ Ask whether laser output is on. 
 
-        @return int: 0=laser is off, 1=laser is on."""
+        @return bool: 
+            False=laser is off, 
+            True=laser is on."""
 
-        #laser_output = int(self.query('l?').strip())
-        laser_output = self.query('l?').strip()
-        #Time could help on debugging int() error.
-        #time.sleep(0.1)
-
-        return laser_output
+        return bool(int(self.query('l?').strip()))
     
     def set_laser_output(self, state):
         """ Switch the output of the laser on or off.
 
-        @param int state: 0=OFF, 1=ON
+        @param bool state: False=OFF, True=ON
         """
-        self.write('l{0}'.format(state))
-        return self.get_laser_output()
+        self.write(f'l{int(state)}')
+
+        curr_state = self.get_laser_output()
+
+        if curr_state != state:
+            self.log.warning(f'Laser state could not be changed in the desired state {state}, remaining in {curr_state}.')
+        return curr_state
         
 
     def get_operatingmode(self):
@@ -523,57 +496,42 @@ class CoboltLaserStandalone():
                         5 = Fault
                         6 = Aborted
         """
-
-        #operating_mode = int(self.query('gom?').strip())
-        operating_mode = self.query('gom?').strip()
-        #Time could help on debugging int() error.
-        #time.sleep(0.01)
-
-        return operating_mode 
+        return int(self.query('gom?').strip())
 
 
     def restart_laser(self):
         """ Method for restarting the laser, which forces the laser
             to be on without checking if autostart is enabled. 
+        
+        @return str: indicates the state of the laser, 'OK' = all fine
         """
+
         self.write('@cob1')
+        return self.get_last_errormessage()
         
     def get_operatinghours(self):
         """Method for getting the operating hours of the laser. 
         
         @return float: the indicated operating hours.
         """
-
-        operating_hours = float(self.query('hrs?'))
-        #Time could help on debugging int() error.
-        #time.sleep(0.01)
-
-        return operating_hours
+        return float(self.query('hrs?'))
     
     def get_power(self):
-        """Method for getting the setpoint power of the laser. 
+        """ Get the setpoint power of the laser. 
         
         @return float: the indicated power in Watts (W).
         """
-        power = float(self.query('p?').strip())
-        #Time could help on debugging int() error.
-        #time.sleep(0.01)
-
-        return power
+        return float(self.query('p?').strip())
 
     def get_outputpower(self):
-        """Method for getting the output power of the laser. 
+        """ Used in current mode, get the output power of the laser. 
         
         @return float: the indicated output power in Watts (W).
         """
-        output_power = float (self.query('pa?'))
-        #Time could help on debugging int() error.
-        #time.sleep(0.01)
-
-        return output_power
+        return float(self.query('pa?'))
     
     def set_power(self, power):
-        """Method for setting the power of the laser. 
+        """ Set the power of the laser. 
         
         @param float power: The power shall be a float in Watts (W).
         
@@ -587,12 +545,7 @@ class CoboltLaserStandalone():
         
         @return float: the indicated current in milliAmps (mA).
         """
-
-        current = float(self.query('i?').strip())
-        #Time could help on debugging int() error.
-        #time.sleep(0.01)
-
-        return current
+        return float(self.query('i?').strip())
     
     def set_current(self,current):
         """Method for setting the current of the laser. 
@@ -605,116 +558,93 @@ class CoboltLaserStandalone():
         return self.get_current()
     
     def enter_constant_power(self):
-        """ Method for entering constant power mode.  
-        """
+        """ Method for entering constant power mode."""
         self.write('cp')
         
     def enter_constant_current(self):
-        """ Method for entering constant current mode.  
-        """
+        """ Method for entering constant current mode."""
         self.write('ci')
     
     def get_interlock_state(self):
         """Method for obtaining the interlock state. 
         
-         @return int: with the following meaning:
+        @return int: with the following meaning:
                         True = interlock open
                         False = OK
         """
-
-        interlock_state = bool( not int(self.query("ilk?").strip()))
-        #Time could help on debugging int() error.
-        #time.sleep(0.01)
-
-        return interlock_state
+        return bool(not int(self.query("ilk?").strip()))
 
     def get_autostart(self):
         """Method for obtaining the autostart state. 
         
-         @return bool: with the following meaning:
-                        FALSE = OFF
-                        TRUE = ON
+        @return bool: with the following meaning:
+                        False = OFF
+                        True = ON
         """
-        
-        autostart = bool(int(self._device.query("@cobas?").strip()))
-        #Time could help on debugging int() error.
-        #time.sleep(0.01)
-
-        return autostart
+        return bool(int(self._device.query("@cobas?").strip()))
     
     def set_autostart(self, state):
         """Method for setting the autostart state. 
         
-         @param bool: with the following meaning:
-                        FALSE = OFF
-                        TRUE = ON
+        @param bool: with the following meaning:
+                        False = OFF
+                        True = ON
+        @return bool: returns the current state of the autostart
         """
         self.write(f"@cobas {int(state)}")
+        self.query('?') # this seems to be a bug in the controller, whenever
+                        # autostart is changed, the buffer has to be manually
+                        # cleared after the request.
+        return self.get_autostart()
 
     def get_serialnumber(self):
         """Method for obtaining the serial number of the laser. 
         
-         @return int: 32-bit unassigned integer.
+        @return int: 32-bit unassigned integer.
         """
-
-        serial = int(self.query("gsn?").strip())
-        #Time could help on debugging int() error.
-        #time.sleep(0.01)
-
-        return serial
+        return int(self.query("gsn?").strip())
 
     def enter_modulation_mode(self):
-        """Method for entering modulation mode. 
-        """
+        """Method for entering modulation mode."""
         self.write("em")
 
-    def set_digital_modulation(self,state):
-        """Method for setting the state of the digital modulation mode. 
+    def set_digital_modulation(self, state):
+        """ Set the state of the digital modulation mode. 
         
-        @param int state: with the following meaning:
-                        0 = disable
-                        1 = enable
+        @param bool state: with the following meaning:
+                        False = disable
+                        True = enable
         """
-        self.write("sdmes {0}".format(state))
+        self.write(f'sdmes {state}')
         return self.get_digital_modulation()
 
     def get_digital_modulation(self):
-        """Method for setting the state of the digital modulation mode. 
+        """ Get the state of the digital modulation mode. 
         
-        @return int state: with the following meaning:
-                        0 = disable
-                        1 = enable
+        @return bool state: with the following meaning:
+                        False = disable
+                        True = enable
         """
-
-        digital_mod = int(self.query("gdmes?").strip())
-        #Time could help on debugging int() error.
-        #time.sleep(0.01)
-
-        return digital_mod
+        return bool(int(self.query("gdmes?").strip()))
     
     def set_analog_modulation(self, state):
-        """Method for setting the state of the analog modulation mode. 
+        """ Set the state of the analog modulation mode. 
         
-        @param int state: with the following meaning:
-                        0 = disable
-                        1 = enable
+        @param bool state: with the following meaning:
+                        False = disable
+                        True = enable
         """
-        self.write("sames {0}".format(state))
+        self.write(f'sames {state}')
         return self.get_analog_modulation()
 
     def get_analog_modulation(self):
-        """Method for setting the state of the analog modulation mode. 
+        """ Get the state of the analog modulation mode. 
         
         @return int state: with the following meaning:
-                        0 = disable
-                        1 = enable
+                        False = disable
+                        True = enable
         """
-
-        analog_mod = int(self.query("games?").strip())
-        #Time could help on debugging int() error.
-        #time.sleep(0.01)
-
-        return analog_mod
+        return bool(int(self.query('games?').strip()))
 
     def set_modulation_power(self, power):
         """Method for setting the power of the laser in modulation mode. 
@@ -723,9 +653,7 @@ class CoboltLaserStandalone():
         
         @return float: the indicated power in Watts (W).
         """
-        power = power*1000
-        self.write("slmp {0}".format(power))
-
+        self.write(f'slmp {power*1000}')
         return self.get_modulation_power()
 
     def get_modulation_power(self):
@@ -733,11 +661,21 @@ class CoboltLaserStandalone():
         
         @return float: the indicated power in Watts (W).
         """
+        return  float(self.query('glmp?').strip())/1000
 
-        mod_power = float(self.query("glmp?").strip())/1000
-        #Time could help on debugging int() error.
-        #time.sleep(0.01)
+    def is_keyswitch_turned(self):
+        """ Obtaining the key switch state, either ON or OFF. 
 
-        return mod_power
+        @return bool: 
+                False = key switch is OFF
+                True = key switch is ON
+        """
+        return bool(int(self.query('@cobasks?').strip()))
 
+    def get_last_errormessage(self):
+        """ Obtain the last error message. 
+
+        @return str: the text of the message, will output 'OK' if all is fine.
+        """
+        return self.query('cf').strip()
 
