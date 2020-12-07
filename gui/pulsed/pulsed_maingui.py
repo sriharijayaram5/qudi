@@ -261,6 +261,7 @@ class PulsedMeasurementGui(GUIBase):
         self._mw.action_Settings_Analysis.triggered.connect(self.show_analysis_settings)
         self._mw.action_Settings_Generator.triggered.connect(self.show_generator_settings)
         self._mw.action_FitSettings.triggered.connect(self._fsd.show)
+        self._mw.action_toggle_jupyter.triggered.connect(self.toggle_jupyter)
         return
 
     def _connect_dialog_signals(self):
@@ -686,6 +687,9 @@ class PulsedMeasurementGui(GUIBase):
         """ Continues and pauses the measurement. """
         self.pulsedmasterlogic().toggle_pulsed_measurement_pause(isChecked)
         return
+    
+    def toggle_jupyter(self):
+        self.log.info('Jupyter measurement toggled.')
 
     @QtCore.Slot(bool, bool)
     def measurement_status_updated(self, is_running, is_paused):
