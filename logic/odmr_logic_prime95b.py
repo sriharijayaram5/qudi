@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-
+# pylint: disable=no-member
 """
 This file contains the Qudi Logic module base class.
 
@@ -58,7 +58,7 @@ class ODMRLogic(GenericLogic):
     # milliseconds.
     f = 1
     exp_time = StatusVar('exp_time', f)
-    clock_frequency = StatusVar('clock_frequency', 1. / ((f / 1000.) + 0.2))
+    clock_frequency = StatusVar('clock_frequency', 1. / ((f / 1000.) + 0.0))
     cw_mw_frequency = StatusVar('cw_mw_frequency', 2870e6)
     cw_mw_power = StatusVar('cw_mw_power', -30)
     sweep_mw_power = StatusVar('sweep_mw_power', -30)
@@ -108,8 +108,8 @@ class ODMRLogic(GenericLogic):
         self.mw_start = limits.frequency_in_range(self.mw_start)
         self.mw_stop = limits.frequency_in_range(self.mw_stop)
         self.mw_step = limits.list_step_in_range(self.mw_step)
-        self._odmr_counter.oversampling = self._oversampling
-        self._odmr_counter.lock_in_active = self._lock_in_active
+        # self._odmr_counter.oversampling = self._oversampling
+        # self._odmr_counter.lock_in_active = self._lock_in_active
 
         # Set the trigger polarity (RISING/FALLING) of the mw-source input trigger
         # theoretically this can be changed, but the current counting scheme
@@ -177,7 +177,7 @@ class ODMRLogic(GenericLogic):
     def sv_set_fits(self, val):
         # Setup fit container
         fc = self.fitlogic().make_fit_container('ODMR sum', '1d')
-        fc.set_units(['Hz', 'c/s'])
+        fc.set_units(['Hz', 'contrast'])
         if isinstance(val, dict) and len(val) > 0:
             fc.load_from_dict(val)
         else:
@@ -254,7 +254,7 @@ class ODMRLogic(GenericLogic):
             frequency = frequency / self._oversampling
 
         if self.module_state() != 'locked':
-            self.mw_trigger_pol, triggertime = self._mw_device.set_ext_trigger(
+            self.mw_trigger_pol, _ = self._mw_device.set_ext_trigger(
                 trigger_pol, 1 / frequency)
         else:
             self.log.warning('set_trigger failed. Logic is locked.')
@@ -305,7 +305,8 @@ class ODMRLogic(GenericLogic):
         # checks if scanner is still running
         if self.module_state() != 'locked' and isinstance(clock_frequency, (int, float)):
             ##self.clock_frequency = int(clock_frequency)
-            self.clock_frequency = 1. / ((self.exp_time / 1000.) + 0.2)
+            exp_res_dict = {0: 1000., 1: 1000000.}
+            self.clock_frequency = 1. / ((self.exp_time / exp_res_dict[self._camera.get_exposure_resolution()]) + 0.0)
         else:
             self.log.warning(
                 'set_clock_frequency failed. Logic is either locked or input value is '
@@ -329,7 +330,7 @@ class ODMRLogic(GenericLogic):
         # checks if scanner is still running
         if self.module_state() != 'locked' and isinstance(oversampling, (int, float)):
             self._oversampling = int(oversampling)
-            self._odmr_counter.oversampling = self._oversampling
+            # self._odmr_counter.oversampling = self._oversampling
         else:
             self.log.warning(
                 'setter of oversampling failed. Logic is either locked or input value is '
@@ -356,7 +357,7 @@ class ODMRLogic(GenericLogic):
         # checks if scanner is still running
         if self.module_state() != 'locked' and isinstance(active, bool):
             self._lock_in_active = active
-            self._odmr_counter.lock_in_active = self._lock_in_active
+            # self._odmr_counter.lock_in_active = self._lock_in_active
         else:
             self.log.warning(
                 'setter of lock in failed. Logic is either locked or input value is no boolean.')
@@ -604,16 +605,18 @@ class ODMRLogic(GenericLogic):
         self.sigOutputStateUpdated.emit(mode, is_running)
         return mode, is_running
 
-    def set_exp_time(self, exp):
+    def set_exp_time(self, exp, cur_res_index):
         '''Exp time in mseconds in set from the GUI and updated for the cam class as well as in the variable
         in the ODMR logic class. The clock frequency variable is updated as well since it depends on the exp
         time of the camera.
 
         @param int: exp ~ 1ms - 10000ms
         '''
+        self._camera.set_exposure_resolution(cur_res_index)
         self._camera.set_exposure(exp)
         self.exp_time = exp
-        self.clock_frequency = 1. / ((exp / 1000.) + 0.2)
+        exp_res_dict = {0: 1000., 1: 1000000.}
+        self.clock_frequency = 1. / ((exp / exp_res_dict[cur_res_index]) + 0.0)
 
     def _start_odmr_counter(self):
         """
@@ -625,7 +628,7 @@ class ODMRLogic(GenericLogic):
         """
 
         clock_status = self._odmr_counter.set_up_odmr_clock(
-            clock_frequency=self.clock_frequency)
+            clock_frequency=self.clock_frequency, no_x=self.odmr_plot_x.size)
         # Seting exposure mode on camera via logic "Ext Trig Internal"
         # self._camera.set_trigger_seq("Ext Trig Internal")
         self._camera.set_trigger_seq("Ext Trig Edge Rising")
@@ -650,12 +653,12 @@ class ODMRLogic(GenericLogic):
         ret_val1 = self._odmr_counter.close_odmr()
         if ret_val1 != 0:
             self.log.error('ODMR counter could not be stopped!')
-        ret_val2 = self._odmr_counter.close_odmr_clock()
-        if ret_val2 != 0:
-            self.log.error('ODMR clock could not be stopped!')
-
+        # ret_val2 = self._odmr_counter.close_odmr_clock()
+        # if ret_val2 != 0:
+        #     self.log.error('ODMR clock could not be stopped!')
+        
         # Check with a bitwise or:
-        return ret_val1 | ret_val2
+        return ret_val1
 
     def start_odmr_scan(self):
         """ Starting an ODMR scan.
@@ -690,7 +693,7 @@ class ODMRLogic(GenericLogic):
 
             mode, is_running = self.mw_sweep_on()
             if not is_running:
-                # self._stop_odmr_counter()
+                self._stop_odmr_counter()
                 self.module_state.unlock()
                 return -1
 
@@ -746,7 +749,7 @@ class ODMRLogic(GenericLogic):
 
             mode, is_running = self.mw_sweep_on()
             if not is_running:
-                # self._stop_odmr_counter()
+                self._stop_odmr_counter()
                 self.module_state.unlock()
                 return -1
 
@@ -811,22 +814,22 @@ class ODMRLogic(GenericLogic):
             error, new_counts = self._odmr_counter.count_odmr(
                 length=self.odmr_plot_x.size)
             self._camera.start_trigger_seq(self.odmr_plot_x.size * 2)
-            self._odmr_counter.stop_tasks()
+            # self._odmr_counter.stop_tasks()
             # The collected frames are then acquired by the logic here from cam logic Should consider memory issues
             # for the future.
             frames = self._camera.get_last_image()
             # The reference images from switch off time should be subtracted as below. For dummy measurements
             # so as to not be just left with noise we can do a dummy
             # subtraction.
-            new_counts = frames[1::2] - frames[0::2]
+            new_counts = (frames[1::2] - frames[0::2]) / (frames[1::2] + frames[0::2])
             # Remove for actual mesurements
-            new_counts = frames[1::2] - np.full_like(frames[0::2], 1)
+            # new_counts = frames[1::2] - np.full_like(frames[0::2], 1)
             # The sweep images are added up and the new counts are taken as the mean of the image which is what
             # ends up being plotted as odmr_plot_y
             self.sweep_images += new_counts
             new_counts = np.mean(new_counts, axis=(1, 2))
 
-            if error:
+            if error==-1:
                 self.stopRequested = True
                 self.sigNextLine.emit()
                 return
@@ -890,7 +893,7 @@ class ODMRLogic(GenericLogic):
             return
 
     def get_odmr_channels(self):
-        return self._odmr_counter.get_odmr_channels()
+        return ['Prime95B']
 
     def get_hw_constraints(self):
         """ Return the names of all ocnfigured fit functions.
@@ -951,11 +954,10 @@ class ODMRLogic(GenericLogic):
         self.coord = None
         if pixel_fit and np.count_nonzero(self.sweep_images) != 0:
             frames = self.sweep_images / self.elapsed_sweeps
-            frames[:] = [cv2.flip(frame, 0) for frame in frames]
             frames1 = np.zeros((np.shape(frames)[0], 600, 600))
             frames1[:] = [
                 cv2.resize(
-                    frame, (600, 600), interpolation=cv2.INTER_AREA) for frame in frames]
+                    cv2.flip(frame, 0), (600, 600), interpolation=cv2.INTER_AREA) for frame in frames]
             frames = frames1
             self.do_pixel_spectrum(frames)
             # If no mouse click happens the odmr_plot_y data is not updated and stays the same.
@@ -1031,8 +1033,8 @@ class ODMRLogic(GenericLogic):
             data = OrderedDict()
             data2 = OrderedDict()
             data['frequency (Hz)'] = self.odmr_plot_x
-            data['count data (counts/s)'] = self.odmr_plot_y[nch]
-            data2['count data (counts/s)'] = self.odmr_raw_data[:self.elapsed_sweeps, nch, :]
+            data['mean pixel value data'] = self.odmr_plot_y[nch]
+            data2['mean pixel value data'] = self.odmr_raw_data[:self.elapsed_sweeps, nch, :]
 
             parameters = OrderedDict()
             parameters['Microwave CW Power (dBm)'] = self.cw_mw_power
@@ -1081,10 +1083,10 @@ class ODMRLogic(GenericLogic):
                 tag = '_' + tag
             loc = filepath + '/' + \
                 timestamp.strftime("%Y%m%d-%H%M-%S") + tag + '_sweep_images'
-            np.savez_compressed(
-                loc,
-                sweep_images=(self.sweep_images /
-                              self.elapsed_sweeps).astype(np.uint16))
+            #np.savez_compressed(
+            #    loc,
+            #    sweep_images=(self.sweep_images /
+            #                  self.elapsed_sweeps).astype(np.uint16))
             self.log.info('ODMR data saved to:\n{0}'.format(filepath))
         return
 
@@ -1158,7 +1160,7 @@ class ODMRLogic(GenericLogic):
         if max(fit_count_vals) > 0:
             ax_mean.plot(fit_freq_vals, fit_count_vals, marker='None')
 
-        ax_mean.set_ylabel('Fluorescence (' + counts_prefix + 'c/s)')
+        ax_mean.set_ylabel('Mean pixel value (' + counts_prefix + 'counts)')
         ax_mean.set_xlim(np.min(freq_data), np.max(freq_data))
 
         matrixplot = ax_matrix.imshow(
@@ -1186,7 +1188,7 @@ class ODMRLogic(GenericLogic):
 
         # Draw colorbar
         cbar = fig.colorbar(matrixplot, cax=cbar_ax)
-        cbar.set_label('Fluorescence (' + cbar_prefix + 'c/s)')
+        cbar.set_label('Mean pixel value (' + cbar_prefix + 'counts)')
 
         # remove ticks from colorbar for cleaner image
         cbar.ax.tick_params(which=u'both', length=0)

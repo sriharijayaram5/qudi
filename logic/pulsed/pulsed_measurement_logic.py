@@ -37,7 +37,7 @@ from core.util.math import compute_ft
 from logic.generic_logic import GenericLogic
 from logic.pulsed.pulse_extractor import PulseExtractor
 from logic.pulsed.pulse_analyzer import PulseAnalyzer
-
+import pulsestreamer as ps
 
 class PulsedMeasurementLogic(GenericLogic):
     """
@@ -113,6 +113,8 @@ class PulsedMeasurementLogic(GenericLogic):
     sigStartTimer = QtCore.Signal()
     sigStopTimer = QtCore.Signal()
 
+    sigStartSequence = QtCore.Signal()
+
     def __init__(self, config, **kwargs):
         super().__init__(config=config, **kwargs)
 
@@ -156,6 +158,7 @@ class PulsedMeasurementLogic(GenericLogic):
     def on_activate(self):
         """ Initialisation performed during activation of the module.
         """
+        # self.__fast_counter_gates = int(0)
         # Create an instance of PulseExtractor
         self._pulseextractor = PulseExtractor(pulsedmeasurementlogic=self)
         self._pulseanalyzer = PulseAnalyzer(pulsedmeasurementlogic=self)
@@ -210,6 +213,7 @@ class PulsedMeasurementLogic(GenericLogic):
         # Connect internal signals
         self.sigStartTimer.connect(self.__analysis_timer.start, QtCore.Qt.QueuedConnection)
         self.sigStopTimer.connect(self.__analysis_timer.stop, QtCore.Qt.QueuedConnection)
+        self.sigStartSequence.connect(self.do_camera_seq_loop, QtCore.Qt.QueuedConnection)
         return
 
     def on_deactivate(self):
@@ -303,7 +307,7 @@ class PulsedMeasurementLogic(GenericLogic):
 
         @return int: error code (0:OK, -1:error)
         """
-        return self.fastcounter().start_measure()
+        return self.fastcounter().start_measure(self._number_of_lasers)
 
     def fast_counter_off(self):
         """Switching off the fast counter
@@ -330,6 +334,7 @@ class PulsedMeasurementLogic(GenericLogic):
 
         @return int: error code (0:OK, -1:error)
         """
+        self._stop_requested = True
         return self.fastcounter().pause_measure()
 
     def fast_counter_continue(self):
@@ -337,7 +342,7 @@ class PulsedMeasurementLogic(GenericLogic):
 
         @return int: error code (0:OK, -1:error)
         """
-        return self.fastcounter().continue_measure()
+        return self.fastcounter().continue_measure(self._number_of_lasers)
 
     @QtCore.Slot(bool)
     def fast_counter_pause_continue(self, continue_counter):
@@ -477,7 +482,8 @@ class PulsedMeasurementLogic(GenericLogic):
 
     def pulse_generator_on(self):
         """Switching on the pulse generator. """
-        err = self.pulsegenerator().pulser_on()
+        # self.pulsegenerator().pulse_streamer.setTrigger(start=ps.TriggerStart.HARDWARE_RISING)
+        err = self.pulsegenerator().pulser_on(trigger=True, laser=False, n=1, rearm=False)
         if err < 0:
             self.log.error('Failed to turn on pulse generator output.')
             self.sigPulserRunningUpdated.emit(False)
@@ -487,6 +493,7 @@ class PulsedMeasurementLogic(GenericLogic):
 
     def pulse_generator_off(self):
         """Switching off the pulse generator. """
+        # self.pulsegenerator().pulse_streamer.setTrigger(start=ps.TriggerStart.SOFTWARE)
         err = self.pulsegenerator().pulser_off()
         if err < 0:
             self.log.error('Failed to turn off pulse generator output.')
@@ -750,6 +757,7 @@ class PulsedMeasurementLogic(GenericLogic):
     @QtCore.Slot(str)
     def start_pulsed_measurement(self, stashed_raw_data_tag=''):
         """Start the analysis loop."""
+        # self.fastcounter().ready_pulsed()
         self.sigMeasurementStatusUpdated.emit(True, False)
 
         # Check if measurement settings need to be invoked
@@ -789,10 +797,10 @@ class PulsedMeasurementLogic(GenericLogic):
                 # start microwave source
                 if self.__use_ext_microwave:
                     self.microwave_on()
-                # start fast counter
-                self.fast_counter_on()
                 # start pulse generator
-                self.pulse_generator_on()
+                # self.pulse_generator_on()
+                # start fast counter
+                # self.fast_counter_on()
 
                 # initialize analysis_timer
                 self.__elapsed_time = 0.0
@@ -807,9 +815,26 @@ class PulsedMeasurementLogic(GenericLogic):
 
                 # Set measurement paused flag
                 self.__is_paused = False
+                self._stop_requested = False
+                self.sigStartSequence.emit()
             else:
                 self.log.warning('Unable to start pulsed measurement. Measurement already running.')
         return
+    
+    def do_camera_seq_loop(self):
+        """
+        Called from start or continue measurement. Call the camera get sequence in a loop to continuously collect data until stop requested.
+        """
+
+        if not self._stop_requested:
+            # self.pulsegenerator().pulse_streamer.rearm()
+            self.pulse_generator_on()
+            self.fast_counter_on()          
+            # self.pulsegenerator().pulse_streamer.forceFinal()
+            self.sigStartSequence.emit()
+        else:
+            self._stop_requested = False
+        return 0
 
     @QtCore.Slot(str)
     def stop_pulsed_measurement(self, stash_raw_data_tag=''):
@@ -817,17 +842,20 @@ class PulsedMeasurementLogic(GenericLogic):
         Stop the measurement
         """
         # Get raw data and analyze it a last time just before stopping the measurement.
+        self._stop_requested = True
         try:
             self._pulsed_analysis_loop()
         except:
-            pass
+            self.log.debug('Pulsed analysis loop failed')
 
         with self._threadlock:
             if self.module_state() == 'locked':
                 # stopping the timer
                 self.sigStopTimer.emit()
                 # Turn off fast counter
+                self._stop_requested = True
                 self.fast_counter_off()
+                self.fastcounter().pulsed_done()
                 # Turn off pulse generator
                 self.pulse_generator_off()
                 # Turn off microwave source
@@ -897,9 +925,9 @@ class PulsedMeasurementLogic(GenericLogic):
             if self.module_state() == 'locked':
                 if self.__use_ext_microwave:
                     self.microwave_on()
-                self.fast_counter_continue()
-                self.pulse_generator_on()
-
+                # self.pulse_generator_on()
+                # self.fast_counter_continue()
+                
                 # un-pausing the timer
                 if not self.__analysis_timer.isActive():
                     self.sigStartTimer.emit()
@@ -909,6 +937,8 @@ class PulsedMeasurementLogic(GenericLogic):
                 self.__start_time += time.time() - self._time_of_pause
 
                 self.sigMeasurementStatusUpdated.emit(True, False)
+                self._stop_requested = False
+                self.sigStartSequence.emit()
             else:
                 self.log.warning('Unable to continue pulsed measurement. No measurement running.')
                 self.sigMeasurementStatusUpdated.emit(False, False)
@@ -1165,9 +1195,11 @@ class PulsedMeasurementLogic(GenericLogic):
         if self.laser_data.any():
             tmp_signal, tmp_error = self._pulseanalyzer.analyse_laser_pulses(
                 self.laser_data)
+            # print('Analyzed data: ', tmp_signal)
         else:
             tmp_signal = np.zeros(self.laser_data.shape[0])
             tmp_error = np.zeros(self.laser_data.shape[0])
+            print('laser data any failed - pulse extraction failed')
         return tmp_signal, tmp_error
 
     def _get_raw_data(self):

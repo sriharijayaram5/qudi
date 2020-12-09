@@ -81,6 +81,7 @@
    <addaction name="action_run_stop"/>
    <addaction name="action_continue_pause"/>
    <addaction name="action_pull_data"/>
+   <addaction name="action_toggle_jupyter"/>
   </widget>
   <widget class="QToolBar" name="save_ToolBar">
    <property name="windowTitle">
@@ -136,6 +137,21 @@
     <string>Starts a new measurment or stops a measurement</string>
    </property>
   </action>
+
+  <action name="action_toggle_jupyter">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="icon">
+    <iconset>
+     <normaloff>../../artwork/icons/oxygen/22x22/media-playback-start.png</normaloff>
+     <normalon>../../artwork/icons/oxygen/22x22/media-playback-pause.png</normalon></iconset>
+   </property>
+   <property name="text">
+    <string>Toggles Jupyter measurement</string>
+   </property>
+  </action>
+
   <action name="action_continue_pause">
    <property name="checkable">
     <bool>true</bool>

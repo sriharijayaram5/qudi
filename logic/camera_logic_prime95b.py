@@ -42,7 +42,7 @@ class CameraLogic(GenericLogic):
     # declare connectors
     hardware = Connector(interface='CameraInterface')
     savelogic = Connector(interface='SaveLogic')
-    _max_fps = ConfigOption('default_exposure', 20)
+    _max_fps = ConfigOption('default_exposure', 10)
     _fps = _max_fps
 
     # signals
@@ -78,6 +78,8 @@ class CameraLogic(GenericLogic):
         self.timer.setSingleShot(True)
         self.timer.timeout.connect(self.loop)
 
+        self.prev_roi = (0, 0)
+
     def on_deactivate(self):
         """ Perform required deactivation. """
         self._hardware.on_deactivate()
@@ -107,6 +109,11 @@ class CameraLogic(GenericLogic):
         size = data['size']
         x1, y1 = (*pos,)
         x2, y2 = (*size,)
+        if not size==(self.get_sensor()):
+            self.prev_roi = tuple(map(sum, zip(self.prev_roi, (x1, y1))))
+            x1, y1 = self.prev_roi
+        else:
+            self.prev_roi = (0, 0)
         self._hardware.cam.roi = tuple(int(el)
                                        for el in (x1, x2 + x1, y1, y2 + y1))
 
@@ -120,8 +127,15 @@ class CameraLogic(GenericLogic):
     def get_exposure(self):
         """ Get exposure of hardware """
         self._exposure = self._hardware.get_exposure()
-        self._fps = min(1 / self._exposure, self._max_fps)
+
+        self._fps = min(1 / self._exposure * 1000, self._max_fps)
         return self._exposure
+
+    def set_exposure_resolution(self, index):
+        return self._hardware.set_exp_res(index)
+    
+    def get_exposure_resolution(self):
+        return self._hardware.get_exp_res()
 
     def set_gain(self, gain):
         '''Sets the gain of camera. Changes the camera class variable basically. Max values is 1 for 16bit and
@@ -153,7 +167,7 @@ class CameraLogic(GenericLogic):
         short delay or none at all will cause the GUI tp freeze.
         """
         self.enabled = True
-        self.timer.start(100)  # 0*1/self._fps)
+        self.timer.start(1/self._fps*1000)
 
         if self._hardware.support_live_acquisition():
             self._hardware.start_live_acquisition()
@@ -174,7 +188,7 @@ class CameraLogic(GenericLogic):
         self._last_image = self._hardware.get_acquired_data()
         self.sigUpdateDisplay.emit()
         if self.enabled:
-            self.timer.start(100)  # 0 * 1 / self._fps)
+            self.timer.start(1 / self._fps*1000)
             if not self._hardware.support_live_acquisition():
                 # the hardware has to check it's not busy
                 self._hardware.start_single_acquisition()

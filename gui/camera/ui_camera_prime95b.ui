@@ -200,6 +200,28 @@
         </widget>
        </item>
        <item>
+      <widget class="QLabel" name="label_3">
+       <property name="text">
+        <string>Counts: </string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QLabel" name="counts_label">
+       <property name="font">
+        <font>
+         <family>Arial</family>
+         <pointsize>16</pointsize>
+         <weight>75</weight>
+         <bold>true</bold>
+        </font>
+       </property>
+       <property name="text">
+        <string>0</string>
+       </property>
+      </widget>
+     </item>
+       <item>
         <widget class="ScienDSpinBox" name="xy_cb_low_percentile_DoubleSpinBox">
          <property name="maximumSize">
           <size>

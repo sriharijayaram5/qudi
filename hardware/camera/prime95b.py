@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-
+# pylint: disable=no-member
 """
 This hardware module is written to integrate the Photometrics Prime 95B camera. It uses a python wrapper PyVcam
 to wrap over the PVCAM SDK.
@@ -28,16 +28,18 @@ from core.module import Base
 from core.configoption import ConfigOption
 
 from interface.camera_interface import CameraInterface
-from interface.odmr_counter_interface import ODMRCounterInterface
+# from interface.odmr_counter_interface import ODMRCounterInterface
+from interface.fast_counter_interface import FastCounterInterface
 
 # Python wrapper for wrapping over the PVCAM SDK. Functions can be found
 # in PyVCAM/camera.py
+# pylint: disable=no-name-in-module
 from pyvcam import pvc
 from pyvcam.camera import Camera
 from pyvcam import constants as const
 
 
-class Prime95B(Base, CameraInterface):
+class Prime95B(Base, CameraInterface, FastCounterInterface):
     """ Hardware class for Prime95B
 
     Example config for copy-paste:
@@ -63,6 +65,14 @@ class Prime95B(Base, CameraInterface):
         nx_px, ny_px = self._get_detector()
         self._width, self._height = nx_px, ny_px
         self._live = False
+        self.cam.speed_table_index = 1 #16 bit mode
+        self.cam.exp_out_mode = 2 #Any row expose out mode
+        self.cam.clear_mode = 3 #Post-sequence expose out mode
+        #For pulsed
+        self._number_of_gates = int(0)
+        self._bin_width = 1
+        self._record_length = int(1)
+        self.pulsed_frames = None
 
     def on_deactivate(self):
         """ Deinitialisation performed during deactivation of the module.
@@ -148,12 +158,13 @@ class Prime95B(Base, CameraInterface):
         return True
 
     def get_exposure(self):
-        """ Get the exposure time in mseconds. Different from get_param which returns the true value. This returns
+        """ Get the exposure time in the current exposure res in mseconds. Different from get_param which returns the true value. This returns
         the value as assigned to the camera class.
 
         @return float exposure time
         """
-        return self.cam.exp_time
+        exp_res_dict = {0: 1, 1: 1000}
+        return self.cam.exp_time / exp_res_dict[self.get_exp_res()]
 
     def set_gain(self, gain):
         """ Set the gain
@@ -212,16 +223,31 @@ class Prime95B(Base, CameraInterface):
         '''
         return self.cam.get_param(const.PARAM_EXPOSURE_TIME,
                                   const.ATTR_MAX)
+    
+    def get_exp_res(self):
+        '''Returns exposure resolution index: 0~ms, 1~us, 2~s
+        '''
+        return self.cam.exp_res_index
+
+    
+    def set_exp_res(self, index):
+        '''Set exposure resolution index: 0~ms, 1~us, 2~s
+        '''
+        if index < 3:
+            self.cam.exp_res = index
+            return True
+        else:
+            return False
 
     def set_exposure_mode(self, exp_mode):
-        '''Sets the exposure to exp_mode passed. Determines trigger behaviour. See constants.py for
-        allowed values
+            '''Sets the exposure to exp_mode passed. Determines trigger behaviour. See constants.py for
+            allowed values
 
-        @param exp_mode str: string which is the key to the exposure mode dict in constants.py
-        @return bool: always True
-        '''
-        self.cam.exp_mode = exp_mode
-        return True
+            @param exp_mode str: string which is the key to the exposure mode dict in constants.py
+            @return bool: always True
+            '''
+            self.cam.exp_mode = exp_mode
+            return True
 
     def get_exposure_mode(self):
         '''Returns the current exposure mode of the cammera.
@@ -264,4 +290,192 @@ class Prime95B(Base, CameraInterface):
             self.frames = self.cam.get_sequence(num_frames)
             return self.frames
         else:
-            return False
+            return 
+    
+    def get_constraints(self):
+        """ Retrieve the hardware constrains from the Fast counting device.
+
+        @return dict: dict with keys being the constraint names as string and
+                      items are the definition for the constaints.
+
+         The keys of the returned dictionary are the str name for the constraints
+        (which are set in this method).
+
+                    NO OTHER KEYS SHOULD BE INVENTED!
+
+        If you are not sure about the meaning, look in other hardware files to
+        get an impression. If still additional constraints are needed, then they
+        have to be added to all files containing this interface.
+
+        The items of the keys are again dictionaries which have the generic
+        dictionary form:
+            {'min': <value>,
+             'max': <value>,
+             'step': <value>,
+             'unit': '<value>'}
+
+        Only the key 'hardware_binwidth_list' differs, since they
+        contain the list of possible binwidths.
+
+        If the constraints cannot be set in the fast counting hardware then
+        write just zero to each key of the generic dicts.
+        Note that there is a difference between float input (0.0) and
+        integer input (0), because some logic modules might rely on that
+        distinction.
+
+        ALL THE PRESENT KEYS OF THE CONSTRAINTS DICT MUST BE ASSIGNED!
+
+        # Example for configuration with default values:
+
+        constraints = dict()
+
+        # the unit of those entries are seconds per bin. In order to get the
+        # current binwidth in seonds use the get_binwidth method.
+        constraints['hardware_binwidth_list'] = []
+
+        """
+        constraints = dict()
+
+        # the unit of those entries are seconds per bin. In order to get the
+        # current binwidth in seonds use the get_binwidth method.
+        constraints['hardware_binwidth_list'] = [1 / 1e6]
+
+        # TODO: think maybe about a software_binwidth_list, which will
+        #      postprocess the obtained counts. These bins must be integer
+        #      multiples of the current hardware_binwidth
+
+        return constraints
+
+    def ready_pulsed(self, no_of_laser_pulses):
+        self.stop_acquisition()
+        # self.set_exposure_mode("Ext Trig Edge Rising")
+        self.set_exposure_mode("Ext Trig Level")
+        mode = 1 #EXPOSE_OUT_ALL_ROWS
+        mode = 3 #MAX
+        self.cam.exp_out_mode = mode
+        self.cam.clear_mode = 'Pre-Exposure'
+        if self.pulsed_frames is None:
+            self.pulsed_frames = np.zeros(no_of_laser_pulses, dtype='float32')
+    
+    def pulsed_done(self):
+        self.stop_acquisition()
+        self.set_exposure_mode("Ext Trig Internal")
+        mode = 2 #EXPOSE_OUT_ANY_ROWS
+        self.cam.exp_out_mode = mode
+        self.cam.clear_mode = 'Post-Sequence'
+        self.pulsed_frames = None
+    
+    def configure(self, bin_width_s, record_length_s, number_of_gates=0):
+        """ Configuration of the fast counter.
+
+        @param float bin_width_s: Length of a single time bin in the time
+                                  trace histogram in seconds.
+        @param float record_length_s: Total length of the timetrace/each
+                                      single gate in seconds.
+        @param int number_of_gates: optional, number of gates in the pulse
+                                    sequence. Ignore for not gated counter.
+
+        @return tuple(binwidth_s, record_length_s, number_of_gates):
+                    binwidth_s: float the actual set binwidth in seconds
+                    gate_length_s: the actual record length in seconds
+                    number_of_gates: the number of gated, which are accepted, None if not-gated
+        """
+        # exp_res_dict = {0: 1000., 1: 1000000.}
+        # self.set_exposure(bin_width_s * exp_res_dict[self.get_exp_res()])
+        if record_length_s != bin_width_s:
+            self.log.info('Bin not equal to record length. Camera cannot implement.')
+
+        self._number_of_gates = number_of_gates
+        self._bin_width_s = bin_width_s
+
+        return 1, 1, number_of_gates
+
+    
+    def get_status(self):
+        """ Receives the current status of the Fast Counter and outputs it as
+            return value.
+
+        0 = unconfigured
+        1 = idle
+        2 = running
+        3 = paused
+      -1 = error state
+        """
+        state = self.get_ready_state()
+        if state:
+            return 1
+        else:
+            return 2
+
+    
+    def start_measure(self, no_of_laser_pulses):
+        """ Start the fast counter. """
+        self.ready_pulsed(no_of_laser_pulses)
+        self.get_sequence(no_of_laser_pulses)
+        frame_data = np.mean(self.frames, axis=(1,2))
+        self.pulsed_frames += frame_data
+        return 0
+
+    
+    def stop_measure(self):
+        """ Stop the fast counter. """
+        self.stop_acquisition()
+        self.pulsed_done()
+        return 0
+
+    
+    def pause_measure(self):
+        """ Pauses the current measurement.
+
+        Fast counter must be initially in the run state to make it pause.
+        """
+        self.stop_acquisition()
+
+    
+    def continue_measure(self, no_of_laser_pulses):
+        """ Continues the current measurement.
+
+        If fast counter is in pause state, then fast counter will be continued.
+        """
+        return self.start_measure(no_of_laser_pulses)
+
+    
+    def is_gated(self):
+        """ Check the gated counting possibility.
+
+        @return bool: Boolean value indicates if the fast counter is a gated
+                      counter (TRUE) or not (FALSE).
+        """
+        return False
+
+    
+    def get_binwidth(self):
+        """ Returns the width of a single timebin in the timetrace in seconds.
+
+        @return float: current length of a single bin in seconds (seconds/bin)
+        """
+        exp_res_dict = {0: 1000., 1: 1000000.}
+        return self.get_exposure() / exp_res_dict[self.get_exp_res()]
+
+    
+    def get_data_trace(self):
+        """ Polls the current timetrace data from the fast counter.
+
+        Return value is a numpy array (dtype = int64).
+        The binning, specified by calling configure() in forehand, must be
+        taken care of in this hardware class. A possible overflow of the
+        histogram bins must be caught here and taken care of.
+        If the counter is NOT GATED it will return a tuple (1D-numpy-array, info_dict) with
+            returnarray[timebin_index]
+        If the counter is GATED it will return a tuple (2D-numpy-array, info_dict) with
+            returnarray[gate_index, timebin_index]
+
+        info_dict is a dictionary with keys :
+            - 'elapsed_sweeps' : the elapsed number of sweeps
+            - 'elapsed_time' : the elapsed time in seconds
+
+        If the hardware does not support these features, the values should be None
+        """
+        info_dict = {'elapsed_sweeps': None,
+                     'elapsed_time': None}  # TODO : implement that according to hardware capabilities
+        return np.array(self.pulsed_frames, dtype='float32'), info_dict
