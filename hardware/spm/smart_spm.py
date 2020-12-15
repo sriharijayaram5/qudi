@@ -404,11 +404,11 @@ class SmartSPM(Base):
 
         self._lib.ProbeLand2.restype = c_bool
 
-        self._lib.SetupScanLineXYZ.argtypes = [c_float, c_float, 
-                                               c_float, c_float, 
-                                               c_float, c_float,
-                                               c_float, c_float, c_float]
-        self._lib.SetupScanLineXYZ.restype = c_bool
+        # self._lib.SetupScanLineXYZ.argtypes = [c_float, c_float, 
+        #                                        c_float, c_float, 
+        #                                        c_float, c_float,
+        #                                        c_float, c_float, c_float]
+        # self._lib.SetupScanLineXYZ.restype = c_bool
 
         self._lib.SetupPlaneScan.argtypes = [c_int, c_int, 
                                              POINTER((c_char * self.MAX_SIG_NAME_LEN) * self.MAX_SIG_NUM)]
@@ -430,7 +430,7 @@ class SmartSPM(Base):
                                              c_float, c_float, c_float]
         self._lib.Setup2PassLine.restype = c_bool  
 
-         self._lib.Set2PassLift.argtypes = [c_float, c_float]
+        self._lib.Set2PassLift.argtypes = [c_float, c_float]
         #FIXME: test the return parameter
         #self._lib.Set2PassLift.restype = None 
         
@@ -1608,10 +1608,10 @@ class SmartSPM(Base):
                       are not on the surface, then return value is False.
          """
 
-         lift_c =  c_float(lift_by*1e9) # function expects in nm
-         triggerTime_c = c_float(trigger_time)
+        lift_c =  c_float(lift_by*1e9) # function expects in nm
+        triggerTime_c = c_float(trigger_time)
 
-         return self._lib.ProbeLift(lift_c, triggerTime_c)
+        return self._lib.ProbeLift(lift_c, triggerTime_c)
 
     def probe_land(self):
         """ Land the probe on the surface.
@@ -1810,7 +1810,7 @@ class SmartSPM(Base):
         return (self._lift_c.value * 1e-9, self._liftback_c.value * 1e-9)
 
 
-    def setup_scan_2pass(self, line_point=100, meas_params=[])::
+    def setup_scan_2pass(self, line_point=100, meas_params=[]):
         """ Setup the two pass scan mode.
 
         @param int line_points: number of points to scan
