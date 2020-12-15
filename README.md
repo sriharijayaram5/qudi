@@ -41,3 +41,69 @@ There exists a very nice [Hitchhiker’s Guide to Python](http://python-guide.re
 [http://www.openbookproject.net/pybiblio/gasp/course/](Gasp Python Course)\
 [http://codingbat.com/python](CodingBat code practice)\
 [https://developers.google.com/edu/python/](Google for Education - Python)
+
+
+# Manual installation of the ProteusQ environment
+
+- Install bare python3.8.6
+
+Add python and pip to environment variables
+
+- install modules via pip
+
+python -m pip install --upgrade pip
+pip install cycler
+pip install cython
+pip install ipython
+
+download Visual Studio from 
+https://visualstudio.microsoft.com/downloads/#
+
+Select "Desktop development with C++"
+
+build tools for visual studio
+
+
+It looks like you're trying to remove a component that's required by the following:
+
+-  MSVC v142 - VS 2019 C++ x64/x86 Spectre-mitigated libs (v14.28) 
+
+If you continue, we'll remove the component and any items listed above that depend on it.
+
+
+
+
+C# and Visual Basic Roslyn compilers
+MSBuild
+C++ core features
+MSVC v142 - VS 2019 C++ x64/x86 build tools (v14.28)
+Windows 10 SDK (10.0.19041.0)
+MSVC v142 - VS 2019 C++ x64/x86 Spectre-mitigate
+
+
+Download wheel for 'pywinpty' directly from 
+https://www.lfd.uci.edu/~gohlke/pythonlibs/#pywinpty
+for the correct python version
+
+
+pip install jupyter
+
+pip install wheel
+
+pip install lxml
+pip install matplotlib
+
+pip install asteval
+pip install fysom
+pip install gitpython    
+pip install lmfit
+pip install pyflowgraph-qo
+pip install pyqtgraph-qo 
+pip install pyvisa
+pip install rpyc
+pip install ruamel.yaml
+pip install serial
+pip install typing
+
+pip install pyqt5
+

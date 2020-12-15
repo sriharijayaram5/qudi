@@ -1,0 +1,1738 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>MainWindow</class>
+ <widget class="QMainWindow" name="MainWindow">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>1705</width>
+    <height>1591</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>MainWindow</string>
+  </property>
+  <widget class="QWidget" name="centralwidget">
+   <property name="enabled">
+    <bool>true</bool>
+   </property>
+   <property name="sizePolicy">
+    <sizepolicy hsizetype="Minimum" vsizetype="Minimum">
+     <horstretch>0</horstretch>
+     <verstretch>0</verstretch>
+    </sizepolicy>
+   </property>
+   <property name="maximumSize">
+    <size>
+     <width>0</width>
+     <height>0</height>
+    </size>
+   </property>
+   <property name="mouseTracking">
+    <bool>true</bool>
+   </property>
+   <property name="autoFillBackground">
+    <bool>false</bool>
+   </property>
+  </widget>
+  <widget class="QDockWidget" name="saturation_fit_DockWidget">
+   <property name="sizePolicy">
+    <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
+     <horstretch>0</horstretch>
+     <verstretch>0</verstretch>
+    </sizepolicy>
+   </property>
+   <property name="minimumSize">
+    <size>
+     <width>730</width>
+     <height>640</height>
+    </size>
+   </property>
+   <property name="accessibleDescription">
+    <string/>
+   </property>
+   <property name="autoFillBackground">
+    <bool>false</bool>
+   </property>
+   <property name="floating">
+    <bool>false</bool>
+   </property>
+   <property name="allowedAreas">
+    <set>Qt::AllDockWidgetAreas</set>
+   </property>
+   <property name="windowTitle">
+    <string>Saturation measurement</string>
+   </property>
+   <attribute name="dockWidgetArea">
+    <number>2</number>
+   </attribute>
+   <widget class="QWidget" name="dockWidgetContents_2">
+    <property name="sizePolicy">
+     <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+      <horstretch>0</horstretch>
+      <verstretch>0</verstretch>
+     </sizepolicy>
+    </property>
+    <layout class="QGridLayout" name="gridLayout_3">
+     <item row="0" column="0">
+      <widget class="QSplitter" name="splitter">
+       <property name="orientation">
+        <enum>Qt::Horizontal</enum>
+       </property>
+       <widget class="QWidget" name="layoutWidget">
+        <layout class="QVBoxLayout" name="verticalLayout_7">
+         <property name="spacing">
+          <number>12</number>
+         </property>
+         <property name="leftMargin">
+          <number>10</number>
+         </property>
+         <property name="rightMargin">
+          <number>20</number>
+         </property>
+         <item>
+          <widget class="QLabel" name="save_tag_label">
+           <property name="text">
+            <string>Figure Name:</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QLineEdit" name="save_tag_LineEdit">
+           <property name="minimumSize">
+            <size>
+             <width>200</width>
+             <height>0</height>
+            </size>
+           </property>
+           <property name="maximumSize">
+            <size>
+             <width>500</width>
+             <height>16777215</height>
+            </size>
+           </property>
+           <property name="toolTip">
+            <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Enter a nametag which will &lt;/p&gt;&lt;p&gt;be added to the filename&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QGroupBox" name="saturation_GroupBox">
+           <property name="title">
+            <string>Saturation Curve Parameters</string>
+           </property>
+           <layout class="QHBoxLayout" name="horizontalLayout_4">
+            <item>
+             <layout class="QVBoxLayout" name="verticalLayout_2">
+              <item>
+               <widget class="QLabel" name="startPowerLabel">
+                <property name="sizePolicy">
+                 <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+                  <horstretch>0</horstretch>
+                  <verstretch>0</verstretch>
+                 </sizepolicy>
+                </property>
+                <property name="font">
+                 <font>
+                  <pointsize>10</pointsize>
+                 </font>
+                </property>
+                <property name="text">
+                 <string>Start Power (mW)</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="ScienDSpinBox" name="startPowerDoubleSpinBox">
+                <property name="keyboardTracking">
+                 <bool>true</bool>
+                </property>
+                <property name="suffix">
+                 <string>W</string>
+                </property>
+               </widget>
+              </item>
+             </layout>
+            </item>
+            <item>
+             <layout class="QVBoxLayout" name="verticalLayout_3">
+              <item>
+               <widget class="QLabel" name="StopPowerLabel">
+                <property name="sizePolicy">
+                 <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+                  <horstretch>0</horstretch>
+                  <verstretch>0</verstretch>
+                 </sizepolicy>
+                </property>
+                <property name="font">
+                 <font>
+                  <pointsize>10</pointsize>
+                 </font>
+                </property>
+                <property name="text">
+                 <string>Stop Power (mW)</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="ScienDSpinBox" name="stopPowerDoubleSpinBox">
+                <property name="keyboardTracking">
+                 <bool>true</bool>
+                </property>
+                <property name="suffix">
+                 <string>W</string>
+                </property>
+               </widget>
+              </item>
+             </layout>
+            </item>
+            <item>
+             <layout class="QVBoxLayout" name="verticalLayout_4">
+              <item>
+               <widget class="QLabel" name="NumPointsLabel">
+                <property name="sizePolicy">
+                 <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+                  <horstretch>0</horstretch>
+                  <verstretch>0</verstretch>
+                 </sizepolicy>
+                </property>
+                <property name="font">
+                 <font>
+                  <pointsize>10</pointsize>
+                 </font>
+                </property>
+                <property name="text">
+                 <string>Points</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QSpinBox" name="numPointsSpinBox">
+                <property name="keyboardTracking">
+                 <bool>true</bool>
+                </property>
+               </widget>
+              </item>
+             </layout>
+            </item>
+            <item>
+             <layout class="QVBoxLayout" name="verticalLayout_5">
+              <item>
+               <widget class="QLabel" name="TimeperpointLabel">
+                <property name="sizePolicy">
+                 <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+                  <horstretch>0</horstretch>
+                  <verstretch>0</verstretch>
+                 </sizepolicy>
+                </property>
+                <property name="font">
+                 <font>
+                  <pointsize>10</pointsize>
+                 </font>
+                </property>
+                <property name="text">
+                 <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Time/point (s)&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+                </property>
+                <property name="textFormat">
+                 <enum>Qt::AutoText</enum>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="ScienDSpinBox" name="timeDoubleSpinBox">
+                <property name="toolTip">
+                 <string>Acquisition time of counts for each laser power</string>
+                </property>
+                <property name="keyboardTracking">
+                 <bool>true</bool>
+                </property>
+                <property name="suffix">
+                 <string>s</string>
+                </property>
+               </widget>
+              </item>
+             </layout>
+            </item>
+           </layout>
+          </widget>
+         </item>
+         <item>
+          <layout class="QHBoxLayout" name="horizontalLayout">
+           <item>
+            <spacer name="horizontalSpacer">
+             <property name="orientation">
+              <enum>Qt::Horizontal</enum>
+             </property>
+             <property name="sizeHint" stdset="0">
+              <size>
+               <width>33</width>
+               <height>39</height>
+              </size>
+             </property>
+            </spacer>
+           </item>
+           <item>
+            <widget class="QLabel" name="saturation_Curve_Label">
+             <property name="sizePolicy">
+              <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
+               <horstretch>0</horstretch>
+               <verstretch>0</verstretch>
+              </sizepolicy>
+             </property>
+             <property name="font">
+              <font>
+               <pointsize>28</pointsize>
+              </font>
+             </property>
+             <property name="text">
+              <string>0</string>
+             </property>
+             <property name="alignment">
+              <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </item>
+         <item>
+          <widget class="PlotWidget" name="saturation_Curve_PlotWidget">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+             <horstretch>2</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </widget>
+       <widget class="QWidget" name="layoutWidget">
+        <layout class="QGridLayout" name="gridLayout_4">
+         <item row="0" column="0">
+          <widget class="QPushButton" name="dofit_Button">
+           <property name="maximumSize">
+            <size>
+             <width>275</width>
+             <height>16777215</height>
+            </size>
+           </property>
+           <property name="toolTip">
+            <string>Fit the measured curve with an hyperbolic function</string>
+           </property>
+           <property name="text">
+            <string>Do Hyperbolic Fit</string>
+           </property>
+           <property name="checkable">
+            <bool>true</bool>
+           </property>
+           <property name="autoDefault">
+            <bool>false</bool>
+           </property>
+          </widget>
+         </item>
+         <item row="1" column="0">
+          <widget class="QLabel" name="fit_tag_label">
+           <property name="text">
+            <string>Fit Results:</string>
+           </property>
+          </widget>
+         </item>
+         <item row="2" column="0">
+          <widget class="QTextBrowser" name="saturation_fit_results_DisplayWidget">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+             <horstretch>1</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
+           <property name="maximumSize">
+            <size>
+             <width>275</width>
+             <height>150</height>
+            </size>
+           </property>
+           <property name="sizeAdjustPolicy">
+            <enum>QAbstractScrollArea::AdjustToContents</enum>
+           </property>
+           <property name="tabChangesFocus">
+            <bool>true</bool>
+           </property>
+          </widget>
+         </item>
+         <item row="3" column="0">
+          <spacer name="verticalSpacer">
+           <property name="orientation">
+            <enum>Qt::Vertical</enum>
+           </property>
+           <property name="sizeHint" stdset="0">
+            <size>
+             <width>20</width>
+             <height>40</height>
+            </size>
+           </property>
+          </spacer>
+         </item>
+        </layout>
+       </widget>
+      </widget>
+     </item>
+    </layout>
+   </widget>
+  </widget>
+  <widget class="QToolBar" name="toolBar">
+   <property name="windowTitle">
+    <string>toolBar</string>
+   </property>
+   <property name="toolButtonStyle">
+    <enum>Qt::ToolButtonTextUnderIcon</enum>
+   </property>
+   <attribute name="toolBarArea">
+    <enum>TopToolBarArea</enum>
+   </attribute>
+   <attribute name="toolBarBreak">
+    <bool>false</bool>
+   </attribute>
+   <addaction name="start_saturation_Action"/>
+   <addaction name="save_curve_Action"/>
+   <addaction name="separator"/>
+   <addaction name="laser_ON_Action"/>
+   <addaction name="laser_OFF_Action"/>
+   <addaction name="separator"/>
+   <addaction name="run_stop_scan_Action"/>
+   <addaction name="save_scan_Action"/>
+   <addaction name="separator"/>
+   <addaction name="run_stop_bayopt_Action"/>
+   <addaction name="resume_bayopt_Action"/>
+   <addaction name="save_bayopt_Action"/>
+  </widget>
+  <widget class="QStatusBar" name="statusbar"/>
+  <widget class="QMenuBar" name="menubar">
+   <property name="geometry">
+    <rect>
+     <x>0</x>
+     <y>0</y>
+     <width>1705</width>
+     <height>22</height>
+    </rect>
+   </property>
+   <widget class="QMenu" name="menuFile">
+    <property name="title">
+     <string>&amp;File</string>
+    </property>
+    <addaction name="action_Save"/>
+    <addaction name="action_Close"/>
+   </widget>
+   <widget class="QMenu" name="menuView">
+    <property name="title">
+     <string>&amp;View</string>
+    </property>
+    <addaction name="action_RestoreDefault"/>
+   </widget>
+   <widget class="QMenu" name="menuO_ptions">
+    <property name="title">
+     <string>O&amp;ptions</string>
+    </property>
+    <addaction name="settings_Action"/>
+   </widget>
+   <addaction name="menuFile"/>
+   <addaction name="menuView"/>
+   <addaction name="menuO_ptions"/>
+  </widget>
+  <widget class="QDockWidget" name="laser_power_DockWidget">
+   <property name="sizePolicy">
+    <sizepolicy hsizetype="Fixed" vsizetype="Preferred">
+     <horstretch>0</horstretch>
+     <verstretch>0</verstretch>
+    </sizepolicy>
+   </property>
+   <property name="minimumSize">
+    <size>
+     <width>200</width>
+     <height>305</height>
+    </size>
+   </property>
+   <property name="maximumSize">
+    <size>
+     <width>270</width>
+     <height>324</height>
+    </size>
+   </property>
+   <property name="windowTitle">
+    <string/>
+   </property>
+   <attribute name="dockWidgetArea">
+    <number>1</number>
+   </attribute>
+   <widget class="QWidget" name="dockWidgetContents_3">
+    <layout class="QVBoxLayout" name="verticalLayout_9">
+     <item>
+      <widget class="QGroupBox" name="laser_power_GroupBox">
+       <property name="title">
+        <string>Laser Power</string>
+       </property>
+       <layout class="QVBoxLayout" name="verticalLayout_8">
+        <item>
+         <widget class="QRadioButton" name="powerRadioButton">
+          <property name="text">
+           <string>Power</string>
+          </property>
+          <attribute name="buttonGroup">
+           <string notr="true">controlModeButtonGroup</string>
+          </attribute>
+         </widget>
+        </item>
+        <item>
+         <widget class="QRadioButton" name="currentRadioButton">
+          <property name="text">
+           <string>Current</string>
+          </property>
+          <attribute name="buttonGroup">
+           <string notr="true">controlModeButtonGroup</string>
+          </attribute>
+         </widget>
+        </item>
+        <item>
+         <widget class="QRadioButton" name="digModulationRadioButton">
+          <property name="text">
+           <string>Digital Modulation</string>
+          </property>
+          <attribute name="buttonGroup">
+           <string notr="true">controlModeButtonGroup</string>
+          </attribute>
+         </widget>
+        </item>
+        <item>
+         <widget class="QRadioButton" name="analogModulationRadioButton">
+          <property name="text">
+           <string>Analog Modulation</string>
+          </property>
+          <attribute name="buttonGroup">
+           <string notr="true">controlModeButtonGroup</string>
+          </attribute>
+         </widget>
+        </item>
+        <item>
+         <widget class="ScienDSpinBox" name="LaserdoubleSpinBox">
+          <property name="keyboardTracking">
+           <bool>true</bool>
+          </property>
+         </widget>
+        </item>
+       </layout>
+      </widget>
+     </item>
+     <item>
+      <spacer name="verticalSpacer_3">
+       <property name="orientation">
+        <enum>Qt::Vertical</enum>
+       </property>
+       <property name="sizeHint" stdset="0">
+        <size>
+         <width>20</width>
+         <height>40</height>
+        </size>
+       </property>
+      </spacer>
+     </item>
+    </layout>
+   </widget>
+  </widget>
+  <widget class="QDockWidget" name="OOP_DockWidget">
+   <property name="windowTitle">
+    <string>Optimal Operation Point Scan</string>
+   </property>
+   <attribute name="dockWidgetArea">
+    <number>2</number>
+   </attribute>
+   <widget class="QWidget" name="dockWidgetContents_4">
+    <layout class="QVBoxLayout" name="verticalLayout_11">
+     <item>
+      <layout class="QHBoxLayout" name="horizontalLayout_12">
+       <item>
+        <widget class="QLabel" name="label">
+         <property name="maximumSize">
+          <size>
+           <width>50</width>
+           <height>16777215</height>
+          </size>
+         </property>
+         <property name="text">
+          <string>Name:</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QLineEdit" name="scan_nametag_LineEdit">
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
+         </property>
+         <property name="toolTip">
+          <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Enter a nametag which will &lt;/p&gt;&lt;p&gt;be added to the filename&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <spacer name="horizontalSpacer_4">
+         <property name="orientation">
+          <enum>Qt::Horizontal</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>40</width>
+           <height>20</height>
+          </size>
+         </property>
+        </spacer>
+       </item>
+      </layout>
+     </item>
+     <item>
+      <widget class="QGroupBox" name="parameters_GroupBox">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <property name="title">
+        <string>Parameters</string>
+       </property>
+       <layout class="QVBoxLayout" name="verticalLayout_6">
+        <item>
+         <layout class="QGridLayout" name="gridLayout">
+          <item row="2" column="5">
+           <widget class="QLabel" name="freq_num_Label">
+            <property name="text">
+             <string>Number of points:</string>
+            </property>
+            <property name="alignment">
+             <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+            </property>
+           </widget>
+          </item>
+          <item row="1" column="5">
+           <widget class="QLabel" name="mw_power_num_Label">
+            <property name="text">
+             <string>Number of points:</string>
+            </property>
+            <property name="alignment">
+             <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+            </property>
+           </widget>
+          </item>
+          <item row="0" column="3">
+           <widget class="QLabel" name="laser_power_stop_Label">
+            <property name="text">
+             <string>Stop:</string>
+            </property>
+            <property name="alignment">
+             <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+            </property>
+           </widget>
+          </item>
+          <item row="0" column="4">
+           <widget class="ScienDSpinBox" name="laser_power_stop_DoubleSpinBox">
+            <property name="keyboardTracking">
+             <bool>false</bool>
+            </property>
+            <property name="suffix">
+             <string>W</string>
+            </property>
+           </widget>
+          </item>
+          <item row="0" column="5">
+           <widget class="QLabel" name="laser_power_num_Label">
+            <property name="text">
+             <string>Number of points:</string>
+            </property>
+            <property name="alignment">
+             <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+            </property>
+           </widget>
+          </item>
+          <item row="1" column="0">
+           <widget class="QLabel" name="mw_power_Label">
+            <property name="text">
+             <string>MW power (dBm): </string>
+            </property>
+           </widget>
+          </item>
+          <item row="0" column="6">
+           <widget class="QSpinBox" name="laser_power_num_SpinBox">
+            <property name="keyboardTracking">
+             <bool>false</bool>
+            </property>
+           </widget>
+          </item>
+          <item row="2" column="0">
+           <widget class="QLabel" name="freq_Label">
+            <property name="text">
+             <string>Frequency (GHz):</string>
+            </property>
+           </widget>
+          </item>
+          <item row="1" column="4">
+           <widget class="ScienDSpinBox" name="mw_power_stop_DoubleSpinBox">
+            <property name="keyboardTracking">
+             <bool>false</bool>
+            </property>
+            <property name="suffix">
+             <string>dBm</string>
+            </property>
+           </widget>
+          </item>
+          <item row="2" column="4">
+           <widget class="ScienDSpinBox" name="freq_stop_DoubleSpinBox">
+            <property name="toolTip">
+             <string>Parameter for the ODMR measurement</string>
+            </property>
+            <property name="keyboardTracking">
+             <bool>false</bool>
+            </property>
+            <property name="suffix">
+             <string>Hz</string>
+            </property>
+            <property name="decimals">
+             <number>4</number>
+            </property>
+            <property name="maximum">
+             <double>1000000000.000000000000000</double>
+            </property>
+           </widget>
+          </item>
+          <item row="1" column="2">
+           <widget class="ScienDSpinBox" name="mw_power_start_DoubleSpinBox">
+            <property name="keyboardTracking">
+             <bool>false</bool>
+            </property>
+            <property name="suffix">
+             <string>dBm</string>
+            </property>
+           </widget>
+          </item>
+          <item row="2" column="6">
+           <widget class="QSpinBox" name="freq_num_SpinBox">
+            <property name="toolTip">
+             <string>Parameter for the ODMR measurement</string>
+            </property>
+            <property name="keyboardTracking">
+             <bool>false</bool>
+            </property>
+           </widget>
+          </item>
+          <item row="1" column="1">
+           <widget class="QLabel" name="mw_power_start_Label">
+            <property name="text">
+             <string>Start:</string>
+            </property>
+            <property name="alignment">
+             <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+            </property>
+           </widget>
+          </item>
+          <item row="1" column="6">
+           <widget class="QSpinBox" name="mw_power_num_SpinBox">
+            <property name="keyboardTracking">
+             <bool>false</bool>
+            </property>
+           </widget>
+          </item>
+          <item row="1" column="3">
+           <widget class="QLabel" name="mw_power_stop_Label">
+            <property name="text">
+             <string>Stop:</string>
+            </property>
+            <property name="alignment">
+             <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+            </property>
+           </widget>
+          </item>
+          <item row="2" column="1">
+           <widget class="QLabel" name="freq_start_Label">
+            <property name="text">
+             <string>Start: </string>
+            </property>
+            <property name="alignment">
+             <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+            </property>
+           </widget>
+          </item>
+          <item row="2" column="3">
+           <widget class="QLabel" name="freq_stop_Label">
+            <property name="text">
+             <string>Stop:</string>
+            </property>
+            <property name="alignment">
+             <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+            </property>
+           </widget>
+          </item>
+          <item row="2" column="2">
+           <widget class="ScienDSpinBox" name="freq_start_DoubleSpinBox">
+            <property name="toolTip">
+             <string>Parameter for the ODMR measurement</string>
+            </property>
+            <property name="keyboardTracking">
+             <bool>false</bool>
+            </property>
+            <property name="suffix">
+             <string>Hz</string>
+            </property>
+            <property name="decimals">
+             <number>4</number>
+            </property>
+            <property name="maximum">
+             <double>1000000000.000000000000000</double>
+            </property>
+           </widget>
+          </item>
+          <item row="0" column="1">
+           <widget class="QLabel" name="laser_power_start_Label">
+            <property name="text">
+             <string>Start:</string>
+            </property>
+            <property name="alignment">
+             <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+            </property>
+           </widget>
+          </item>
+          <item row="0" column="0">
+           <widget class="QLabel" name="laser_power_Label">
+            <property name="text">
+             <string>Laser power (mW): </string>
+            </property>
+           </widget>
+          </item>
+          <item row="0" column="2">
+           <widget class="ScienDSpinBox" name="laser_power_start_DoubleSpinBox">
+            <property name="keyboardTracking">
+             <bool>false</bool>
+            </property>
+            <property name="suffix">
+             <string>W</string>
+            </property>
+            <property name="decimals">
+             <number>2</number>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </item>
+        <item>
+         <layout class="QHBoxLayout" name="horizontalLayout_5">
+          <item>
+           <widget class="QLabel" name="counter_runtime_Label">
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="Preferred" vsizetype="Minimum">
+              <horstretch>0</horstretch>
+              <verstretch>0</verstretch>
+             </sizepolicy>
+            </property>
+            <property name="text">
+             <string>Counter runtime (s):</string>
+            </property>
+            <property name="alignment">
+             <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="ScienDSpinBox" name="counter_runtime_DoubleSpinBox">
+            <property name="toolTip">
+             <string>Acquisition time of counts for the saturation curve</string>
+            </property>
+            <property name="keyboardTracking">
+             <bool>false</bool>
+            </property>
+            <property name="suffix">
+             <string>s</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QLabel" name="channel_Label">
+            <property name="text">
+             <string>ODMR channel:</string>
+            </property>
+            <property name="alignment">
+             <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QComboBox" name="channel_ComboBox"/>
+          </item>
+          <item>
+           <widget class="QLabel" name="odmr_runtime_label">
+            <property name="text">
+             <string>ODMR runtime (s):</string>
+            </property>
+            <property name="alignment">
+             <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="ScienDSpinBox" name="odmr_runtime_DoubleSpinBox">
+            <property name="toolTip">
+             <string>Acquisition time of the ODMR spetrum</string>
+            </property>
+            <property name="keyboardTracking">
+             <bool>false</bool>
+            </property>
+            <property name="suffix">
+             <string>s</string>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </item>
+        <item>
+         <layout class="QHBoxLayout" name="horizontalLayout_3">
+          <item>
+           <widget class="QCheckBox" name="optimize_CheckBox">
+            <property name="toolTip">
+             <string>Check it to optimize the position of the laser before each row of the scan</string>
+            </property>
+            <property name="layoutDirection">
+             <enum>Qt::RightToLeft</enum>
+            </property>
+            <property name="text">
+             <string>Optimize position</string>
+            </property>
+            <property name="tristate">
+             <bool>false</bool>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QLabel" name="Fit_label">
+            <property name="text">
+             <string>Fit Function: </string>
+            </property>
+            <property name="alignment">
+             <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="FitSettingsComboBox" name="fit_ComboBox">
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+              <horstretch>0</horstretch>
+              <verstretch>0</verstretch>
+             </sizepolicy>
+            </property>
+            <property name="minimumSize">
+             <size>
+              <width>300</width>
+              <height>0</height>
+             </size>
+            </property>
+            <property name="baseSize">
+             <size>
+              <width>300</width>
+              <height>0</height>
+             </size>
+            </property>
+            <property name="toolTip">
+             <string>Function used to fit the ODMR spectrum</string>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </item>
+       </layout>
+      </widget>
+     </item>
+     <item>
+      <layout class="QHBoxLayout" name="horizontalLayout_6">
+       <item>
+        <widget class="PlotWidget" name="matrix_PlotWidget">
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+           <horstretch>8</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <layout class="QVBoxLayout" name="verticalLayout_10">
+         <item>
+          <widget class="ScienDSpinBox" name="cb_high_percentile_DoubleSpinBox">
+           <property name="keyboardTracking">
+            <bool>false</bool>
+           </property>
+           <property name="suffix">
+            <string>%</string>
+           </property>
+           <property name="decimals">
+            <number>1</number>
+           </property>
+           <property name="maximum">
+            <double>100.000000000000000</double>
+           </property>
+           <property name="value">
+            <double>100.000000000000000</double>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="PlotWidget" name="oop_cb_PlotWidget">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Preferred" vsizetype="Expanding">
+             <horstretch>1</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
+           <property name="minimumSize">
+            <size>
+             <width>10</width>
+             <height>0</height>
+            </size>
+           </property>
+           <property name="maximumSize">
+            <size>
+             <width>16777215</width>
+             <height>16777215</height>
+            </size>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="ScienDSpinBox" name="cb_low_percentile_DoubleSpinBox">
+           <property name="keyboardTracking">
+            <bool>false</bool>
+           </property>
+           <property name="suffix">
+            <string>%</string>
+           </property>
+           <property name="decimals">
+            <number>1</number>
+           </property>
+           <property name="maximum">
+            <double>100.000000000000000</double>
+           </property>
+           <property name="value">
+            <double>1.000000000000000</double>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </item>
+      </layout>
+     </item>
+     <item>
+      <widget class="QComboBox" name="data_ComboBox">
+       <property name="maximumSize">
+        <size>
+         <width>300</width>
+         <height>16777215</height>
+        </size>
+       </property>
+       <property name="toolTip">
+        <string>Choose the data that you want to display</string>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </widget>
+  </widget>
+  <widget class="QDockWidget" name="BayOpt_DockWidget">
+   <property name="windowTitle">
+    <string>Sensitivity optimization</string>
+   </property>
+   <attribute name="dockWidgetArea">
+    <number>2</number>
+   </attribute>
+   <widget class="QWidget" name="dockWidgetContents">
+    <layout class="QVBoxLayout" name="verticalLayout_12">
+     <item>
+      <layout class="QHBoxLayout" name="horizontalLayout_11">
+       <item>
+        <widget class="QLabel" name="figure_name_Label">
+         <property name="text">
+          <string>Figure name : </string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QLineEdit" name="bayopt_nametag_LineEdit">
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
+         </property>
+         <property name="toolTip">
+          <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Enter a nametag which will &lt;/p&gt;&lt;p&gt;be added to the filename&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <spacer name="horizontalSpacer_3">
+         <property name="orientation">
+          <enum>Qt::Horizontal</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>40</width>
+           <height>20</height>
+          </size>
+         </property>
+        </spacer>
+       </item>
+      </layout>
+     </item>
+     <item>
+      <widget class="QGroupBox" name="bayopt_parameters_GroupBox">
+       <property name="title">
+        <string>Parameters</string>
+       </property>
+       <layout class="QVBoxLayout" name="verticalLayout_13">
+        <item>
+         <layout class="QHBoxLayout" name="horizontalLayout_9">
+          <item>
+           <widget class="QLabel" name="laser_power_Label_2">
+            <property name="text">
+             <string>Laser power:</string>
+            </property>
+            <property name="alignment">
+             <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QLabel" name="min_Label">
+            <property name="text">
+             <string>Min:</string>
+            </property>
+            <property name="alignment">
+             <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="ScienDSpinBox" name="bayopt_laser_power_start_DoubleSpinBox">
+            <property name="minimumSize">
+             <size>
+              <width>80</width>
+              <height>0</height>
+             </size>
+            </property>
+            <property name="keyboardTracking">
+             <bool>false</bool>
+            </property>
+            <property name="suffix">
+             <string>W</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QLabel" name="max_Label">
+            <property name="text">
+             <string>Max:</string>
+            </property>
+            <property name="alignment">
+             <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="ScienDSpinBox" name="bayopt_laser_power_stop_DoubleSpinBox">
+            <property name="minimumSize">
+             <size>
+              <width>80</width>
+              <height>0</height>
+             </size>
+            </property>
+            <property name="keyboardTracking">
+             <bool>false</bool>
+            </property>
+            <property name="suffix">
+             <string>W</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QLabel" name="mw_power_Label_2">
+            <property name="text">
+             <string>MW power:</string>
+            </property>
+            <property name="alignment">
+             <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QLabel" name="min_Label_2">
+            <property name="text">
+             <string>Min:</string>
+            </property>
+            <property name="alignment">
+             <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="ScienDSpinBox" name="bayopt_mw_power_start_DoubleSpinBox">
+            <property name="minimumSize">
+             <size>
+              <width>80</width>
+              <height>0</height>
+             </size>
+            </property>
+            <property name="keyboardTracking">
+             <bool>false</bool>
+            </property>
+            <property name="suffix">
+             <string>dBm</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QLabel" name="max_Label_2">
+            <property name="text">
+             <string>Max:</string>
+            </property>
+            <property name="alignment">
+             <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="ScienDSpinBox" name="bayopt_mw_power_stop_DoubleSpinBox">
+            <property name="minimumSize">
+             <size>
+              <width>80</width>
+              <height>0</height>
+             </size>
+            </property>
+            <property name="keyboardTracking">
+             <bool>false</bool>
+            </property>
+            <property name="suffix">
+             <string>dBm</string>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </item>
+        <item>
+         <layout class="QHBoxLayout" name="horizontalLayout_10">
+          <item>
+           <widget class="QLabel" name="frequency_Label">
+            <property name="text">
+             <string>Frequency:</string>
+            </property>
+            <property name="alignment">
+             <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QLabel" name="start_Label">
+            <property name="text">
+             <string>Start:</string>
+            </property>
+            <property name="alignment">
+             <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="ScienDSpinBox" name="bayopt_freq_start_DoubleSpinBox">
+            <property name="minimumSize">
+             <size>
+              <width>80</width>
+              <height>0</height>
+             </size>
+            </property>
+            <property name="toolTip">
+             <string>Parameter for the ODMR measurement</string>
+            </property>
+            <property name="keyboardTracking">
+             <bool>false</bool>
+            </property>
+            <property name="suffix">
+             <string>Hz</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QLabel" name="stop_Label">
+            <property name="text">
+             <string>Stop:</string>
+            </property>
+            <property name="alignment">
+             <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="ScienDSpinBox" name="bayopt_freq_stop_DoubleSpinBox">
+            <property name="minimumSize">
+             <size>
+              <width>80</width>
+              <height>0</height>
+             </size>
+            </property>
+            <property name="toolTip">
+             <string>Parameter for the ODMR measurement</string>
+            </property>
+            <property name="keyboardTracking">
+             <bool>false</bool>
+            </property>
+            <property name="suffix">
+             <string>Hz</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QLabel" name="num_of_points_Label">
+            <property name="text">
+             <string>Number of points:</string>
+            </property>
+            <property name="alignment">
+             <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QSpinBox" name="bayopt_freq_num_SpinBox">
+            <property name="minimumSize">
+             <size>
+              <width>0</width>
+              <height>0</height>
+             </size>
+            </property>
+            <property name="toolTip">
+             <string>Parameter for the ODMR measurement</string>
+            </property>
+            <property name="keyboardTracking">
+             <bool>false</bool>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QLabel" name="odmr_runtime_Label">
+            <property name="text">
+             <string>ODMR runtime:</string>
+            </property>
+            <property name="alignment">
+             <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="ScienDSpinBox" name="bayopt_odmr_runtime_DoubleSpinBox">
+            <property name="minimumSize">
+             <size>
+              <width>80</width>
+              <height>0</height>
+             </size>
+            </property>
+            <property name="toolTip">
+             <string>Acquisition time of the ODMR spetrum</string>
+            </property>
+            <property name="keyboardTracking">
+             <bool>false</bool>
+            </property>
+            <property name="suffix">
+             <string>s</string>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </item>
+        <item>
+         <layout class="QHBoxLayout" name="horizontalLayout_8">
+          <item>
+           <widget class="QLabel" name="num_meas_Label">
+            <property name="text">
+             <string>Number of ODMR measurements:</string>
+            </property>
+            <property name="alignment">
+             <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QSpinBox" name="bayopt_num_meas_SpinBox">
+            <property name="toolTip">
+             <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Number of ODMR measurements &lt;/p&gt;&lt;p&gt;performed to optimize the sensitivity.&lt;/p&gt;&lt;p&gt;The more measurements are recorded, &lt;/p&gt;&lt;p&gt;the more accurate the optimization will&lt;/p&gt;&lt;p&gt;be. &lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+            </property>
+            <property name="keyboardTracking">
+             <bool>false</bool>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QLabel" name="channel_Label_2">
+            <property name="text">
+             <string>ODMR channel:</string>
+            </property>
+            <property name="alignment">
+             <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QComboBox" name="bayopt_channel_ComboBox"/>
+          </item>
+          <item>
+           <widget class="QLabel" name="fit_function_Label">
+            <property name="text">
+             <string>Fit Function</string>
+            </property>
+            <property name="alignment">
+             <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QComboBox" name="bayopt_fit_ComboBox">
+            <property name="toolTip">
+             <string>Function used to fit the ODMR spectrum</string>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </item>
+       </layout>
+      </widget>
+     </item>
+     <item>
+      <layout class="QHBoxLayout" name="horizontalLayout_7">
+       <item>
+        <widget class="QLabel" name="elapsed_measurements_Label">
+         <property name="text">
+          <string>Elapsed measurements:</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QLCDNumber" name="elapsed_measurements_DisplayWidget"/>
+       </item>
+       <item>
+        <spacer name="horizontalSpacer_2">
+         <property name="orientation">
+          <enum>Qt::Horizontal</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>400</width>
+           <height>20</height>
+          </size>
+         </property>
+        </spacer>
+       </item>
+      </layout>
+     </item>
+     <item>
+      <layout class="QHBoxLayout" name="horizontalLayout_2">
+       <item>
+        <widget class="PlotWidget" name="bayopt_PlotWidget">
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+           <horstretch>8</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <layout class="QVBoxLayout" name="verticalLayout">
+         <item>
+          <widget class="QDoubleSpinBox" name="bayopt_cb_high_percentile_DoubleSpinBox">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
+             <horstretch>1</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
+           <property name="keyboardTracking">
+            <bool>false</bool>
+           </property>
+           <property name="suffix">
+            <string>%</string>
+           </property>
+           <property name="decimals">
+            <number>1</number>
+           </property>
+           <property name="value">
+            <double>100.000000000000000</double>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="PlotWidget" name="bayopt_cb_PlotWidget">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Preferred" vsizetype="Expanding">
+             <horstretch>1</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
+           <property name="minimumSize">
+            <size>
+             <width>10</width>
+             <height>0</height>
+            </size>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QDoubleSpinBox" name="bayopt_cb_low_percentile_DoubleSpinBox">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
+             <horstretch>1</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
+           <property name="keyboardTracking">
+            <bool>false</bool>
+           </property>
+           <property name="suffix">
+            <string>%</string>
+           </property>
+           <property name="decimals">
+            <number>1</number>
+           </property>
+           <property name="value">
+            <double>1.000000000000000</double>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </item>
+      </layout>
+     </item>
+    </layout>
+   </widget>
+  </widget>
+  <action name="start_saturation_Action">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="icon">
+    <iconset>
+     <normaloff>../../../qnami-qudi/artwork/icons/qudiTheme/22x22/start-counter.png</normaloff>
+     <normalon>../../../qnami-qudi/artwork/icons/qudiTheme/22x22/stop-counter.png</normalon>../../../qnami-qudi/artwork/icons/qudiTheme/22x22/start-counter.png</iconset>
+   </property>
+   <property name="text">
+    <string>Start Saturation</string>
+   </property>
+   <property name="toolTip">
+    <string>Start a saturation curve measurement</string>
+   </property>
+  </action>
+  <action name="save_curve_Action">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="icon">
+    <iconset>
+     <normaloff>../../../qnami-qudi/artwork/icons/oxygen/22x22/document-save.png</normaloff>../../../qnami-qudi/artwork/icons/oxygen/22x22/document-save.png</iconset>
+   </property>
+   <property name="text">
+    <string>Save Saturation</string>
+   </property>
+   <property name="iconText">
+    <string>Save Saturation</string>
+   </property>
+   <property name="toolTip">
+    <string>Save the saturation curve to file</string>
+   </property>
+  </action>
+  <action name="laser_ON_Action">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="icon">
+    <iconset>
+     <normaloff>../../../qnami-qudi/artwork/icons/oxygen/22x22/media-playback-start.png</normaloff>../../../qnami-qudi/artwork/icons/oxygen/22x22/media-playback-start.png</iconset>
+   </property>
+   <property name="text">
+    <string>Laser ON</string>
+   </property>
+   <property name="toolTip">
+    <string>Turn the laser on</string>
+   </property>
+  </action>
+  <action name="laser_OFF_Action">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="icon">
+    <iconset>
+     <normaloff>../../../qnami-qudi/artwork/icons/oxygen/22x22/media-playback-stop.png</normaloff>../../../qnami-qudi/artwork/icons/oxygen/22x22/media-playback-stop.png</iconset>
+   </property>
+   <property name="text">
+    <string>Laser OFF</string>
+   </property>
+   <property name="toolTip">
+    <string>Turn the laser off</string>
+   </property>
+  </action>
+  <action name="action_Save">
+   <property name="icon">
+    <iconset>
+     <normaloff>../../../qnami-qudi/artwork/icons/oxygen/22x22/document-save.png</normaloff>../../../qnami-qudi/artwork/icons/oxygen/22x22/document-save.png</iconset>
+   </property>
+   <property name="text">
+    <string>&amp;Save</string>
+   </property>
+  </action>
+  <action name="action_Close">
+   <property name="icon">
+    <iconset>
+     <normaloff>../../../qnami-qudi/artwork/icons/oxygen/22x22/application-exit.png</normaloff>../../../qnami-qudi/artwork/icons/oxygen/22x22/application-exit.png</iconset>
+   </property>
+   <property name="text">
+    <string>&amp;Close</string>
+   </property>
+  </action>
+  <action name="action_RestoreDefault">
+   <property name="text">
+    <string>Restore &amp;default</string>
+   </property>
+  </action>
+  <action name="run_stop_scan_Action">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="icon">
+    <iconset>
+     <normaloff>../../../qnami-qudi/artwork/icons/qudiTheme/22x22/scan-depth-loop.png</normaloff>
+     <normalon>../../../qnami-qudi/artwork/icons/qudiTheme/22x22/stop-scan.png</normalon>../../../qnami-qudi/artwork/icons/qudiTheme/22x22/scan-depth-loop.png</iconset>
+   </property>
+   <property name="text">
+    <string>Start Scan</string>
+   </property>
+   <property name="iconText">
+    <string>Start Scan</string>
+   </property>
+   <property name="toolTip">
+    <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Start a scan on the laser and &lt;/p&gt;&lt;p&gt;microwave powers&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+   </property>
+  </action>
+  <action name="run_stop_bayopt_Action">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="icon">
+    <iconset>
+     <normaloff>../../../qnami-qudi/artwork/icons/qudiTheme/22x22/start-counter.png</normaloff>
+     <normalon>../../../qnami-qudi/artwork/icons/qudiTheme/22x22/stop-counter.png</normalon>../../../qnami-qudi/artwork/icons/qudiTheme/22x22/start-counter.png</iconset>
+   </property>
+   <property name="text">
+    <string>Start Optimization</string>
+   </property>
+   <property name="toolTip">
+    <string>Start sensitivity optimization</string>
+   </property>
+  </action>
+  <action name="resume_bayopt_Action">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="icon">
+    <iconset>
+     <normaloff>../../../qnami-qudi/artwork/icons/qudiTheme/22x22/restart-counter.png</normaloff>
+     <normalon>../../../qnami-qudi/artwork/icons/qudiTheme/22x22/stop-counter.png</normalon>../../../qnami-qudi/artwork/icons/qudiTheme/22x22/restart-counter.png</iconset>
+   </property>
+   <property name="text">
+    <string notr="true">Resume the previous optimization</string>
+   </property>
+   <property name="iconText">
+    <string>Resume</string>
+   </property>
+   <property name="toolTip">
+    <string>Resume the previous optimization</string>
+   </property>
+  </action>
+  <action name="save_bayopt_Action">
+   <property name="icon">
+    <iconset>
+     <normaloff>../../../qnami-qudi/artwork/icons/oxygen/22x22/document-save.png</normaloff>../../../qnami-qudi/artwork/icons/oxygen/22x22/document-save.png</iconset>
+   </property>
+   <property name="text">
+    <string>Save Optimization </string>
+   </property>
+   <property name="toolTip">
+    <string>Save optimization results</string>
+   </property>
+  </action>
+  <action name="settings_Action">
+   <property name="icon">
+    <iconset>
+     <normaloff>../../../qnami-qudi/artwork/icons/oxygen/22x22/configure.png</normaloff>../../../qnami-qudi/artwork/icons/oxygen/22x22/configure.png</iconset>
+   </property>
+   <property name="text">
+    <string>&amp;Settings</string>
+   </property>
+  </action>
+  <action name="save_scan_Action">
+   <property name="icon">
+    <iconset>
+     <normaloff>../../../qnami-qudi/artwork/icons/oxygen/22x22/document-save.png</normaloff>../../../qnami-qudi/artwork/icons/oxygen/22x22/document-save.png</iconset>
+   </property>
+   <property name="text">
+    <string>Save scan</string>
+   </property>
+   <property name="iconText">
+    <string>Save Scan</string>
+   </property>
+   <property name="toolTip">
+    <string>Save the scan to file</string>
+   </property>
+  </action>
+ </widget>
+ <customwidgets>
+  <customwidget>
+   <class>PlotWidget</class>
+   <extends>QGraphicsView</extends>
+   <header>pyqtgraph</header>
+  </customwidget>
+  <customwidget>
+   <class>ScienDSpinBox</class>
+   <extends>QDoubleSpinBox</extends>
+   <header>qtwidgets.scientific_spinbox.h</header>
+  </customwidget>
+  <customwidget>
+   <class>FitSettingsComboBox</class>
+   <extends>QComboBox</extends>
+   <header>gui/fitsettings</header>
+  </customwidget>
+ </customwidgets>
+ <resources/>
+ <connections>
+  <connection>
+   <sender>action_Close</sender>
+   <signal>triggered()</signal>
+   <receiver>MainWindow</receiver>
+   <slot>close()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>-1</x>
+     <y>-1</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>526</x>
+     <y>288</y>
+    </hint>
+   </hints>
+  </connection>
+ </connections>
+ <buttongroups>
+  <buttongroup name="controlModeButtonGroup"/>
+ </buttongroups>
+</ui>

@@ -2,24 +2,20 @@ from . import Device as dev
 
 
 class ResultStreamFilter(dev.Device):
-	"""RF pulse generation module
-		Attributes: 
-			period -- Minimum pause between measurement result transmissions in counting unit cycles. 
-	"""
+    """RF pulse generation module
 
-	def __init__(self, com, addr):
-		super().__init__(com, addr)
-		self.period = dev.Field(self.com, self.addr + 0x0000, 0, 32)
+        Attributes: 
+            period -- Minimum pause between measurement result transmissions in counting unit cycles. 
+    """
 
-	def set(self, period):
-		"""Configure period in seconds
-			Keyword arguments:
-				period -- Minimum pause between measurement result transmissions in seconds
-		"""
-		self.period.set(self.com.convSecToAxiCyc(period))
+    def __init__(self,com,addr):
+        super().__init__(com,addr)
+        self.period         = dev.Field( self.com, self.addr + 0x0000, 0, 32)
 
-	def get(self):
-		""" Obtain ResultStreamFilter period in seconds """
-
-		return self.com.convAxiCycToSec(self.period.get())
+    def set(self, period):
+        """Configure period in seconds
+            Arguments:
+                period -- Minimum pause between measurement result transmissions in seconds
+        """
+        self.period.set(self.com.convSecToAxiCyc(period))
 

@@ -82,6 +82,7 @@ class SmartSPM(Base):
     _threaded = True
     _version_comp = 'aist-nt_v3.5.136'   # indicates the compatibility of the version.
     __version__ = '0.6.1'
+    _spm_dll_ver = '0.0.0'
 
     # Default values for measurement
     # ------------------------------
@@ -200,7 +201,7 @@ class SmartSPM(Base):
     sigLineRestarted = QtCore.Signal()    # signal will be emitted if loss of 
                                         # connection error occurred.
 
-    _libpath = ConfigOption('libpath', missing='error')
+    _libpath = ConfigOption('libpath', default='spm-library')   # default is the relative path
 
     def __init__(self, config, **kwargs):
         """ Create CounterLogic object with connectors.
@@ -242,7 +243,13 @@ class SmartSPM(Base):
         """ Prepare and activate the spm module. """
 
         self._lib = None
+
+        if not os.path.isabs(self._libpath):   
+            self._libpath = os.path.join(os.path.dirname(__file__), self._libpath)
+
         self._load_library(self._libpath)
+
+        self._spm_dll_ver = self.get_library_version()
         
         self.connect_spm()
 
@@ -255,8 +262,6 @@ class SmartSPM(Base):
         # measure callbacks
         #self.set_scancallback2()
         self.set_scancallback3()
-
-
 
         self._prepare_library_calls()
 
@@ -316,7 +321,25 @@ class SmartSPM(Base):
         self._lib = ctypes.CDLL(libname)
         os.chdir(curr_path) # change back to initial path
 
-    
+    def get_library_version(self, libpath=None):
+        """ Get the spm dll library version.
+
+        @params str path: optional path to the folder, where library is situated.
+        """
+
+        if libpath is None:
+            libpath = self._libpath
+
+        file_name = 'version.txt'
+        path = os.path.join(libpath, file_name)
+
+        try:
+            with open(path, 'r') as ver_file:
+                return [line.strip().split(' ')[1] for line in ver_file.readlines() if 'version' in line][0]
+        except Exception as e:
+            self.log.warning('Could not obtain the library version of the SPM DLL file.')
+            return '0.0.0'
+
     def _prepare_library_calls(self):
         """ Set necessary argtypes and restype of function calls. """
 
