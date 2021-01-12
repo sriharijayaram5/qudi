@@ -59,6 +59,7 @@ class Prime95B(Base, CameraInterface, FastCounterInterface):
         # Generator function to detect a connected camera
         self.cam = next(Camera.detect_camera())
         self.cam.open()
+        self.set_fan_speed(0)
         self.cam.exp_mode = "Ext Trig Internal"
         self.cam.exp_res = 0
         self.exp_time = self.cam.exp_time = 1
@@ -479,3 +480,10 @@ class Prime95B(Base, CameraInterface, FastCounterInterface):
         info_dict = {'elapsed_sweeps': None,
                      'elapsed_time': None}  # TODO : implement that according to hardware capabilities
         return np.array(self.pulsed_frames, dtype='float32'), info_dict
+
+    def set_fan_speed(self, fan_speed):
+        self.cam.set_param(const.PARAM_FAN_SPEED_SETPOINT, fan_speed)
+        fs = {0: 'High', 1: 'Medium', 2: 'Low', 3: 'Off'}
+        self.log.info(f'Prime95B fan speed: {fs[fan_speed]}')
+        if fan_speed==3:
+            self.log.warning('Ensure liquid cooling is on!')

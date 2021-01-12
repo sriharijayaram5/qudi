@@ -370,6 +370,7 @@
    </attribute>
    <addaction name="start_video_Action"/>
    <addaction name="start_image_Action"/>
+   <addaction name="action_toggle_cooling"/>
   </widget>
   <action name="start_video_Action">
    <property name="checkable">
@@ -421,6 +422,19 @@
    </property>
    <property name="toolTip">
     <string>Take an image</string>
+   </property>
+  </action>
+  <action name="action_toggle_cooling">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="icon">
+    <iconset>
+     <normaloff>../../artwork/icons/oxygen/22x22/fan_off_icon_135650.ico</normaloff>
+     <normalon>../../artwork/icons/oxygen/22x22/fan_icon_137646.ico</normalon></iconset>
+   </property>
+   <property name="text">
+    <string>Toggle fan</string>
    </property>
   </action>
   <action name="actionSettings">

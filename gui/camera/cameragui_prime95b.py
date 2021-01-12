@@ -112,6 +112,8 @@ class CameraGUI(GUIBase):
         self._mw.start_image_Action.setChecked(self._logic.enabled)
         self._mw.start_image_Action.triggered.connect(self.start_image_clicked)
 
+        self._mw.action_toggle_cooling.toggled.connect(self.toggle_fan)
+
         self._logic.sigUpdateDisplay.connect(self.update_data)
         self._logic.sigAcquisitionFinished.connect(self.acquisition_finished)
         self._logic.sigVideoFinished.connect(self.enable_start_image_action)
@@ -341,6 +343,9 @@ class CameraGUI(GUIBase):
             self.sigVideoStart.emit()
             was_enabled = False
 
+    def toggle_fan(self):
+        fan_speed = 3 if self._mw.action_toggle_cooling.isChecked() else 0
+        self._logic.set_fan_speed(fan_speed)
 
 # color bar functions
 

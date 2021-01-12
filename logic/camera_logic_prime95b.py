@@ -95,6 +95,9 @@ class CameraLogic(GenericLogic):
         @return tuple: (ROI width, ROI height)
         '''
         return self._hardware.get_size()
+    
+    def set_fan_speed(self, fan_speed):
+        return self._hardware.set_fan_speed(fan_speed)
 
     def set_image_roi(self, data):
         '''Sets the ROI in the image. This selection of ROI is done in the GUI. A single rectangular ROI
