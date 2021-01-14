@@ -31,6 +31,7 @@ import time
 import datetime
 import matplotlib.pyplot as plt
 import math
+from . import gwyfile as gwy
 
 from deprecation import deprecated
 
@@ -248,6 +249,7 @@ class AFMConfocalLogic(GenericLogic):
     # Save Settings
     _sg_root_folder_name = StatusVar(default='')
     _sg_create_summary_pic = StatusVar(default=True)
+    _sg_save_to_gwyddion = StatusVar(default=False)
 
     # Optimizer Settings
     _sg_optimizer_x_range = StatusVar(default=1.0e-6)
@@ -535,6 +537,7 @@ class AFMConfocalLogic(GenericLogic):
         # Save Settings
         sd['root_folder_name'] = self._sg_root_folder_name
         sd['create_summary_pic'] = self._sg_create_summary_pic
+        sd['save_to_gwyddion'] = self._sg_save_to_gwyddion
         # Optimizer Settings
         sd['optimizer_x_range'] = self._sg_optimizer_x_range
         sd['optimizer_x_res'] = self._sg_optimizer_x_res
@@ -4197,6 +4200,104 @@ class AFMConfocalLogic(GenericLogic):
 
         return return_path
 
+    @staticmethod
+    def _save_to_gwyddion(dataobj,filename,datakeys=None,gwytypes=['image','xyz']):
+        """save_obj_to_gwy(): writes qudi data object to Gwyddion file
+            input:  
+            - dataobj: proteusQ data object of from dataobj['data_key']
+            - filename: file path to save object
+            - prefix:  name to be prefixed to all head objects
+                
+            requirements:
+            dataobj['scan_type'] must contain keys {coord0[], coord1[], data[,], params[]}
+        """
+        
+        # check for existance of valid object names
+        if datakeys is None:
+            datakeys = list(dataobj.keys())
+        else:
+            if isinstance(datakeys,str):
+                datakeys = list(datakeys)
+            alloweddatakeys = list(dataobj.keys())
+            for n in datakeys:
+                assert n in alloweddatakeys, f"Invalid object name specified '{n}'"
+
+        # check for existance of valid output types
+        assert gwytypes and set(gwytypes).issubset({'image', 'xyz'}), "Incorrect Gwyddion output type specified"
+                
+        # overall object container
+        objout = gwy.objects.GwyContainer()
+
+        for dataki,datak in enumerate(sorted(datakeys, key=str.lower)):
+            meas = dataobj[datak]
+
+            # check that data is valid
+            if not {'coord0_arr','coord1_arr','data'}.issubset(set(meas.keys())):
+                continue 
+
+            # check that there is non-trivial data (skip empty measurements)
+            if np.sum(meas['data']) == 0.0:
+                continue
+
+            # transform data
+            scalefactor = meas['scale_fac']
+            coord0 = meas['coord0_arr']
+            coord1 = meas['coord1_arr']
+            data_si = meas['data'] * scalefactor
+            xyz_data = np.array([x for j in range(coord1.shape[0]) 
+                                for i in range(coord0.shape[0]) 
+                                for x in (coord0[i], coord1[j], data_si[j,i])]) 
+
+            params = meas['params']
+            coord0_start = next(k for k in params.keys() if k.startswith('coord0_start'))
+            coord0_stop = next(k for k in params.keys() if k.startswith('coord0_stop'))
+            coord1_start = next(k for k in params.keys() if k.startswith('coord1_start'))
+            coord1_stop = next(k for k in params.keys() if k.startswith('coord1_stop'))
+
+            xy_units = coord0_start.split('(')[1].split(')')[0]
+            z_units = meas['si_units']
+            measname = datak + ":" + meas['nice_name']
+            
+            # encode to image
+            img = gwy.objects.GwyDataField(data=data_si, si_unit_xy=xy_units, si_unit_z=z_units)
+            img.xoff = params[coord0_start]
+            img.xreal = params[coord0_stop] - params[coord0_start]
+            img.yoff = params[coord1_start]
+            img.yreal = params[coord1_stop] - params[coord1_start]
+
+            # encode to xyz
+            xyz = gwy.objects.GwySurface(data=xyz_data,si_unit_xy=xy_units,si_unit_z=z_units)
+
+            # add to parent object 
+            if 'image' in gwytypes: 
+                # image types
+                basekey = '/' + str(dataki) + '/data'
+                objout[basekey + '/title'] = measname
+                objout[basekey] = img
+                
+            if 'xyz' in gwytypes:
+                # xyz types
+                basekey = '/surface/' + str(dataki) 
+                objout[basekey + '/title'] = measname
+                objout[basekey] = xyz
+                objout[basekey + '/preview'] = img
+                objout[basekey + '/visible'] = True
+
+                # comment meta data
+                comm = gwy.objects.GwyContainer()
+                for k,v in meas['params'].items():
+                    if isinstance(v,(list,tuple)):
+                        comm[k] = ",".join([str(vs) for vs in v])
+                    else:
+                        comm[k] = str(v)
+                
+                objout[basekey + '/meta'] = comm
+
+        # write out file    
+        if objout:
+            objout.tofile(filename) 
+
+
     def check_for_illegal_char(self, input_str):
         replace_char = '_'
         illegal = ['\\', '/', ':', '?', '*', '<', '>', '|']
@@ -4311,6 +4412,10 @@ class AFMConfocalLogic(GenericLogic):
         self.save_quantitative_data(tag=tag, probe_name=probe_name, sample_name=sample_name,
                                     use_qudi_savescheme=use_qudi_savescheme, root_path=root_path, 
                                     daily_folder=daily_folder, timestamp=timestamp)
+
+        if self._sg_save_to_gwyddion:
+            self._save_to_gwyddion(dataob=data,filepath=os.path.join(save_path,"qafm_data.gwy"))
+
 
     def draw_figure(self, image_data, image_extent, scan_axis=None, cbar_range=None,
                     percentile_range=None, signal_name='', signal_unit=''):
@@ -4539,6 +4644,9 @@ class AFMConfocalLogic(GenericLogic):
                                        fmt='%.6e',
                                        delimiter='\t',
                                        plotfig=None)
+
+            if self._sg_save_to_gwyddion:
+                self._save_to_gwyddion(dataobj=data,filename=os.path.join(save_path,"esr_data.gwy"))
 
             self.increase_save_counter()
 
@@ -4918,6 +5026,10 @@ class AFMConfocalLogic(GenericLogic):
                                        filelabel=filelabel,
                                        fmt='%.6e',
                                        delimiter='\t')
+
+            if self._sg_save_to_gwyddion:
+                self._save_to_gwyddion(dataobj=data,filename=os.path.join(save_path,"obj_data.gwy"))
+
             self.increase_save_counter()
 
     def draw_obj_figure(self):
@@ -5045,6 +5157,10 @@ class AFMConfocalLogic(GenericLogic):
                                    filelabel=filelabel,
                                    fmt='%.6e',
                                    delimiter='\t')
+
+        if self._sg_save_to_gwyddion:
+            self._save_to_gwyddion(dataobj=data,filename=os.path.join(save_path,"opti_data.gwy"))
+
         self.increase_save_counter()
 
     def draw_optimizer_figure(self, image_data_xy, image_data_z, image_extent, scan_axis=None, 
