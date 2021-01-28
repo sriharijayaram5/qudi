@@ -4201,8 +4201,8 @@ class AFMConfocalLogic(GenericLogic):
         return return_path
 
     @staticmethod
-    def _save_to_gwyddion(dataobj,filename,datakeys=None,gwytypes=['image','xyz']):
-        """save_obj_to_gwy(): writes qudi data object to Gwyddion file
+    def _save_obj_to_gwyddion(dataobj,filename,datakeys=None,gwytypes=['image','xyz']):
+        """save_obj_to_gwyddion(): writes qudi data object to Gwyddion file
             input:  
             - dataobj: proteusQ data object of from dataobj['data_key']
             - filename: file path to save object
@@ -4297,6 +4297,105 @@ class AFMConfocalLogic(GenericLogic):
         if objout:
             objout.tofile(filename) 
 
+    @staticmethod
+    def _save_esr_to_gwyddion(dataobj,filename, datakeys=None,prefix=None):
+        """
+            save_esr_to_gwyddion(): writes esr data object to gwy container file
+            input:  
+            - dataobj: proteusQ data object of from dataobj['data_key']
+            - filename: file path to save object
+            - prefix:  name to be prefixed to all head objects
+            
+            requirements:
+            dataobj must contain keys {coord0[], coord1[], coord2[],
+                                        data[,,], data_std[,,], data_fit[,,], parameters[]}
+        """
+
+        # helper function for color generation
+        # r/g/bspec = (min,max,number,startvalue)
+        def colors(rspec=(0,1,10,0), gspec=(0,1,10,0), bspec=(0,1,10,0)):
+            reds = np.linspace(*rspec[:3])
+            reds =np.concatenate([reds[np.argwhere(reds >= rspec[-1])], 
+                                reds[np.argwhere(reds < rspec[-1])]]).flatten()
+
+            greens = np.linspace(*gspec[:3])
+            greens =np.concatenate([greens[np.argwhere(greens >= gspec[-1])], 
+                                greens[np.argwhere(greens < gspec[-1])]]).flatten()
+
+            blues = np.linspace(*bspec[:3])
+            blues =np.concatenate([blues[np.argwhere(blues >= bspec[-1])], 
+                                blues[np.argwhere(blues < bspec[-1])]]).flatten()
+
+            while True:
+                for r in reds:
+                    for g in greens:
+                        for b in blues:
+                            yield [('color.red', r), 
+                                ('color.green', g), 
+                                ('color.blue',b)]
+
+        
+        # check for existance of valid object names
+        if datakeys is None:
+            datakeys = list(dataobj.keys())
+        else:
+            if isinstance(datakeys,str):
+                datakeys = list(datakeys)
+            alloweddatakeys = list(dataobj.keys())
+            for n in datakeys:
+                assert n in alloweddatakeys, f"Invalid object name specified '{n}'"
+
+        # determine if anything is to be done
+        if np.sum(dataobj['data']) == 0.0:
+            return False
+
+        # Output 
+        # overall object container
+        esrobj = gwy.objects.GwyContainer()
+
+        # ESR mean data (quite dense)
+        # create curves
+        xdata = dataobj['coord2_arr']  # microwave frequency
+        curves = []
+        getcolors = colors((0,1,5,0.9),(0,1,5,0),(0,0.8,5,0))   # point color generator
+
+        #  specifies 1st curve is points(1), 2nd curve is line(2), others hidden(0)
+        ltypes = [1,2] 
+        for j in range(dataobj['coord1_arr'].shape[0]):
+            for i in range(dataobj['coord0_arr'].shape[0]):
+                cols = next(getcolors)
+    
+                # measured data
+                ydata = dataobj['data'][j,i,:]
+                curve = gwy.objects.GwyGraphCurveModel(xdata=xdata, ydata=ydata)
+                curve.update(cols)
+                curve['description'] = f"coord[{j},{i}]"
+                curve['type'] = ltypes.pop(0) if ltypes else 0
+                curve['line_style'] = 0 
+                curves.append(curve)
+
+                # fit data
+                ydata = dataobj['data_fit'][j,i,:]
+                curve = gwy.objects.GwyGraphCurveModel(xdata=xdata, ydata=ydata)
+                curve.update(cols)
+                curve['description'] = f"coord[{j},{i}]_fit"
+                curve['type'] = ltypes.pop(0) if ltypes else 0
+                curve['line_style'] = 0 
+                curves.append(curve)
+
+        esrgraph = gwy.objects.GwyGraphModel()
+        esrgraph['title'] = 'ESR: data per pixel'
+        esrgraph['curves'] = curves
+        esrgraph['x_unit'] = gwy.objects.GwySIUnit(unitstr='Hz')
+        esrgraph['y_unit'] = gwy.objects.GwySIUnit(unitstr='c/s')
+        esrgraph['bottom_label'] = 'Microwave Frequency'
+        esrgraph['left_label'] = dataobj['nice_name'] + ' Count'
+
+        esrobj['/0/graph/graph/1'] = esrgraph 
+        esrobj['/0/graph/graph/1/visible'] = False 
+
+        esrobj.tofile(filename) 
+        return True
 
     def check_for_illegal_char(self, input_str):
         replace_char = '_'
@@ -4414,7 +4513,7 @@ class AFMConfocalLogic(GenericLogic):
                                     daily_folder=daily_folder, timestamp=timestamp)
 
         if self._sg_save_to_gwyddion:
-            self._save_to_gwyddion(dataob=data,filepath=os.path.join(save_path,"qafm_data.gwy"))
+            self._save_obj_to_gwyddion(dataobj=data,filename=os.path.join(save_path,"qafm_data.gwy"))
 
 
     def draw_figure(self, image_data, image_extent, scan_axis=None, cbar_range=None,
@@ -4587,8 +4686,6 @@ class AFMConfocalLogic(GenericLogic):
 
             self.increase_save_counter()
 
-
-
             image_data = {}
             # reshape the image before sending out to save logic.
             image_data[f'ESR scan std measurements with {nice_name} signal without axis.\n'
@@ -4646,7 +4743,9 @@ class AFMConfocalLogic(GenericLogic):
                                        plotfig=None)
 
             if self._sg_save_to_gwyddion:
-                self._save_to_gwyddion(dataobj=data,filename=os.path.join(save_path,"esr_data.gwy"))
+                for dname in data.keys():
+                    self._save_esr_to_gwyddion(dataobj=data[dname],
+                                               filename=os.path.join(save_path,f"{dname}.gwy"))
 
             self.increase_save_counter()
 
@@ -5028,7 +5127,7 @@ class AFMConfocalLogic(GenericLogic):
                                        delimiter='\t')
 
             if self._sg_save_to_gwyddion:
-                self._save_to_gwyddion(dataobj=data,filename=os.path.join(save_path,"obj_data.gwy"))
+                self._save_obj_to_gwyddion(dataobj=data,filename=os.path.join(save_path,"obj_data.gwy"))
 
             self.increase_save_counter()
 
@@ -5159,7 +5258,7 @@ class AFMConfocalLogic(GenericLogic):
                                    delimiter='\t')
 
         if self._sg_save_to_gwyddion:
-            self._save_to_gwyddion(dataobj=data,filename=os.path.join(save_path,"opti_data.gwy"))
+            self._save_obj_to_gwyddion(dataobj=data,filename=os.path.join(save_path,"opti_data.gwy"))
 
         self.increase_save_counter()
 
