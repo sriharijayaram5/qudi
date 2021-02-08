@@ -68,7 +68,7 @@ class Prime95B(Base, CameraInterface, FastCounterInterface):
         self._live = False
         self.cam.speed_table_index = 1 #16 bit mode
         self.cam.exp_out_mode = 2 #Any row expose out mode
-        self.cam.clear_mode = 3 #Post-sequence expose out mode
+        self.cam.clear_mode = 'Pre-Sequence'
         #For pulsed
         self._number_of_gates = int(0)
         self._bin_width = 1
@@ -354,7 +354,8 @@ class Prime95B(Base, CameraInterface, FastCounterInterface):
         mode = 1 #EXPOSE_OUT_ALL_ROWS
         mode = 3 #MAX
         self.cam.exp_out_mode = mode
-        self.cam.clear_mode = 'Pre-Exposure'
+        # self.cam.clear_mode = 'Pre-Exposure' #Apparently Prime cameras can only use clear pre sequence. Other modes in constants.py are for other cameras.
+        self.cam.clear_mode = 'Pre-Sequence'
         if self.pulsed_frames is None:
             self.pulsed_frames = np.zeros(no_of_laser_pulses, dtype='float32')
     
@@ -363,7 +364,8 @@ class Prime95B(Base, CameraInterface, FastCounterInterface):
         self.set_exposure_mode("Ext Trig Internal")
         mode = 2 #EXPOSE_OUT_ANY_ROWS
         self.cam.exp_out_mode = mode
-        self.cam.clear_mode = 'Post-Sequence'
+        # self.cam.clear_mode = 'Post-Sequence' #Apparently Prime cameras can only use clear pre sequence. Other modes in constants.py are for other cameras.
+        self.cam.clear_mode = 'Pre-Sequence'
         self.pulsed_frames = None
     
     def configure(self, bin_width_s, record_length_s, number_of_gates=0):
