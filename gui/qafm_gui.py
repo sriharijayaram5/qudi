@@ -1078,8 +1078,10 @@ class ProteusQGUI(GUIBase):
                     self._mw.tabifyDockWidget(ref_last_dockwidget, item)
             ref_last_dockwidget = item
 
-        #Creates the optimizer below the optical Widget
-        for key, item in reversed(self._dockwidget_container.items()):
+        # Creates the optimizer below the optical Widget
+        #FIXME: reversed can only be applied on dict from python 3.8, whenever
+        #       updated to 3.8, remove this list handling intermediate layer
+        for key, item in reversed(list(self._dockwidget_container.items())):
 
             if 'opti_xy' in key:
                 self._mw.splitDockWidget(self._mw.dockWidget_objective,
@@ -1100,8 +1102,10 @@ class ProteusQGUI(GUIBase):
             return
 
         ref_last_dockwidget = None
-
-        for key, item in reversed(self._dockwidget_container.items()):
+        
+        #FIXME: reversed can only be applied on dict from python 3.8, whenever
+        #       updated to 3.8, remove this list handling intermediate layer
+        for key, item in reversed(list(self._dockwidget_container.items())):
             if 'fw' in key:
                 ref_last_dockwidget = item
                 break
