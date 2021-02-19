@@ -29,6 +29,7 @@ from logic.generic_logic import GenericLogic
 from qtpy import QtCore
 import matplotlib.pyplot as plt
 import matplotlib as mpl
+from PIL import Image
 
 import datetime
 from collections import OrderedDict
@@ -42,7 +43,7 @@ class CameraLogic(GenericLogic):
     # declare connectors
     hardware = Connector(interface='CameraInterface')
     savelogic = Connector(interface='SaveLogic')
-    _max_fps = ConfigOption('default_exposure', 10)
+    _max_fps = ConfigOption('default_exposure', 20)
     _fps = _max_fps
 
     # signals
@@ -264,25 +265,10 @@ class CameraLogic(GenericLogic):
                                    fmt='%.6e',
                                    delimiter='\t',
                                    plotfig=fig)
+        out = Image.fromarray(self._last_image)
+        out.save(filepath+'/'+timestamp.strftime("%Y%m%d-%H%M-%S")+'_'+filelabel+'.tiff')
 
-        # prepare the full raw data in an OrderedDict:
-        # data = OrderedDict()
-        # data['x position (m)'] = self.xy_image[:, :, 0].flatten()
-        # data['y position (m)'] = self.xy_image[:, :, 1].flatten()
-        # data['z position (m)'] = self.xy_image[:, :, 2].flatten()
-        #
-        #
-        # # Save the raw data to file
-        # filelabel = 'xy_image_data'
-        # self._save_logic.save_data(data,
-        #                            filepath=filepath,
-        #                            timestamp=timestamp,
-        #                            parameters=parameters,
-        #                            filelabel=filelabel,
-        #                            fmt='%.6e',cc
-        #                            delimiter='\t')
-
-        self.log.debug('Image saved.')
+        self.log.info('Image saved.')
         return
 
     def draw_figure(

@@ -200,27 +200,49 @@
         </widget>
        </item>
        <item>
-      <widget class="QLabel" name="label_3">
-       <property name="text">
-        <string>Counts: </string>
-       </property>
-      </widget>
-     </item>
-     <item>
-      <widget class="QLabel" name="counts_label">
-       <property name="font">
-        <font>
-         <family>Arial</family>
-         <pointsize>16</pointsize>
-         <weight>75</weight>
-         <bold>true</bold>
-        </font>
-       </property>
-       <property name="text">
-        <string>0</string>
-       </property>
-      </widget>
-     </item>
+        <widget class="QLabel" name="label_3">
+         <property name="text">
+          <string>Counts: </string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QLabel" name="counts_label">
+         <property name="font">
+          <font>
+           <family>Arial</family>
+           <pointsize>16</pointsize>
+           <weight>75</weight>
+           <bold>true</bold>
+          </font>
+         </property>
+         <property name="text">
+          <string>0</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QLabel" name="label_4">
+         <property name="text">
+          <string>Dist(μm): </string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QLabel" name="dist_label">
+         <property name="font">
+          <font>
+           <family>Arial</family>
+           <pointsize>16</pointsize>
+           <weight>75</weight>
+           <bold>true</bold>
+          </font>
+         </property>
+         <property name="text">
+          <string>0</string>
+         </property>
+        </widget>
+       </item>
        <item>
         <widget class="ScienDSpinBox" name="xy_cb_low_percentile_DoubleSpinBox">
          <property name="maximumSize">
@@ -431,7 +453,7 @@
    <property name="icon">
     <iconset>
      <normaloff>../../artwork/icons/oxygen/22x22/fan_off_icon_135650.ico</normaloff>
-     <normalon>../../artwork/icons/oxygen/22x22/fan_icon_137646.ico</normalon></iconset>
+     <normalon>../../artwork/icons/oxygen/22x22/fan_icon_137646.ico</normalon>../../artwork/icons/oxygen/22x22/fan_off_icon_135650.ico</iconset>
    </property>
    <property name="text">
     <string>Toggle fan</string>

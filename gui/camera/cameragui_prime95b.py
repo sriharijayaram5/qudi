@@ -166,7 +166,13 @@ class CameraGUI(GUIBase):
         self._mw.image_PlotWidget.addItem(self.roi)
 
         self.cross = pg.CrosshairROI(pos=(self.roi_s1/2,self.roi_s2/2), size=(40,40), translateSnap=True, rotateSnap=True, maxBounds=QtCore.QRectF(0, 0, 1200,1200))
+        self.cross.sigRegionChanged.connect(self.print_counts)
         self._mw.image_PlotWidget.addItem(self.cross)
+
+        self.scaleBar = pg.LineSegmentROI(
+            ([0, 0], [100, 0]), pen={'color': "#E0D8D8", 'width': 3})
+        self._mw.image_PlotWidget.addItem(self.scaleBar)
+        self.scaleBar.sigRegionChanged.connect(self.print_scale)
 
         # Get the colorscale and set the LUTs
         self.my_colors = ColorScaleInferno()
@@ -297,10 +303,18 @@ class CameraGUI(GUIBase):
         self._image.setImage(image=raw_data_image)
         self.update_xy_cb_range()
         self._sd.exposureDSpinBox.setValue(self._logic._exposure)
-        x, y = self.cross.pos()
-        self.counts = raw_data_image[int(y),int(x)]
-        self._mw.counts_label.setText(str(self.counts))
+        self.print_counts()
         # self._image.setImage(image=raw_data_image, levels=levels)
+
+    def print_counts(self):
+        x, y = self.cross.pos()
+        self.counts = self._logic.get_last_image()[int(y),int(x)]
+        self._mw.counts_label.setText(str(self.counts))
+
+    def print_scale(self):
+        x1, y1, x2, y2 = self.scaleBar.boundingRect().getCoords()
+        self.dist = np.sqrt((x1-x2)**2 + (y1-y2)**2) * 0.0395
+        self._mw.dist_label.setText(f'{self.dist:.3f}')
 
     def updateView(self):
         """

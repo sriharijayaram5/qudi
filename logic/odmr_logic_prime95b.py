@@ -631,7 +631,7 @@ class ODMRLogic(GenericLogic):
             clock_frequency=self.clock_frequency, no_x=self.odmr_plot_x.size)
         # Seting exposure mode on camera via logic "Ext Trig Internal"
         # self._camera.set_trigger_seq("Ext Trig Internal")
-        self._camera.set_trigger_seq("Ext Trig Edge Rising")
+        self._camera.set_trigger_seq("Edge Trigger")
         if clock_status < 0:
             return -1
         # Try not running the counter since we dont need it
@@ -792,7 +792,7 @@ class ODMRLogic(GenericLogic):
                 self.mw_off()
                 self._stop_odmr_counter()
                 self.module_state.unlock()
-                self._camera.set_trigger_seq("Ext Trig Internal")
+                self._camera.set_trigger_seq("Internal Trigger")
                 return
 
             # if during the scan a clearing of the ODMR data is needed:
@@ -817,11 +817,11 @@ class ODMRLogic(GenericLogic):
             # self._odmr_counter.stop_tasks()
             # The collected frames are then acquired by the logic here from cam logic Should consider memory issues
             # for the future.
-            frames = self._camera.get_last_image()
+            frames = self._camera.get_last_image().astype('float')
             # The reference images from switch off time should be subtracted as below. For dummy measurements
             # so as to not be just left with noise we can do a dummy
             # subtraction.
-            new_counts = (frames[1::2] - frames[0::2]) / (frames[1::2] + frames[0::2])
+            new_counts = (frames[0::2] - frames[1::2]) / (frames[1::2] + frames[0::2]) * 100
             # Remove for actual mesurements
             # new_counts = frames[1::2] - np.full_like(frames[0::2], 1)
             # The sweep images are added up and the new counts are taken as the mean of the image which is what
@@ -1033,8 +1033,8 @@ class ODMRLogic(GenericLogic):
             data = OrderedDict()
             data2 = OrderedDict()
             data['frequency (Hz)'] = self.odmr_plot_x
-            data['mean pixel value data'] = self.odmr_plot_y[nch]
-            data2['mean pixel value data'] = self.odmr_raw_data[:self.elapsed_sweeps, nch, :]
+            data['Arb. counts'] = self.odmr_plot_y[nch]
+            data2['Arb. counts'] = self.odmr_raw_data[:self.elapsed_sweeps, nch, :]
 
             parameters = OrderedDict()
             parameters['Microwave CW Power (dBm)'] = self.cw_mw_power
@@ -1160,7 +1160,7 @@ class ODMRLogic(GenericLogic):
         if max(fit_count_vals) > 0:
             ax_mean.plot(fit_freq_vals, fit_count_vals, marker='None')
 
-        ax_mean.set_ylabel('Mean pixel value (' + counts_prefix + 'counts)')
+        ax_mean.set_ylabel('Arb. (' + counts_prefix + 'units)')
         ax_mean.set_xlim(np.min(freq_data), np.max(freq_data))
 
         matrixplot = ax_matrix.imshow(
@@ -1188,7 +1188,7 @@ class ODMRLogic(GenericLogic):
 
         # Draw colorbar
         cbar = fig.colorbar(matrixplot, cax=cbar_ax)
-        cbar.set_label('Mean pixel value (' + cbar_prefix + 'counts)')
+        cbar.set_label('Arb. (' + cbar_prefix + 'units)')
 
         # remove ticks from colorbar for cleaner image
         cbar.ax.tick_params(which=u'both', length=0)

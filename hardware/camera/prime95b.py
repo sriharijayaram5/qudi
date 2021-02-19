@@ -60,7 +60,7 @@ class Prime95B(Base, CameraInterface, FastCounterInterface):
         self.cam = next(Camera.detect_camera())
         self.cam.open()
         self.set_fan_speed(0)
-        self.cam.exp_mode = "Ext Trig Internal"
+        self.cam.exp_mode = "Internal Trigger"
         self.cam.exp_res = 0
         self.exp_time = self.cam.exp_time = 1
         nx_px, ny_px = self._get_detector()
@@ -126,7 +126,6 @@ class Prime95B(Base, CameraInterface, FastCounterInterface):
         """
         if self._live:
             self._live = False
-            self.cam.stop_live()
         return True
 
     def get_acquired_data(self):
@@ -136,12 +135,7 @@ class Prime95B(Base, CameraInterface, FastCounterInterface):
 
         Each pixel might be a float, integer or sub pixels
         """
-        if self._live:
-            # .reshape(self.cam.sensor_size[::-1])
-            image_array = self.cam.get_live_frame()
-        else:
-            # .reshape(self.cam.sensor_size[::-1])#exp_time = self.exp_time
-            image_array = self.cam.get_frame()
+        image_array = self.cam.get_frame()
 
         return image_array
 
@@ -350,7 +344,7 @@ class Prime95B(Base, CameraInterface, FastCounterInterface):
     def ready_pulsed(self, no_of_laser_pulses):
         self.stop_acquisition()
         # self.set_exposure_mode("Ext Trig Edge Rising")
-        self.set_exposure_mode("Ext Trig Level")
+        self.set_exposure_mode("Trigger Level")
         mode = 1 #EXPOSE_OUT_ALL_ROWS
         mode = 3 #MAX
         self.cam.exp_out_mode = mode
@@ -361,7 +355,7 @@ class Prime95B(Base, CameraInterface, FastCounterInterface):
     
     def pulsed_done(self):
         self.stop_acquisition()
-        self.set_exposure_mode("Ext Trig Internal")
+        self.set_exposure_mode("Internal Trigger")
         mode = 2 #EXPOSE_OUT_ANY_ROWS
         self.cam.exp_out_mode = mode
         # self.cam.clear_mode = 'Post-Sequence' #Apparently Prime cameras can only use clear pre sequence. Other modes in constants.py are for other cameras.

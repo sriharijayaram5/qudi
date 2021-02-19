@@ -794,7 +794,7 @@ class PulseStreamer(Base, PulserInterface, ODMRCounterInterface):
         cam_patt = [(2e8, 0), (exp_time, 1), (2e8, 0), (exp_time, 1)]
         smiq_patt = [(2e8, 0), (exp_time, 1), (2e8, 0), (exp_time, 0)]
         switch_patt = [(2e8, 1), (exp_time, 0), (2e8, 0), (exp_time, 1)]
-        laser_patt = [(2e8, 0), (exp_time, 1), (2e8, 0), (exp_time, 1)]
+        laser_patt = [(2e8, 1), (exp_time, 1), (2e8, 1), (exp_time, 1)]
 
         self._seq = self.pulse_streamer.createSequence()
         self._seq.setDigital(self._cam_channel, cam_patt)
