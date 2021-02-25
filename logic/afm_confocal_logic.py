@@ -171,8 +171,10 @@ class AFMConfocalLogic(GenericLogic):
     _saturation_array = {} # all saturation related data here
 
     # Single Iso-B settings
-    _single_iso_b_frequency = StatusVar(default=500e6)
-    _single_iso_b_gain = StatusVar(default=0.0)
+    _iso_b_single_mode = StatusVar(default=True)
+    _freq1_iso_b_frequency = StatusVar(default=500e6)
+    _freq2_iso_b_frequency = StatusVar(default=550e6)
+    _iso_b_gain = StatusVar(default=0.0)
 
     # Signals:
     # ========
@@ -259,12 +261,13 @@ class AFMConfocalLogic(GenericLogic):
     _sg_optimizer_z_range = StatusVar(default=2.0e-6)
     _sg_optimizer_z_res = StatusVar(default=50)    
     _sg_optimizer_int_time = StatusVar(default=0.01)
-    _sg_periodic_optimizer = False  # do not safe this a status var
+    _sg_periodic_optimizer = False  # do not save this a status var
     _sg_optimizer_period = StatusVar(default=60)
     _optimize_request = False
 
     # iso-b settings
-    _sg_single_iso_b_operation = False    # indicate whether iso-b is on
+    _sg_iso_b_operation = False    # indicate whether iso-b is on
+    _sg_iso_b_single_mode = True  # default mode is single iso-B 
 
     # target positions of the optimizer
     _optimizer_x_target_pos = 15e-6
@@ -549,7 +552,8 @@ class AFMConfocalLogic(GenericLogic):
         sd['optimizer_int_time'] = self._sg_optimizer_int_time
         sd['optimizer_period'] = self._sg_optimizer_period
 
-        sd['single_iso_b_operation'] = self._sg_single_iso_b_operation
+        sd['iso_b_operation'] = self._sg_iso_b_operation
+        sd['iso_b_single_mode'] = self._sg_iso_b_single_mode
 
         if setting_list is None:
             return sd
@@ -579,27 +583,34 @@ class AFMConfocalLogic(GenericLogic):
         self.sigSettingsUpdated.emit()
 
 
-    def set_state_single_iso_b(self, state):
+    def set_iso_b_mode(self, state):
         """ switch on single iso b """
-        self.set_qafm_settings({'single_iso_b_operation': state})
+        self.set_qafm_settings({'iso_b_single_mode': state})
         
-
-    def get_state_single_iso_b(self):
+    def get_iso_b_mode(self):
         """ Check whether single iso-b is switched on. """
-        return self._sg_single_iso_b_operation
+        return self._sg_iso_b_single_mode
 
-    def set_single_iso_b_params(self, freq=None, gain=None):
+    def set_iso_b_params(self, single_mode=None, freq1=None, freq2=None, gain=None):
 
-        if freq is not None:
-            self._single_iso_b_frequency = freq
+        if single_mode is not None:
+            self._iso_b_single_mode = single_mode
+            self.set_iso_b_mode(state=single_mode)
+        if freq1 is not None:
+            self._freq1_iso_b_frequency = freq1
+        if freq2 is not None:
+            self._freq2_iso_b_frequency = freq2
         if gain is not None:
-            self._single_iso_b_gain = gain
+            self._iso_b_gain = gain
 
         self.sigIsoBParamsUpdated.emit()
 
-    def get_single_iso_b_params(self):
+    def get_iso_b_params(self):
         """ return the frequency and gain"""
-        return self._single_iso_b_frequency, self._single_iso_b_gain
+        return self._iso_b_single_mode, \
+               self._freq1_iso_b_frequency, \
+               self._freq2_iso_b_frequency, \
+               self._iso_b_gain
 
 
     #FIXME: There is an error occurring if no SPM measurement parameters are specified. Fix this!
@@ -656,11 +667,21 @@ class AFMConfocalLogic(GenericLogic):
             self._spm.set_ext_trigger(True)
             curr_scan_params.insert(0, 'counts')  # insert the fluorescence parameter
             
-            if self._sg_single_iso_b_operation == True:
-                ret_val_mq = self._counter.prepare_pixelclock_single_iso_b(self._single_iso_b_frequency, 
-                                                              self._single_iso_b_gain)
+            if self._sg_iso_b_operation == True:
+                if self._sg_iso_b_single_mode:
+                    # single iso-b
+                    ret_val_mq = self._counter.prepare_pixelclock_single_iso_b(
+                        self._freq1_iso_b_frequency, 
+                        self._iso_b_gain)
+                else:
+                    # dual iso-b
+                    ret_val_mq = self._counter.prepare_pixelclock_n_iso_b(
+                        self._freq1_iso_b_frequency, 
+                        self._freq2_iso_b_frequency, 
+                        self._iso_b_gain)
 
-                self.log.info(f'Prepared pixelclock iso b, val {ret_val_mq}')
+
+                self.log.info(f'Prepared pixelclock single iso b, val {ret_val_mq}')
             else:
                 ret_val_mq = self._counter.prepare_pixelclock()
 

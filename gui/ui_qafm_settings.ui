@@ -154,17 +154,24 @@
          </property>
         </widget>
        </item>
-       <item row="0" column="0">
-        <widget class="QLabel" name="label_2">
-         <property name="text">
-          <string>Idle move time during sample scan (s)</string>
-         </property>
-        </widget>
-       </item>
        <item row="3" column="0">
         <widget class="QLabel" name="label_10">
          <property name="text">
           <string>Integration time per pixel obj scan (s)</string>
+         </property>
+        </widget>
+       </item>
+       <item row="1" column="0">
+        <widget class="QLabel" name="label_3">
+         <property name="text">
+          <string>Idle move time during objective scan (s)</string>
+         </property>
+        </widget>
+       </item>
+       <item row="0" column="0">
+        <widget class="QLabel" name="label_2">
+         <property name="text">
+          <string>Idle move time during sample scan (s)</string>
          </property>
         </widget>
        </item>
@@ -187,13 +194,6 @@
          </property>
          <property name="value">
           <double>0.000000000000000</double>
-         </property>
-        </widget>
-       </item>
-       <item row="1" column="0">
-        <widget class="QLabel" name="label_3">
-         <property name="text">
-          <string>Idle move time during objective scan (s)</string>
          </property>
         </widget>
        </item>
@@ -226,23 +226,23 @@
          </property>
         </widget>
        </item>
-       <item row="4" column="1">
-        <widget class="QCheckBox" name="single_iso_b_operation_CheckBox">
-         <property name="toolTip">
-          <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Switch on the so called 'Single Iso-B' mode, which will extend the QAFM scan.&lt;br/&gt;In this mode you will be able to set in the main window a MW frequency and the MW gain value to apply an MW signal during the QAFM scan. Ideally, you should have measured an ESR spectrum before, to obtain the proper parameters for MW frequency and MW gain. A suggested selection for the MW frequency is at the FWHM (full-width half-maximum) points of one of the ESR resonance peaks from the nitrogen vacancy (i.e. where the slope is maximal).&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-         </property>
-         <property name="text">
-          <string/>
-         </property>
-        </widget>
-       </item>
        <item row="4" column="0">
         <widget class="QLabel" name="label_12">
          <property name="toolTip">
-          <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Switch on the so called 'Single Iso-B' mode, which will extend the QAFM scan.&lt;br/&gt;In this mode you will be able to set in the main window a MW frequency and the MW gain value to apply an MW signal during the QAFM scan. Ideally, you should have measured an ESR spectrum before, to obtain the proper parameters for MW frequency and MW gain. A suggested selection for the MW frequency is at the FWHM (full-width half-maximum) points of one of the ESR resonance peaks from the nitrogen vacancy (i.e. where the slope is maximal).&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+          <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Enable 'Iso-B' mode, which will extend the QAFM scan.&lt;br/&gt;In this mode you will be able to set in the main window a MW frequency and the MW gain value to apply an MW signal during the QAFM scan. Ideally, you should have measured an ESR spectrum before, to obtain the proper parameters for MW frequency and MW gain. A suggested selection for the MW frequency is at the FWHM (full-width half-maximum) points of one of the ESR resonance peaks from the nitrogen vacancy (i.e. where the slope is maximal).&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
          </property>
          <property name="text">
-          <string>Use Single Iso-B Mode</string>
+          <string>Use Iso-B Mode</string>
+         </property>
+        </widget>
+       </item>
+       <item row="4" column="1">
+        <widget class="QCheckBox" name="iso_b_operation_CheckBox">
+         <property name="toolTip">
+          <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Enable 'Iso-B' mode, which will extend the QAFM scan.&lt;br/&gt;In this mode you will be able to set in the main window a MW frequency and the MW gain value to apply an MW signal during the QAFM scan. Ideally, you should have measured an ESR spectrum before, to obtain the proper parameters for MW frequency and MW gain. A suggested selection for the MW frequency is at the FWHM (full-width half-maximum) points of one of the ESR resonance peaks from the nitrogen vacancy (i.e. where the slope is maximal).&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+         </property>
+         <property name="text">
+          <string/>
          </property>
         </widget>
        </item>

@@ -256,15 +256,17 @@ class ProteusQGUI(GUIBase):
 
         
         # Initialize iso b parameter
+        self._mw.use_single_isob_RadioButton.toggled.connect(self._set_iso_b_single_mode)
+        self._mw.freq1_isob_freq_DSpinBox.valueChanged.connect(self._set_freq1_iso_b_freq)
+        self._mw.freq2_isob_freq_DSpinBox.valueChanged.connect(self._set_freq2_iso_b_freq)
+        self._mw.isob_gain_DSpinBox.valueChanged.connect(self._set_iso_b_gain)
 
-        self._mw.single_isob_freq_DSpinBox.valueChanged.connect(self._set_single_iso_b_freq)
-        self._mw.single_isob_gain_DSpinBox.valueChanged.connect(self._set_single_iso_b_gain)
+        self._mw.freq1_isob_freq_DSpinBox.setMinimalStep = 10e3
+        self._mw.freq2_isob_freq_DSpinBox.setMinimalStep = 10e3
+        self._mw.isob_gain_DSpinBox.setMinimalStep = 0.01
 
-        self._mw.single_isob_freq_DSpinBox.setMinimalStep = 10e3
-        self._mw.single_isob_gain_DSpinBox.setMinimalStep = 0.01
-
-        self._qafm_logic.sigIsoBParamsUpdated.connect(self.update_single_iso_b_param)
-        self.update_single_iso_b_param()
+        self._qafm_logic.sigIsoBParamsUpdated.connect(self.update_iso_b_param)
+        self.update_iso_b_param()
 
 
     def on_deactivate(self):
@@ -328,12 +330,12 @@ class ProteusQGUI(GUIBase):
         self._sd.rejected.connect(self.keep_former_qafm_settings)
         self._sd.buttonBox.button(QtWidgets.QDialogButtonBox.Apply).clicked.connect(self.update_qafm_settings)
 
-        self._sd.single_iso_b_operation_CheckBox.stateChanged.connect(self._mw.dockWidget_isob.setVisible)
-        self._sd.single_iso_b_operation_CheckBox.stateChanged.connect(self._mw.dockWidget_isob.setEnabled)
+        self._sd.iso_b_operation_CheckBox.stateChanged.connect(self._mw.dockWidget_isob.setVisible)
+        self._sd.iso_b_operation_CheckBox.stateChanged.connect(self._mw.dockWidget_isob.setEnabled)
 
         # toggle twice to initiate a state change and come back to the initial one.
-        self._sd.single_iso_b_operation_CheckBox.toggle()
-        self._sd.single_iso_b_operation_CheckBox.toggle()
+        self._sd.iso_b_operation_CheckBox.toggle()
+        self._sd.iso_b_operation_CheckBox.toggle()
 
         # write the configuration to the settings window of the GUI.
         self.keep_former_qafm_settings()
@@ -341,32 +343,56 @@ class ProteusQGUI(GUIBase):
         # react on setting changes by the logic
         self._qafm_logic.sigSettingsUpdated.connect(self.keep_former_qafm_settings)
 
+    def _set_iso_b_single_mode(self, single_mode):
+        #print('val changed:', single_mode)
+        self._qafm_logic.set_iso_b_params(single_mode=single_mode)
 
-    def _set_single_iso_b_freq(self, freq):
-        print('val changed:', freq)
-        self._qafm_logic.set_single_iso_b_params(freq=freq, gain=None)
+    def _set_freq1_iso_b_freq(self, freq1):
+        #print('val changed:', freq1)
+        self._qafm_logic.set_iso_b_params(freq1=freq1)
 
-    def _set_single_iso_b_gain(self, gain):
-        print('val changed:', gain)
-        self._qafm_logic.set_single_iso_b_params(freq=None, gain=gain)  
+    def _set_freq2_iso_b_freq(self, freq2):
+        #print('val changed:', freq2)
+        self._qafm_logic.set_iso_b_params(freq2=freq2)
+
+    def _set_iso_b_gain(self, gain):
+        #print('val changed:', gain)
+        self._qafm_logic.set_iso_b_params(gain=gain)  
 
 
-    def update_single_iso_b_param(self):
+    def update_iso_b_param(self):
         """ Update single iso b parameter from the logic """
-        
-        self._mw.single_isob_freq_DSpinBox.blockSignals(True)
-        self._mw.single_isob_gain_DSpinBox.blockSignals(True)
 
-        freq, gain = self._qafm_logic.get_single_iso_b_params()
+        self._mw.use_single_isob_RadioButton.blockSignals(True) 
+        self._mw.use_dual_isob_RadioButton.blockSignals(True) 
+        self._mw.freq1_isob_freq_DSpinBox.blockSignals(True)
+        self._mw.freq2_isob_freq_DSpinBox.blockSignals(True)
+        self._mw.isob_gain_DSpinBox.blockSignals(True)
 
-        if freq is not None:
-            self._mw.single_isob_freq_DSpinBox.setValue(freq)
+        single_mode, freq1, freq2, gain = self._qafm_logic.get_iso_b_params()
+
+        if single_mode is not None:
+            if single_mode == True:
+                self._mw.use_single_isob_RadioButton.setChecked(True)
+                self._mw.freq2_isob_freq_DSpinBox.setEnabled(False)
+            else:
+                self._mw.use_dual_isob_RadioButton.setChecked(True)
+                self._mw.freq2_isob_freq_DSpinBox.setEnabled(True)
+
+        if freq1 is not None:
+            self._mw.freq1_isob_freq_DSpinBox.setValue(freq1)
+
+        if freq2 is not None:
+            self._mw.freq2_isob_freq_DSpinBox.setValue(freq2)
 
         if gain is not None:
-            self._mw.single_isob_gain_DSpinBox.setValue(gain)
+            self._mw.isob_gain_DSpinBox.setValue(gain)
 
-        self._mw.single_isob_freq_DSpinBox.blockSignals(False)
-        self._mw.single_isob_gain_DSpinBox.blockSignals(False)
+        self._mw.use_single_isob_RadioButton.blockSignals(False) 
+        self._mw.use_dual_isob_RadioButton.blockSignals(False) 
+        self._mw.freq1_isob_freq_DSpinBox.blockSignals(False)
+        self._mw.freq2_isob_freq_DSpinBox.blockSignals(False)
+        self._mw.isob_gain_DSpinBox.blockSignals(False)
 
 
     def update_qafm_settings(self):
@@ -395,7 +421,7 @@ class ProteusQGUI(GUIBase):
         sd['optimizer_z_res'] = self._sd.optimizer_z_res_SpinBox.value()
         sd['optimizer_int_time'] = self._sd.optimizer_int_time_DoubleSpinBox.value()
         sd['optimizer_period'] = self._sd.optimizer_period_DoubleSpinBox.value()
-        sd['single_iso_b_operation'] = self._sd.single_iso_b_operation_CheckBox.isChecked()
+        sd['iso_b_operation'] = self._sd.iso_b_operation_CheckBox.isChecked()
         self._qafm_logic.set_qafm_settings(sd)
 
 
@@ -426,7 +452,7 @@ class ProteusQGUI(GUIBase):
         self._sd.optimizer_int_time_DoubleSpinBox.setValue(sd['optimizer_int_time'])
         self._sd.optimizer_period_DoubleSpinBox.setValue(sd['optimizer_period'])    
 
-        self._sd.single_iso_b_operation_CheckBox.setChecked(sd['single_iso_b_operation'])
+        self._sd.iso_b_operation_CheckBox.setChecked(sd['iso_b_operation'])
 
 
     def show_settings_window(self):
