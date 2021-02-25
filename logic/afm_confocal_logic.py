@@ -676,8 +676,7 @@ class AFMConfocalLogic(GenericLogic):
                 else:
                     # dual iso-b
                     ret_val_mq = self._counter.prepare_pixelclock_n_iso_b(
-                        self._freq1_iso_b_frequency, 
-                        self._freq2_iso_b_frequency, 
+                        [self._freq1_iso_b_frequency, self._freq2_iso_b_frequency], 
                         self._iso_b_gain)
 
 

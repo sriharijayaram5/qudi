@@ -76,7 +76,7 @@ class MicrowaveQ(Base, SlowCounterInterface):
     _CONSTRAINTS = SlowCounterConstraints()
 
     _meas_mode = 'pixel'  # measurement modes: counter, pixel, esr
-    _meas_mode_available = ['dummy', 'counter', 'pixel', 'esr', 'single-isob']
+    _meas_mode_available = ['dummy', 'counter', 'pixel', 'esr', 'single-isob', 'n-isob']
 
     _device_status = 'idle'  # can be idle, armed or running
     _meas_running = False   # this variable will be set whenever a measurement has stopped
@@ -105,7 +105,7 @@ class MicrowaveQ(Base, SlowCounterInterface):
     _mw_gain = 0.4 # not exposed to interface!!!
 
     # settings for iso-B mode
-    _iso_b_freq = 500e6 # in MHz
+    _iso_b_freq_list = [500e6] # in MHz
     _iso_b_gain = 0.0 # linear gain for iso b mode.
 
     def on_activate(self):
@@ -636,7 +636,7 @@ class MicrowaveQ(Base, SlowCounterInterface):
 
         self.meas_method = self.meas_method_PixelClock
 
-        self._dev.configureCW_PIX(frequency=self._iso_b_freq)
+        self._dev.configureCW_PIX(frequency=self._iso_b_freq_list[0])
         self._dev.rfpulse.setGain(0.0)
         self._dev.resultFilter.set(0)
 
@@ -652,15 +652,45 @@ class MicrowaveQ(Base, SlowCounterInterface):
         if self._meas_running:
             self.log.error('A measurement is still running. Stop it first.')
             return -1
-        
 
         self._meas_mode = 'single-isob'
 
         self.meas_method = self.meas_method_PixelClock
 
-        self._iso_b_freq = freq
+        self._iso_b_freq_list = [freq]
         self._iso_b_gain = gain
-        self._dev.configureCW_PIX(frequency=self._iso_b_freq)
+        self._dev.configureCW_PIX(frequency=self._iso_b_freq_list[0])
+        self._dev.rfpulse.setGain(self._iso_b_gain)
+        self._dev.resultFilter.set(0)
+
+        return 0
+
+    def prepare_pixelclock_n_iso_b(self, freq_list, gain, pulse_margin_frac=0.0):
+        """ Setup the device for n-frequency output. 
+
+        @param list(float) freq_list: a list of frequencies to apply 
+        @param float gain: the linear power gain of the device, from 0.0 to 1.0
+        @param pulse_margin_frac: fraction of pulse margin to leave as dead time
+
+        """
+        if self._meas_running:
+            self.log.error('A measurement is still running. Stop it first.')
+            return -1
+        
+        self._meas_mode = 'n-isob'
+
+        self.meas_method = self.meas_method_PixelClock
+
+        self._iso_b_freq_list = freq_list if isinstance(freq_list,list) else [freq_list]
+        self._iso_b_gain = gain
+
+        base_freq = freq_list[0]
+        ncoWords = [freq - base_freq for freq in freq_list]
+        pulse_length = self._counting_window * (1 - pulse_margin_frac) / len(freq_list)
+
+        self._dev.configureISO(frequency=base_freq,
+                               pulseLengths=[pulse_length]*len(freq_list),
+                               ncoWords=ncoWords)
         self._dev.rfpulse.setGain(self._iso_b_gain)
         self._dev.resultFilter.set(0)
 
