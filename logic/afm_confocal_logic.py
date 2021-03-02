@@ -673,14 +673,16 @@ class AFMConfocalLogic(GenericLogic):
                     ret_val_mq = self._counter.prepare_pixelclock_single_iso_b(
                         self._freq1_iso_b_frequency, 
                         self._iso_b_gain)
+
+                    self.log.info(f'Prepared pixelclock single iso b, val {ret_val_mq}')
                 else:
                     # dual iso-b
                     ret_val_mq = self._counter.prepare_pixelclock_n_iso_b(
                         [self._freq1_iso_b_frequency, self._freq2_iso_b_frequency], 
                         self._iso_b_gain)
+                    self.log.info(f'Prepared pixelclock dual iso b, val {ret_val_mq}')
 
 
-                self.log.info(f'Prepared pixelclock single iso b, val {ret_val_mq}')
             else:
                 ret_val_mq = self._counter.prepare_pixelclock()
 

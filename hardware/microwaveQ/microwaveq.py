@@ -591,7 +591,22 @@ class MicrowaveQ(Base, SlowCounterInterface):
         """ Process the received pixelclock data and store to array. """
 
         self._meas_res[self._counted_pulses] = (frame_int[0], frame_int[1], time.time())
+        #self._meas_res[self._counted_pulses] = (frame_int[0], frame_int[1], 0, time.time())
 
+        if self._counted_pulses > (self._total_pulses - 2):
+            self._meas_running = False
+            self.meas_cond.wakeAll()
+            self.skip_data = True
+
+        self._counted_pulses += 1
+
+    def meas_method_n_iso_b(self,frame_int):
+        """ Process the received data for dual_iso_b and store to array"""
+
+        self._meas_res[self._counted_pulses] = (frame_int[0], frame_int[1], frame_int[2], time.time())
+        #self._meas_res[self._counted_pulses] = (frame_int[0], frame_int[1], frame_int[1]*np.random.rand(), time.time())
+
+        #self.log.info("was meas_method_n_iso_b was called")
         if self._counted_pulses > (self._total_pulses - 2):
             self._meas_running = False
             self.meas_cond.wakeAll()
@@ -679,7 +694,7 @@ class MicrowaveQ(Base, SlowCounterInterface):
         
         self._meas_mode = 'n-isob'
 
-        self.meas_method = self.meas_method_PixelClock
+        self.meas_method = self.meas_method_n_iso_b
 
         self._iso_b_freq_list = freq_list if isinstance(freq_list,list) else [freq_list]
         self._iso_b_gain = gain
@@ -691,6 +706,8 @@ class MicrowaveQ(Base, SlowCounterInterface):
         self._dev.configureISO(frequency=base_freq,
                                pulseLengths=[pulse_length]*len(freq_list),
                                ncoWords=ncoWords)
+        #self._dev.configureCW_PIX(frequency=self._iso_b_freq_list[0])  #FIXME: current hack 
+
         self._dev.rfpulse.setGain(self._iso_b_gain)
         self._dev.resultFilter.set(0)
 
@@ -709,12 +726,13 @@ class MicrowaveQ(Base, SlowCounterInterface):
         self._meas_res = np.zeros((pulses),
               dtype=[('count_num', '<i4'),
                      ('counts', '<i4'),
+                     ('counts2', '<i4'),
                      ('time_rec', '<f8')])
 
         self._meas_running = True
         self.skip_data = False
 
-    def get_line(self):
+    def get_line(self,meas='counts'):
 
         if self._meas_running:
             with self.threadlock:
@@ -726,7 +744,7 @@ class MicrowaveQ(Base, SlowCounterInterface):
         self._device_status = 'idle'
         self.skip_data = True
         #self.sigLineFinished.emit()
-        return self._meas_res['counts']
+        return self._meas_res[meas]
 
 
     def _decode_frame(self, frame):
