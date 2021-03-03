@@ -385,6 +385,7 @@ class ProteusQGUI(GUIBase):
         # save settings
         sd['root_folder_name'] = self._sd.rootfolder_name_LineEdit.text()
         sd['create_summary_pic'] = self._sd.create_summary_pic_CheckBox.isChecked()
+        sd['save_to_gwyddion'] = self._sd.save_to_gwyddion_CheckBox.isChecked()
         # optimizer settings
         sd['optimizer_x_range'] = self._sd.optimizer_x_range_DoubleSpinBox.value()
         sd['optimizer_x_res'] = self._sd.optimizer_x_res_SpinBox.value()
@@ -414,6 +415,7 @@ class ProteusQGUI(GUIBase):
         # save settings
         self._sd.rootfolder_name_LineEdit.setText(sd['root_folder_name'])
         self._sd.create_summary_pic_CheckBox.setChecked(sd['create_summary_pic'])
+        self._sd.save_to_gwyddion_CheckBox.setChecked(sd['save_to_gwyddion'])
         # optimizer settings
         self._sd.optimizer_x_range_DoubleSpinBox.setValue(sd['optimizer_x_range'])
         self._sd.optimizer_x_res_SpinBox.setValue(sd['optimizer_x_res'])
