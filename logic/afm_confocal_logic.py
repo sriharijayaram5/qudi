@@ -781,6 +781,10 @@ class AFMConfocalLogic(GenericLogic):
                 # first entry is always assumed to be counts
                 self._qafm_scan_line[0] = self._counter.get_line()/integration_time
 
+            #if 'counts2' in meas_params:
+            #    i = meas_params.index('counts2')
+            #    self._qafm_scan_line[i] = self._counter.get_line('counts')/integration_time
+
             if reverse_meas:
 
                 for index, param_name in enumerate(curr_scan_params):
