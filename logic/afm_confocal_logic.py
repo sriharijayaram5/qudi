@@ -387,9 +387,9 @@ class AFMConfocalLogic(GenericLogic):
                 name = f'{param}_{direction}' # this is the naming convention!
 
                 meas_dict[name] = {'data': np.zeros((num_rows, num_columns))}
+                #meas_dict[name] = {'data': np.random.rand(num_rows, num_columns)}
                 meas_dict[name]['coord0_arr'] = coord0_arr
                 meas_dict[name]['coord1_arr'] = coord1_arr
-                #meas_dict[name] = {'data': np.random.rand(num_rows, num_columns)}
                 meas_dict[name].update(meas_params_units[param])
                 meas_dict[name]['params'] = {}
                 meas_dict[name]['display_range'] = None
@@ -613,7 +613,13 @@ class AFMConfocalLogic(GenericLogic):
                self._iso_b_gain
 
 
-    #FIXME: There is an error occurring if no SPM measurement parameters are specified. Fix this!
+    #FIXME: Think about transferring the normalization of the 'Height(Dac)' and 
+    #       'Height(Sen)' parameter to the hardware level.
+    #       In the hardware, the last measured value can always be tracked.
+    #       You also know that if the method setup_spm is used, then we have to 
+    #       update the normalization parameter. 
+    #       For now, it can be confusing, hence, at the moment, this 
+    #       normalization will take place in the logic.
     def scan_area_qafm_bw_fw_by_line(self, coord0_start, coord0_stop, coord0_num,
                                      coord1_start, coord1_stop, coord1_num,
                                      integration_time, plane='XY',
@@ -648,7 +654,6 @@ class AFMConfocalLogic(GenericLogic):
         reverse_meas = False
         self._stop_request = False
 
-
         # time in which the stage is just moving without measuring
         time_idle_move = self._sg_idle_move_scan_sample
 
@@ -662,6 +667,18 @@ class AFMConfocalLogic(GenericLogic):
                                                            meas_params=meas_params,
                                                            scan_mode=0)  # line scan
         spm_start_idx = 0
+
+
+        #FIXME: check whether bugs can occur if you do not reset the following values.
+        if not continue_meas:
+            # if optimization happens during the scan, then we need to handle
+            # manually the normalization of both AFM parameters. Every time 
+            # 'setup_spm' is called, then the zero value is referred to the first
+            # measured point. 
+            self._height_sens_norm = 0.0
+            self._height_dac_norm = 0.0
+
+        _update_normalization = False
 
         if 'counts' in meas_params:
             self._spm.set_ext_trigger(True)
@@ -792,15 +809,76 @@ class AFMConfocalLogic(GenericLogic):
 
                     # save to the corresponding matrix line and renormalize the results to SI units:
                     self._qafm_scan_array[name]['data'][line_num // 2] = np.flip(self._qafm_scan_line[index]) * self._qafm_scan_array[name]['scale_fac']
+
+                    if 'Height(Dac)' in param_name:
+                        self._qafm_scan_array[name]['data'][line_num // 2] += self._height_dac_norm
+
+                    if 'Height(Sen)' in param_name:
+                        self._qafm_scan_array[name]['data'][line_num // 2] += self._height_sens_norm
+
+
+                # ==== BUG FIX Normalization Adjustment of AFM data - Start ====
+                # normalization flag will be set when optimization is requested.
+                # the actual value needs to be calculated from the last measured
+                # point of the previous measurement and the first measured point 
+                # of the current measurement.
+                if _update_normalization:
+
+                    # ==> solve problem with index!!! 
+                    if 'Height(Dac)' in curr_scan_params:
+                        self._height_dac_norm = self._qafm_scan_array['Height(Dac)_fw']['data'][(line_num // 2)-1][-1] - self._qafm_scan_array['Height(Dac)_bw']['data'][line_num // 2][0]
+                    
+                    if 'Height(Sen)' in curr_scan_params:
+                        self._height_sens_norm = self._qafm_scan_array['Height(Sen)_fw']['data'][(line_num // 2)-1][-1] - self._qafm_scan_array['Height(Sen)_bw']['data'][line_num // 2][0]
+
+                    _update_normalization = False
+
+                # apply normalization
+                if 'Height(Dac)' in curr_scan_params:
+                    self._qafm_scan_array['Height(Dac)_bw']['data'][line_num // 2] += self._height_dac_norm
+
+                if 'Height(Sen)' in curr_scan_params:
+                    self._qafm_scan_array['Height(Sen)_bw']['data'][line_num // 2] += self._height_sens_norm
+                # ==== BUG FIX Normalization Adjustment of AFM data - Stop ====
+
+
                 reverse_meas = False
 
                 # emit only a signal if the reversed is finished.
                 self.sigQAFMLineScanFinished.emit()
             else:
+
                 for index, param_name in enumerate(curr_scan_params):
                     name = f'{param_name}_fw'  # use the unterlying naming convention
+
                     # save to the corresponding matrix line and renormalize the results to SI units:
                     self._qafm_scan_array[name]['data'][line_num // 2] = self._qafm_scan_line[index] * self._qafm_scan_array[name]['scale_fac']
+
+
+                # ==== BUG FIX Normalization Adjustment of AFM data - Start ====
+                # normalization flag will be set when optimization is requested.
+                # the actual value needs to be calculated from the last measured
+                # point of the previous measurement and the first measured point 
+                # of the current measurement.
+                if _update_normalization:
+
+                    # ==> solve problem with index!!! 
+                    if 'Height(Dac)' in curr_scan_params:
+                        self._height_dac_norm = self._qafm_scan_array['Height(Dac)_bw']['data'][(line_num // 2)-1][0] - self._qafm_scan_array['Height(Dac)_fw']['data'][line_num // 2][0]
+                    
+                    if 'Height(Sen)' in curr_scan_params:
+                        self._height_sens_norm = self._qafm_scan_array['Height(Sen)_bw']['data'][(line_num // 2)-1][0] - self._qafm_scan_array['Height(Sen)_fw']['data'][line_num // 2][0]
+
+                    _update_normalization = False
+
+                # apply normalization
+                if 'Height(Dac)' in curr_scan_params:
+                    self._qafm_scan_array['Height(Dac)_fw']['data'][line_num // 2] += self._height_dac_norm
+
+                if 'Height(Sen)' in curr_scan_params:
+                    self._qafm_scan_array['Height(Sen)_fw']['data'][line_num // 2] += self._height_sens_norm
+                # ==== BUG FIX Normalization Adjustment of AFM data - Stop ====
+
                 reverse_meas = True
 
             self.log.info(f'Line number {line_num} completed.')
@@ -816,6 +894,8 @@ class AFMConfocalLogic(GenericLogic):
             # if next measurement is not in the reverse way, make a quick stop
             # and perform here an optimization first
             if self.get_optimize_request():
+
+                _update_normalization = True
 
                 self._counter.stop_measurement()
                 self._spm.finish_scan()
@@ -4806,6 +4886,8 @@ class AFMConfocalLogic(GenericLogic):
     def get_save_counter(self):
         return self.__data_to_be_saved
 
+    #FIXME: update the savelogic with the new method 'save_figure' to make this work
+    #       then, uncomment the part of the code labeled with UNCOMMENT.
     def save_all_qafm_figures(self, tag=None, probe_name=None, sample_name=None,
                        use_qudi_savescheme=False, root_path=None, 
                        daily_folder=True):
@@ -4825,11 +4907,21 @@ class AFMConfocalLogic(GenericLogic):
                                              probe_name=probe_name,
                                              sample_name=sample_name)
 
-        data = self.get_qafm_data()
+        data = {}
+        for entry in scan_params:
+            data[entry] = self.get_qafm_data()[entry]
 
         timestamp = datetime.datetime.now()
 
         fig = self.draw_all_qafm_figures(data)
+
+        # save only total figure here
+        # UNCOMMENT THIS:
+        # filelabel = f'{tag}_QAFM'
+        # self._save_logic.save_figure(fig, 
+        #                              filepath=save_path, 
+        #                              timestamp=timestamp,
+        #                              filelabel=filelabel)
 
         for entry in scan_params:
             parameters = {}
@@ -4869,8 +4961,7 @@ class AFMConfocalLogic(GenericLogic):
                                        parameters=parameters,
                                        filelabel=filelabel,
                                        fmt='%.6e',
-                                       delimiter='\t',
-                                       plotfig=fig)
+                                       delimiter='\t')
 
             # prepare the full raw data in an OrderedDict:
 
@@ -5417,6 +5508,88 @@ class AFMConfocalLogic(GenericLogic):
         axz.set_xlabel(figure_data_z['params']['axis name for coord0'] + ' position (' + r'$\mathrm{\mu}$' + 'm)')
 
         return fig
+
+
+
+# Baseline correction functionality.
+#TODO: put this in a more generic logic method structure, which can be used to
+#      by other methods.
+
+    @staticmethod
+    def correct_plane(xy_data, zero_corr=False, x_range=None, y_range=None):
+        """ Baseline correction algorithm, essentially based on solving an Eigenvalue equation.  
+
+        @param np.array((N_row, M_col)) xy_data: 2D matrix
+        @param bool zero_corr: Shift at the end of the algorithm the whole 
+                               matrix by a specific offset, so that the smallest
+                               value in the matrix is zero.
+        @param list x_range: optional, containing the minimal and maximal value 
+                             of the x axis of the matrix, if not provided, then
+                             normalized values for the range are taken, i.e. 
+                             values from 0 to 1. Both, x and y range needs to be
+                             provided, otherwise the normalized values will be
+                             taken.
+        @param list y_range: optional, containing the minimal and maximal value
+                             of the y axis of the matrix, if not provided, then
+                             normalized values for the range are taken, i.e. 
+                             values from 0 to 1. Both, x and y range needs to be
+                             provided, otherwise the normalized values will be
+                             taken.                           
+
+        @return (mat_bc, C) 
+            np.array((N_row, M_col)) mat: the baseline corrected matrix with 
+                                          same, dimensions.
+            np.array(3) C: containing the coefficients for the plane equation:
+                            a*x + b*y + c = z 
+                            => C = [a, b, c]
+                            These can be used to generate the plane correction 
+                            matrix. 
+                            Note: Provide x_range and y_range to obtain have
+                            meaningful values for C. If you are only interested
+                            in a simple plane correction, then those values are
+                            not required.
+        
+        similar to this solution:
+        https://math.stackexchange.com/questions/99299/best-fitting-plane-given-a-set-of-points
+        """
+        
+        # create at first a mash grid with the data, x and y are selected as 
+        # normalized coordinates running from 0 to 1. Both arrays have to be 
+        # specified, otherwise they are ignored.
+        if (x_range is None) or (y_range is None):
+            x_range = [0, 1]
+            y_range = [0, 1]
+    
+        x_axis = np.linspace(x_range[0], x_range[1], xy_data.shape[0])
+        y_axis = np.linspace(y_range[0], y_range[1], xy_data.shape[1])
+        xv, yv = np.meshgrid(x_axis, y_axis)
+        
+        # flatten the data array in rows 
+        data_rows = np.c_[xv.flatten(), yv.flatten() , xy_data.flatten()]
+
+        # get the best-fit linear plane (1st-order):
+        A = np.c_[data_rows[:,0], data_rows[:,1], np.ones(data_rows.shape[0])]
+        # so the least square method tries to minimize the the vertical distance
+        # from the points to the plane, i.e. to solve the equation A*x = b, or
+        #       A * x = data_rows[:,2] 
+          
+        C,_,_,_ = lstsq(A, data_rows[:,2])    
+        # C is essentially the minimize solution of , i.e.
+        #       C = min( |data_rows[:,2] - A*x| ) 
+        # where the coefficients in C represent a plane.
+
+        # create a plane correction of the matrix:
+        mat_corr = xy_data - (C[0]*xv + C[1]*yv + C[2])
+        
+        # make also a zero correction if required. This is not a baseline 
+        # correction, it simply shifts the offset of the matrix such that the 
+        # smallest entry in the matrix is zero. Note that an actual baseline 
+        # corrected matrix would have a matrix mean value of zero). Applying 
+        # this would shift the mean value of the matrix from zero.
+        if zero_corr:
+            mat_corr = mat_corr - mat_corr.min()
+        
+        return mat_corr, C
 
 
 
