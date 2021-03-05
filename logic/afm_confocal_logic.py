@@ -365,15 +365,23 @@ class AFMConfocalLogic(GenericLogic):
 
         #FIXME: use Tesla not Gauss, right not, this is just for display purpose
         # add counts to the parameter list
-        meas_params_units = {'counts' : {'measured_units' : 'c/s',
-                                         'scale_fac': 1,    # multiplication factor to obtain SI units    
-                                         'si_units': 'c/s', 
-                                         'nice_name': 'Fluorescence'},
-                             'b_field': {'measured_units' : 'G',
-                                         'scale_fac': 1,    # multiplication factor to obtain SI units
-                                         'si_units': 'G',
-                                         'nice_name': 'Magnetic field '},
-                                         }
+        meas_params_units = {'counts':       {'measured_units' : 'c/s',
+                                            'scale_fac': 1,    # multiplication factor to obtain SI units    
+                                            'si_units': 'c/s', 
+                                            'nice_name': 'Fluorescence'},
+                             'counts2':      {'measured_units' : 'c/s',
+                                              'scale_fac': 1,    # multiplication factor to obtain SI units    
+                                              'si_units': 'c/s', 
+                                              'nice_name': 'Fluorescence'},
+                             'counts_diff':  {'measured_units' : 'c/s',
+                                              'scale_fac': 1,    # multiplication factor to obtain SI units    
+                                              'si_units': 'c/s', 
+                                              'nice_name': 'Fluorescence'},
+                             'b_field':      {'measured_units' : 'G',
+                                              'scale_fac': 1,    # multiplication factor to obtain SI units
+                                              'si_units': 'G',
+                                              'nice_name': 'Magnetic field '},
+                            }
         meas_params_units.update(self._spm.get_meas_params())
 
         meas_params = list(meas_params_units)
@@ -682,7 +690,7 @@ class AFMConfocalLogic(GenericLogic):
 
         if 'counts' in meas_params:
             self._spm.set_ext_trigger(True)
-            curr_scan_params.insert(0, 'counts')  # insert the fluorescence parameter
+            curr_scan_params.insert(0, 'counts')  # fluorescence of freq1 parameter
             
             if self._sg_iso_b_operation == True:
                 if self._sg_iso_b_single_mode:
@@ -697,6 +705,10 @@ class AFMConfocalLogic(GenericLogic):
                     ret_val_mq = self._counter.prepare_pixelclock_n_iso_b(
                         [self._freq1_iso_b_frequency, self._freq2_iso_b_frequency], 
                         self._iso_b_gain)
+                    
+                    # add counts2 parameter
+                    curr_scan_params.insert(1, 'counts2')  # fluorescence of freq2 parameter
+
                     self.log.info(f'Prepared pixelclock dual iso b, val {ret_val_mq}')
 
 
@@ -787,7 +799,7 @@ class AFMConfocalLogic(GenericLogic):
 
             self._spm.scan_line()  # start the scan line
 
-            if num_params > 1:
+            if  set(curr_scan_params) - {'counts', 'counts2'}:
                 # i.e. afm parameters are set
                 self._qafm_scan_line[spm_start_idx:] = self._spm.get_scanned_line(reshape=True)
             else:
@@ -796,11 +808,11 @@ class AFMConfocalLogic(GenericLogic):
 
             if 'counts' in meas_params:
                 # first entry is always assumed to be counts
-                self._qafm_scan_line[0] = self._counter.get_line()/integration_time
+                self._qafm_scan_line[0] = self._counter.get_line('counts')/integration_time
 
-            #if 'counts2' in meas_params:
-            #    i = meas_params.index('counts2')
-            #    self._qafm_scan_line[i] = self._counter.get_line('counts')/integration_time
+            if 'counts2' in meas_params:
+                i = meas_params.index('counts2')
+                self._qafm_scan_line[i] = self._counter.get_line('counts2')/integration_time
 
             if reverse_meas:
 
@@ -809,6 +821,12 @@ class AFMConfocalLogic(GenericLogic):
 
                     # save to the corresponding matrix line and renormalize the results to SI units:
                     self._qafm_scan_array[name]['data'][line_num // 2] = np.flip(self._qafm_scan_line[index]) * self._qafm_scan_array[name]['scale_fac']
+
+                    if 'counts2' in param_name:
+                        # special tranformation for dual iso-B, form the counts_diff
+                        self._qafm_scan_array['counts_diff_bw']['data'][line_num // 2] = \
+                            self._qafm_scan_array['counts2_bw']['data'][line_num // 2]  \
+                            - self._qafm_scan_array['counts_bw']['data'][line_num // 2] 
 
                     if 'Height(Dac)' in param_name:
                         self._qafm_scan_array[name]['data'][line_num // 2] += self._height_dac_norm
@@ -853,6 +871,12 @@ class AFMConfocalLogic(GenericLogic):
 
                     # save to the corresponding matrix line and renormalize the results to SI units:
                     self._qafm_scan_array[name]['data'][line_num // 2] = self._qafm_scan_line[index] * self._qafm_scan_array[name]['scale_fac']
+
+                    if 'counts2' in param_name:
+                        # special tranformation for dual iso-B, form the counts_diff
+                        self._qafm_scan_array['counts_diff_fw']['data'][line_num // 2] = \
+                            self._qafm_scan_array['counts2_fw']['data'][line_num // 2]  \
+                            - self._qafm_scan_array['counts_fw']['data'][line_num // 2] 
 
 
                 # ==== BUG FIX Normalization Adjustment of AFM data - Start ====

@@ -1455,6 +1455,12 @@ class ProteusQGUI(GUIBase):
         res_y = self._mw.afm_y_num_SpinBox.value()
 
         meas_params = ['counts']
+
+        # add dual ISO-B mode parameter if necessary
+        if self._qafm_logic._sg_iso_b_operation \
+           and not self._qafm_logic._sg_iso_b_single_mode:
+           meas_params.extend(['counts2', 'counts_diff'])
+
         for entry in self._checkbox_container:
             if self._checkbox_container[entry].isChecked():
                 meas_params.append(entry)
