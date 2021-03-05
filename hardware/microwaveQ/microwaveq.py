@@ -590,7 +590,11 @@ class MicrowaveQ(Base, SlowCounterInterface):
     def meas_method_PixelClock(self, frame_int):
         """ Process the received pixelclock data and store to array. """
 
-        self._meas_res[self._counted_pulses] = (frame_int[0], frame_int[1], 0, time.time())
+        self._meas_res[self._counted_pulses] = (frame_int[0],  # 'count_num'
+                                                frame_int[1],  # 'counts' 
+                                                0,             # 'counts2'
+                                                0,             # 'counts_diff' 
+                                                time.time())   # 'time_rec'
 
         if self._counted_pulses > (self._total_pulses - 2):
             self._meas_running = False
@@ -602,7 +606,12 @@ class MicrowaveQ(Base, SlowCounterInterface):
     def meas_method_n_iso_b(self,frame_int):
         """ Process the received data for dual_iso_b and store to array"""
 
-        self._meas_res[self._counted_pulses] = (frame_int[0], frame_int[1], frame_int[2], time.time())
+        counts_diff = frame_int[2] - frame_int[1]
+        self._meas_res[self._counted_pulses] = (frame_int[0],  # 'count_num'
+                                                frame_int[1],  # 'counts' 
+                                                frame_int[2],  # 'counts2'
+                                                counts_diff,   # 'counts_diff' 
+                                                time.time())   # 'time_rec'
 
         #self.log.info("was meas_method_n_iso_b was called")
         if self._counted_pulses > (self._total_pulses - 2):
@@ -725,6 +734,7 @@ class MicrowaveQ(Base, SlowCounterInterface):
               dtype=[('count_num', '<i4'),
                      ('counts', '<i4'),
                      ('counts2', '<i4'),
+                     ('counts_diff', '<i4'),
                      ('time_rec', '<f8')])
 
         self._meas_running = True

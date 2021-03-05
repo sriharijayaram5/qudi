@@ -708,8 +708,9 @@ class AFMConfocalLogic(GenericLogic):
                         self._iso_b_gain)
                     
                     # add counts2 parameter
-                    curr_scan_params.insert(1, 'counts2')  # fluorescence of freq2 parameter
-                    spm_start_idx = 2 # start index of the temporary scan for the spm parameters
+                    curr_scan_params.insert(1, 'counts2')      # fluorescence of freq2 parameter
+                    curr_scan_params.insert(2, 'counts_diff')  # difference in 'counts2' - 'counts' 
+                    spm_start_idx = 3 # start index of the temporary scan for the spm parameters
 
                     self.log.info(f'Prepared pixelclock dual iso b, val {ret_val_mq}')
 
@@ -813,6 +814,8 @@ class AFMConfocalLogic(GenericLogic):
             if 'counts2' in meas_params:
                 i = meas_params.index('counts2')
                 self._qafm_scan_line[i] = self._counter.get_line('counts2')/integration_time
+                i = meas_params.index('counts_diff')
+                self._qafm_scan_line[i] = self._counter.get_line('counts_diff')/integration_time
 
             if reverse_meas:
 
@@ -821,12 +824,6 @@ class AFMConfocalLogic(GenericLogic):
 
                     # save to the corresponding matrix line and renormalize the results to SI units:
                     self._qafm_scan_array[name]['data'][line_num // 2] = np.flip(self._qafm_scan_line[index]) * self._qafm_scan_array[name]['scale_fac']
-
-                    if 'counts2' in param_name:
-                        # special tranformation for dual iso-B, form the counts_diff
-                        self._qafm_scan_array['counts_diff_bw']['data'][line_num // 2] = \
-                            self._qafm_scan_array['counts2_bw']['data'][line_num // 2]  \
-                            - self._qafm_scan_array['counts_bw']['data'][line_num // 2] 
 
                     if 'Height(Dac)' in param_name:
                         self._qafm_scan_array[name]['data'][line_num // 2] += self._height_dac_norm
