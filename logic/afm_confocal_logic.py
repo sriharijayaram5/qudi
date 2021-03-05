@@ -691,6 +691,7 @@ class AFMConfocalLogic(GenericLogic):
         if 'counts' in meas_params:
             self._spm.set_ext_trigger(True)
             curr_scan_params.insert(0, 'counts')  # fluorescence of freq1 parameter
+            spm_start_idx = 1 # start index of the temporary scan for the spm parameters
             
             if self._sg_iso_b_operation == True:
                 if self._sg_iso_b_single_mode:
@@ -708,9 +709,9 @@ class AFMConfocalLogic(GenericLogic):
                     
                     # add counts2 parameter
                     curr_scan_params.insert(1, 'counts2')  # fluorescence of freq2 parameter
+                    spm_start_idx = 2 # start index of the temporary scan for the spm parameters
 
                     self.log.info(f'Prepared pixelclock dual iso b, val {ret_val_mq}')
-
 
             else:
                 ret_val_mq = self._counter.prepare_pixelclock()
@@ -726,7 +727,6 @@ class AFMConfocalLogic(GenericLogic):
 
                 return self._qafm_scan_array
             
-            spm_start_idx = 1 # start index of the temporary scan for the spm parameters
 
         # this case is for starting a new measurement:
         if (self._spm_line_num == 0) or (not continue_meas):
