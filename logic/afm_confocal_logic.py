@@ -800,7 +800,7 @@ class AFMConfocalLogic(GenericLogic):
 
             self._spm.scan_line()  # start the scan line
 
-            if  set(curr_scan_params) - {'counts', 'counts2'}:
+            if  set(curr_scan_params) - {'counts', 'counts2', 'counts_diff'}:
                 # i.e. afm parameters are set
                 self._qafm_scan_line[spm_start_idx:] = self._spm.get_scanned_line(reshape=True)
             else:
