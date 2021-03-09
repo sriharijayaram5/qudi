@@ -64,8 +64,8 @@
     <property name="title">
      <string>About</string>
     </property>
-    <addaction name="actionLabQ_version"/>
-    <addaction name="actionHardware_status"/>
+    <addaction name="action_LabQ_version"/>
+    <addaction name="action_Hardware_status"/>
    </widget>
    <addaction name="menuMenu"/>
    <addaction name="menuView"/>
@@ -1144,7 +1144,7 @@
     <string>Open Optimizer Request</string>
    </property>
   </action>
-  <action name="actionLabQ_version">
+  <action name="action_LabQ_version">
    <property name="text">
     <string>LabQ version</string>
    </property>
@@ -1152,14 +1152,14 @@
     <string>Software version information</string>
    </property>
   </action>
-  <action name="actionHardware_status">
+  <action name="action_Hardware_status">
    <property name="text">
     <string>Hardware status</string>
    </property>
    <property name="toolTip">
     <string>Hardware interface library versions</string>
    </property>
-  </action> 
+  </action>
  </widget>
  <customwidgets>
   <customwidget>

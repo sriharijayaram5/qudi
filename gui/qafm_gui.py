@@ -50,6 +50,22 @@ class SettingsDialog(QtWidgets.QDialog):
             super(SettingsDialog, self).accept()
 
 
+class AboutDialog(QtWidgets.QDialog):
+    """ LabQ information, version, change notes, and hardware status 
+    """
+
+    def __init__(self):
+        """ Create About LabQ dialog 
+        """
+        # Get the path to the *.ui file
+        this_dir = os.path.dirname(__file__)
+        ui_file = os.path.join(this_dir, 'ui_qafm_about.ui')
+
+        # Load it
+        super().__init__()
+        uic.loadUi(ui_file, self)
+
+
 class QuantitativeMeasurementWindow(QtWidgets.QWidget):
     """ Create the SettingsDialog window, based on the corresponding *.ui file."""
 
@@ -110,6 +126,7 @@ class ProteusQGUI(GUIBase):
     _modclass = 'ProteusQGUI'
     _modtype = 'gui'
 
+    _LabQversion = '1.4'
     __version__ = '0.2.4'
 
     ## declare connectors
@@ -182,6 +199,8 @@ class ProteusQGUI(GUIBase):
 
         self.initMainUI()      # initialize the main GUI
         #self.default_view()
+
+        self.initAboutUI()     # provide version number and hardware status
 
         self._qafm_logic.sigQAFMScanInitialized.connect(self.adjust_qafm_image)
         self._qafm_logic.sigQAFMLineScanFinished.connect(self._update_qafm_data)
@@ -333,6 +352,7 @@ class ProteusQGUI(GUIBase):
 
         self._initialize_inputs()
 
+
     def initSettingsUI(self):
         """ Initialize and set up the Settings Dialog. """
 
@@ -359,6 +379,32 @@ class ProteusQGUI(GUIBase):
 
         # react on setting changes by the logic
         self._qafm_logic.sigSettingsUpdated.connect(self.keep_former_qafm_settings)
+
+    
+    def initAboutUI(self):
+        """ Initialize the LabQ About dialog box """
+        self._ab = AboutDialog()
+
+        self._ab.labelSoftwareVersion.setText(f"LabQ version {self._LabQversion}")
+
+        self._mw.action_LabQ_version.triggered.connect(self.show_LabQ_version)
+        self._mw.action_Hardware_status.triggered.connect(self.show_hardware_status)
+
+    def show_LabQ_version(self):
+        """ display 'About LabQ', emphasis on version tab"""
+
+        self.show_about_window()
+
+    def show_hardware_status(self):
+        """ display 'About LabQ', emphasis on hardware status tab"""
+
+        self.show_about_window()
+    
+    
+    def show_about_window(self):
+        """ display 'About LabQ' dialog box """
+        self._ab.show()
+        self._ab.raise_()
 
     # ==========================================================================
     #               Start Methods for the Optimizer Request
