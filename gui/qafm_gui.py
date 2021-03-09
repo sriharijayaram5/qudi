@@ -262,6 +262,7 @@ class ProteusQGUI(GUIBase):
 
         # Initialize iso b parameter
         self._mw.use_single_isob_RadioButton.toggled.connect(self._set_iso_b_single_mode)
+        self._mw.use_dual_isob_RadioButton.toggled.connect(self._enable_dual_iso_b_plots)
         self._mw.freq1_isob_freq_DSpinBox.valueChanged.connect(self._set_freq1_iso_b_freq)
         self._mw.freq2_isob_freq_DSpinBox.valueChanged.connect(self._set_freq2_iso_b_freq)
         self._mw.isob_gain_DSpinBox.valueChanged.connect(self._set_iso_b_gain)
@@ -345,6 +346,9 @@ class ProteusQGUI(GUIBase):
 
         self._sd.iso_b_operation_CheckBox.stateChanged.connect(self._mw.dockWidget_isob.setVisible)
         self._sd.iso_b_operation_CheckBox.stateChanged.connect(self._mw.dockWidget_isob.setEnabled)
+
+        # trigger update of dual iso-b plot visibility 
+        self._sd.iso_b_operation_CheckBox.stateChanged.connect(self._enable_dual_iso_b_plots) 
 
         # toggle twice to initiate a state change and come back to the initial one.
         self._sd.iso_b_operation_CheckBox.toggle()
@@ -455,6 +459,14 @@ class ProteusQGUI(GUIBase):
         #print('val changed:', gain)
         self._qafm_logic.set_iso_b_params(gain=gain)  
 
+    def _enable_dual_iso_b_plots(self,enable):
+        enable = enable and not self._qafm_logic.get_iso_b_mode() # iso_b_mode=single
+        
+        for obj_name in ['counts2', 'counts_diff']:
+            for direc in ['bw', 'fw']:
+                    ob = getattr(self._mw,f'dockWidget_{obj_name}_{direc}')
+                    ob.setVisible(enable)
+
 
     def update_iso_b_param(self):
         """ Update single iso b parameter from the logic """
@@ -465,7 +477,8 @@ class ProteusQGUI(GUIBase):
         self._mw.freq2_isob_freq_DSpinBox.blockSignals(True)
         self._mw.isob_gain_DSpinBox.blockSignals(True)
 
-        single_mode, freq1, freq2, gain = self._qafm_logic.get_iso_b_params()
+        iso_b_operation, single_mode, freq1, freq2, gain = \
+            self._qafm_logic.get_iso_b_params()
 
         if single_mode is not None:
             if single_mode == True:
@@ -483,6 +496,8 @@ class ProteusQGUI(GUIBase):
 
         if gain is not None:
             self._mw.isob_gain_DSpinBox.setValue(gain)
+
+        self._enable_dual_iso_b_plots(iso_b_operation)
 
         self._mw.use_single_isob_RadioButton.blockSignals(False) 
         self._mw.use_dual_isob_RadioButton.blockSignals(False) 

@@ -267,7 +267,7 @@ class AFMConfocalLogic(GenericLogic):
 
     # iso-b settings
     _sg_iso_b_operation = False    # indicate whether iso-b is on
-    _sg_iso_b_single_mode = True  # default mode is single iso-B 
+    _sg_iso_b_single_mode = StatusVar(default=True)  # default mode is single iso-B 
 
     # target positions of the optimizer
     _optimizer_x_target_pos = 15e-6
@@ -590,6 +590,13 @@ class AFMConfocalLogic(GenericLogic):
 
         self.sigSettingsUpdated.emit()
 
+    def get_iso_b_operation(self):
+        """ return status if in iso-b mode"""
+        return self._sg_iso_b_operation
+
+    def set_iso_b_operation(self, state):
+        """ set iso-b operation mode"""
+        self.set_qafm_settings({'iso_b_operation': state})
 
     def set_iso_b_mode(self, state):
         """ switch on single iso b """
@@ -615,7 +622,8 @@ class AFMConfocalLogic(GenericLogic):
 
     def get_iso_b_params(self):
         """ return the frequency and gain"""
-        return self._iso_b_single_mode, \
+        return self._sg_iso_b_operation, \
+               self._sg_iso_b_single_mode, \
                self._freq1_iso_b_frequency, \
                self._freq2_iso_b_frequency, \
                self._iso_b_gain

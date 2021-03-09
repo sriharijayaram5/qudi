@@ -60,10 +60,18 @@
     <addaction name="action_Quantitative_Measure"/>
     <addaction name="action_open_optimizer_request"/>
    </widget>
+   <widget class="QMenu" name="menuAbout">
+    <property name="title">
+     <string>About</string>
+    </property>
+    <addaction name="actionLabQ_version"/>
+    <addaction name="actionHardware_status"/>
+   </widget>
    <addaction name="menuMenu"/>
    <addaction name="menuView"/>
    <addaction name="menuMeasurements"/>
    <addaction name="menuSettings"/>
+   <addaction name="menuAbout"/>
   </widget>
   <widget class="QStatusBar" name="statusbar"/>
   <widget class="QDockWidget" name="dockWidget_objective">
@@ -1136,6 +1144,22 @@
     <string>Open Optimizer Request</string>
    </property>
   </action>
+  <action name="actionLabQ_version">
+   <property name="text">
+    <string>LabQ version</string>
+   </property>
+   <property name="toolTip">
+    <string>Software version information</string>
+   </property>
+  </action>
+  <action name="actionHardware_status">
+   <property name="text">
+    <string>Hardware status</string>
+   </property>
+   <property name="toolTip">
+    <string>Hardware interface library versions</string>
+   </property>
+  </action> 
  </widget>
  <customwidgets>
   <customwidget>
