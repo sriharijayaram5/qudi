@@ -249,6 +249,10 @@ class AFMConfocalLogic(GenericLogic):
     _sg_root_folder_name = StatusVar(default='')
     _sg_create_summary_pic = StatusVar(default=True)
 
+    # Save scan automatically after it has finished
+    _sg_auto_save_quanti = StatusVar(default=False)
+    _sg_auto_save_qafm = StatusVar(default=False)
+
     # Optimizer Settings
     _sg_optimizer_x_range = StatusVar(default=1.0e-6)
     _sg_optimizer_x_res = StatusVar(default=15)
@@ -521,7 +525,6 @@ class AFMConfocalLogic(GenericLogic):
         @return dict: with all requested or available settings for qafm.
         """
 
-
         # settings dictionary
         sd = {}
         # Move Settings
@@ -535,6 +538,8 @@ class AFMConfocalLogic(GenericLogic):
         # Save Settings
         sd['root_folder_name'] = self._sg_root_folder_name
         sd['create_summary_pic'] = self._sg_create_summary_pic
+        sd['auto_save_quanti'] = self._sg_auto_save_quanti
+        sd['auto_save_qafm'] = self._sg_auto_save_qafm
         # Optimizer Settings
         sd['optimizer_x_range'] = self._sg_optimizer_x_range
         sd['optimizer_x_res'] = self._sg_optimizer_x_res
@@ -553,7 +558,7 @@ class AFMConfocalLogic(GenericLogic):
         else:
             ret_sd = {}
             for entry in setting_list:
-                item = sd.get(entry, default=None)
+                item = sd.get(entry, None)
                 if item is not None:
                     ret_sd[entry] = item
             return ret_sd
@@ -566,6 +571,10 @@ class AFMConfocalLogic(GenericLogic):
                                happen. 
                                Hint: use the get_qafm_settings method to obtain
                                      a full list of available items.
+                               E.g.: To set the single_iso_b_operation perform
+                                    setting = {'single_iso_b_operation': True}
+                                    self.set_qafm_settings(setting)
+
         """
         
         for entry in set_dict:
