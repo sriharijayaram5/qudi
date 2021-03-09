@@ -186,6 +186,7 @@ class ProteusQGUI(GUIBase):
         self._qafm_logic.sigQAFMScanInitialized.connect(self.adjust_qafm_image)
         self._qafm_logic.sigQAFMLineScanFinished.connect(self._update_qafm_data)
         self._qafm_logic.sigQAFMScanFinished.connect(self.enable_scan_actions)
+        self._qafm_logic.sigQAFMScanFinished.connect(self.autosave_qafm_measurement)
         self._qafm_logic.sigNewAFMPos.connect(self.update_afm_pos)
 
         self._qafm_logic.sigObjScanInitialized.connect(self.adjust_obj_image)
@@ -256,6 +257,7 @@ class ProteusQGUI(GUIBase):
         self._qm.Start_QM_PushButton.clicked.connect(self.disable_scan_actions_quanti)
         self._qm.Continue_QM_PushButton.clicked.connect(self.disable_scan_actions_quanti)
         self._qafm_logic.sigQuantiScanFinished.connect(self.enable_scan_actions_quanti)
+        self._qafm_logic.sigQuantiScanFinished.connect(self.autosave_quantitative_measurement)
 
 
         # initialize the settings stuff
@@ -480,6 +482,8 @@ class ProteusQGUI(GUIBase):
         # save settings
         sd['root_folder_name'] = self._sd.rootfolder_name_LineEdit.text()
         sd['create_summary_pic'] = self._sd.create_summary_pic_CheckBox.isChecked()
+        sd['auto_save_quanti'] = self._sd.auto_save_quanti_CheckBox.isChecked()
+        sd['auto_save_qafm'] = self._sd.auto_save_qafm_CheckBox.isChecked()
         # optimizer settings
         sd['optimizer_x_range'] = self._sd.optimizer_x_range_DoubleSpinBox.value()
         sd['optimizer_x_res'] = self._sd.optimizer_x_res_SpinBox.value()
@@ -509,6 +513,8 @@ class ProteusQGUI(GUIBase):
         # save settings
         self._sd.rootfolder_name_LineEdit.setText(sd['root_folder_name'])
         self._sd.create_summary_pic_CheckBox.setChecked(sd['create_summary_pic'])
+        self._sd.auto_save_quanti_CheckBox.setChecked(sd['auto_save_quanti'])
+        self._sd.auto_save_qafm_CheckBox.setChecked(sd['auto_save_qafm'])
         # optimizer settings
         self._sd.optimizer_x_range_DoubleSpinBox.setValue(sd['optimizer_x_range'])
         self._sd.optimizer_x_res_SpinBox.setValue(sd['optimizer_x_res'])
@@ -1776,6 +1782,32 @@ class ProteusQGUI(GUIBase):
         self._qafm_logic.save_qafm_data(tag, probe_name, sample_name,
                                         use_qudi_savescheme=False,
                                         daily_folder=daily_folder)
+
+
+    def autosave_qafm_measurement(self):
+        """ Auto save method to react to signals for qafm measurements. """
+        if self._sd.auto_save_qafm_CheckBox.isChecked():
+            self.autosave_qafm_data()
+
+    def autosave_quantitative_measurement(self):
+        """ Auto save method to react to signals for quantitative measurements. """
+        if self._sd.auto_save_quanti_CheckBox.isChecked():
+            self.autosave_qafm_data()
+
+    def autosave_qafm_data(self):
+        """ Save automatically after scan has finished the data. """
+
+        self._mw.actionSaveDataQAFM.setEnabled(False)
+
+        tag = self._mw.qafm_save_LineEdit.text() + '_autosave'
+        probe_name = self._mw.probename_LineEdit.text()
+        sample_name = self._mw.samplename_LineEdit.text()
+        daily_folder = self._mw.daily_folder_CheckBox.isChecked()
+
+        self._qafm_logic.save_qafm_data(tag, probe_name, sample_name,
+                                        use_qudi_savescheme=False,
+                                        daily_folder=daily_folder)        
+
 
     def enable_qafm_save_button(self):
         """Method making sure the save button is enabled after qafm data is saved. 
