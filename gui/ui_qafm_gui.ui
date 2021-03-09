@@ -58,6 +58,7 @@
      <string>Measurements</string>
     </property>
     <addaction name="action_Quantitative_Measure"/>
+    <addaction name="action_open_optimizer_request"/>
    </widget>
    <addaction name="menuMenu"/>
    <addaction name="menuView"/>
@@ -1128,6 +1129,11 @@
    </property>
    <property name="toolTip">
     <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Set target position of every axis to half of its maximal value. This is very helpful to load a new tip.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+   </property>
+  </action>
+  <action name="action_open_optimizer_request">
+   <property name="text">
+    <string>Open Optimizer Request</string>
    </property>
   </action>
  </widget>

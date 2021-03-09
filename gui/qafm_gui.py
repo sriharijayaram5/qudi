@@ -63,6 +63,18 @@ class QuantitativeMeasurementWindow(QtWidgets.QWidget):
         uic.loadUi(ui_file, self)
 
 
+class PeriodicOptimizerRequest(QtWidgets.QDialog):
+    """ Create a periodic request Dialog Window. """
+
+    def __init__(self):
+        # Get the path to the *.ui file
+        this_dir = os.path.dirname(__file__)
+        ui_file = os.path.join(this_dir, 'ui_optimizer_request.ui')
+
+        # Load it
+        super(PeriodicOptimizerRequest, self).__init__()
+        uic.loadUi(ui_file, self)   
+
 
 class CustomCheckBox(QtWidgets.QCheckBox):
 
@@ -152,6 +164,9 @@ class ProteusQGUI(GUIBase):
     _afm_range_y_max = StatusVar('afm_range_y_max', default=100e-6)
     _afm_range_y_num = StatusVar('afm_range_y_num', default=100)
 
+    # save here the period Optimizer value.
+    _periodic_opti_time = StatusVar('periodic_opti_time', default=100)
+
     # here are the checked meas params stored, a list of strings
     _stat_var_meas_params = StatusVar('stat_var_meas_params', default=[])
 
@@ -225,7 +240,6 @@ class ProteusQGUI(GUIBase):
         if 'obj_xy' in self._image_container:
             self._image_container['obj_xy'].sigMouseClicked.connect(self.update_targetpos_xy)
 
-        self.retrieve_status_var()
 
         self._mw.action_curr_pos_to_target.triggered.connect(self.set_current_pos_to_target)
         self._mw.action_center_pos_to_target.triggered.connect(self.set_center_pos_to_target)
@@ -259,6 +273,10 @@ class ProteusQGUI(GUIBase):
         self._qafm_logic.sigIsoBParamsUpdated.connect(self.update_iso_b_param)
         self.update_iso_b_param()
 
+        # Set everything up for the optimizer request 
+        self.initOptimizerRequestUI()
+
+        self.retrieve_status_var()
 
     def on_deactivate(self):
         """ Deactivate the module properly.
@@ -267,6 +285,7 @@ class ProteusQGUI(GUIBase):
         self._mw.close()
         self._qm.close()
         self._sd.close()
+        self._or.close()
 
 
     def show(self):
@@ -283,6 +302,7 @@ class ProteusQGUI(GUIBase):
 
     def openQuantiMeas(self):
     	self._qm.show()
+        self._qm.raise_()
 
 
     def initMainUI(self):
@@ -335,6 +355,89 @@ class ProteusQGUI(GUIBase):
 
         # react on setting changes by the logic
         self._qafm_logic.sigSettingsUpdated.connect(self.keep_former_qafm_settings)
+
+    # ==========================================================================
+    #               Start Methods for the Optimizer Request
+
+    def initOptimizerRequestUI(self):
+        """ Initiate the Optimizer request Dialog."""
+        self._or = PeriodicOptimizerRequest()
+
+        self._mw.action_open_optimizer_request.triggered.connect(self.show_optimizer_request_window)
+
+        self._or.time_optimizer_request_SpinBox.valueChanged.connect(self.update_max_optimizer_request)
+
+        self._request_timer = QtCore.QTimer()
+        self._request_timer.timeout.connect(self.update_progress_bar)
+        self._request_timer.setSingleShot(False)
+
+        self._request_timer_interval = 1 # in s, will essentially fire every second
+
+
+        self._or.start_optimizer_request_PushButton.pressed.connect(self.start_optimize_request_pressed)
+        self._or.stop_optimizer_request_PushButton.pressed.connect(self.stop_optimize_request_pressed)
+
+        self._or.time_optimizer_request_SpinBox.setValue(self._periodic_opti_time)
+
+    def show_optimizer_request_window(self):
+        """ Show and open the settings window. """
+        self._or.show()
+        self._or.raise_()
+
+    def update_max_optimizer_request(self, val):
+        """ Update the  Progress bar. 
+        
+        @params float val: Maximal value of progress Bar in seconds. Make sure
+                           not to pass zero or a negative number. 
+        """
+
+        self._or.progress_Bar.setMaximum(val)
+        self._or.progress_Bar.setValue(val)
+        self._periodic_opti_time = val
+
+    def start_timer(self):
+        """ Start the timer, if timer is running, it will be restarted. """
+        self._request_timer.start(self._request_timer_interval * 1000) # in ms
+
+    def stop_timer(self):
+        """ Stop the timer. """
+        self._request_timer.stop()
+
+    def update_progress_bar(self):
+        """ This function will be called periodically. """
+        
+        curr_val = self._or.progress_Bar.value()
+
+        # make it just a bit larger than 0, assume _request_timer_interval will 
+        # never be smaller than this value.
+        if curr_val - self._request_timer_interval < 0.1:
+
+            self.perform_period_action()
+            self._or.progress_Bar.setValue(self._or.progress_Bar.maximum())
+        else:
+            self._or.progress_Bar.setValue(curr_val - self._request_timer_interval)
+
+    def start_optimize_request_pressed(self):
+        """ Event when start button is pressed. """
+        self._or.progress_Bar.setValue(self._or.progress_Bar.maximum())
+
+        self.perform_period_action()
+        self._or.time_optimizer_request_SpinBox.setEnabled(False)
+        self.start_timer()
+
+    def stop_optimize_request_pressed(self):
+        """ Event when stop button is pressed. """
+        self.stop_timer()
+        self._or.time_optimizer_request_SpinBox.setEnabled(True)
+
+
+    def perform_period_action(self):
+        """ Just a wrapper method which is called to perform periodic action."""
+        self.start_optimize_clicked()
+        #self.log.info('Boom!')
+
+    #               End Methods for the Optimizer Request
+    # ==========================================================================
 
     def _set_iso_b_single_mode(self, single_mode):
         #print('val changed:', single_mode)
@@ -451,6 +554,7 @@ class ProteusQGUI(GUIBase):
     def show_settings_window(self):
         """ Show and open the settings window. """
         self._sd.show()
+        self._sd.raise_()
 
 
     def retrieve_status_var(self):
@@ -490,6 +594,8 @@ class ProteusQGUI(GUIBase):
             if entry in self._checkbox_container:
                 self._checkbox_container[entry].setChecked(True)
 
+        self._or.time_optimizer_request_SpinBox.setValue(self._periodic_opti_time)
+
 
     def store_status_var(self):
         """ Store all those variables to file. """
@@ -527,6 +633,9 @@ class ProteusQGUI(GUIBase):
         for entry in self._checkbox_container:
             if self._checkbox_container[entry].isChecked():
                 self._stat_var_meas_params.append(entry)
+
+        self._periodic_opti_time = self._or.time_optimizer_request_SpinBox.value()
+
 
     def get_all_data_matrices(self):
         """ more of a helper method to get all the data matrices. """
