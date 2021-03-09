@@ -297,11 +297,11 @@ class ProteusQGUI(GUIBase):
 
 
     def initQuantiUI(self):
-    	self._qm = QuantitativeMeasurementWindow()
+        self._qm = QuantitativeMeasurementWindow()
 
 
     def openQuantiMeas(self):
-    	self._qm.show()
+        self._qm.show()
         self._qm.raise_()
 
 
