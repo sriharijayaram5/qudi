@@ -311,8 +311,7 @@ class ProteusQGUI(GUIBase):
 
 
     def show(self):
-        """Make window visible and put it above all other windows.
-        """
+        """Make window visible and put it above all other windows. """
         QtWidgets.QMainWindow.show(self._mw)
         self._mw.activateWindow()
         self._mw.raise_()
@@ -353,6 +352,7 @@ class ProteusQGUI(GUIBase):
         self._update_opti_data('opti_z')
 
         self._initialize_inputs()
+        self._arrange_iso_dockwidget()
 
 
     def initSettingsUI(self):
@@ -1319,6 +1319,19 @@ class ProteusQGUI(GUIBase):
             ref_last_dockwidget = item
 
         self._dock_state = 'single'
+
+    def _arrange_iso_dockwidget(self):
+        """ Helper method to arrange the iso-b dockwidget properly above the afm dockwidget."""
+
+        # you have to do it this way, otherwise, you mess up the order of the 
+        # dock widgets.
+        self._mw.splitDockWidget(self._mw.dockWidget_afm, 
+                                 self._mw.dockWidget_isob, 
+                                 QtCore.Qt.Orientation(2)) # vertical orientation
+        self._mw.splitDockWidget(self._mw.dockWidget_isob, 
+                                 self._mw.dockWidget_afm, 
+                                 QtCore.Qt.Orientation(2)) # vertical orientation
+
 
 
     def adjust_qafm_image(self):
