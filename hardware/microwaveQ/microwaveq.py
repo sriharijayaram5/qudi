@@ -687,7 +687,7 @@ class MicrowaveQ(Base, SlowCounterInterface):
 
         return 0
 
-    def prepare_pixelclock_n_iso_b(self, freq_list, gain, pulse_margin_frac=0.0):
+    def prepare_pixelclock_n_iso_b(self, freq_list, gain, pulse_margin_frac=0.05):
         """ Setup the device for n-frequency output. 
 
         @param list(float) freq_list: a list of frequencies to apply 
@@ -708,11 +708,14 @@ class MicrowaveQ(Base, SlowCounterInterface):
 
         base_freq = freq_list[0]
         ncoWords = [freq - base_freq for freq in freq_list]
-        pulse_length = self._counting_window * (1 - pulse_margin_frac) / len(freq_list)
+        pulseLength = self._counting_window * (1 - pulse_margin_frac) / len(freq_list)
+        pulseLengths=[pulseLength]*len(freq_list)
+        laserCooldown = 0.5*(self._counting_window - sum(pulseLengths))
 
         self._dev.configureISO(frequency=base_freq,
-                               pulseLengths=[pulse_length]*len(freq_list),
-                               ncoWords=ncoWords)
+                               pulseLengths=pulseLengths,
+                               ncoWords=ncoWords,
+                               laserCooldownLength=laserCooldown)
         #self._dev.configureCW_PIX(frequency=self._iso_b_freq_list[0])  #FIXME: current hack 
 
         self._dev.rfpulse.setGain(self._iso_b_gain)
@@ -722,7 +725,7 @@ class MicrowaveQ(Base, SlowCounterInterface):
 
     def arm_device(self, pulses=100):
 
-        self._meas_mode = 'pixel'
+        #self._meas_mode = 'pixel'
         self._device_status = 'armed'
 
         self._dev.ctrl.start(pulses)

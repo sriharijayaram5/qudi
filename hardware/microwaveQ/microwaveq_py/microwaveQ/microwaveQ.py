@@ -502,7 +502,7 @@ class MicrowaveQ(dev.Device):
 
         self._cali_freq_arr = self._freq_gain_power_data[:,0,0]
         self._cali_gain_arr = self._freq_gain_power_data[0,:,1]
-        self._cali_power_arr = self._freq_gain_power_data[:,:,2].transpose()
+        self._cali_power_arr = self.watt_to_dbm(self._freq_gain_power_data[:,:,2].transpose())
 
         self._func_2d = interpolate.interp2d(self._cali_freq_arr, self._cali_gain_arr, self._cali_power_arr, kind='cubic')
 
@@ -574,6 +574,8 @@ class MicrowaveQ(dev.Device):
         gain_val, self.__cur_power = self.get_gain_for_freq_power(freq, power)
         self.rfpulse.setGain(gain_val)
 
+    def watt_to_dbm(self, watt_arr):
+        return 10*np.log10(watt_arr) + 30
 
     def _setFrequencies(self, frequencies):
         """Calculates the register values for given frequencies and applies them.
