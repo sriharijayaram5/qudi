@@ -253,6 +253,10 @@ class AFMConfocalLogic(GenericLogic):
     _sg_create_summary_pic = StatusVar(default=True)
     _sg_save_to_gwyddion = StatusVar(default=False)
 
+    # Save scan automatically after it has finished
+    _sg_auto_save_quanti = StatusVar(default=False)
+    _sg_auto_save_qafm = StatusVar(default=False)
+
     # Optimizer Settings
     _sg_optimizer_x_range = StatusVar(default=1.0e-6)
     _sg_optimizer_x_res = StatusVar(default=15)
@@ -534,7 +538,6 @@ class AFMConfocalLogic(GenericLogic):
         @return dict: with all requested or available settings for qafm.
         """
 
-
         # settings dictionary
         sd = {}
         # Move Settings
@@ -548,6 +551,8 @@ class AFMConfocalLogic(GenericLogic):
         # Save Settings
         sd['root_folder_name'] = self._sg_root_folder_name
         sd['create_summary_pic'] = self._sg_create_summary_pic
+        sd['auto_save_quanti'] = self._sg_auto_save_quanti
+        sd['auto_save_qafm'] = self._sg_auto_save_qafm
         sd['save_to_gwyddion'] = self._sg_save_to_gwyddion
         # Optimizer Settings
         sd['optimizer_x_range'] = self._sg_optimizer_x_range
@@ -568,7 +573,7 @@ class AFMConfocalLogic(GenericLogic):
         else:
             ret_sd = {}
             for entry in setting_list:
-                item = sd.get(entry, default=None)
+                item = sd.get(entry, None)
                 if item is not None:
                     ret_sd[entry] = item
             return ret_sd
@@ -581,6 +586,10 @@ class AFMConfocalLogic(GenericLogic):
                                happen. 
                                Hint: use the get_qafm_settings method to obtain
                                      a full list of available items.
+                               E.g.: To set the single_iso_b_operation perform
+                                    setting = {'single_iso_b_operation': True}
+                                    self.set_qafm_settings(setting)
+
         """
         
         for entry in set_dict:
@@ -877,11 +886,11 @@ class AFMConfocalLogic(GenericLogic):
                     # save to the corresponding matrix line and renormalize the results to SI units:
                     self._qafm_scan_array[name]['data'][line_num // 2] = self._qafm_scan_line[index] * self._qafm_scan_array[name]['scale_fac']
 
-                    if 'counts2' in param_name:
-                        # special tranformation for dual iso-B, form the counts_diff
-                        self._qafm_scan_array['counts_diff_fw']['data'][line_num // 2] = \
-                            self._qafm_scan_array['counts2_fw']['data'][line_num // 2]  \
-                            - self._qafm_scan_array['counts_fw']['data'][line_num // 2] 
+                    #if 'counts2' in param_name:
+                    #    # special tranformation for dual iso-B, form the counts_diff
+                    #    self._qafm_scan_array['counts_diff_fw']['data'][line_num // 2] = \
+                    #        self._qafm_scan_array['counts2_fw']['data'][line_num // 2]  \
+                    #        - self._qafm_scan_array['counts_fw']['data'][line_num // 2] 
 
 
                 # ==== BUG FIX Normalization Adjustment of AFM data - Start ====

@@ -205,6 +205,7 @@ class ProteusQGUI(GUIBase):
         self._qafm_logic.sigQAFMScanInitialized.connect(self.adjust_qafm_image)
         self._qafm_logic.sigQAFMLineScanFinished.connect(self._update_qafm_data)
         self._qafm_logic.sigQAFMScanFinished.connect(self.enable_scan_actions)
+        self._qafm_logic.sigQAFMScanFinished.connect(self.autosave_qafm_measurement)
         self._qafm_logic.sigNewAFMPos.connect(self.update_afm_pos)
 
         self._qafm_logic.sigObjScanInitialized.connect(self.adjust_obj_image)
@@ -274,6 +275,7 @@ class ProteusQGUI(GUIBase):
         self._qm.Start_QM_PushButton.clicked.connect(self.disable_scan_actions_quanti)
         self._qm.Continue_QM_PushButton.clicked.connect(self.disable_scan_actions_quanti)
         self._qafm_logic.sigQuantiScanFinished.connect(self.enable_scan_actions_quanti)
+        self._qafm_logic.sigQuantiScanFinished.connect(self.autosave_quantitative_measurement)
 
 
         # initialize the settings stuff
@@ -568,7 +570,10 @@ class ProteusQGUI(GUIBase):
         # save settings
         sd['root_folder_name'] = self._sd.rootfolder_name_LineEdit.text()
         sd['create_summary_pic'] = self._sd.create_summary_pic_CheckBox.isChecked()
+        sd['auto_save_quanti'] = self._sd.auto_save_quanti_CheckBox.isChecked()
+        sd['auto_save_qafm'] = self._sd.auto_save_qafm_CheckBox.isChecked()
         sd['save_to_gwyddion'] = self._sd.save_to_gwyddion_CheckBox.isChecked()
+
         # optimizer settings
         sd['optimizer_x_range'] = self._sd.optimizer_x_range_DoubleSpinBox.value()
         sd['optimizer_x_res'] = self._sd.optimizer_x_res_SpinBox.value()
@@ -598,6 +603,8 @@ class ProteusQGUI(GUIBase):
         # save settings
         self._sd.rootfolder_name_LineEdit.setText(sd['root_folder_name'])
         self._sd.create_summary_pic_CheckBox.setChecked(sd['create_summary_pic'])
+        self._sd.auto_save_quanti_CheckBox.setChecked(sd['auto_save_quanti'])
+        self._sd.auto_save_qafm_CheckBox.setChecked(sd['auto_save_qafm'])
         self._sd.save_to_gwyddion_CheckBox.setChecked(sd['save_to_gwyddion'])
         # optimizer settings
         self._sd.optimizer_x_range_DoubleSpinBox.setValue(sd['optimizer_x_range'])
@@ -710,7 +717,6 @@ class ProteusQGUI(GUIBase):
 
     def _create_colorbar(self, name, colorscale):
         """ Helper method to create Colorbar. 
-
         @param str name: the name of the colorbar object
         @param ColorScale colorscale: contains definition for colormap (colormap), 
                                   normalized colormap (cmap_normed) and Look Up 
@@ -1111,7 +1117,6 @@ class ProteusQGUI(GUIBase):
         parent.radioButton_cb_man = radioButton_cb_man = QtWidgets.QRadioButton(content)
         radioButton_cb_man.setObjectName("radioButton_cb_man")
         radioButton_cb_man.setText('Manual')
-
         parent_dock.radioButton_cb_per = radioButton_cb_per = QtWidgets.QRadioButton(content)
         radioButton_cb_per.setObjectName("radioButton_cb_per")
         radioButton_cb_per.setText('Percentiles')
@@ -1129,7 +1134,6 @@ class ProteusQGUI(GUIBase):
         parent_dock.cb_per_update = cb_per_update
         doubleSpinBox_per_min.valueChanged.connect(cb_per_update)
         doubleSpinBox_per_max.valueChanged.connect(cb_per_update)
-
         parent_dock.cb_man_update = cb_man_update
         doubleSpinBox_cb_min.valueChanged.connect(cb_man_update)
         doubleSpinBox_cb_max.valueChanged.connect(cb_man_update)
@@ -1164,7 +1168,6 @@ class ProteusQGUI(GUIBase):
         # there are in total 7 rows, count runs from top to button, from left to
         # right.
         # it is (widget, fromRow, fromColum, rowSpan, columnSpan)
-        
         if skip_colorcontrol:
             grid.addWidget(graphicsView_matrix,   0, 0, 1, 1) # start [0,0], span 7 rows down, 1 column wide
             doubleSpinBox_cb_max.hide()
@@ -1431,7 +1434,6 @@ class ProteusQGUI(GUIBase):
         # order them in forward scan and backward scan:
         for param_name in qafm_data:
             if 'fw' in param_name:
-                
                 cb_range = self._get_scan_cb_range(param_name)
 
                 if qafm_data[param_name]['display_range'] is not None:
@@ -1540,7 +1542,6 @@ class ProteusQGUI(GUIBase):
 
     def _get_scan_cb_range(self, dockwidget_name):
         """ Determines the cb_min and cb_max values for the xy scan image.
-        
         @param str dockwidget_name: name associated to the dockwidget.
 
         """
@@ -1872,6 +1873,32 @@ class ProteusQGUI(GUIBase):
         self._qafm_logic.save_qafm_data(tag, probe_name, sample_name,
                                         use_qudi_savescheme=False,
                                         daily_folder=daily_folder)
+
+
+    def autosave_qafm_measurement(self):
+        """ Auto save method to react to signals for qafm measurements. """
+        if self._sd.auto_save_qafm_CheckBox.isChecked():
+            self.autosave_qafm_data()
+
+    def autosave_quantitative_measurement(self):
+        """ Auto save method to react to signals for quantitative measurements. """
+        if self._sd.auto_save_quanti_CheckBox.isChecked():
+            self.autosave_qafm_data()
+
+    def autosave_qafm_data(self):
+        """ Save automatically after scan has finished the data. """
+
+        self._mw.actionSaveDataQAFM.setEnabled(False)
+
+        tag = self._mw.qafm_save_LineEdit.text() + '_autosave'
+        probe_name = self._mw.probename_LineEdit.text()
+        sample_name = self._mw.samplename_LineEdit.text()
+        daily_folder = self._mw.daily_folder_CheckBox.isChecked()
+
+        self._qafm_logic.save_qafm_data(tag, probe_name, sample_name,
+                                        use_qudi_savescheme=False,
+                                        daily_folder=daily_folder)        
+
 
     def enable_qafm_save_button(self):
         """Method making sure the save button is enabled after qafm data is saved. 
