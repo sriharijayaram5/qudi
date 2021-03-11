@@ -5459,7 +5459,7 @@ class AFMConfocalLogic(GenericLogic):
 
         if self._sg_save_to_gwyddion:
             filename = timestamp.strftime('%Y%m%d-%H%M-%S' + '_' + tag + '_opti_data.gwy') 
-            self._save_obj_to_gwyddion(dataobj=data,filename=os.path.join(save_path,"opti_data.gwy"))
+            self._save_obj_to_gwyddion(dataobj=data,filename=os.path.join(save_path,filename))
 
         self.increase_save_counter()
 
