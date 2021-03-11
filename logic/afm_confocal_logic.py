@@ -272,6 +272,8 @@ class AFMConfocalLogic(GenericLogic):
     # iso-b settings
     _sg_iso_b_operation = False    # indicate whether iso-b is on
     _sg_iso_b_single_mode = StatusVar(default=True)  # default mode is single iso-B 
+    _sg_iso_b_pulse_margin_frac = StatusVar(default=0.001)  # fraction of integration time for pause 
+    _sg_iso_b_laser_cooldown_length = StatusVar(default=10e-6) # laser cool down time (s)
 
     # target positions of the optimizer
     _optimizer_x_target_pos = 15e-6
@@ -678,6 +680,17 @@ class AFMConfocalLogic(GenericLogic):
         # set up the spm device:
         reverse_meas = False
         self._stop_request = False
+        laser_cooldown_length = self._sg_iso_b_laser_cooldown_length
+        pulse_margin_frac = self._sg_iso_b_pulse_margin_frac
+
+        # determine iso_b_mode
+        iso_b_mode = None
+        if self._sg_iso_b_operation:
+            if self._iso_b_single_mode:
+                iso_b_mode = 'single'
+            else:
+                iso_b_mode = 'dual'
+        
 
         # time in which the stage is just moving without measuring
         time_idle_move = self._sg_idle_move_scan_sample
@@ -704,14 +717,17 @@ class AFMConfocalLogic(GenericLogic):
             self._height_dac_norm = 0.0
 
         _update_normalization = False
+        pulse_lengths = []
+        freq_list = []
+        freq1_pulse_time, freq2_pulse_time = integration_time, integration_time # default divisor times 
 
         if 'counts' in meas_params:
             self._spm.set_ext_trigger(True)
             curr_scan_params.insert(0, 'counts')  # fluorescence of freq1 parameter
             spm_start_idx = 1 # start index of the temporary scan for the spm parameters
             
-            if self._sg_iso_b_operation == True:
-                if self._sg_iso_b_single_mode:
+            if iso_b_mode is not None: 
+                if 'single' in iso_b_mode:
                     # single iso-b
                     ret_val_mq = self._counter.prepare_pixelclock_single_iso_b(
                         self._freq1_iso_b_frequency, 
@@ -720,9 +736,17 @@ class AFMConfocalLogic(GenericLogic):
                     self.log.info(f'Prepared pixelclock single iso b, val {ret_val_mq}')
                 else:
                     # dual iso-b
+                    #FIXME : something needs to be solved here.  Where is the integration time for the SPM set?
+                    freq_list=[self._freq1_iso_b_frequency, self._freq2_iso_b_frequency], 
+                    pulse_length = integration_time * (1 - pulse_margin_frac) / len(freq_list)
+                    pulse_lengths=[pulse_length]*len(freq_list)
+                    freq1_pulse_time, freq2_pulse_time = pulse_lengths
+
                     ret_val_mq = self._counter.prepare_pixelclock_n_iso_b(
-                        [self._freq1_iso_b_frequency, self._freq2_iso_b_frequency], 
-                        self._iso_b_gain)
+                        freq_list=freq_list,
+                        pulse_lengths=pulse_lengths,
+                        gain=self._iso_b_gain,
+                        laserCooldownLength=laser_cooldown_length)
                     
                     # add counts2 parameter
                     curr_scan_params.insert(1, 'counts2')      # fluorescence of freq2 parameter
@@ -791,7 +815,9 @@ class AFMConfocalLogic(GenericLogic):
             self._qafm_scan_array[entry]['params']['Scan speed per line (s)'] = scan_speed_per_line
             self._qafm_scan_array[entry]['params']['Idle movement speed (s)'] = time_idle_move
 
+            self._qafm_scan_array[entry]['params']['Counter measurement mode'] = self._counter._meas_mode
             self._qafm_scan_array[entry]['params']['integration time per pixel (s)'] = integration_time
+            self._qafm_scan_array[entry]['params']['time per frequency pulse (s)'] = str([freq1_pulse_time, freq2_pulse_time])
             self._qafm_scan_array[entry]['params']['Measurement parameter list'] = str(curr_scan_params)
             self._qafm_scan_array[entry]['params']['Measurement start'] = start_time_afm_scan.isoformat()
 
@@ -826,13 +852,14 @@ class AFMConfocalLogic(GenericLogic):
 
             if 'counts' in meas_params:
                 # first entry is always assumed to be counts
-                self._qafm_scan_line[0] = self._counter.get_line('counts')/integration_time
+                self._qafm_scan_line[0] = self._counter.get_line('counts')/freq1_pulse_time
 
             if 'counts2' in meas_params:
                 i = meas_params.index('counts2')
-                self._qafm_scan_line[i] = self._counter.get_line('counts2')/integration_time
+                self._qafm_scan_line[i] = self._counter.get_line('counts2')/freq2_pulse_time
                 i = meas_params.index('counts_diff')
-                self._qafm_scan_line[i] = self._counter.get_line('counts_diff')/integration_time
+                self._qafm_scan_line[i] = self._counter.get_line('counts_diff')/ \
+                    (freq1_pulse_time + freq2_pulse_time) / 2
 
             if reverse_meas:
 
@@ -939,6 +966,7 @@ class AFMConfocalLogic(GenericLogic):
                 self._spm.finish_scan()
 
                 time.sleep(2)
+                self.log.debug('optimizer started.')
 
                 self.default_optimize()
                 _, _, _ = self._spm.setup_spm(plane=plane,
@@ -948,7 +976,21 @@ class AFMConfocalLogic(GenericLogic):
                 if 'counts' in meas_params:
                     self._spm.set_ext_trigger(True)
 
-                self._counter.prepare_pixelclock()
+                if iso_b_mode is not None:
+                    if 'single' in iso_b_mode:
+                        # single iso-b
+                        self._counter.prepare_pixelclock_single_iso_b(
+                            self._freq1_iso_b_frequency, 
+                            self._iso_b_gain)
+                    else:
+                        # dual iso-b
+                        self._counter.prepare_pixelclock_n_iso_b(
+                            freq_list=freq_list,
+                            pulse_lengths=pulse_lengths,
+                            gain=self._iso_b_gain,
+                            laserCooldownLength=laser_cooldown_length)
+                else:
+                    self._counter.prepare_pixelclock()
 
                 self.log.debug('optimizer finished.')
 
