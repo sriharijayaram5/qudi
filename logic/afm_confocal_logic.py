@@ -737,7 +737,7 @@ class AFMConfocalLogic(GenericLogic):
                 else:
                     # dual iso-b
                     #FIXME : something needs to be solved here.  Where is the integration time for the SPM set?
-                    freq_list=[self._freq1_iso_b_frequency, self._freq2_iso_b_frequency], 
+                    freq_list=[self._freq1_iso_b_frequency, self._freq2_iso_b_frequency] 
                     pulse_length = integration_time * (1 - pulse_margin_frac) / len(freq_list)
                     pulse_lengths=[pulse_length]*len(freq_list)
                     freq1_pulse_time, freq2_pulse_time = pulse_lengths
@@ -4699,7 +4699,8 @@ class AFMConfocalLogic(GenericLogic):
                                     daily_folder=daily_folder, timestamp=timestamp)
 
         if self._sg_save_to_gwyddion:
-            self._save_obj_to_gwyddion(dataobj=data,filename=os.path.join(save_path,"qafm_data.gwy"))
+            filename = timestamp.strftime('%Y%m%d-%H%M-%S' + '_' + tag + '_QAFM.gwy') 
+            self._save_obj_to_gwyddion(dataobj=data,filename=os.path.join(save_path,filename))
 
 
     def draw_figure(self, image_data, image_extent, scan_axis=None, cbar_range=None,
@@ -4929,9 +4930,10 @@ class AFMConfocalLogic(GenericLogic):
                                        plotfig=None)
 
             if self._sg_save_to_gwyddion:
+                filename_pfx = timestamp.strftime('%Y%m%d-%H%M-%S' + '_' + tag ) 
                 for dname in data.keys():
                     self._save_esr_to_gwyddion(dataobj=data[dname],
-                                               filename=os.path.join(save_path,f"{dname}.gwy"))
+                                               filename=os.path.join(save_path,f"{filename_pfx}_{dname}.gwy"))
 
             self.increase_save_counter()
 
@@ -5324,7 +5326,8 @@ class AFMConfocalLogic(GenericLogic):
                                        delimiter='\t')
 
             if self._sg_save_to_gwyddion:
-                self._save_obj_to_gwyddion(dataobj=data,filename=os.path.join(save_path,"obj_data.gwy"))
+                filename = timestamp.strftime('%Y%m%d-%H%M-%S' + '_' + tag + '_obj_data.gwy') 
+                self._save_obj_to_gwyddion(dataobj=data,filename=os.path.join(save_path,filename))
 
             self.increase_save_counter()
 
@@ -5455,6 +5458,7 @@ class AFMConfocalLogic(GenericLogic):
                                    delimiter='\t')
 
         if self._sg_save_to_gwyddion:
+            filename = timestamp.strftime('%Y%m%d-%H%M-%S' + '_' + tag + '_opti_data.gwy') 
             self._save_obj_to_gwyddion(dataobj=data,filename=os.path.join(save_path,"opti_data.gwy"))
 
         self.increase_save_counter()
