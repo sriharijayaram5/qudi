@@ -272,8 +272,8 @@ class AFMConfocalLogic(GenericLogic):
     # iso-b settings
     _sg_iso_b_operation = False    # indicate whether iso-b is on
     _sg_iso_b_single_mode = StatusVar(default=True)  # default mode is single iso-B 
-    _sg_iso_b_pulse_margin_frac = StatusVar(default=0.001)  # fraction of integration time for pause 
-    _sg_iso_b_laser_cooldown_length = StatusVar(default=10e-6) # laser cool down time (s)
+    _sg_n_iso_b_pulse_margin = StatusVar(default=0.005)  # fraction of integration time for pause 
+    _sg_n_iso_b_laser_cooldown_length = StatusVar(default=10e-6) # laser cool down time (s)
 
     # target positions of the optimizer
     _optimizer_x_target_pos = 15e-6
@@ -569,6 +569,7 @@ class AFMConfocalLogic(GenericLogic):
 
         sd['iso_b_operation'] = self._sg_iso_b_operation
         sd['iso_b_single_mode'] = self._sg_iso_b_single_mode
+        sd['n_iso_b_pulse_margin'] = self._sg_n_iso_b_pulse_margin
 
         if setting_list is None:
             return sd
@@ -680,8 +681,8 @@ class AFMConfocalLogic(GenericLogic):
         # set up the spm device:
         reverse_meas = False
         self._stop_request = False
-        laser_cooldown_length = self._sg_iso_b_laser_cooldown_length
-        pulse_margin_frac = self._sg_iso_b_pulse_margin_frac
+        laser_cooldown_length = self._sg_n_iso_b_laser_cooldown_length
+        pulse_margin_frac = self._sg_n_iso_b_pulse_margin
 
         # determine iso_b_mode
         iso_b_mode = None

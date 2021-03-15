@@ -368,6 +368,8 @@ class ProteusQGUI(GUIBase):
 
         self._sd.iso_b_operation_CheckBox.stateChanged.connect(self._mw.dockWidget_isob.setVisible)
         self._sd.iso_b_operation_CheckBox.stateChanged.connect(self._mw.dockWidget_isob.setEnabled)
+        self._sd.iso_b_operation_CheckBox.stateChanged.connect(self._sd.n_iso_b_pulse_margin_Label.setEnabled)
+        self._sd.iso_b_operation_CheckBox.stateChanged.connect(self._sd.n_iso_b_pulse_margin_DoubleSpinBox.setEnabled)
 
         # trigger update of dual iso-b plot visibility 
         self._sd.iso_b_operation_CheckBox.stateChanged.connect(self._enable_dual_iso_b_plots) 
@@ -544,7 +546,7 @@ class ProteusQGUI(GUIBase):
 
         if gain is not None:
             self._mw.isob_gain_DSpinBox.setValue(gain)
-
+        
         self._enable_dual_iso_b_plots(iso_b_operation)
 
         self._mw.use_single_isob_RadioButton.blockSignals(False) 
@@ -567,6 +569,7 @@ class ProteusQGUI(GUIBase):
         sd['idle_move_scan_obj'] = self._sd.idle_move_scan_obj_DoubleSpinBox.value()
         sd['int_time_sample_scan'] = self._sd.int_time_sample_scan_DoubleSpinBox.value()
         sd['int_time_obj_scan'] = self._sd.int_time_obj_scan_DoubleSpinBox.value()
+        sd['n_iso_b_pulse_margin'] = self._sd.n_iso_b_pulse_margin_DoubleSpinBox.value()
         # save settings
         sd['root_folder_name'] = self._sd.rootfolder_name_LineEdit.text()
         sd['create_summary_pic'] = self._sd.create_summary_pic_CheckBox.isChecked()
@@ -617,6 +620,7 @@ class ProteusQGUI(GUIBase):
         self._sd.optimizer_period_DoubleSpinBox.setValue(sd['optimizer_period'])    
 
         self._sd.iso_b_operation_CheckBox.setChecked(sd['iso_b_operation'])
+        self._sd.n_iso_b_pulse_margin_DoubleSpinBox.setValue(sd['n_iso_b_pulse_margin'])
 
 
     def show_settings_window(self):
