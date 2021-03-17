@@ -601,6 +601,36 @@ class AFMConfocalLogic(GenericLogic):
                 setattr(self, attr_name, set_dict[entry])
 
         self.sigSettingsUpdated.emit()
+    
+    def get_hardware_status(self,request=None):
+        """ Access function for counter logic
+        @params: none
+        @return dict:  hardware status as gathered from counter logic, 
+                       specifically microwaveQ:
+                       'available_features' : what is possible
+                       'unlocked_features'  : what the license allows
+                       'fpga_version'       : version level of FPGA
+                       'dac_alarms'         : DAC alarms as reported by board
+                    if this is a 'counter_dummy', then 'None' is returned
+        """
+        if request is None:
+            request = ['available_features','unlocked_features','fpga_version','dac_alarms']
+
+        status = dict()
+        if 'available_features' in request:
+            status['available_features'] = self._counter._dev.get_available_features()
+
+        if 'unlocked_features' in request:
+            status['unlocked_features'] = self._counter._dev.get_unlocked_features()
+        
+        if 'fpga_version' in request:
+            status['fpga_version'] = self._counter._dev.sys.fpgaVersion.get()
+        
+        if 'dac_alarms' in request:
+            status['dac_alarms'] = self._counter._dev.get_DAC_alarms()
+        
+        return status
+
 
     def get_iso_b_operation(self):
         """ return status if in iso-b mode"""

@@ -45,7 +45,7 @@
     </widget>
    </item>
    <item row="1" column="0">
-    <widget class="QLabel" name="labelSoftwareVersion">
+    <widget class="QLabel" name="software_version_Label">
      <property name="text">
       <string>Software Version</string>
      </property>
@@ -57,7 +57,7 @@
    <item row="2" column="0">
     <widget class="QTabWidget" name="tabWidget">
      <property name="currentIndex">
-      <number>2</number>
+      <number>0</number>
      </property>
      <widget class="QWidget" name="tab">
       <attribute name="title">
@@ -65,7 +65,7 @@
       </attribute>
       <layout class="QVBoxLayout" name="verticalLayout">
        <item>
-        <widget class="QLabel" name="aboutText">
+        <widget class="QLabel" name="about_Label">
          <property name="text">
           <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;LabQ software provides the user level interface to the ProteusQ platform.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
          </property>
@@ -78,15 +78,15 @@
      </widget>
      <widget class="QWidget" name="tab_2">
       <attribute name="title">
-       <string>Release Notes</string>
+       <string>Version</string>
       </attribute>
-      <layout class="QVBoxLayout" name="verticalLayout_2">
+      <layout class="QVBoxLayout" name="verticalLayout_5">
        <item>
-        <widget class="QScrollArea" name="scrollArea">
+        <widget class="QScrollArea" name="scrollArea_2">
          <property name="widgetResizable">
           <bool>true</bool>
          </property>
-         <widget class="QWidget" name="scrollAreaWidgetContents">
+         <widget class="QWidget" name="scrollAreaWidgetContents_2">
           <property name="geometry">
            <rect>
             <x>0</x>
@@ -95,13 +95,16 @@
             <height>317</height>
            </rect>
           </property>
-          <layout class="QVBoxLayout" name="verticalLayout_3">
+          <layout class="QVBoxLayout" name="verticalLayout_4">
            <item>
-            <widget class="QLabel" name="aboutText_2">
+            <widget class="QLabel" name="version_Label">
              <property name="text">
-              <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; text-decoration: underline;&quot;&gt;LabQ vX.X&lt;/span&gt;&lt;/p&gt;&lt;p&gt;Release notes&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+              <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-family:'monospace'; text-decoration: underline;&quot;&gt;Version information&lt;/span&gt;&lt;span style=&quot; font-family:'monospace';&quot;&gt;&lt;br/&gt;&lt;/span&gt;&lt;/p&gt;&lt;p&gt;&lt;span style=&quot; font-family:'monospace';&quot;&gt;LabQ vX.X.X&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
              </property>
              <property name="wordWrap">
+              <bool>true</bool>
+             </property>
+             <property name="openExternalLinks">
               <bool>true</bool>
              </property>
             </widget>
@@ -114,11 +117,50 @@
      </widget>
      <widget class="QWidget" name="tab_3">
       <attribute name="title">
+       <string>Release Notes</string>
+      </attribute>
+      <layout class="QVBoxLayout" name="verticalLayout_5">
+       <item>
+        <widget class="QScrollArea" name="scrollArea_3">
+         <property name="widgetResizable">
+          <bool>true</bool>
+         </property>
+         <widget class="QWidget" name="scrollAreaWidgetContents_2">
+          <property name="geometry">
+           <rect>
+            <x>0</x>
+            <y>0</y>
+            <width>483</width>
+            <height>317</height>
+           </rect>
+          </property>
+          <layout class="QVBoxLayout" name="verticalLayout_4">
+           <item>
+            <widget class="QLabel" name="release_notes_Label">
+             <property name="text">
+              <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-family:'monospace'; text-decoration: underline;&quot;&gt;Release Notes&lt;/span&gt;&lt;span style=&quot; font-family:'monospace';&quot;&gt;&lt;br/&gt;&lt;/span&gt;&lt;/p&gt;&lt;p&gt;&lt;span style=&quot; font-family:'monospace';&quot;&gt;Made improvements&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+             </property>
+             <property name="wordWrap">
+              <bool>true</bool>
+             </property>
+             <property name="openExternalLinks">
+              <bool>true</bool>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </widget>
+        </widget>
+       </item>
+      </layout>
+     </widget>
+     <widget class="QWidget" name="tab_4">
+      <attribute name="title">
        <string>License</string>
       </attribute>
       <layout class="QVBoxLayout" name="verticalLayout_5">
        <item>
-        <widget class="QScrollArea" name="scrollArea_2">
+        <widget class="QScrollArea" name="scrollArea_4">
          <property name="widgetResizable">
           <bool>true</bool>
          </property>
@@ -133,7 +175,7 @@
           </property>
           <layout class="QVBoxLayout" name="verticalLayout_4">
            <item>
-            <widget class="QLabel" name="aboutText_3">
+            <widget class="QLabel" name="license_Label">
              <property name="text">
               <string>&lt;html&gt;
 &lt;head/&gt;
@@ -257,6 +299,45 @@ THE POSSIBILITY OF SUCH DAMAGE.&lt;br/&gt;
 &lt;/span&gt;&lt;/p&gt;
 &lt;/body&gt;
 &lt;/html&gt;</string>
+             </property>
+             <property name="wordWrap">
+              <bool>true</bool>
+             </property>
+             <property name="openExternalLinks">
+              <bool>true</bool>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </widget>
+        </widget>
+       </item>
+      </layout>
+     </widget>
+     <widget class="QWidget" name="tab_4">
+      <attribute name="title">
+       <string>Hardware Status</string>
+      </attribute>
+      <layout class="QVBoxLayout" name="verticalLayout_5">
+       <item>
+        <widget class="QScrollArea" name="scrollArea_5">
+         <property name="widgetResizable">
+          <bool>true</bool>
+         </property>
+         <widget class="QWidget" name="scrollAreaWidgetContents_2">
+          <property name="geometry">
+           <rect>
+            <x>0</x>
+            <y>0</y>
+            <width>483</width>
+            <height>317</height>
+           </rect>
+          </property>
+          <layout class="QVBoxLayout" name="verticalLayout_4">
+           <item>
+            <widget class="QLabel" name="hardware_status_Label">
+             <property name="text">
+              <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-family:'monospace'; text-decoration: underline;&quot;&gt;Hardware status information&lt;/span&gt;&lt;/p&gt;&lt;p&gt;&lt;span style=&quot; font-family:'monospace';&quot;&gt;report on hardware status&lt;br/&gt;&lt;br/&gt;&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
              </property>
              <property name="wordWrap">
               <bool>true</bool>

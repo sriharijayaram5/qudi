@@ -2,6 +2,7 @@
 import numpy as np
 import pyqtgraph as pg
 import os
+import markdown
 from qtpy import QtCore
 from qtpy import QtWidgets
 from qtpy import uic
@@ -53,6 +54,9 @@ class SettingsDialog(QtWidgets.QDialog):
 class AboutDialog(QtWidgets.QDialog):
     """ LabQ information, version, change notes, and hardware status 
     """
+    _tabIndexLookup = None
+    _refDocuments = None
+    _hardwareStatus = None
 
     def __init__(self):
         """ Create About LabQ dialog 
@@ -64,6 +68,21 @@ class AboutDialog(QtWidgets.QDialog):
         # Load it
         super().__init__()
         uic.loadUi(ui_file, self)
+
+        # index the tabs in the dialog, for easier lookup
+        self._tabIndexLookup = { self.tabWidget.tabText(i).lower(): i for i in range(self.tabWidget.count())}
+
+        # determine path of reference documents to build labels
+        doc_path = os.path.abspath(os.path.join(this_dir,".."))  # this is a poor guess
+        self._refDocuments = { refkey: os.path.join(doc_path,refname) 
+                               if os.path.exists(os.path.join(doc_path,refname)) else None 
+                               for refkey,refname in [('release_notes', 'RELEASENOTES.md'),
+                                                      ('about', 'ABOUT.md'),
+                                                      ('version', 'VERSION.md'),
+                                                      ('license', 'LICENSE.md') ] 
+                             } 
+
+        # hardware status is updated just-in-time         
 
 
 class QuantitativeMeasurementWindow(QtWidgets.QWidget):
@@ -200,8 +219,6 @@ class ProteusQGUI(GUIBase):
         self.initMainUI()      # initialize the main GUI
         #self.default_view()
 
-        self.initAboutUI()     # provide version number and hardware status
-
         self._qafm_logic.sigQAFMScanInitialized.connect(self.adjust_qafm_image)
         self._qafm_logic.sigQAFMLineScanFinished.connect(self._update_qafm_data)
         self._qafm_logic.sigQAFMScanFinished.connect(self.enable_scan_actions)
@@ -298,6 +315,7 @@ class ProteusQGUI(GUIBase):
         # Set everything up for the optimizer request 
         self.initOptimizerRequestUI()
 
+        self.initAboutUI()     # provide version number and hardware status
         self.retrieve_status_var()
 
     def on_deactivate(self):
@@ -389,24 +407,99 @@ class ProteusQGUI(GUIBase):
         """ Initialize the LabQ About dialog box """
         self._ab = AboutDialog()
 
-        self._ab.labelSoftwareVersion.setText(f"LabQ version {self._LabQversion}")
+        self._ab.software_version_Label.setText(f"LabQ version {self._LabQversion}")
 
-        self._mw.action_LabQ_version.triggered.connect(self.show_LabQ_version)
-        self._mw.action_Hardware_status.triggered.connect(self.show_hardware_status)
+        self._mw.actionAbout.triggered.connect(self.show_about_tab)
+        self._mw.actionVersion.triggered.connect(self.show_version_tab)
+        self._mw.actionHardwareStatus.triggered.connect(self.show_hardware_status_tab)
 
-    def show_LabQ_version(self):
-        """ display 'About LabQ', emphasis on version tab"""
+
+    def update_about_messages(self):
+        """ update messages to be displayed in AboutDialog
+            - this updates the 'AboutDialog' messages based upon
+              the Markdown files found in the main ProteusQ directory
+        """
+
+        # If no Markdown file is found, the default .ui definition is used
+        # Main 'About' text. 
+        doc_path = self._ab._refDocuments.get('about')
+        if doc_path is not None:
+            with open(doc_path,'r') as f:
+                message = markdown.markdown(f.read()) # renders to HTML
+            self._ab.about_Label.setText(message)
+
+        # 'Version' text
+        doc_path = self._ab._refDocuments.get('version')
+        if doc_path is not None:
+            with open(doc_path,'r') as f:
+                message = markdown.markdown(f.read()) # renders to HTML
+            self._ab.version_Label.setText(message)
+
+        # 'Release Notes' text
+        doc_path = self._ab._refDocuments.get('release_notes')
+        if doc_path is not None:
+            with open(doc_path,'r') as f:
+                message = markdown.markdown(f.read()) # renders to HTML
+            self._ab.release_notes_Label.setText(message)
+    
+
+    def update_hardware_status_message(self):
+        """ Retrieves information from qafm_logic, regarding the hardware conditions
+            In the case this is called with dummy instances, the null report is returned
+        """
+        try: 
+            status_dict = self._qafm_logic.get_hardware_status()
+            status = "##Hardware Status:\n"
+            for refname, refres in status_dict.items():
+                status += f"###{refname}\n"
+                if isinstance(refres,dict):
+                    status += "\n".join([f"{k} : {v}" for k,v in refres.items()])
+                else:
+                    status += str(refres)
+                status += "\n\n"      
+            status_html = markdown.markdown(status) 
+
+        except:
+            status_html = markdown.markdown("##Hardware Status:\n- Dummy hardware in use")
+            
+        self._ab.hardware_status_Label.setText(status_html)
+
+
+    def show_about_tab(self):
+        """ display 'About LabQ', emphasis on about tab"""
+
+        i = self._ab._tabIndexLookup.get("about", None)
+        if i is not None:
+            self._ab.tabWidget.setCurrentIndex(i)
 
         self.show_about_window()
 
-    def show_hardware_status(self):
+
+    def show_version_tab(self):
+        """ display 'About LabQ', emphasis on version tab"""
+
+        i = self._ab._tabIndexLookup.get("version", None)
+        if i is not None:
+            self._ab.tabWidget.setCurrentIndex(i)
+
+        self.show_about_window()
+
+    def show_hardware_status_tab(self):
         """ display 'About LabQ', emphasis on hardware status tab"""
+
+        i = self._ab._tabIndexLookup.get("hardware status", None)
+        if i is not None:
+            self._ab.tabWidget.setCurrentIndex(i)
 
         self.show_about_window()
     
     
     def show_about_window(self):
         """ display 'About LabQ' dialog box """
+        # Load the 'About text'
+        self.update_about_messages()
+        self.update_hardware_status_message()
+
         self._ab.show()
         self._ab.raise_()
 
