@@ -448,12 +448,13 @@ class ProteusQGUI(GUIBase):
             In the case this is called with dummy instances, the null report is returned
         """
         try: 
-            status_dict = self._qafm_logic.get_hardware_status()
+            query = ['unlocked_features','fpga_version','dac_alarms']
+            status_dict = self._qafm_logic.get_hardware_status(query)
             status = "##Hardware Status:\n"
             for refname, refres in status_dict.items():
                 status += f"###{refname}\n"
                 if isinstance(refres,dict):
-                    status += "\n".join([f"{k} : {v}" for k,v in refres.items()])
+                    status += "\n".join([f" - {k} : {v}" for k,v in refres.items()])
                 else:
                     status += str(refres)
                 status += "\n\n"      
