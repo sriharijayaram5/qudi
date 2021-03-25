@@ -448,16 +448,32 @@ class ProteusQGUI(GUIBase):
             In the case this is called with dummy instances, the null report is returned
         """
         try: 
-            query = ['unlocked_features','fpga_version','dac_alarms']
+            # MicrowaveQ hardware
+            query = ['unlocked_features','fpga_version',]
             status_dict = self._qafm_logic.get_hardware_status(query)
-            status = "##Hardware Status:\n"
+            status = "#Hardware Status:\n\n"
+            status += "## MicrowaveQ  \n"
             for refname, refres in status_dict.items():
-                status += f"###{refname}\n"
+                status += f"### {refname}  \n"
                 if isinstance(refres,dict):
                     status += "\n".join([f" - {k} : {v}" for k,v in refres.items()])
                 else:
                     status += str(refres)
                 status += "\n\n"      
+            status += "---  \n"
+
+            # SPM hardware
+            query = ['spm_library_version','spm_server_version','spm_client_version']
+            status_dict = self._qafm_logic.get_hardware_status(query)
+            status += "## SPM  \n"
+            for refname, refres in status_dict.items():
+                status += f"### {refname}  \n"
+                if isinstance(refres,dict):
+                    status += "\n".join([f" - {k} : {v}" for k,v in refres.items()])
+                else:
+                    status += str(refres)
+                status += "\n\n"      
+            status += "---  \n"
             status_html = markdown.markdown(status) 
 
         except:

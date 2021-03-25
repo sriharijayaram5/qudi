@@ -349,6 +349,8 @@ class AFMConfocalLogic(GenericLogic):
         # in this threadpool our worker thread will be run
         self.threadpool = QtCore.QThreadPool()
 
+        # check the version of the spm interface
+        self.start_spm_version_check()
 
         self.sigOptimizeScanFinished.connect(self._optimize_finished)
 
@@ -356,6 +358,19 @@ class AFMConfocalLogic(GenericLogic):
         """ Deinitializations performed during deactivation of the module. """
 
         pass
+
+    def start_spm_version_check(self):
+
+        if self.check_thread_active():
+            self.log.error("A measurement is currently running, stop it first!")
+            return
+
+        self._worker_thread = WorkerThread(target=self._spm.check_interface_version,
+                                           args=(10,),     # pause time to avoid threadlock
+                                           name='spm_version_check')
+
+        self.threadpool.start(self._worker_thread)
+
 
     def initialize_qafm_scan_array(self, x_start, x_stop, num_columns, 
                                          y_start, y_stop, num_rows):
@@ -614,7 +629,9 @@ class AFMConfocalLogic(GenericLogic):
                     if this is a 'counter_dummy', then 'None' is returned
         """
         if request is None:
-            request = ['available_features','unlocked_features','fpga_version','dac_alarms']
+            request = ['available_features','unlocked_features',
+                       'fpga_version','dac_alarms',
+                       'spm_library_version','spm_server_version','spm_client_version' ]
 
         status = dict()
         if 'available_features' in request:
@@ -628,6 +645,15 @@ class AFMConfocalLogic(GenericLogic):
         
         if 'dac_alarms' in request:
             status['dac_alarms'] = self._counter._dev.get_DAC_alarms()
+
+        if 'spm_library_version' in request:
+            status['spm_library_version'] = self._spm.get_library_version()
+
+        if 'spm_server_version' in request:
+            status['spm_server_version'] = self._spm.server_interface_version()
+
+        if 'spm_client_version' in request:
+            status['spm_client_version'] = self._spm.client_interface_version()
         
         return status
 

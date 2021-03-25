@@ -80,8 +80,8 @@ class SmartSPM(Base):
     _modtype = 'hardware'
 
     _threaded = True
-    _version_comp = 'aist-nt_v3.5.136'   # indicates the compatibility of the version.
-    __version__ = '0.6.1'
+    _version_comp = 'aist-nt_v3.5.150'   # indicates the compatibility of the version.
+    __version__ = '0.6.2'
     _spm_dll_ver = '0.0.0'
 
     # Default values for measurement
@@ -275,6 +275,9 @@ class SmartSPM(Base):
         self._line_end_reached = False
         self.scan_forward = True
 
+        # check compatability of client & server side interfaces 
+        #self.check_interface_version()
+
         # initialize trigger state for normal scans
         self._ext_trigger_state = c_bool(False)
 
@@ -344,10 +347,15 @@ class SmartSPM(Base):
         """ Set necessary argtypes and restype of function calls. """
 
         self._lib.Initialization.restype = c_bool
-
+        
         self._lib.Finalization.restype = None
 
         self._lib.IsConnected.restype = c_bool
+
+        # returns interface version number (client=remote_spm.dll, server=aist)
+        # for server interfaces less than aist 3.5.150, ServerInterfaceVersion() returns -1
+        self._lib.ServerInterfaceVersion.restype = c_int
+        self._lib.ClientInterfaceVersion.restype = c_int
 
         self._lib.SendLogMessage.argtypes = [c_char_p, c_char_p]
         self._lib.SendLogMessage.restype = None
@@ -445,6 +453,16 @@ class SmartSPM(Base):
     def is_connected(self):
         return bool(self._lib.IsConnected())
 
+    def server_interface_version(self):
+        if self.is_connected():
+            # returns -1 if servers software is < 3.5.150
+            return self._lib.ServerInterfaceVersion()
+        else:
+            return -2 
+
+    def client_interface_version(self):
+        return self._lib.ClientInterfaceVersion()
+
     def connect_spm(self):
         """ Establish connection to SPM-software. 
         
@@ -464,6 +482,31 @@ class SmartSPM(Base):
         """ Disconnection from the SPM-software. """
         self._lib.Finalization()    # no return value
         return 0
+
+    def check_interface_version(self,pause=None):
+        """ Compares interface version of client and server interface"""
+        if not self.is_connected(): 
+            self.log.debug("Attempted to query SPM interface version before connected")
+            return False
+
+        #FIXME: a bad hack to get around thread lock
+        if pause is not None:
+            time.sleep(pause)
+
+        clientv = self.client_interface_version()
+        serverv = self.server_interface_version()
+
+        is_ok = False
+        if serverv < 0:
+            self.log.warning(f"SPM server side is old and inconsistent with client side; use {self._spm_dll_ver}")
+        elif clientv > serverv:
+            self.log.warning(f"SPM client > server interface; possible incompatibilities; use aist version= {self._spm_dll_ver}")
+        elif clientv < serverv:
+            self.log.warning(f"SPM server > client interface; possible incompatibilities; use aist version= {self._spm_dll_ver}")
+        else:
+            is_ok = True
+
+        return is_ok
 
     def send_log_message(self, message):
         """ Send a log message to the spm software.
@@ -2171,15 +2214,12 @@ class SmartSPM(Base):
         return arr 
 
 
-
-
     def scan_afm_line_by_point(self):
         pass
 
 
     def scan_obj_line_by_point(self):
         pass
-
 
 
     def scan_area_by_line(self, x_start, x_stop, y_start, y_stop, res_x, res_y, 
