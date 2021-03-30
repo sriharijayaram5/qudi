@@ -94,274 +94,6 @@ class WorkerThread(QtCore.QRunnable):
 #TODO: reimplement the SetAutoDelete functionality
 
 
-class SaveGwyddion(GenericLogic):
-    """ Save logic for Gwyddion file types, specific to AFMconfocal objects"""
-
-    _modclass = 'savelogicGwyddion'
-    _modtype = 'logic'
-
-    __version__ = '0.1.0' # version number 
-
-    sigSaveDataGwyddion = QtCore.Signal(object,object,object,object) 
-    sigSaveFinishedGwyddion = QtCore.Signal(int)
-
-    # acceptable object types for gwyddion
-    gwyobjecttypes = { 'imgobjects': ['qafm', 'obj', 'opti', 'afm'],
-                       'graphobjects': ['esr']
-                     }
-    
-
-    def __init__(self, config, **kwargs):
-        """ Create CounterLogic object with connectors.
-
-        @param dict config: module configuration
-        @param dict kwargs: optional parameters
-        """
-        super().__init__(config=config, **kwargs)
-
-        # locking for thread safety
-        self.lock = Mutex()
-    
-    def on_activate(self):
-        """ Definition and configuration of the SaveLogicGwyddion"""
-
-        self.sigSaveDataGwyddion.connect(self._save_to_gwyddion)
-   
-
-    def save_data(self, dataobj, gwyobjtype=None, 
-                  filename=None, filelabel=None, 
-                  timestamp=None, datakeys=None):
-        """ 'save_data' signal instigator 
-            - method depends on gwytype specified
-        """
-        if timestamp is None:
-            timestamp = datetime.datetime.now()
-
-        if filename is None:
-            savefilename = timestamp.strftime('%Y%m%d-%H%M-%S' + '_' 
-                                          + filelabel + f'_{gwyobjtype.upper()}.gwy') 
-        else:
-            savefilename = filename
-
-        self.sigSaveDataGwyddion.emit(dataobj, gwyobjtype, savefilename, datakeys)
-
-
-    def _save_to_gwyddion(self, dataobj, gwyobjtype=None, filename=None, datakeys=None):
-        """ 'save_data' method selector (called in thread) 
-            - method depends on gwytype specified
-        """
-
-        if gwyobjtype in self.gwyobjecttypes['imgobjects']:
-            self._save_obj_to_gwyddion(dataobj=dataobj,filename=filename,datakeys=datakeys)
-            self.sigSaveFinishedGwyddion.emit(0)
-        elif gwyobjtype in self.gwyobjecttypes['graphobjects']:
-            self._save_esr_to_gwyddion(dataobj=dataobj,filename=filename,datakeys=datakeys)
-            self.sigSaveFinishedGwyddion.emit(0)
-        else:
-            self.log.error(f"SaveLogicGwyddion(): unknown gwyobjtype specified: {gwyobjtype}")
-            self.sigSaveFinishedGwyddion.emit(-1)
-
-
-    def _save_obj_to_gwyddion(self,dataobj,filename,datakeys=None,gwytypes=['image','xyz']):
-        """save_obj_to_gwyddion(): writes qudi data object to Gwyddion file
-            input:  
-            - dataobj: proteusQ data object of from dataobj['data_key']
-            - filename: file path to save object
-            - prefix:  name to be prefixed to all head objects
-                
-            requirements:
-            dataobj['scan_type'] must contain keys {coord0[], coord1[], data[,], params[]}
-        """
-        
-        # check for existance of valid object names
-        if datakeys is None:
-            datakeys = list(dataobj.keys())
-        else:
-            if isinstance(datakeys,str):
-                datakeys = list(datakeys)
-            alloweddatakeys = list(dataobj.keys())
-            for n in datakeys:
-                if not n in alloweddatakeys: 
-                    self.log.error(f"_save_obj_to_gwyddion(): Invalid object name specified '{n}'")
-
-        # check for existance of valid output types
-        if not (gwytypes and set(gwytypes).issubset({'image', 'xyz'})): 
-            self.log.error("_save_obj_to_gwyddion(): Incorrect Gwyddion output type specified")
-                
-        # overall object container
-        objout = gwy.objects.GwyContainer()
-
-        for dataki,datak in enumerate(sorted(datakeys, key=str.lower)):
-            meas = dataobj[datak]
-
-            # check that data is valid
-            if not {'coord0_arr','coord1_arr','data'}.issubset(set(meas.keys())):
-                continue 
-
-            # check that there is non-trivial data (skip empty measurements)
-            if np.sum(meas['data']) == 0.0:
-                continue
-
-            # transform data
-            scalefactor = meas['scale_fac']
-            coord0 = meas['coord0_arr']
-            coord1 = meas['coord1_arr']
-            data_si = meas['data'] * scalefactor
-            xyz_data = np.array([x for j in range(coord1.shape[0]) 
-                                for i in range(coord0.shape[0]) 
-                                for x in (coord0[i], coord1[j], data_si[j,i])]) 
-
-            params = meas['params']
-            coord0_start = next(k for k in params.keys() if k.startswith('coord0_start'))
-            coord0_stop = next(k for k in params.keys() if k.startswith('coord0_stop'))
-            coord1_start = next(k for k in params.keys() if k.startswith('coord1_start'))
-            coord1_stop = next(k for k in params.keys() if k.startswith('coord1_stop'))
-
-            xy_units = coord0_start.split('(')[1].split(')')[0]
-            z_units = meas['si_units']
-            measname = datak + ":" + meas['nice_name']
-            
-            # encode to image
-            img = gwy.objects.GwyDataField(data=data_si, si_unit_xy=xy_units, si_unit_z=z_units)
-            img.xoff = params[coord0_start]
-            img.xreal = params[coord0_stop] - params[coord0_start]
-            img.yoff = params[coord1_start]
-            img.yreal = params[coord1_stop] - params[coord1_start]
-
-            # encode to xyz
-            xyz = gwy.objects.GwySurface(data=xyz_data,si_unit_xy=xy_units,si_unit_z=z_units)
-
-            # add to parent object 
-            if 'image' in gwytypes: 
-                # image types
-                basekey = '/' + str(dataki) + '/data'
-                objout[basekey + '/title'] = measname
-                objout[basekey] = img
-                
-            if 'xyz' in gwytypes:
-                # xyz types
-                basekey = '/surface/' + str(dataki) 
-                objout[basekey + '/title'] = measname
-                objout[basekey] = xyz
-                objout[basekey + '/preview'] = img
-                objout[basekey + '/visible'] = True
-
-                # comment meta data
-                comm = gwy.objects.GwyContainer()
-                for k,v in meas['params'].items():
-                    if isinstance(v,(list,tuple)):
-                        comm[k] = ",".join([str(vs) for vs in v])
-                    else:
-                        comm[k] = str(v)
-                
-                objout[basekey + '/meta'] = comm
-
-        # write out file    
-        if objout:
-            objout.tofile(filename) 
-
-
-    def _save_esr_to_gwyddion(self,dataobj,filename, datakeys=None,prefix=None):
-        """
-            save_esr_to_gwyddion(): writes esr data object to gwy container file
-            input:  
-            - dataobj: proteusQ data object of from dataobj['data_key']
-            - filename: file path to save object
-            - prefix:  name to be prefixed to all head objects
-            
-            requirements:
-            dataobj must contain keys {coord0[], coord1[], coord2[],
-                                        data[,,], data_std[,,], data_fit[,,], parameters[]}
-        """
-
-        # helper function for color generation
-        # r/g/bspec = (min,max,number,startvalue)
-        def colors(rspec=(0,1,10,0), gspec=(0,1,10,0), bspec=(0,1,10,0)):
-            reds = np.linspace(*rspec[:3])
-            reds =np.concatenate([reds[np.argwhere(reds >= rspec[-1])], 
-                                reds[np.argwhere(reds < rspec[-1])]]).flatten()
-
-            greens = np.linspace(*gspec[:3])
-            greens =np.concatenate([greens[np.argwhere(greens >= gspec[-1])], 
-                                greens[np.argwhere(greens < gspec[-1])]]).flatten()
-
-            blues = np.linspace(*bspec[:3])
-            blues =np.concatenate([blues[np.argwhere(blues >= bspec[-1])], 
-                                blues[np.argwhere(blues < bspec[-1])]]).flatten()
-
-            while True:
-                for r in reds:
-                    for g in greens:
-                        for b in blues:
-                            yield [('color.red', r), 
-                                   ('color.green', g), 
-                                   ('color.blue',b)]
-        
-
-        # check for existance of valid object names
-        if datakeys is None:
-            datakeys = list(dataobj.keys())
-        else:
-            if isinstance(datakeys,str):
-                datakeys = list(datakeys)
-            alloweddatakeys = list(dataobj.keys())
-            for n in datakeys:
-                if not n in alloweddatakeys:
-                    self.log.error("_save_esr_to_gwyddion():Invalid object name specified '{n}'")
-
-        # determine if anything is to be done
-        if np.sum(dataobj['data']) == 0.0:
-            return False
-
-        # Output 
-        # overall object container
-        esrobj = gwy.objects.GwyContainer()
-
-        # ESR mean data (quite dense)
-        # create curves
-        xdata = dataobj['coord2_arr']  # microwave frequency
-        curves = []
-        getcolors = colors((0,1,5,0.9),(0,1,5,0),(0,0.8,5,0))   # point color generator
-
-        #  specifies 1st curve is points(1), 2nd curve is line(2), others hidden(0)
-        ltypes = [1,2] 
-        for j in range(dataobj['coord1_arr'].shape[0]):
-            for i in range(dataobj['coord0_arr'].shape[0]):
-                cols = next(getcolors)
-    
-                # measured data
-                ydata = dataobj['data'][j,i,:]
-                curve = gwy.objects.GwyGraphCurveModel(xdata=xdata, ydata=ydata)
-                curve.update(cols)
-                curve['description'] = f"coord[{j},{i}]"
-                curve['type'] = ltypes.pop(0) if ltypes else 0
-                curve['line_style'] = 0 
-                curves.append(curve)
-
-                # fit data
-                ydata = dataobj['data_fit'][j,i,:]
-                curve = gwy.objects.GwyGraphCurveModel(xdata=xdata, ydata=ydata)
-                curve.update(cols)
-                curve['description'] = f"coord[{j},{i}]_fit"
-                curve['type'] = ltypes.pop(0) if ltypes else 0
-                curve['line_style'] = 0 
-                curves.append(curve)
-
-        esrgraph = gwy.objects.GwyGraphModel()
-        esrgraph['title'] = 'ESR: data per pixel'
-        esrgraph['curves'] = curves
-        esrgraph['x_unit'] = gwy.objects.GwySIUnit(unitstr='Hz')
-        esrgraph['y_unit'] = gwy.objects.GwySIUnit(unitstr='c/s')
-        esrgraph['bottom_label'] = 'Microwave Frequency'
-        esrgraph['left_label'] = dataobj['nice_name'] + ' Count'
-
-        esrobj['/0/graph/graph/1'] = esrgraph 
-        esrobj['/0/graph/graph/1/visible'] = False 
-
-        esrobj.tofile(filename) 
-        return True
-
-
 class AFMConfocalLogic(GenericLogic):
     """ Main AFM logic class providing advanced measurement control. """
 
@@ -382,9 +114,6 @@ class AFMConfocalLogic(GenericLogic):
     counter_device = Connector(interface='SlowCounterInterface')
     counter_logic = Connector(interface='CounterLogic')
     fitlogic = Connector(interface='FitLogic')
-
-    savelogicGwyddion = SaveLogicGwyddion
-
 
     # configuration parameters/options for the logic. In the config file you
     # have to specify the parameter, here: 'conf_1'
@@ -444,6 +173,11 @@ class AFMConfocalLogic(GenericLogic):
     _freq2_iso_b_frequency = StatusVar(default=550e6)
     _iso_b_gain = StatusVar(default=0.0)
 
+    # acceptable object types for gwyddion
+    _gwyobjecttypes = { 'imgobjects': ['qafm', 'obj', 'opti', 'afm'],
+                        'graphobjects': ['esr']
+                      }
+
     # Signals:
     # ========
 
@@ -475,6 +209,10 @@ class AFMConfocalLogic(GenericLogic):
     sigOptimizeScanInitialized = QtCore.Signal(str)
     sigOptimizeLineScanFinished = QtCore.Signal(str) 
     sigOptimizeScanFinished = QtCore.Signal()
+
+    # save data signals
+    sigSaveDataGwyddion = QtCore.Signal(object,object,object,object) 
+    sigSaveDataGwyddionFinished = QtCore.Signal(int)
 
     # saved signals
     sigQAFMDataSaved = QtCore.Signal()
@@ -578,7 +316,6 @@ class AFMConfocalLogic(GenericLogic):
         # Connect to hardware and save logic
         self._spm = self.spm_device()
         self._save_logic = self.savelogic()
-        self._save_logic_gwy = self.savelogicGwyddion()
         self._counter = self.counter_device()
         self._counterlogic = self.counter_logic()
         self._fitlogic = self.fitlogic()
@@ -605,8 +342,9 @@ class AFMConfocalLogic(GenericLogic):
         self.sigNewAFMPos.emit(self.get_afm_pos())
 
         self._save_logic.sigSaveFinished.connect(self.decrease_save_counter)
-        # check:
-        #DGC:  check if decrease counter is needed
+    
+        self.sigSaveDataGwyddion.connect(self._save_to_gwyddion)
+        self.sigSaveDataGwyddionFinished.connect(self.decrease_save_counter)
 
         self._meas_path = os.path.abspath(self._meas_path)
 
@@ -4831,9 +4569,10 @@ class AFMConfocalLogic(GenericLogic):
                                     daily_folder=daily_folder, timestamp=timestamp)
 
         if self._sg_save_to_gwyddion:
-            #DGC fix
             filename = timestamp.strftime('%Y%m%d-%H%M-%S' + '_' + tag + '_QAFM.gwy') 
-            self._save_logic_gwy.save_data(dataobj=data,filename=os.path.join(save_path,filename))
+            self.start_save_to_gwyddion(dataobj=data,
+                                          gwyobjtype='qafm',filename=os.path.join(save_path,filename))
+            self.increase_save_counter()
 
 
     def draw_figure(self, image_data, image_extent, scan_axis=None, cbar_range=None,
@@ -5061,15 +4800,14 @@ class AFMConfocalLogic(GenericLogic):
                                        fmt='%.6e',
                                        delimiter='\t',
                                        plotfig=None)
+            self.increase_save_counter()
 
             if self._sg_save_to_gwyddion:
-                #DGC fix
                 filename_pfx = timestamp.strftime('%Y%m%d-%H%M-%S' + '_' + tag ) 
-                for dname in data.keys():
-                    self._save_esr_to_gwyddion(dataobj=data[dname],
-                                               filename=os.path.join(save_path,f"{filename_pfx}_{dname}.gwy"))
+                self.start_save_to_gwyddion(dataobj=data[entry], gwyobjtype='esr',
+                                            filename=os.path.join(save_path,f"{filename_pfx}_{entry}.gwy"))
+                self.increase_save_counter()
 
-            self.increase_save_counter()
 
 
     def increase_save_counter(self, ret_val=0):
@@ -5464,9 +5202,10 @@ class AFMConfocalLogic(GenericLogic):
             # save objective data to gwyddion format
             if self._sg_save_to_gwyddion:
                 filename = timestamp.strftime('%Y%m%d-%H%M-%S' + '_' + tag + '_obj_data.gwy') 
-                self._save_logic_gwy.save_data_gwyddion
-                self._save_obj_to_gwyddion(dataobj=data,filename=os.path.join(save_path,filename))
+                self.start_save_to_gwyddion(dataobj=data,
+                                            gwyobjtype='obj', filename=os.path.join(save_path,filename))
                 self.increase_save_counter()
+               
 
 
     def draw_obj_figure(self):
@@ -5595,12 +5334,13 @@ class AFMConfocalLogic(GenericLogic):
                                    fmt='%.6e',
                                    delimiter='\t')
 
-        if self._sg_save_to_gwyddion:
-            # DGC fix
-            filename = timestamp.strftime('%Y%m%d-%H%M-%S' + '_' + tag + '_opti_data.gwy') 
-            self._save_obj_to_gwyddion(dataobj=data,filename=os.path.join(save_path,filename))
-
         self.increase_save_counter()
+
+        if self._sg_save_to_gwyddion:
+            filename = timestamp.strftime('%Y%m%d-%H%M-%S' + '_' + tag + '_opti_data.gwy') 
+            self.start_save_to_gwyddion(dataobj=data,gwyobjtype='opti',filename=os.path.join(save_path,filename))
+            self.increase_save_counter()
+
 
     def draw_optimizer_figure(self, image_data_xy, image_data_z, image_extent, scan_axis=None, 
                               cbar_range=None, percentile_range=None, signal_name='', signal_unit=''):
@@ -5732,6 +5472,239 @@ class AFMConfocalLogic(GenericLogic):
 
         return fig
 
+
+    def start_save_to_gwyddion(self, dataobj, gwyobjtype=None, 
+                               filename=None, filelabel=None, 
+                               timestamp=None, datakeys=None):
+        """ 'save_data' signal instigator 
+            - method depends on gwytype specified
+        """
+        if timestamp is None:
+            timestamp = datetime.datetime.now()
+
+        if filename is None:
+            savefilename = timestamp.strftime('%Y%m%d-%H%M-%S' + '_' 
+                                          + filelabel + f'_{gwyobjtype.upper()}.gwy') 
+        else:
+            savefilename = filename
+
+        self.sigSaveDataGwyddion.emit(dataobj, gwyobjtype, savefilename, datakeys)
+
+
+    def _save_to_gwyddion(self, dataobj, gwyobjtype=None, filename=None, datakeys=None):
+        """ 'save_data' method selector (called in thread) 
+            - method depends on gwytype specified
+        """
+
+        if gwyobjtype in self._gwyobjecttypes['imgobjects']:
+            self._save_obj_to_gwyddion(dataobj=dataobj,filename=filename,datakeys=datakeys)
+            self.sigSaveDataGwyddionFinished.emit(0)
+        elif gwyobjtype in self._gwyobjecttypes['graphobjects']:
+            self._save_esr_to_gwyddion(dataobj=dataobj,filename=filename,datakeys=datakeys)
+            self.sigSaveDataGwyddionFinished.emit(0)
+        else:
+            self.log.error(f"SaveLogicGwyddion(): unknown gwyobjtype specified: {gwyobjtype}")
+            self.sigSaveDataGwyddionFinished.emit(-1)
+
+
+    def _save_obj_to_gwyddion(self,dataobj,filename,datakeys=None,gwytypes=['image','xyz']):
+        """save_obj_to_gwyddion(): writes qudi data object to Gwyddion file
+            input:  
+            - dataobj: proteusQ data object of from dataobj['data_key']
+            - filename: file path to save object
+            - prefix:  name to be prefixed to all head objects
+                
+            requirements:
+            dataobj['scan_type'] must contain keys {coord0[], coord1[], data[,], params[]}
+        """
+        
+        # check for existance of valid object names
+        if datakeys is None:
+            datakeys = list(dataobj.keys())
+        else:
+            if isinstance(datakeys,str):
+                datakeys = list(datakeys)
+            alloweddatakeys = list(dataobj.keys())
+            for n in datakeys:
+                if not n in alloweddatakeys: 
+                    self.log.error(f"_save_obj_to_gwyddion(): Invalid object name specified '{n}'")
+
+        # check for existance of valid output types
+        if not (gwytypes and set(gwytypes).issubset({'image', 'xyz'})): 
+            self.log.error("_save_obj_to_gwyddion(): Incorrect Gwyddion output type specified")
+                
+        # overall object container
+        objout = gwy.objects.GwyContainer()
+
+        for dataki,datak in enumerate(sorted(datakeys, key=str.lower)):
+            meas = dataobj[datak]
+
+            # check that data is valid
+            if not {'coord0_arr','coord1_arr','data'}.issubset(set(meas.keys())):
+                continue 
+
+            # check that there is non-trivial data (skip empty measurements)
+            if np.sum(meas['data']) == 0.0:
+                continue
+
+            # transform data
+            scalefactor = meas['scale_fac']
+            coord0 = meas['coord0_arr']
+            coord1 = meas['coord1_arr']
+            data_si = meas['data'] * scalefactor
+            xyz_data = np.array([x for j in range(coord1.shape[0]) 
+                                for i in range(coord0.shape[0]) 
+                                for x in (coord0[i], coord1[j], data_si[j,i])]) 
+
+            params = meas['params']
+            coord0_start = next(k for k in params.keys() if k.startswith('coord0_start'))
+            coord0_stop = next(k for k in params.keys() if k.startswith('coord0_stop'))
+            coord1_start = next(k for k in params.keys() if k.startswith('coord1_start'))
+            coord1_stop = next(k for k in params.keys() if k.startswith('coord1_stop'))
+
+            xy_units = coord0_start.split('(')[1].split(')')[0]
+            z_units = meas['si_units']
+            measname = datak + ":" + meas['nice_name']
+            
+            # encode to image
+            img = gwy.objects.GwyDataField(data=data_si, si_unit_xy=xy_units, si_unit_z=z_units)
+            img.xoff = params[coord0_start]
+            img.xreal = params[coord0_stop] - params[coord0_start]
+            img.yoff = params[coord1_start]
+            img.yreal = params[coord1_stop] - params[coord1_start]
+
+            # encode to xyz
+            xyz = gwy.objects.GwySurface(data=xyz_data,si_unit_xy=xy_units,si_unit_z=z_units)
+
+            # add to parent object 
+            if 'image' in gwytypes: 
+                # image types
+                basekey = '/' + str(dataki) + '/data'
+                objout[basekey + '/title'] = measname
+                objout[basekey] = img
+                
+            if 'xyz' in gwytypes:
+                # xyz types
+                basekey = '/surface/' + str(dataki) 
+                objout[basekey + '/title'] = measname
+                objout[basekey] = xyz
+                objout[basekey + '/preview'] = img
+                objout[basekey + '/visible'] = True
+
+                # comment meta data
+                comm = gwy.objects.GwyContainer()
+                for k,v in meas['params'].items():
+                    if isinstance(v,(list,tuple)):
+                        comm[k] = ",".join([str(vs) for vs in v])
+                    else:
+                        comm[k] = str(v)
+                
+                objout[basekey + '/meta'] = comm
+
+        # write out file    
+        if objout:
+            objout.tofile(filename) 
+
+
+    def _save_esr_to_gwyddion(self,dataobj,filename, datakeys=None,prefix=None):
+        """
+            save_esr_to_gwyddion(): writes esr data object to gwy container file
+            input:  
+            - dataobj: proteusQ data object of from dataobj['data_key']
+            - filename: file path to save object
+            - prefix:  name to be prefixed to all head objects
+            
+            requirements:
+            dataobj must contain keys {coord0[], coord1[], coord2[],
+                                        data[,,], data_std[,,], data_fit[,,], parameters[]}
+        """
+
+        # helper function for color generation
+        # r/g/bspec = (min,max,number,startvalue)
+        def colors(rspec=(0,1,10,0), gspec=(0,1,10,0), bspec=(0,1,10,0)):
+            reds = np.linspace(*rspec[:3])
+            reds =np.concatenate([reds[np.argwhere(reds >= rspec[-1])], 
+                                reds[np.argwhere(reds < rspec[-1])]]).flatten()
+
+            greens = np.linspace(*gspec[:3])
+            greens =np.concatenate([greens[np.argwhere(greens >= gspec[-1])], 
+                                greens[np.argwhere(greens < gspec[-1])]]).flatten()
+
+            blues = np.linspace(*bspec[:3])
+            blues =np.concatenate([blues[np.argwhere(blues >= bspec[-1])], 
+                                blues[np.argwhere(blues < bspec[-1])]]).flatten()
+
+            while True:
+                for r in reds:
+                    for g in greens:
+                        for b in blues:
+                            yield [('color.red', r), 
+                                   ('color.green', g), 
+                                   ('color.blue',b)]
+        
+
+        # check for existance of valid object names
+        if datakeys is None:
+            datakeys = list(dataobj.keys())
+        else:
+            if isinstance(datakeys,str):
+                datakeys = list(datakeys)
+            alloweddatakeys = list(dataobj.keys())
+            for n in datakeys:
+                if not n in alloweddatakeys:
+                    self.log.error("_save_esr_to_gwyddion():Invalid object name specified '{n}'")
+
+        # determine if anything is to be done
+        if np.sum(dataobj['data']) == 0.0:
+            return False
+
+        # Output 
+        # overall object container
+        esrobj = gwy.objects.GwyContainer()
+
+        # ESR mean data (quite dense)
+        # create curves
+        xdata = dataobj['coord2_arr']  # microwave frequency
+        curves = []
+        getcolors = colors((0,1,5,0.9),(0,1,5,0),(0,0.8,5,0))   # point color generator
+
+        #  specifies 1st curve is points(1), 2nd curve is line(2), others hidden(0)
+        ltypes = [1,2] 
+        for j in range(dataobj['coord1_arr'].shape[0]):
+            for i in range(dataobj['coord0_arr'].shape[0]):
+                cols = next(getcolors)
+    
+                # measured data
+                ydata = dataobj['data'][j,i,:]
+                curve = gwy.objects.GwyGraphCurveModel(xdata=xdata, ydata=ydata)
+                curve.update(cols)
+                curve['description'] = f"coord[{j},{i}]"
+                curve['type'] = ltypes.pop(0) if ltypes else 0
+                curve['line_style'] = 0 
+                curves.append(curve)
+
+                # fit data
+                ydata = dataobj['data_fit'][j,i,:]
+                curve = gwy.objects.GwyGraphCurveModel(xdata=xdata, ydata=ydata)
+                curve.update(cols)
+                curve['description'] = f"coord[{j},{i}]_fit"
+                curve['type'] = ltypes.pop(0) if ltypes else 0
+                curve['line_style'] = 0 
+                curves.append(curve)
+
+        esrgraph = gwy.objects.GwyGraphModel()
+        esrgraph['title'] = 'ESR: data per pixel'
+        esrgraph['curves'] = curves
+        esrgraph['x_unit'] = gwy.objects.GwySIUnit(unitstr='Hz')
+        esrgraph['y_unit'] = gwy.objects.GwySIUnit(unitstr='c/s')
+        esrgraph['bottom_label'] = 'Microwave Frequency'
+        esrgraph['left_label'] = dataobj['nice_name'] + ' Count'
+
+        esrobj['/0/graph/graph/1'] = esrgraph 
+        esrobj['/0/graph/graph/1/visible'] = False 
+
+        esrobj.tofile(filename) 
+        return True
 
 
 # Baseline correction functionality.
