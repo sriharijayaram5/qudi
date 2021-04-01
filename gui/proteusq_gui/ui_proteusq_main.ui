@@ -1,0 +1,3190 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>MainWindow</class>
+ <widget class="QMainWindow" name="MainWindow">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>1024</width>
+    <height>706</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>MainWindow</string>
+  </property>
+  <widget class="QWidget" name="centralwidget">
+   <layout class="QGridLayout" name="gridLayout">
+    <item row="1" column="0" colspan="2">
+     <layout class="QHBoxLayout" name="horizontalLayout_3">
+      <item>
+       <widget class="QStackedWidget" name="stackedWidget">
+        <property name="currentIndex">
+         <number>1</number>
+        </property>
+        <widget class="QWidget" name="page_prepare">
+         <layout class="QGridLayout" name="gridLayout_51">
+          <item row="3" column="0">
+           <spacer name="verticalSpacer_4">
+            <property name="orientation">
+             <enum>Qt::Vertical</enum>
+            </property>
+            <property name="sizeHint" stdset="0">
+             <size>
+              <width>20</width>
+              <height>40</height>
+             </size>
+            </property>
+           </spacer>
+          </item>
+          <item row="2" column="0">
+           <widget class="QGroupBox" name="groupBox_16">
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+              <horstretch>0</horstretch>
+              <verstretch>0</verstretch>
+             </sizepolicy>
+            </property>
+            <property name="title">
+             <string>Additional Data Storage Information</string>
+            </property>
+            <layout class="QGridLayout" name="gridLayout_53">
+             <item row="0" column="3">
+              <widget class="QComboBox" name="comboBox_3">
+               <property name="sizePolicy">
+                <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+                 <horstretch>0</horstretch>
+                 <verstretch>0</verstretch>
+                </sizepolicy>
+               </property>
+               <property name="maximumSize">
+                <size>
+                 <width>400</width>
+                 <height>16777215</height>
+                </size>
+               </property>
+              </widget>
+             </item>
+             <item row="1" column="1">
+              <widget class="QLineEdit" name="lineEdit_9">
+               <property name="sizePolicy">
+                <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
+                 <horstretch>0</horstretch>
+                 <verstretch>0</verstretch>
+                </sizepolicy>
+               </property>
+              </widget>
+             </item>
+             <item row="0" column="0">
+              <widget class="QLabel" name="label_34">
+               <property name="text">
+                <string>Root Folder</string>
+               </property>
+              </widget>
+             </item>
+             <item row="0" column="1">
+              <widget class="QLineEdit" name="lineEdit_8">
+               <property name="sizePolicy">
+                <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
+                 <horstretch>0</horstretch>
+                 <verstretch>0</verstretch>
+                </sizepolicy>
+               </property>
+              </widget>
+             </item>
+             <item row="1" column="0">
+              <widget class="QLabel" name="label_35">
+               <property name="text">
+                <string>Data Path</string>
+               </property>
+              </widget>
+             </item>
+             <item row="0" column="2">
+              <widget class="QCheckBox" name="checkBox_54">
+               <property name="text">
+                <string>Choose from existing</string>
+               </property>
+              </widget>
+             </item>
+             <item row="1" column="2" colspan="2">
+              <widget class="QToolButton" name="toolButton">
+               <property name="sizePolicy">
+                <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
+                 <horstretch>0</horstretch>
+                 <verstretch>0</verstretch>
+                </sizepolicy>
+               </property>
+               <property name="text">
+                <string>Select Path</string>
+               </property>
+              </widget>
+             </item>
+            </layout>
+           </widget>
+          </item>
+          <item row="0" column="0">
+           <widget class="QGroupBox" name="groupBox_15">
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+              <horstretch>0</horstretch>
+              <verstretch>0</verstretch>
+             </sizepolicy>
+            </property>
+            <property name="title">
+             <string>Required Measurement Settings</string>
+            </property>
+            <layout class="QGridLayout" name="gridLayout_52">
+             <item row="0" column="0">
+              <widget class="QLabel" name="label_32">
+               <property name="text">
+                <string>Quantilever Tip Number</string>
+               </property>
+              </widget>
+             </item>
+             <item row="0" column="1">
+              <widget class="QLineEdit" name="lineEdit_6"/>
+             </item>
+             <item row="1" column="3">
+              <widget class="QComboBox" name="comboBox">
+               <property name="sizePolicy">
+                <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
+                 <horstretch>0</horstretch>
+                 <verstretch>0</verstretch>
+                </sizepolicy>
+               </property>
+              </widget>
+             </item>
+             <item row="1" column="0">
+              <widget class="QLabel" name="label_33">
+               <property name="text">
+                <string>Sample Name</string>
+               </property>
+              </widget>
+             </item>
+             <item row="1" column="1">
+              <widget class="QLineEdit" name="lineEdit_7"/>
+             </item>
+             <item row="1" column="2">
+              <widget class="QCheckBox" name="checkBox_20">
+               <property name="text">
+                <string>Choose from existing</string>
+               </property>
+              </widget>
+             </item>
+             <item row="0" column="2">
+              <widget class="QCheckBox" name="checkBox_53">
+               <property name="text">
+                <string>Choose from existing</string>
+               </property>
+              </widget>
+             </item>
+             <item row="0" column="3">
+              <widget class="QComboBox" name="comboBox_2"/>
+             </item>
+            </layout>
+           </widget>
+          </item>
+          <item row="1" column="0">
+           <spacer name="verticalSpacer_5">
+            <property name="orientation">
+             <enum>Qt::Vertical</enum>
+            </property>
+            <property name="sizeHint" stdset="0">
+             <size>
+              <width>20</width>
+              <height>40</height>
+             </size>
+            </property>
+           </spacer>
+          </item>
+         </layout>
+        </widget>
+        <widget class="QWidget" name="page_confocal">
+         <layout class="QGridLayout" name="gridLayout_50">
+          <item row="0" column="0">
+           <widget class="QGroupBox" name="groupBox_6">
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+              <horstretch>0</horstretch>
+              <verstretch>0</verstretch>
+             </sizepolicy>
+            </property>
+            <property name="title">
+             <string>Options</string>
+            </property>
+            <layout class="QGridLayout" name="gridLayout_9">
+             <item row="0" column="0">
+              <widget class="QGroupBox" name="groupBox_7">
+               <property name="sizePolicy">
+                <sizepolicy hsizetype="Maximum" vsizetype="Preferred">
+                 <horstretch>0</horstretch>
+                 <verstretch>0</verstretch>
+                </sizepolicy>
+               </property>
+               <property name="title">
+                <string>Objectiv Scan parameter</string>
+               </property>
+               <layout class="QGridLayout" name="gridLayout_54">
+                <item row="0" column="1" colspan="2">
+                 <widget class="QLabel" name="label_3">
+                  <property name="text">
+                   <string>Range</string>
+                  </property>
+                  <property name="alignment">
+                   <set>Qt::AlignCenter</set>
+                  </property>
+                 </widget>
+                </item>
+                <item row="0" column="3">
+                 <widget class="QLabel" name="label_10">
+                  <property name="text">
+                   <string>Points</string>
+                  </property>
+                 </widget>
+                </item>
+                <item row="1" column="0">
+                 <widget class="QLabel" name="label_11">
+                  <property name="text">
+                   <string>X</string>
+                  </property>
+                 </widget>
+                </item>
+                <item row="1" column="3">
+                 <widget class="QSpinBox" name="spinBox">
+                  <property name="minimumSize">
+                   <size>
+                    <width>70</width>
+                    <height>0</height>
+                   </size>
+                  </property>
+                  <property name="minimum">
+                   <number>1</number>
+                  </property>
+                  <property name="maximum">
+                   <number>5000</number>
+                  </property>
+                  <property name="value">
+                   <number>100</number>
+                  </property>
+                 </widget>
+                </item>
+                <item row="2" column="0">
+                 <widget class="QLabel" name="label_12">
+                  <property name="text">
+                   <string>Y</string>
+                  </property>
+                 </widget>
+                </item>
+                <item row="2" column="3">
+                 <widget class="QSpinBox" name="spinBox_2">
+                  <property name="minimum">
+                   <number>1</number>
+                  </property>
+                  <property name="maximum">
+                   <number>5000</number>
+                  </property>
+                  <property name="value">
+                   <number>100</number>
+                  </property>
+                  <property name="displayIntegerBase">
+                   <number>10</number>
+                  </property>
+                 </widget>
+                </item>
+                <item row="1" column="1" rowspan="3" colspan="2">
+                 <layout class="QGridLayout" name="gridLayout_2">
+                  <item row="0" column="0">
+                   <widget class="QDoubleSpinBox" name="doubleSpinBox">
+                    <property name="sizePolicy">
+                     <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
+                      <horstretch>0</horstretch>
+                      <verstretch>0</verstretch>
+                     </sizepolicy>
+                    </property>
+                    <property name="minimumSize">
+                     <size>
+                      <width>70</width>
+                      <height>0</height>
+                     </size>
+                    </property>
+                    <property name="suffix">
+                     <string>m</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="0" column="1">
+                   <widget class="QDoubleSpinBox" name="doubleSpinBox_2">
+                    <property name="minimumSize">
+                     <size>
+                      <width>70</width>
+                      <height>0</height>
+                     </size>
+                    </property>
+                    <property name="suffix">
+                     <string>m</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="1" column="0">
+                   <widget class="QDoubleSpinBox" name="doubleSpinBox_3">
+                    <property name="suffix">
+                     <string>m</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="1" column="1">
+                   <widget class="QDoubleSpinBox" name="doubleSpinBox_10">
+                    <property name="suffix">
+                     <string>m</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="2" column="0">
+                   <widget class="QDoubleSpinBox" name="doubleSpinBox_11">
+                    <property name="suffix">
+                     <string>m</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="2" column="1">
+                   <widget class="QDoubleSpinBox" name="doubleSpinBox_12">
+                    <property name="suffix">
+                     <string>m</string>
+                    </property>
+                   </widget>
+                  </item>
+                 </layout>
+                </item>
+                <item row="3" column="0">
+                 <widget class="QLabel" name="label_13">
+                  <property name="text">
+                   <string>Z</string>
+                  </property>
+                 </widget>
+                </item>
+                <item row="3" column="3">
+                 <widget class="QSpinBox" name="spinBox_3">
+                  <property name="minimum">
+                   <number>1</number>
+                  </property>
+                  <property name="maximum">
+                   <number>5000</number>
+                  </property>
+                  <property name="value">
+                   <number>100</number>
+                  </property>
+                 </widget>
+                </item>
+                <item row="5" column="1" colspan="2">
+                 <widget class="QLabel" name="label_36">
+                  <property name="text">
+                   <string>Time per pixel:</string>
+                  </property>
+                 </widget>
+                </item>
+                <item row="7" column="1" colspan="2">
+                 <widget class="QLabel" name="label_37">
+                  <property name="text">
+                   <string>Estimated meas time:</string>
+                  </property>
+                 </widget>
+                </item>
+                <item row="4" column="0">
+                 <spacer name="verticalSpacer_6">
+                  <property name="orientation">
+                   <enum>Qt::Vertical</enum>
+                  </property>
+                  <property name="sizeType">
+                   <enum>QSizePolicy::Fixed</enum>
+                  </property>
+                  <property name="sizeHint" stdset="0">
+                   <size>
+                    <width>20</width>
+                    <height>10</height>
+                   </size>
+                  </property>
+                 </spacer>
+                </item>
+                <item row="7" column="3">
+                 <widget class="QDoubleSpinBox" name="doubleSpinBox_32">
+                  <property name="readOnly">
+                   <bool>true</bool>
+                  </property>
+                  <property name="buttonSymbols">
+                   <enum>QAbstractSpinBox::NoButtons</enum>
+                  </property>
+                  <property name="suffix">
+                   <string>s</string>
+                  </property>
+                 </widget>
+                </item>
+                <item row="5" column="3">
+                 <widget class="QDoubleSpinBox" name="doubleSpinBox_161">
+                  <property name="suffix">
+                   <string>s</string>
+                  </property>
+                 </widget>
+                </item>
+                <item row="6" column="0" colspan="4">
+                 <widget class="Line" name="line_4">
+                  <property name="orientation">
+                   <enum>Qt::Horizontal</enum>
+                  </property>
+                 </widget>
+                </item>
+               </layout>
+              </widget>
+             </item>
+             <item row="1" column="0">
+              <spacer name="verticalSpacer">
+               <property name="orientation">
+                <enum>Qt::Vertical</enum>
+               </property>
+               <property name="sizeHint" stdset="0">
+                <size>
+                 <width>20</width>
+                 <height>40</height>
+                </size>
+               </property>
+              </spacer>
+             </item>
+            </layout>
+           </widget>
+          </item>
+          <item row="0" column="1">
+           <widget class="QTabWidget" name="tabWidget_2">
+            <property name="tabPosition">
+             <enum>QTabWidget::South</enum>
+            </property>
+            <property name="tabShape">
+             <enum>QTabWidget::Rounded</enum>
+            </property>
+            <property name="currentIndex">
+             <number>0</number>
+            </property>
+            <property name="elideMode">
+             <enum>Qt::ElideNone</enum>
+            </property>
+            <property name="movable">
+             <bool>true</bool>
+            </property>
+            <widget class="QWidget" name="tab_3">
+             <attribute name="title">
+              <string>XY</string>
+             </attribute>
+             <layout class="QGridLayout" name="gridLayout_16">
+              <item row="6" column="1">
+               <widget class="QRadioButton" name="radioButton_63">
+                <property name="text">
+                 <string>RadioButton</string>
+                </property>
+               </widget>
+              </item>
+              <item row="2" column="1">
+               <widget class="QGraphicsView" name="graphicsView_66">
+                <property name="maximumSize">
+                 <size>
+                  <width>100</width>
+                  <height>16777215</height>
+                 </size>
+                </property>
+               </widget>
+              </item>
+              <item row="0" column="1">
+               <widget class="QDoubleSpinBox" name="doubleSpinBox_149"/>
+              </item>
+              <item row="3" column="1">
+               <widget class="QDoubleSpinBox" name="doubleSpinBox_150"/>
+              </item>
+              <item row="4" column="1">
+               <widget class="QDoubleSpinBox" name="doubleSpinBox_151"/>
+              </item>
+              <item row="7" column="1">
+               <widget class="QCheckBox" name="checkBox_50">
+                <property name="text">
+                 <string>CheckBox</string>
+                </property>
+               </widget>
+              </item>
+              <item row="5" column="1">
+               <widget class="QRadioButton" name="radioButton_64">
+                <property name="text">
+                 <string>RadioButton</string>
+                </property>
+               </widget>
+              </item>
+              <item row="1" column="1">
+               <widget class="QDoubleSpinBox" name="doubleSpinBox_152"/>
+              </item>
+              <item row="0" column="0" rowspan="8">
+               <widget class="QGraphicsView" name="graphicsView_67"/>
+              </item>
+             </layout>
+            </widget>
+            <widget class="QWidget" name="tab_4">
+             <attribute name="title">
+              <string>XZ</string>
+             </attribute>
+             <layout class="QGridLayout" name="gridLayout_48">
+              <item row="0" column="0" rowspan="8">
+               <widget class="QGraphicsView" name="graphicsView_68"/>
+              </item>
+              <item row="0" column="1">
+               <widget class="QDoubleSpinBox" name="doubleSpinBox_153"/>
+              </item>
+              <item row="1" column="1">
+               <widget class="QDoubleSpinBox" name="doubleSpinBox_154"/>
+              </item>
+              <item row="2" column="1">
+               <widget class="QGraphicsView" name="graphicsView_69">
+                <property name="maximumSize">
+                 <size>
+                  <width>100</width>
+                  <height>16777215</height>
+                 </size>
+                </property>
+               </widget>
+              </item>
+              <item row="3" column="1">
+               <widget class="QDoubleSpinBox" name="doubleSpinBox_155"/>
+              </item>
+              <item row="4" column="1">
+               <widget class="QDoubleSpinBox" name="doubleSpinBox_156"/>
+              </item>
+              <item row="5" column="1">
+               <widget class="QRadioButton" name="radioButton_65">
+                <property name="text">
+                 <string>RadioButton</string>
+                </property>
+               </widget>
+              </item>
+              <item row="6" column="1">
+               <widget class="QRadioButton" name="radioButton_66">
+                <property name="text">
+                 <string>RadioButton</string>
+                </property>
+               </widget>
+              </item>
+              <item row="7" column="1">
+               <widget class="QCheckBox" name="checkBox_51">
+                <property name="text">
+                 <string>CheckBox</string>
+                </property>
+               </widget>
+              </item>
+             </layout>
+            </widget>
+            <widget class="QWidget" name="tab_43">
+             <attribute name="title">
+              <string>YZ</string>
+             </attribute>
+             <layout class="QGridLayout" name="gridLayout_49">
+              <item row="0" column="0" rowspan="8">
+               <widget class="QGraphicsView" name="graphicsView_70"/>
+              </item>
+              <item row="0" column="1">
+               <widget class="QDoubleSpinBox" name="doubleSpinBox_157"/>
+              </item>
+              <item row="1" column="1">
+               <widget class="QDoubleSpinBox" name="doubleSpinBox_158"/>
+              </item>
+              <item row="2" column="1">
+               <widget class="QGraphicsView" name="graphicsView_71">
+                <property name="maximumSize">
+                 <size>
+                  <width>100</width>
+                  <height>16777215</height>
+                 </size>
+                </property>
+               </widget>
+              </item>
+              <item row="3" column="1">
+               <widget class="QDoubleSpinBox" name="doubleSpinBox_159"/>
+              </item>
+              <item row="4" column="1">
+               <widget class="QDoubleSpinBox" name="doubleSpinBox_160"/>
+              </item>
+              <item row="5" column="1">
+               <widget class="QRadioButton" name="radioButton_67">
+                <property name="text">
+                 <string>RadioButton</string>
+                </property>
+               </widget>
+              </item>
+              <item row="6" column="1">
+               <widget class="QRadioButton" name="radioButton_68">
+                <property name="text">
+                 <string>RadioButton</string>
+                </property>
+               </widget>
+              </item>
+              <item row="7" column="1">
+               <widget class="QCheckBox" name="checkBox_52">
+                <property name="text">
+                 <string>CheckBox</string>
+                </property>
+               </widget>
+              </item>
+             </layout>
+            </widget>
+           </widget>
+          </item>
+         </layout>
+        </widget>
+        <widget class="QWidget" name="page_qafm">
+         <layout class="QGridLayout" name="gridLayout_47">
+          <item row="0" column="0">
+           <widget class="QGroupBox" name="groupBox_8">
+            <property name="title">
+             <string>Options</string>
+            </property>
+            <layout class="QGridLayout" name="gridLayout_13">
+             <item row="0" column="0">
+              <widget class="QGroupBox" name="groupBox_10">
+               <property name="title">
+                <string>AFM Scan parameter</string>
+               </property>
+               <layout class="QGridLayout" name="gridLayout_11">
+                <item row="2" column="2">
+                 <widget class="QDoubleSpinBox" name="doubleSpinBox_16"/>
+                </item>
+                <item row="3" column="1">
+                 <widget class="QDoubleSpinBox" name="doubleSpinBox_15"/>
+                </item>
+                <item row="0" column="3">
+                 <widget class="QLabel" name="label_14">
+                  <property name="text">
+                   <string>Points</string>
+                  </property>
+                 </widget>
+                </item>
+                <item row="3" column="3">
+                 <widget class="QSpinBox" name="spinBox_4"/>
+                </item>
+                <item row="2" column="1">
+                 <widget class="QDoubleSpinBox" name="doubleSpinBox_17"/>
+                </item>
+                <item row="1" column="3">
+                 <widget class="QSpinBox" name="spinBox_5"/>
+                </item>
+                <item row="3" column="0">
+                 <widget class="QLabel" name="label_18">
+                  <property name="text">
+                   <string>Z</string>
+                  </property>
+                 </widget>
+                </item>
+                <item row="0" column="1" colspan="2">
+                 <widget class="QLabel" name="label_15">
+                  <property name="text">
+                   <string>Range</string>
+                  </property>
+                  <property name="alignment">
+                   <set>Qt::AlignCenter</set>
+                  </property>
+                 </widget>
+                </item>
+                <item row="1" column="0">
+                 <widget class="QLabel" name="label_16">
+                  <property name="text">
+                   <string>X</string>
+                  </property>
+                 </widget>
+                </item>
+                <item row="3" column="2">
+                 <widget class="QDoubleSpinBox" name="doubleSpinBox_18"/>
+                </item>
+                <item row="2" column="3">
+                 <widget class="QSpinBox" name="spinBox_6"/>
+                </item>
+                <item row="2" column="0">
+                 <widget class="QLabel" name="label_17">
+                  <property name="text">
+                   <string>Y</string>
+                  </property>
+                 </widget>
+                </item>
+                <item row="1" column="1">
+                 <widget class="QDoubleSpinBox" name="doubleSpinBox_14"/>
+                </item>
+                <item row="1" column="2">
+                 <widget class="QDoubleSpinBox" name="doubleSpinBox_13"/>
+                </item>
+                <item row="4" column="0" colspan="2">
+                 <widget class="QLabel" name="label_27">
+                  <property name="text">
+                   <string>Estimated Time</string>
+                  </property>
+                 </widget>
+                </item>
+                <item row="4" column="2" colspan="2">
+                 <widget class="QLineEdit" name="lineEdit_4"/>
+                </item>
+               </layout>
+              </widget>
+             </item>
+             <item row="3" column="0">
+              <widget class="QGroupBox" name="groupBox_9">
+               <property name="title">
+                <string>AFM Parameter</string>
+               </property>
+               <layout class="QVBoxLayout" name="verticalLayout">
+                <item>
+                 <widget class="QCheckBox" name="checkBox">
+                  <property name="text">
+                   <string>CheckBox</string>
+                  </property>
+                 </widget>
+                </item>
+                <item>
+                 <widget class="QCheckBox" name="checkBox_2">
+                  <property name="text">
+                   <string>CheckBox</string>
+                  </property>
+                 </widget>
+                </item>
+                <item>
+                 <widget class="QCheckBox" name="checkBox_4">
+                  <property name="text">
+                   <string>CheckBox</string>
+                  </property>
+                 </widget>
+                </item>
+                <item>
+                 <widget class="QCheckBox" name="checkBox_6">
+                  <property name="text">
+                   <string>CheckBox</string>
+                  </property>
+                 </widget>
+                </item>
+                <item>
+                 <widget class="QCheckBox" name="checkBox_3">
+                  <property name="text">
+                   <string>CheckBox</string>
+                  </property>
+                 </widget>
+                </item>
+                <item>
+                 <widget class="QCheckBox" name="checkBox_7">
+                  <property name="text">
+                   <string>CheckBox</string>
+                  </property>
+                 </widget>
+                </item>
+                <item>
+                 <widget class="QCheckBox" name="checkBox_5">
+                  <property name="text">
+                   <string>CheckBox</string>
+                  </property>
+                 </widget>
+                </item>
+                <item>
+                 <widget class="QCheckBox" name="checkBox_8">
+                  <property name="text">
+                   <string>CheckBox</string>
+                  </property>
+                 </widget>
+                </item>
+                <item>
+                 <widget class="QCheckBox" name="checkBox_9">
+                  <property name="text">
+                   <string>CheckBox</string>
+                  </property>
+                 </widget>
+                </item>
+               </layout>
+              </widget>
+             </item>
+             <item row="1" column="0">
+              <widget class="QGroupBox" name="groupBox_14">
+               <property name="title">
+                <string>MW settings</string>
+               </property>
+               <layout class="QGridLayout" name="gridLayout_17">
+                <item row="2" column="0">
+                 <widget class="QLabel" name="label_30">
+                  <property name="text">
+                   <string>MW Power</string>
+                  </property>
+                 </widget>
+                </item>
+                <item row="1" column="0">
+                 <widget class="QLabel" name="label_31">
+                  <property name="text">
+                   <string>MW frequency 2</string>
+                  </property>
+                 </widget>
+                </item>
+                <item row="1" column="1">
+                 <widget class="QDoubleSpinBox" name="doubleSpinBox_31"/>
+                </item>
+                <item row="0" column="1">
+                 <widget class="QDoubleSpinBox" name="doubleSpinBox_29"/>
+                </item>
+                <item row="2" column="1">
+                 <widget class="QDoubleSpinBox" name="doubleSpinBox_30"/>
+                </item>
+                <item row="0" column="0">
+                 <widget class="QLabel" name="label_29">
+                  <property name="text">
+                   <string>MW frequency</string>
+                  </property>
+                 </widget>
+                </item>
+                <item row="3" column="0" colspan="2">
+                 <widget class="QPushButton" name="pushButton">
+                  <property name="toolTip">
+                   <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Try to obtain from the ODMR module&lt;/p&gt;&lt;p&gt;all the relevant information to perform the current measurement.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+                  </property>
+                  <property name="text">
+                   <string>Get ESR Settings</string>
+                  </property>
+                 </widget>
+                </item>
+               </layout>
+              </widget>
+             </item>
+             <item row="2" column="0">
+              <spacer name="verticalSpacer_2">
+               <property name="orientation">
+                <enum>Qt::Vertical</enum>
+               </property>
+               <property name="sizeHint" stdset="0">
+                <size>
+                 <width>20</width>
+                 <height>40</height>
+                </size>
+               </property>
+              </spacer>
+             </item>
+            </layout>
+           </widget>
+          </item>
+          <item row="0" column="1">
+           <widget class="QSplitter" name="splitter_2">
+            <property name="orientation">
+             <enum>Qt::Horizontal</enum>
+            </property>
+            <widget class="QWidget" name="layoutWidget">
+             <layout class="QVBoxLayout" name="verticalLayout_4">
+              <item>
+               <widget class="QLabel" name="label_26">
+                <property name="text">
+                 <string>Forward Scan</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QTabWidget" name="tabWidget">
+                <property name="tabPosition">
+                 <enum>QTabWidget::South</enum>
+                </property>
+                <property name="tabShape">
+                 <enum>QTabWidget::Rounded</enum>
+                </property>
+                <property name="currentIndex">
+                 <number>0</number>
+                </property>
+                <property name="elideMode">
+                 <enum>Qt::ElideNone</enum>
+                </property>
+                <property name="movable">
+                 <bool>true</bool>
+                </property>
+                <widget class="QWidget" name="tab">
+                 <attribute name="title">
+                  <string>Tab1</string>
+                 </attribute>
+                 <layout class="QGridLayout" name="gridLayout_12">
+                  <item row="6" column="1">
+                   <widget class="QRadioButton" name="radioButton">
+                    <property name="text">
+                     <string>RadioButton</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="2" column="1">
+                   <widget class="QGraphicsView" name="graphicsView_2">
+                    <property name="maximumSize">
+                     <size>
+                      <width>100</width>
+                      <height>16777215</height>
+                     </size>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="0" column="1">
+                   <widget class="QDoubleSpinBox" name="doubleSpinBox_27"/>
+                  </item>
+                  <item row="3" column="1">
+                   <widget class="QDoubleSpinBox" name="doubleSpinBox_26"/>
+                  </item>
+                  <item row="4" column="1">
+                   <widget class="QDoubleSpinBox" name="doubleSpinBox_25"/>
+                  </item>
+                  <item row="7" column="1">
+                   <widget class="QCheckBox" name="checkBox_19">
+                    <property name="text">
+                     <string>CheckBox</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="5" column="1">
+                   <widget class="QRadioButton" name="radioButton_2">
+                    <property name="text">
+                     <string>RadioButton</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="1" column="1">
+                   <widget class="QDoubleSpinBox" name="doubleSpinBox_28"/>
+                  </item>
+                  <item row="0" column="0" rowspan="8">
+                   <widget class="QGraphicsView" name="graphicsView"/>
+                  </item>
+                 </layout>
+                </widget>
+                <widget class="QWidget" name="tab_2">
+                 <attribute name="title">
+                  <string>Tab2</string>
+                 </attribute>
+                 <layout class="QGridLayout" name="gridLayout_18">
+                  <item row="0" column="0" rowspan="8">
+                   <widget class="QGraphicsView" name="graphicsView_8"/>
+                  </item>
+                  <item row="0" column="1">
+                   <widget class="QDoubleSpinBox" name="doubleSpinBox_36"/>
+                  </item>
+                  <item row="1" column="1">
+                   <widget class="QDoubleSpinBox" name="doubleSpinBox_33"/>
+                  </item>
+                  <item row="2" column="1">
+                   <widget class="QGraphicsView" name="graphicsView_9">
+                    <property name="maximumSize">
+                     <size>
+                      <width>100</width>
+                      <height>16777215</height>
+                     </size>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="3" column="1">
+                   <widget class="QDoubleSpinBox" name="doubleSpinBox_34"/>
+                  </item>
+                  <item row="4" column="1">
+                   <widget class="QDoubleSpinBox" name="doubleSpinBox_35"/>
+                  </item>
+                  <item row="5" column="1">
+                   <widget class="QRadioButton" name="radioButton_6">
+                    <property name="text">
+                     <string>RadioButton</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="6" column="1">
+                   <widget class="QRadioButton" name="radioButton_5">
+                    <property name="text">
+                     <string>RadioButton</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="7" column="1">
+                   <widget class="QCheckBox" name="checkBox_21">
+                    <property name="text">
+                     <string>CheckBox</string>
+                    </property>
+                   </widget>
+                  </item>
+                 </layout>
+                </widget>
+                <widget class="QWidget" name="tab_7">
+                 <attribute name="title">
+                  <string>Tab3</string>
+                 </attribute>
+                 <layout class="QGridLayout" name="gridLayout_19">
+                  <item row="0" column="0" rowspan="8">
+                   <widget class="QGraphicsView" name="graphicsView_10"/>
+                  </item>
+                  <item row="0" column="1">
+                   <widget class="QDoubleSpinBox" name="doubleSpinBox_40"/>
+                  </item>
+                  <item row="1" column="1">
+                   <widget class="QDoubleSpinBox" name="doubleSpinBox_37"/>
+                  </item>
+                  <item row="2" column="1">
+                   <widget class="QGraphicsView" name="graphicsView_11">
+                    <property name="maximumSize">
+                     <size>
+                      <width>100</width>
+                      <height>16777215</height>
+                     </size>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="3" column="1">
+                   <widget class="QDoubleSpinBox" name="doubleSpinBox_38"/>
+                  </item>
+                  <item row="4" column="1">
+                   <widget class="QDoubleSpinBox" name="doubleSpinBox_39"/>
+                  </item>
+                  <item row="5" column="1">
+                   <widget class="QRadioButton" name="radioButton_8">
+                    <property name="text">
+                     <string>RadioButton</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="6" column="1">
+                   <widget class="QRadioButton" name="radioButton_7">
+                    <property name="text">
+                     <string>RadioButton</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="7" column="1">
+                   <widget class="QCheckBox" name="checkBox_22">
+                    <property name="text">
+                     <string>CheckBox</string>
+                    </property>
+                   </widget>
+                  </item>
+                 </layout>
+                </widget>
+                <widget class="QWidget" name="tab_8">
+                 <attribute name="title">
+                  <string>Tab4</string>
+                 </attribute>
+                 <layout class="QGridLayout" name="gridLayout_20">
+                  <item row="0" column="0" rowspan="8">
+                   <widget class="QGraphicsView" name="graphicsView_12"/>
+                  </item>
+                  <item row="0" column="1">
+                   <widget class="QDoubleSpinBox" name="doubleSpinBox_44"/>
+                  </item>
+                  <item row="1" column="1">
+                   <widget class="QDoubleSpinBox" name="doubleSpinBox_41"/>
+                  </item>
+                  <item row="2" column="1">
+                   <widget class="QGraphicsView" name="graphicsView_13">
+                    <property name="maximumSize">
+                     <size>
+                      <width>100</width>
+                      <height>16777215</height>
+                     </size>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="3" column="1">
+                   <widget class="QDoubleSpinBox" name="doubleSpinBox_42"/>
+                  </item>
+                  <item row="4" column="1">
+                   <widget class="QDoubleSpinBox" name="doubleSpinBox_43"/>
+                  </item>
+                  <item row="5" column="1">
+                   <widget class="QRadioButton" name="radioButton_10">
+                    <property name="text">
+                     <string>RadioButton</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="6" column="1">
+                   <widget class="QRadioButton" name="radioButton_9">
+                    <property name="text">
+                     <string>RadioButton</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="7" column="1">
+                   <widget class="QCheckBox" name="checkBox_23">
+                    <property name="text">
+                     <string>CheckBox</string>
+                    </property>
+                   </widget>
+                  </item>
+                 </layout>
+                </widget>
+                <widget class="QWidget" name="tab_9">
+                 <attribute name="title">
+                  <string>Tab5</string>
+                 </attribute>
+                 <layout class="QGridLayout" name="gridLayout_21">
+                  <item row="0" column="0" rowspan="8">
+                   <widget class="QGraphicsView" name="graphicsView_14"/>
+                  </item>
+                  <item row="0" column="1">
+                   <widget class="QDoubleSpinBox" name="doubleSpinBox_48"/>
+                  </item>
+                  <item row="1" column="1">
+                   <widget class="QDoubleSpinBox" name="doubleSpinBox_45"/>
+                  </item>
+                  <item row="2" column="1">
+                   <widget class="QGraphicsView" name="graphicsView_15">
+                    <property name="maximumSize">
+                     <size>
+                      <width>100</width>
+                      <height>16777215</height>
+                     </size>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="3" column="1">
+                   <widget class="QDoubleSpinBox" name="doubleSpinBox_46"/>
+                  </item>
+                  <item row="4" column="1">
+                   <widget class="QDoubleSpinBox" name="doubleSpinBox_47"/>
+                  </item>
+                  <item row="5" column="1">
+                   <widget class="QRadioButton" name="radioButton_12">
+                    <property name="text">
+                     <string>RadioButton</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="6" column="1">
+                   <widget class="QRadioButton" name="radioButton_11">
+                    <property name="text">
+                     <string>RadioButton</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="7" column="1">
+                   <widget class="QCheckBox" name="checkBox_24">
+                    <property name="text">
+                     <string>CheckBox</string>
+                    </property>
+                   </widget>
+                  </item>
+                 </layout>
+                </widget>
+                <widget class="QWidget" name="tab_14">
+                 <attribute name="title">
+                  <string>Tab6</string>
+                 </attribute>
+                 <layout class="QGridLayout" name="gridLayout_22">
+                  <item row="0" column="0" rowspan="8">
+                   <widget class="QGraphicsView" name="graphicsView_16"/>
+                  </item>
+                  <item row="0" column="1">
+                   <widget class="QDoubleSpinBox" name="doubleSpinBox_52"/>
+                  </item>
+                  <item row="1" column="1">
+                   <widget class="QDoubleSpinBox" name="doubleSpinBox_49"/>
+                  </item>
+                  <item row="2" column="1">
+                   <widget class="QGraphicsView" name="graphicsView_17">
+                    <property name="maximumSize">
+                     <size>
+                      <width>100</width>
+                      <height>16777215</height>
+                     </size>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="3" column="1">
+                   <widget class="QDoubleSpinBox" name="doubleSpinBox_50"/>
+                  </item>
+                  <item row="4" column="1">
+                   <widget class="QDoubleSpinBox" name="doubleSpinBox_51"/>
+                  </item>
+                  <item row="5" column="1">
+                   <widget class="QRadioButton" name="radioButton_14">
+                    <property name="text">
+                     <string>RadioButton</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="6" column="1">
+                   <widget class="QRadioButton" name="radioButton_13">
+                    <property name="text">
+                     <string>RadioButton</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="7" column="1">
+                   <widget class="QCheckBox" name="checkBox_25">
+                    <property name="text">
+                     <string>CheckBox</string>
+                    </property>
+                   </widget>
+                  </item>
+                 </layout>
+                </widget>
+                <widget class="QWidget" name="tab_10">
+                 <attribute name="title">
+                  <string>Tag7</string>
+                 </attribute>
+                 <layout class="QGridLayout" name="gridLayout_23">
+                  <item row="0" column="0" rowspan="8">
+                   <widget class="QGraphicsView" name="graphicsView_18"/>
+                  </item>
+                  <item row="0" column="1">
+                   <widget class="QDoubleSpinBox" name="doubleSpinBox_56"/>
+                  </item>
+                  <item row="1" column="1">
+                   <widget class="QDoubleSpinBox" name="doubleSpinBox_53"/>
+                  </item>
+                  <item row="2" column="1">
+                   <widget class="QGraphicsView" name="graphicsView_19">
+                    <property name="maximumSize">
+                     <size>
+                      <width>100</width>
+                      <height>16777215</height>
+                     </size>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="3" column="1">
+                   <widget class="QDoubleSpinBox" name="doubleSpinBox_54"/>
+                  </item>
+                  <item row="4" column="1">
+                   <widget class="QDoubleSpinBox" name="doubleSpinBox_55"/>
+                  </item>
+                  <item row="5" column="1">
+                   <widget class="QRadioButton" name="radioButton_16">
+                    <property name="text">
+                     <string>RadioButton</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="6" column="1">
+                   <widget class="QRadioButton" name="radioButton_15">
+                    <property name="text">
+                     <string>RadioButton</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="7" column="1">
+                   <widget class="QCheckBox" name="checkBox_26">
+                    <property name="text">
+                     <string>CheckBox</string>
+                    </property>
+                   </widget>
+                  </item>
+                 </layout>
+                </widget>
+                <widget class="QWidget" name="tab_11">
+                 <attribute name="title">
+                  <string>Tab8</string>
+                 </attribute>
+                 <layout class="QGridLayout" name="gridLayout_24">
+                  <item row="0" column="0" rowspan="8">
+                   <widget class="QGraphicsView" name="graphicsView_20"/>
+                  </item>
+                  <item row="0" column="1">
+                   <widget class="QDoubleSpinBox" name="doubleSpinBox_60"/>
+                  </item>
+                  <item row="1" column="1">
+                   <widget class="QDoubleSpinBox" name="doubleSpinBox_57"/>
+                  </item>
+                  <item row="2" column="1">
+                   <widget class="QGraphicsView" name="graphicsView_21">
+                    <property name="maximumSize">
+                     <size>
+                      <width>100</width>
+                      <height>16777215</height>
+                     </size>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="3" column="1">
+                   <widget class="QDoubleSpinBox" name="doubleSpinBox_58"/>
+                  </item>
+                  <item row="4" column="1">
+                   <widget class="QDoubleSpinBox" name="doubleSpinBox_59"/>
+                  </item>
+                  <item row="5" column="1">
+                   <widget class="QRadioButton" name="radioButton_18">
+                    <property name="text">
+                     <string>RadioButton</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="6" column="1">
+                   <widget class="QRadioButton" name="radioButton_17">
+                    <property name="text">
+                     <string>RadioButton</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="7" column="1">
+                   <widget class="QCheckBox" name="checkBox_27">
+                    <property name="text">
+                     <string>CheckBox</string>
+                    </property>
+                   </widget>
+                  </item>
+                 </layout>
+                </widget>
+                <widget class="QWidget" name="tab_13">
+                 <attribute name="title">
+                  <string>Tab9</string>
+                 </attribute>
+                 <layout class="QGridLayout" name="gridLayout_25">
+                  <item row="0" column="0" rowspan="8">
+                   <widget class="QGraphicsView" name="graphicsView_22"/>
+                  </item>
+                  <item row="0" column="1">
+                   <widget class="QDoubleSpinBox" name="doubleSpinBox_64"/>
+                  </item>
+                  <item row="1" column="1">
+                   <widget class="QDoubleSpinBox" name="doubleSpinBox_61"/>
+                  </item>
+                  <item row="2" column="1">
+                   <widget class="QGraphicsView" name="graphicsView_23">
+                    <property name="maximumSize">
+                     <size>
+                      <width>100</width>
+                      <height>16777215</height>
+                     </size>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="3" column="1">
+                   <widget class="QDoubleSpinBox" name="doubleSpinBox_62"/>
+                  </item>
+                  <item row="4" column="1">
+                   <widget class="QDoubleSpinBox" name="doubleSpinBox_63"/>
+                  </item>
+                  <item row="5" column="1">
+                   <widget class="QRadioButton" name="radioButton_20">
+                    <property name="text">
+                     <string>RadioButton</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="6" column="1">
+                   <widget class="QRadioButton" name="radioButton_19">
+                    <property name="text">
+                     <string>RadioButton</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="7" column="1">
+                   <widget class="QCheckBox" name="checkBox_28">
+                    <property name="text">
+                     <string>CheckBox</string>
+                    </property>
+                   </widget>
+                  </item>
+                 </layout>
+                </widget>
+                <widget class="QWidget" name="tab_12">
+                 <attribute name="title">
+                  <string>Tab10</string>
+                 </attribute>
+                 <layout class="QGridLayout" name="gridLayout_26">
+                  <item row="0" column="0" rowspan="8">
+                   <widget class="QGraphicsView" name="graphicsView_24"/>
+                  </item>
+                  <item row="0" column="1">
+                   <widget class="QDoubleSpinBox" name="doubleSpinBox_68"/>
+                  </item>
+                  <item row="1" column="1">
+                   <widget class="QDoubleSpinBox" name="doubleSpinBox_65"/>
+                  </item>
+                  <item row="2" column="1">
+                   <widget class="QGraphicsView" name="graphicsView_25">
+                    <property name="maximumSize">
+                     <size>
+                      <width>100</width>
+                      <height>16777215</height>
+                     </size>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="3" column="1">
+                   <widget class="QDoubleSpinBox" name="doubleSpinBox_66"/>
+                  </item>
+                  <item row="4" column="1">
+                   <widget class="QDoubleSpinBox" name="doubleSpinBox_67"/>
+                  </item>
+                  <item row="5" column="1">
+                   <widget class="QRadioButton" name="radioButton_22">
+                    <property name="text">
+                     <string>RadioButton</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="6" column="1">
+                   <widget class="QRadioButton" name="radioButton_21">
+                    <property name="text">
+                     <string>RadioButton</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="7" column="1">
+                   <widget class="QCheckBox" name="checkBox_29">
+                    <property name="text">
+                     <string>CheckBox</string>
+                    </property>
+                   </widget>
+                  </item>
+                 </layout>
+                </widget>
+               </widget>
+              </item>
+             </layout>
+            </widget>
+            <widget class="QWidget" name="layoutWidget">
+             <layout class="QVBoxLayout" name="verticalLayout_3">
+              <item>
+               <widget class="QLabel" name="label_25">
+                <property name="text">
+                 <string>Backward Scan</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QTabWidget" name="tabWidget_4">
+                <property name="tabPosition">
+                 <enum>QTabWidget::South</enum>
+                </property>
+                <property name="tabShape">
+                 <enum>QTabWidget::Rounded</enum>
+                </property>
+                <property name="currentIndex">
+                 <number>0</number>
+                </property>
+                <property name="elideMode">
+                 <enum>Qt::ElideNone</enum>
+                </property>
+                <property name="movable">
+                 <bool>true</bool>
+                </property>
+                <widget class="QWidget" name="tab_25">
+                 <attribute name="title">
+                  <string>Tab1</string>
+                 </attribute>
+                 <layout class="QGridLayout" name="gridLayout_27">
+                  <item row="6" column="1">
+                   <widget class="QRadioButton" name="radioButton_23">
+                    <property name="text">
+                     <string>RadioButton</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="2" column="1">
+                   <widget class="QGraphicsView" name="graphicsView_26">
+                    <property name="maximumSize">
+                     <size>
+                      <width>100</width>
+                      <height>16777215</height>
+                     </size>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="0" column="1">
+                   <widget class="QDoubleSpinBox" name="doubleSpinBox_69"/>
+                  </item>
+                  <item row="3" column="1">
+                   <widget class="QDoubleSpinBox" name="doubleSpinBox_70"/>
+                  </item>
+                  <item row="4" column="1">
+                   <widget class="QDoubleSpinBox" name="doubleSpinBox_71"/>
+                  </item>
+                  <item row="7" column="1">
+                   <widget class="QCheckBox" name="checkBox_30">
+                    <property name="text">
+                     <string>CheckBox</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="5" column="1">
+                   <widget class="QRadioButton" name="radioButton_24">
+                    <property name="text">
+                     <string>RadioButton</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="1" column="1">
+                   <widget class="QDoubleSpinBox" name="doubleSpinBox_72"/>
+                  </item>
+                  <item row="0" column="0" rowspan="8">
+                   <widget class="QGraphicsView" name="graphicsView_27"/>
+                  </item>
+                 </layout>
+                </widget>
+                <widget class="QWidget" name="tab_26">
+                 <attribute name="title">
+                  <string>Tab2</string>
+                 </attribute>
+                 <layout class="QGridLayout" name="gridLayout_28">
+                  <item row="0" column="0" rowspan="8">
+                   <widget class="QGraphicsView" name="graphicsView_28"/>
+                  </item>
+                  <item row="0" column="1">
+                   <widget class="QDoubleSpinBox" name="doubleSpinBox_73"/>
+                  </item>
+                  <item row="1" column="1">
+                   <widget class="QDoubleSpinBox" name="doubleSpinBox_74"/>
+                  </item>
+                  <item row="2" column="1">
+                   <widget class="QGraphicsView" name="graphicsView_29">
+                    <property name="maximumSize">
+                     <size>
+                      <width>100</width>
+                      <height>16777215</height>
+                     </size>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="3" column="1">
+                   <widget class="QDoubleSpinBox" name="doubleSpinBox_75"/>
+                  </item>
+                  <item row="4" column="1">
+                   <widget class="QDoubleSpinBox" name="doubleSpinBox_76"/>
+                  </item>
+                  <item row="5" column="1">
+                   <widget class="QRadioButton" name="radioButton_25">
+                    <property name="text">
+                     <string>RadioButton</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="6" column="1">
+                   <widget class="QRadioButton" name="radioButton_26">
+                    <property name="text">
+                     <string>RadioButton</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="7" column="1">
+                   <widget class="QCheckBox" name="checkBox_31">
+                    <property name="text">
+                     <string>CheckBox</string>
+                    </property>
+                   </widget>
+                  </item>
+                 </layout>
+                </widget>
+                <widget class="QWidget" name="tab_27">
+                 <attribute name="title">
+                  <string>Tab3</string>
+                 </attribute>
+                 <layout class="QGridLayout" name="gridLayout_29">
+                  <item row="0" column="0" rowspan="8">
+                   <widget class="QGraphicsView" name="graphicsView_30"/>
+                  </item>
+                  <item row="0" column="1">
+                   <widget class="QDoubleSpinBox" name="doubleSpinBox_77"/>
+                  </item>
+                  <item row="1" column="1">
+                   <widget class="QDoubleSpinBox" name="doubleSpinBox_78"/>
+                  </item>
+                  <item row="2" column="1">
+                   <widget class="QGraphicsView" name="graphicsView_31">
+                    <property name="maximumSize">
+                     <size>
+                      <width>100</width>
+                      <height>16777215</height>
+                     </size>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="3" column="1">
+                   <widget class="QDoubleSpinBox" name="doubleSpinBox_79"/>
+                  </item>
+                  <item row="4" column="1">
+                   <widget class="QDoubleSpinBox" name="doubleSpinBox_80"/>
+                  </item>
+                  <item row="5" column="1">
+                   <widget class="QRadioButton" name="radioButton_27">
+                    <property name="text">
+                     <string>RadioButton</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="6" column="1">
+                   <widget class="QRadioButton" name="radioButton_28">
+                    <property name="text">
+                     <string>RadioButton</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="7" column="1">
+                   <widget class="QCheckBox" name="checkBox_32">
+                    <property name="text">
+                     <string>CheckBox</string>
+                    </property>
+                   </widget>
+                  </item>
+                 </layout>
+                </widget>
+                <widget class="QWidget" name="tab_28">
+                 <attribute name="title">
+                  <string>Tab4</string>
+                 </attribute>
+                 <layout class="QGridLayout" name="gridLayout_30">
+                  <item row="0" column="0" rowspan="8">
+                   <widget class="QGraphicsView" name="graphicsView_32"/>
+                  </item>
+                  <item row="0" column="1">
+                   <widget class="QDoubleSpinBox" name="doubleSpinBox_81"/>
+                  </item>
+                  <item row="1" column="1">
+                   <widget class="QDoubleSpinBox" name="doubleSpinBox_82"/>
+                  </item>
+                  <item row="2" column="1">
+                   <widget class="QGraphicsView" name="graphicsView_33">
+                    <property name="maximumSize">
+                     <size>
+                      <width>100</width>
+                      <height>16777215</height>
+                     </size>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="3" column="1">
+                   <widget class="QDoubleSpinBox" name="doubleSpinBox_83"/>
+                  </item>
+                  <item row="4" column="1">
+                   <widget class="QDoubleSpinBox" name="doubleSpinBox_84"/>
+                  </item>
+                  <item row="5" column="1">
+                   <widget class="QRadioButton" name="radioButton_29">
+                    <property name="text">
+                     <string>RadioButton</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="6" column="1">
+                   <widget class="QRadioButton" name="radioButton_30">
+                    <property name="text">
+                     <string>RadioButton</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="7" column="1">
+                   <widget class="QCheckBox" name="checkBox_33">
+                    <property name="text">
+                     <string>CheckBox</string>
+                    </property>
+                   </widget>
+                  </item>
+                 </layout>
+                </widget>
+                <widget class="QWidget" name="tab_29">
+                 <attribute name="title">
+                  <string>Tab5</string>
+                 </attribute>
+                 <layout class="QGridLayout" name="gridLayout_31">
+                  <item row="0" column="0" rowspan="8">
+                   <widget class="QGraphicsView" name="graphicsView_34"/>
+                  </item>
+                  <item row="0" column="1">
+                   <widget class="QDoubleSpinBox" name="doubleSpinBox_85"/>
+                  </item>
+                  <item row="1" column="1">
+                   <widget class="QDoubleSpinBox" name="doubleSpinBox_86"/>
+                  </item>
+                  <item row="2" column="1">
+                   <widget class="QGraphicsView" name="graphicsView_35">
+                    <property name="maximumSize">
+                     <size>
+                      <width>100</width>
+                      <height>16777215</height>
+                     </size>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="3" column="1">
+                   <widget class="QDoubleSpinBox" name="doubleSpinBox_87"/>
+                  </item>
+                  <item row="4" column="1">
+                   <widget class="QDoubleSpinBox" name="doubleSpinBox_88"/>
+                  </item>
+                  <item row="5" column="1">
+                   <widget class="QRadioButton" name="radioButton_31">
+                    <property name="text">
+                     <string>RadioButton</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="6" column="1">
+                   <widget class="QRadioButton" name="radioButton_32">
+                    <property name="text">
+                     <string>RadioButton</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="7" column="1">
+                   <widget class="QCheckBox" name="checkBox_34">
+                    <property name="text">
+                     <string>CheckBox</string>
+                    </property>
+                   </widget>
+                  </item>
+                 </layout>
+                </widget>
+                <widget class="QWidget" name="tab_30">
+                 <attribute name="title">
+                  <string>Tab6</string>
+                 </attribute>
+                 <layout class="QGridLayout" name="gridLayout_32">
+                  <item row="0" column="0" rowspan="8">
+                   <widget class="QGraphicsView" name="graphicsView_36"/>
+                  </item>
+                  <item row="0" column="1">
+                   <widget class="QDoubleSpinBox" name="doubleSpinBox_89"/>
+                  </item>
+                  <item row="1" column="1">
+                   <widget class="QDoubleSpinBox" name="doubleSpinBox_90"/>
+                  </item>
+                  <item row="2" column="1">
+                   <widget class="QGraphicsView" name="graphicsView_37">
+                    <property name="maximumSize">
+                     <size>
+                      <width>100</width>
+                      <height>16777215</height>
+                     </size>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="3" column="1">
+                   <widget class="QDoubleSpinBox" name="doubleSpinBox_91"/>
+                  </item>
+                  <item row="4" column="1">
+                   <widget class="QDoubleSpinBox" name="doubleSpinBox_92"/>
+                  </item>
+                  <item row="5" column="1">
+                   <widget class="QRadioButton" name="radioButton_33">
+                    <property name="text">
+                     <string>RadioButton</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="6" column="1">
+                   <widget class="QRadioButton" name="radioButton_34">
+                    <property name="text">
+                     <string>RadioButton</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="7" column="1">
+                   <widget class="QCheckBox" name="checkBox_35">
+                    <property name="text">
+                     <string>CheckBox</string>
+                    </property>
+                   </widget>
+                  </item>
+                 </layout>
+                </widget>
+                <widget class="QWidget" name="tab_31">
+                 <attribute name="title">
+                  <string>Tag7</string>
+                 </attribute>
+                 <layout class="QGridLayout" name="gridLayout_33">
+                  <item row="0" column="0" rowspan="8">
+                   <widget class="QGraphicsView" name="graphicsView_38"/>
+                  </item>
+                  <item row="0" column="1">
+                   <widget class="QDoubleSpinBox" name="doubleSpinBox_93"/>
+                  </item>
+                  <item row="1" column="1">
+                   <widget class="QDoubleSpinBox" name="doubleSpinBox_94"/>
+                  </item>
+                  <item row="2" column="1">
+                   <widget class="QGraphicsView" name="graphicsView_39">
+                    <property name="maximumSize">
+                     <size>
+                      <width>100</width>
+                      <height>16777215</height>
+                     </size>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="3" column="1">
+                   <widget class="QDoubleSpinBox" name="doubleSpinBox_95"/>
+                  </item>
+                  <item row="4" column="1">
+                   <widget class="QDoubleSpinBox" name="doubleSpinBox_96"/>
+                  </item>
+                  <item row="5" column="1">
+                   <widget class="QRadioButton" name="radioButton_35">
+                    <property name="text">
+                     <string>RadioButton</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="6" column="1">
+                   <widget class="QRadioButton" name="radioButton_36">
+                    <property name="text">
+                     <string>RadioButton</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="7" column="1">
+                   <widget class="QCheckBox" name="checkBox_36">
+                    <property name="text">
+                     <string>CheckBox</string>
+                    </property>
+                   </widget>
+                  </item>
+                 </layout>
+                </widget>
+                <widget class="QWidget" name="tab_32">
+                 <attribute name="title">
+                  <string>Tab8</string>
+                 </attribute>
+                 <layout class="QGridLayout" name="gridLayout_34">
+                  <item row="0" column="0" rowspan="8">
+                   <widget class="QGraphicsView" name="graphicsView_40"/>
+                  </item>
+                  <item row="0" column="1">
+                   <widget class="QDoubleSpinBox" name="doubleSpinBox_97"/>
+                  </item>
+                  <item row="1" column="1">
+                   <widget class="QDoubleSpinBox" name="doubleSpinBox_98"/>
+                  </item>
+                  <item row="2" column="1">
+                   <widget class="QGraphicsView" name="graphicsView_41">
+                    <property name="maximumSize">
+                     <size>
+                      <width>100</width>
+                      <height>16777215</height>
+                     </size>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="3" column="1">
+                   <widget class="QDoubleSpinBox" name="doubleSpinBox_99"/>
+                  </item>
+                  <item row="4" column="1">
+                   <widget class="QDoubleSpinBox" name="doubleSpinBox_100"/>
+                  </item>
+                  <item row="5" column="1">
+                   <widget class="QRadioButton" name="radioButton_37">
+                    <property name="text">
+                     <string>RadioButton</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="6" column="1">
+                   <widget class="QRadioButton" name="radioButton_38">
+                    <property name="text">
+                     <string>RadioButton</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="7" column="1">
+                   <widget class="QCheckBox" name="checkBox_37">
+                    <property name="text">
+                     <string>CheckBox</string>
+                    </property>
+                   </widget>
+                  </item>
+                 </layout>
+                </widget>
+                <widget class="QWidget" name="tab_33">
+                 <attribute name="title">
+                  <string>Tab9</string>
+                 </attribute>
+                 <layout class="QGridLayout" name="gridLayout_35">
+                  <item row="0" column="0" rowspan="8">
+                   <widget class="QGraphicsView" name="graphicsView_42"/>
+                  </item>
+                  <item row="0" column="1">
+                   <widget class="QDoubleSpinBox" name="doubleSpinBox_101"/>
+                  </item>
+                  <item row="1" column="1">
+                   <widget class="QDoubleSpinBox" name="doubleSpinBox_102"/>
+                  </item>
+                  <item row="2" column="1">
+                   <widget class="QGraphicsView" name="graphicsView_43">
+                    <property name="maximumSize">
+                     <size>
+                      <width>100</width>
+                      <height>16777215</height>
+                     </size>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="3" column="1">
+                   <widget class="QDoubleSpinBox" name="doubleSpinBox_103"/>
+                  </item>
+                  <item row="4" column="1">
+                   <widget class="QDoubleSpinBox" name="doubleSpinBox_104"/>
+                  </item>
+                  <item row="5" column="1">
+                   <widget class="QRadioButton" name="radioButton_39">
+                    <property name="text">
+                     <string>RadioButton</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="6" column="1">
+                   <widget class="QRadioButton" name="radioButton_40">
+                    <property name="text">
+                     <string>RadioButton</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="7" column="1">
+                   <widget class="QCheckBox" name="checkBox_38">
+                    <property name="text">
+                     <string>CheckBox</string>
+                    </property>
+                   </widget>
+                  </item>
+                 </layout>
+                </widget>
+                <widget class="QWidget" name="tab_34">
+                 <attribute name="title">
+                  <string>Tab10</string>
+                 </attribute>
+                 <layout class="QGridLayout" name="gridLayout_36">
+                  <item row="0" column="0" rowspan="8">
+                   <widget class="QGraphicsView" name="graphicsView_44"/>
+                  </item>
+                  <item row="0" column="1">
+                   <widget class="QDoubleSpinBox" name="doubleSpinBox_105"/>
+                  </item>
+                  <item row="1" column="1">
+                   <widget class="QDoubleSpinBox" name="doubleSpinBox_106"/>
+                  </item>
+                  <item row="2" column="1">
+                   <widget class="QGraphicsView" name="graphicsView_45">
+                    <property name="maximumSize">
+                     <size>
+                      <width>100</width>
+                      <height>16777215</height>
+                     </size>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="3" column="1">
+                   <widget class="QDoubleSpinBox" name="doubleSpinBox_107"/>
+                  </item>
+                  <item row="4" column="1">
+                   <widget class="QDoubleSpinBox" name="doubleSpinBox_108"/>
+                  </item>
+                  <item row="5" column="1">
+                   <widget class="QRadioButton" name="radioButton_41">
+                    <property name="text">
+                     <string>RadioButton</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="6" column="1">
+                   <widget class="QRadioButton" name="radioButton_42">
+                    <property name="text">
+                     <string>RadioButton</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="7" column="1">
+                   <widget class="QCheckBox" name="checkBox_39">
+                    <property name="text">
+                     <string>CheckBox</string>
+                    </property>
+                   </widget>
+                  </item>
+                 </layout>
+                </widget>
+               </widget>
+              </item>
+             </layout>
+            </widget>
+           </widget>
+          </item>
+         </layout>
+        </widget>
+        <widget class="QWidget" name="page_full_b">
+         <layout class="QGridLayout" name="gridLayout_10">
+          <item row="0" column="0">
+           <widget class="QGroupBox" name="groupBox_11">
+            <property name="title">
+             <string>Options</string>
+            </property>
+            <layout class="QGridLayout" name="gridLayout_14">
+             <item row="3" column="0">
+              <widget class="QGroupBox" name="groupBox_12">
+               <property name="title">
+                <string>AFM Parameter</string>
+               </property>
+               <layout class="QVBoxLayout" name="verticalLayout_2">
+                <item>
+                 <widget class="QCheckBox" name="checkBox_10">
+                  <property name="text">
+                   <string>CheckBox</string>
+                  </property>
+                 </widget>
+                </item>
+                <item>
+                 <widget class="QCheckBox" name="checkBox_11">
+                  <property name="text">
+                   <string>CheckBox</string>
+                  </property>
+                 </widget>
+                </item>
+                <item>
+                 <widget class="QCheckBox" name="checkBox_12">
+                  <property name="text">
+                   <string>CheckBox</string>
+                  </property>
+                 </widget>
+                </item>
+                <item>
+                 <widget class="QCheckBox" name="checkBox_13">
+                  <property name="text">
+                   <string>CheckBox</string>
+                  </property>
+                 </widget>
+                </item>
+                <item>
+                 <widget class="QCheckBox" name="checkBox_14">
+                  <property name="text">
+                   <string>CheckBox</string>
+                  </property>
+                 </widget>
+                </item>
+                <item>
+                 <widget class="QCheckBox" name="checkBox_15">
+                  <property name="text">
+                   <string>CheckBox</string>
+                  </property>
+                 </widget>
+                </item>
+                <item>
+                 <widget class="QCheckBox" name="checkBox_16">
+                  <property name="text">
+                   <string>CheckBox</string>
+                  </property>
+                 </widget>
+                </item>
+                <item>
+                 <widget class="QCheckBox" name="checkBox_17">
+                  <property name="text">
+                   <string>CheckBox</string>
+                  </property>
+                 </widget>
+                </item>
+                <item>
+                 <widget class="QCheckBox" name="checkBox_18">
+                  <property name="text">
+                   <string>CheckBox</string>
+                  </property>
+                 </widget>
+                </item>
+               </layout>
+              </widget>
+             </item>
+             <item row="0" column="0">
+              <widget class="QGroupBox" name="groupBox_13">
+               <property name="title">
+                <string>AFM Scan parameter</string>
+               </property>
+               <layout class="QGridLayout" name="gridLayout_15">
+                <item row="1" column="2">
+                 <widget class="QDoubleSpinBox" name="doubleSpinBox_19"/>
+                </item>
+                <item row="1" column="1">
+                 <widget class="QDoubleSpinBox" name="doubleSpinBox_20"/>
+                </item>
+                <item row="2" column="1">
+                 <widget class="QDoubleSpinBox" name="doubleSpinBox_23"/>
+                </item>
+                <item row="2" column="2">
+                 <widget class="QDoubleSpinBox" name="doubleSpinBox_22"/>
+                </item>
+                <item row="0" column="1" colspan="2">
+                 <widget class="QLabel" name="label_20">
+                  <property name="text">
+                   <string>Range</string>
+                  </property>
+                  <property name="alignment">
+                   <set>Qt::AlignCenter</set>
+                  </property>
+                 </widget>
+                </item>
+                <item row="3" column="2">
+                 <widget class="QDoubleSpinBox" name="doubleSpinBox_24"/>
+                </item>
+                <item row="3" column="0">
+                 <widget class="QLabel" name="label_23">
+                  <property name="text">
+                   <string>Z</string>
+                  </property>
+                 </widget>
+                </item>
+                <item row="1" column="0">
+                 <widget class="QLabel" name="label_21">
+                  <property name="text">
+                   <string>X</string>
+                  </property>
+                 </widget>
+                </item>
+                <item row="2" column="0">
+                 <widget class="QLabel" name="label_22">
+                  <property name="text">
+                   <string>Y</string>
+                  </property>
+                 </widget>
+                </item>
+                <item row="2" column="3">
+                 <widget class="QSpinBox" name="spinBox_9"/>
+                </item>
+                <item row="3" column="1">
+                 <widget class="QDoubleSpinBox" name="doubleSpinBox_21"/>
+                </item>
+                <item row="1" column="3">
+                 <widget class="QSpinBox" name="spinBox_8"/>
+                </item>
+                <item row="3" column="3">
+                 <widget class="QSpinBox" name="spinBox_7"/>
+                </item>
+                <item row="0" column="3">
+                 <widget class="QLabel" name="label_19">
+                  <property name="text">
+                   <string>Points</string>
+                  </property>
+                 </widget>
+                </item>
+                <item row="4" column="0" colspan="2">
+                 <widget class="QLabel" name="label_28">
+                  <property name="text">
+                   <string>Estimated Time</string>
+                  </property>
+                 </widget>
+                </item>
+                <item row="4" column="2" colspan="2">
+                 <widget class="QLineEdit" name="lineEdit_5"/>
+                </item>
+               </layout>
+              </widget>
+             </item>
+             <item row="2" column="0">
+              <spacer name="verticalSpacer_3">
+               <property name="orientation">
+                <enum>Qt::Vertical</enum>
+               </property>
+               <property name="sizeHint" stdset="0">
+                <size>
+                 <width>20</width>
+                 <height>40</height>
+                </size>
+               </property>
+              </spacer>
+             </item>
+            </layout>
+           </widget>
+          </item>
+          <item row="0" column="1">
+           <widget class="QTabWidget" name="tabWidget_3">
+            <property name="tabPosition">
+             <enum>QTabWidget::South</enum>
+            </property>
+            <property name="tabShape">
+             <enum>QTabWidget::Rounded</enum>
+            </property>
+            <property name="currentIndex">
+             <number>0</number>
+            </property>
+            <property name="elideMode">
+             <enum>Qt::ElideNone</enum>
+            </property>
+            <property name="movable">
+             <bool>true</bool>
+            </property>
+            <widget class="QWidget" name="tab_5">
+             <attribute name="title">
+              <string>Tab1</string>
+             </attribute>
+             <layout class="QGridLayout" name="gridLayout_37">
+              <item row="6" column="1">
+               <widget class="QRadioButton" name="radioButton_43">
+                <property name="text">
+                 <string>RadioButton</string>
+                </property>
+               </widget>
+              </item>
+              <item row="2" column="1">
+               <widget class="QGraphicsView" name="graphicsView_46">
+                <property name="maximumSize">
+                 <size>
+                  <width>100</width>
+                  <height>16777215</height>
+                 </size>
+                </property>
+               </widget>
+              </item>
+              <item row="0" column="1">
+               <widget class="QDoubleSpinBox" name="doubleSpinBox_109"/>
+              </item>
+              <item row="3" column="1">
+               <widget class="QDoubleSpinBox" name="doubleSpinBox_110"/>
+              </item>
+              <item row="4" column="1">
+               <widget class="QDoubleSpinBox" name="doubleSpinBox_111"/>
+              </item>
+              <item row="7" column="1">
+               <widget class="QCheckBox" name="checkBox_40">
+                <property name="text">
+                 <string>CheckBox</string>
+                </property>
+               </widget>
+              </item>
+              <item row="5" column="1">
+               <widget class="QRadioButton" name="radioButton_44">
+                <property name="text">
+                 <string>RadioButton</string>
+                </property>
+               </widget>
+              </item>
+              <item row="1" column="1">
+               <widget class="QDoubleSpinBox" name="doubleSpinBox_112"/>
+              </item>
+              <item row="0" column="0" rowspan="8">
+               <widget class="QGraphicsView" name="graphicsView_47"/>
+              </item>
+             </layout>
+            </widget>
+            <widget class="QWidget" name="tab_6">
+             <attribute name="title">
+              <string>Tab2</string>
+             </attribute>
+             <layout class="QGridLayout" name="gridLayout_38">
+              <item row="0" column="0" rowspan="8">
+               <widget class="QGraphicsView" name="graphicsView_48"/>
+              </item>
+              <item row="0" column="1">
+               <widget class="QDoubleSpinBox" name="doubleSpinBox_113"/>
+              </item>
+              <item row="1" column="1">
+               <widget class="QDoubleSpinBox" name="doubleSpinBox_114"/>
+              </item>
+              <item row="2" column="1">
+               <widget class="QGraphicsView" name="graphicsView_49">
+                <property name="maximumSize">
+                 <size>
+                  <width>100</width>
+                  <height>16777215</height>
+                 </size>
+                </property>
+               </widget>
+              </item>
+              <item row="3" column="1">
+               <widget class="QDoubleSpinBox" name="doubleSpinBox_115"/>
+              </item>
+              <item row="4" column="1">
+               <widget class="QDoubleSpinBox" name="doubleSpinBox_116"/>
+              </item>
+              <item row="5" column="1">
+               <widget class="QRadioButton" name="radioButton_45">
+                <property name="text">
+                 <string>RadioButton</string>
+                </property>
+               </widget>
+              </item>
+              <item row="6" column="1">
+               <widget class="QRadioButton" name="radioButton_46">
+                <property name="text">
+                 <string>RadioButton</string>
+                </property>
+               </widget>
+              </item>
+              <item row="7" column="1">
+               <widget class="QCheckBox" name="checkBox_41">
+                <property name="text">
+                 <string>CheckBox</string>
+                </property>
+               </widget>
+              </item>
+             </layout>
+            </widget>
+            <widget class="QWidget" name="tab_35">
+             <attribute name="title">
+              <string>Tab3</string>
+             </attribute>
+             <layout class="QGridLayout" name="gridLayout_39">
+              <item row="0" column="0" rowspan="8">
+               <widget class="QGraphicsView" name="graphicsView_50"/>
+              </item>
+              <item row="0" column="1">
+               <widget class="QDoubleSpinBox" name="doubleSpinBox_117"/>
+              </item>
+              <item row="1" column="1">
+               <widget class="QDoubleSpinBox" name="doubleSpinBox_118"/>
+              </item>
+              <item row="2" column="1">
+               <widget class="QGraphicsView" name="graphicsView_51">
+                <property name="maximumSize">
+                 <size>
+                  <width>100</width>
+                  <height>16777215</height>
+                 </size>
+                </property>
+               </widget>
+              </item>
+              <item row="3" column="1">
+               <widget class="QDoubleSpinBox" name="doubleSpinBox_119"/>
+              </item>
+              <item row="4" column="1">
+               <widget class="QDoubleSpinBox" name="doubleSpinBox_120"/>
+              </item>
+              <item row="5" column="1">
+               <widget class="QRadioButton" name="radioButton_47">
+                <property name="text">
+                 <string>RadioButton</string>
+                </property>
+               </widget>
+              </item>
+              <item row="6" column="1">
+               <widget class="QRadioButton" name="radioButton_48">
+                <property name="text">
+                 <string>RadioButton</string>
+                </property>
+               </widget>
+              </item>
+              <item row="7" column="1">
+               <widget class="QCheckBox" name="checkBox_42">
+                <property name="text">
+                 <string>CheckBox</string>
+                </property>
+               </widget>
+              </item>
+             </layout>
+            </widget>
+            <widget class="QWidget" name="tab_36">
+             <attribute name="title">
+              <string>Tab4</string>
+             </attribute>
+             <layout class="QGridLayout" name="gridLayout_40">
+              <item row="0" column="0" rowspan="8">
+               <widget class="QGraphicsView" name="graphicsView_52"/>
+              </item>
+              <item row="0" column="1">
+               <widget class="QDoubleSpinBox" name="doubleSpinBox_121"/>
+              </item>
+              <item row="1" column="1">
+               <widget class="QDoubleSpinBox" name="doubleSpinBox_122"/>
+              </item>
+              <item row="2" column="1">
+               <widget class="QGraphicsView" name="graphicsView_53">
+                <property name="maximumSize">
+                 <size>
+                  <width>100</width>
+                  <height>16777215</height>
+                 </size>
+                </property>
+               </widget>
+              </item>
+              <item row="3" column="1">
+               <widget class="QDoubleSpinBox" name="doubleSpinBox_123"/>
+              </item>
+              <item row="4" column="1">
+               <widget class="QDoubleSpinBox" name="doubleSpinBox_124"/>
+              </item>
+              <item row="5" column="1">
+               <widget class="QRadioButton" name="radioButton_49">
+                <property name="text">
+                 <string>RadioButton</string>
+                </property>
+               </widget>
+              </item>
+              <item row="6" column="1">
+               <widget class="QRadioButton" name="radioButton_50">
+                <property name="text">
+                 <string>RadioButton</string>
+                </property>
+               </widget>
+              </item>
+              <item row="7" column="1">
+               <widget class="QCheckBox" name="checkBox_43">
+                <property name="text">
+                 <string>CheckBox</string>
+                </property>
+               </widget>
+              </item>
+             </layout>
+            </widget>
+            <widget class="QWidget" name="tab_37">
+             <attribute name="title">
+              <string>Tab5</string>
+             </attribute>
+             <layout class="QGridLayout" name="gridLayout_41">
+              <item row="0" column="0" rowspan="8">
+               <widget class="QGraphicsView" name="graphicsView_54"/>
+              </item>
+              <item row="0" column="1">
+               <widget class="QDoubleSpinBox" name="doubleSpinBox_125"/>
+              </item>
+              <item row="1" column="1">
+               <widget class="QDoubleSpinBox" name="doubleSpinBox_126"/>
+              </item>
+              <item row="2" column="1">
+               <widget class="QGraphicsView" name="graphicsView_55">
+                <property name="maximumSize">
+                 <size>
+                  <width>100</width>
+                  <height>16777215</height>
+                 </size>
+                </property>
+               </widget>
+              </item>
+              <item row="3" column="1">
+               <widget class="QDoubleSpinBox" name="doubleSpinBox_127"/>
+              </item>
+              <item row="4" column="1">
+               <widget class="QDoubleSpinBox" name="doubleSpinBox_128"/>
+              </item>
+              <item row="5" column="1">
+               <widget class="QRadioButton" name="radioButton_51">
+                <property name="text">
+                 <string>RadioButton</string>
+                </property>
+               </widget>
+              </item>
+              <item row="6" column="1">
+               <widget class="QRadioButton" name="radioButton_52">
+                <property name="text">
+                 <string>RadioButton</string>
+                </property>
+               </widget>
+              </item>
+              <item row="7" column="1">
+               <widget class="QCheckBox" name="checkBox_44">
+                <property name="text">
+                 <string>CheckBox</string>
+                </property>
+               </widget>
+              </item>
+             </layout>
+            </widget>
+            <widget class="QWidget" name="tab_38">
+             <attribute name="title">
+              <string>Tab6</string>
+             </attribute>
+             <layout class="QGridLayout" name="gridLayout_42">
+              <item row="0" column="0" rowspan="8">
+               <widget class="QGraphicsView" name="graphicsView_56"/>
+              </item>
+              <item row="0" column="1">
+               <widget class="QDoubleSpinBox" name="doubleSpinBox_129"/>
+              </item>
+              <item row="1" column="1">
+               <widget class="QDoubleSpinBox" name="doubleSpinBox_130"/>
+              </item>
+              <item row="2" column="1">
+               <widget class="QGraphicsView" name="graphicsView_57">
+                <property name="maximumSize">
+                 <size>
+                  <width>100</width>
+                  <height>16777215</height>
+                 </size>
+                </property>
+               </widget>
+              </item>
+              <item row="3" column="1">
+               <widget class="QDoubleSpinBox" name="doubleSpinBox_131"/>
+              </item>
+              <item row="4" column="1">
+               <widget class="QDoubleSpinBox" name="doubleSpinBox_132"/>
+              </item>
+              <item row="5" column="1">
+               <widget class="QRadioButton" name="radioButton_53">
+                <property name="text">
+                 <string>RadioButton</string>
+                </property>
+               </widget>
+              </item>
+              <item row="6" column="1">
+               <widget class="QRadioButton" name="radioButton_54">
+                <property name="text">
+                 <string>RadioButton</string>
+                </property>
+               </widget>
+              </item>
+              <item row="7" column="1">
+               <widget class="QCheckBox" name="checkBox_45">
+                <property name="text">
+                 <string>CheckBox</string>
+                </property>
+               </widget>
+              </item>
+             </layout>
+            </widget>
+            <widget class="QWidget" name="tab_39">
+             <attribute name="title">
+              <string>Tag7</string>
+             </attribute>
+             <layout class="QGridLayout" name="gridLayout_43">
+              <item row="0" column="0" rowspan="8">
+               <widget class="QGraphicsView" name="graphicsView_58"/>
+              </item>
+              <item row="0" column="1">
+               <widget class="QDoubleSpinBox" name="doubleSpinBox_133"/>
+              </item>
+              <item row="1" column="1">
+               <widget class="QDoubleSpinBox" name="doubleSpinBox_134"/>
+              </item>
+              <item row="2" column="1">
+               <widget class="QGraphicsView" name="graphicsView_59">
+                <property name="maximumSize">
+                 <size>
+                  <width>100</width>
+                  <height>16777215</height>
+                 </size>
+                </property>
+               </widget>
+              </item>
+              <item row="3" column="1">
+               <widget class="QDoubleSpinBox" name="doubleSpinBox_135"/>
+              </item>
+              <item row="4" column="1">
+               <widget class="QDoubleSpinBox" name="doubleSpinBox_136"/>
+              </item>
+              <item row="5" column="1">
+               <widget class="QRadioButton" name="radioButton_55">
+                <property name="text">
+                 <string>RadioButton</string>
+                </property>
+               </widget>
+              </item>
+              <item row="6" column="1">
+               <widget class="QRadioButton" name="radioButton_56">
+                <property name="text">
+                 <string>RadioButton</string>
+                </property>
+               </widget>
+              </item>
+              <item row="7" column="1">
+               <widget class="QCheckBox" name="checkBox_46">
+                <property name="text">
+                 <string>CheckBox</string>
+                </property>
+               </widget>
+              </item>
+             </layout>
+            </widget>
+            <widget class="QWidget" name="tab_40">
+             <attribute name="title">
+              <string>Tab8</string>
+             </attribute>
+             <layout class="QGridLayout" name="gridLayout_44">
+              <item row="0" column="0" rowspan="8">
+               <widget class="QGraphicsView" name="graphicsView_60"/>
+              </item>
+              <item row="0" column="1">
+               <widget class="QDoubleSpinBox" name="doubleSpinBox_137"/>
+              </item>
+              <item row="1" column="1">
+               <widget class="QDoubleSpinBox" name="doubleSpinBox_138"/>
+              </item>
+              <item row="2" column="1">
+               <widget class="QGraphicsView" name="graphicsView_61">
+                <property name="maximumSize">
+                 <size>
+                  <width>100</width>
+                  <height>16777215</height>
+                 </size>
+                </property>
+               </widget>
+              </item>
+              <item row="3" column="1">
+               <widget class="QDoubleSpinBox" name="doubleSpinBox_139"/>
+              </item>
+              <item row="4" column="1">
+               <widget class="QDoubleSpinBox" name="doubleSpinBox_140"/>
+              </item>
+              <item row="5" column="1">
+               <widget class="QRadioButton" name="radioButton_57">
+                <property name="text">
+                 <string>RadioButton</string>
+                </property>
+               </widget>
+              </item>
+              <item row="6" column="1">
+               <widget class="QRadioButton" name="radioButton_58">
+                <property name="text">
+                 <string>RadioButton</string>
+                </property>
+               </widget>
+              </item>
+              <item row="7" column="1">
+               <widget class="QCheckBox" name="checkBox_47">
+                <property name="text">
+                 <string>CheckBox</string>
+                </property>
+               </widget>
+              </item>
+             </layout>
+            </widget>
+            <widget class="QWidget" name="tab_41">
+             <attribute name="title">
+              <string>Tab9</string>
+             </attribute>
+             <layout class="QGridLayout" name="gridLayout_45">
+              <item row="0" column="0" rowspan="8">
+               <widget class="QGraphicsView" name="graphicsView_62"/>
+              </item>
+              <item row="0" column="1">
+               <widget class="QDoubleSpinBox" name="doubleSpinBox_141"/>
+              </item>
+              <item row="1" column="1">
+               <widget class="QDoubleSpinBox" name="doubleSpinBox_142"/>
+              </item>
+              <item row="2" column="1">
+               <widget class="QGraphicsView" name="graphicsView_63">
+                <property name="maximumSize">
+                 <size>
+                  <width>100</width>
+                  <height>16777215</height>
+                 </size>
+                </property>
+               </widget>
+              </item>
+              <item row="3" column="1">
+               <widget class="QDoubleSpinBox" name="doubleSpinBox_143"/>
+              </item>
+              <item row="4" column="1">
+               <widget class="QDoubleSpinBox" name="doubleSpinBox_144"/>
+              </item>
+              <item row="5" column="1">
+               <widget class="QRadioButton" name="radioButton_59">
+                <property name="text">
+                 <string>RadioButton</string>
+                </property>
+               </widget>
+              </item>
+              <item row="6" column="1">
+               <widget class="QRadioButton" name="radioButton_60">
+                <property name="text">
+                 <string>RadioButton</string>
+                </property>
+               </widget>
+              </item>
+              <item row="7" column="1">
+               <widget class="QCheckBox" name="checkBox_48">
+                <property name="text">
+                 <string>CheckBox</string>
+                </property>
+               </widget>
+              </item>
+             </layout>
+            </widget>
+            <widget class="QWidget" name="tab_42">
+             <attribute name="title">
+              <string>Tab10</string>
+             </attribute>
+             <layout class="QGridLayout" name="gridLayout_46">
+              <item row="0" column="0" rowspan="8">
+               <widget class="QGraphicsView" name="graphicsView_64"/>
+              </item>
+              <item row="0" column="1">
+               <widget class="QDoubleSpinBox" name="doubleSpinBox_145"/>
+              </item>
+              <item row="1" column="1">
+               <widget class="QDoubleSpinBox" name="doubleSpinBox_146"/>
+              </item>
+              <item row="2" column="1">
+               <widget class="QGraphicsView" name="graphicsView_65">
+                <property name="maximumSize">
+                 <size>
+                  <width>100</width>
+                  <height>16777215</height>
+                 </size>
+                </property>
+               </widget>
+              </item>
+              <item row="3" column="1">
+               <widget class="QDoubleSpinBox" name="doubleSpinBox_147"/>
+              </item>
+              <item row="4" column="1">
+               <widget class="QDoubleSpinBox" name="doubleSpinBox_148"/>
+              </item>
+              <item row="5" column="1">
+               <widget class="QRadioButton" name="radioButton_61">
+                <property name="text">
+                 <string>RadioButton</string>
+                </property>
+               </widget>
+              </item>
+              <item row="6" column="1">
+               <widget class="QRadioButton" name="radioButton_62">
+                <property name="text">
+                 <string>RadioButton</string>
+                </property>
+               </widget>
+              </item>
+              <item row="7" column="1">
+               <widget class="QCheckBox" name="checkBox_49">
+                <property name="text">
+                 <string>CheckBox</string>
+                </property>
+               </widget>
+              </item>
+             </layout>
+            </widget>
+           </widget>
+          </item>
+         </layout>
+        </widget>
+       </widget>
+      </item>
+      <item>
+       <widget class="QGroupBox" name="status_groupBox">
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
+        <property name="minimumSize">
+         <size>
+          <width>0</width>
+          <height>0</height>
+         </size>
+        </property>
+        <property name="maximumSize">
+         <size>
+          <width>250</width>
+          <height>16777215</height>
+         </size>
+        </property>
+        <property name="title">
+         <string/>
+        </property>
+        <layout class="QGridLayout" name="gridLayout_8">
+         <item row="3" column="0">
+          <widget class="QGroupBox" name="groupBox_3">
+           <property name="title">
+            <string>Current AFM Position</string>
+           </property>
+           <layout class="QGridLayout" name="gridLayout_6">
+            <item row="0" column="2">
+             <widget class="QLabel" name="label_7">
+              <property name="text">
+               <string>Y</string>
+              </property>
+             </widget>
+            </item>
+            <item row="0" column="3">
+             <widget class="QLabel" name="label_8">
+              <property name="text">
+               <string>Z</string>
+              </property>
+             </widget>
+            </item>
+            <item row="1" column="1">
+             <widget class="QDoubleSpinBox" name="doubleSpinBox_7">
+              <property name="readOnly">
+               <bool>true</bool>
+              </property>
+              <property name="buttonSymbols">
+               <enum>QAbstractSpinBox::NoButtons</enum>
+              </property>
+             </widget>
+            </item>
+            <item row="0" column="1">
+             <widget class="QLabel" name="label_9">
+              <property name="text">
+               <string>X</string>
+              </property>
+             </widget>
+            </item>
+            <item row="1" column="2">
+             <widget class="QDoubleSpinBox" name="doubleSpinBox_8">
+              <property name="readOnly">
+               <bool>true</bool>
+              </property>
+              <property name="buttonSymbols">
+               <enum>QAbstractSpinBox::NoButtons</enum>
+              </property>
+             </widget>
+            </item>
+            <item row="1" column="3">
+             <widget class="QDoubleSpinBox" name="doubleSpinBox_9">
+              <property name="readOnly">
+               <bool>true</bool>
+              </property>
+              <property name="buttonSymbols">
+               <enum>QAbstractSpinBox::NoButtons</enum>
+              </property>
+             </widget>
+            </item>
+            <item row="1" column="4">
+             <widget class="QPushButton" name="pushButton_3">
+              <property name="maximumSize">
+               <size>
+                <width>30</width>
+                <height>30</height>
+               </size>
+              </property>
+              <property name="focusPolicy">
+               <enum>Qt::TabFocus</enum>
+              </property>
+              <property name="text">
+               <string/>
+              </property>
+              <property name="icon">
+               <iconset>
+                <normaloff>../../../qnami-qudi/artwork/icons/oxygen/22x22/view-refresh.png</normaloff>../../../qnami-qudi/artwork/icons/oxygen/22x22/view-refresh.png</iconset>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </widget>
+         </item>
+         <item row="4" column="0">
+          <widget class="QGroupBox" name="groupBox_4">
+           <property name="title">
+            <string>Optimizer</string>
+           </property>
+           <layout class="QGridLayout" name="gridLayout_4">
+            <item row="0" column="0">
+             <widget class="QSplitter" name="splitter">
+              <property name="orientation">
+               <enum>Qt::Vertical</enum>
+              </property>
+              <widget class="QWidget" name="horizontalLayoutWidget">
+               <layout class="QHBoxLayout" name="horizontalLayout_2">
+                <item>
+                 <widget class="QGraphicsView" name="graphicsView_3"/>
+                </item>
+                <item>
+                 <widget class="QGraphicsView" name="graphicsView_5">
+                  <property name="maximumSize">
+                   <size>
+                    <width>30</width>
+                    <height>16777215</height>
+                   </size>
+                  </property>
+                 </widget>
+                </item>
+               </layout>
+              </widget>
+              <widget class="QGraphicsView" name="graphicsView_4"/>
+             </widget>
+            </item>
+           </layout>
+          </widget>
+         </item>
+         <item row="0" column="0">
+          <widget class="QGroupBox" name="groupBox_5">
+           <property name="title">
+            <string/>
+           </property>
+           <layout class="QGridLayout" name="gridLayout_7">
+            <item row="1" column="1">
+             <widget class="QLineEdit" name="lineEdit_2"/>
+            </item>
+            <item row="0" column="1">
+             <widget class="QLineEdit" name="lineEdit"/>
+            </item>
+            <item row="0" column="0">
+             <widget class="QLabel" name="label">
+              <property name="text">
+               <string>Tip</string>
+              </property>
+             </widget>
+            </item>
+            <item row="1" column="0">
+             <widget class="QLabel" name="label_2">
+              <property name="text">
+               <string>Sample</string>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </widget>
+         </item>
+         <item row="1" column="0">
+          <widget class="QGroupBox" name="groupBox">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
+           <property name="maximumSize">
+            <size>
+             <width>16777215</width>
+             <height>120</height>
+            </size>
+           </property>
+           <property name="title">
+            <string>Status Message</string>
+           </property>
+           <layout class="QGridLayout" name="gridLayout_3">
+            <item row="0" column="0">
+             <widget class="QPlainTextEdit" name="plainTextEdit">
+              <property name="sizePolicy">
+               <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
+                <horstretch>0</horstretch>
+                <verstretch>0</verstretch>
+               </sizepolicy>
+              </property>
+              <property name="focusPolicy">
+               <enum>Qt::WheelFocus</enum>
+              </property>
+              <property name="readOnly">
+               <bool>true</bool>
+              </property>
+             </widget>
+            </item>
+            <item row="1" column="0">
+             <widget class="QProgressBar" name="progressBar">
+              <property name="value">
+               <number>0</number>
+              </property>
+              <property name="alignment">
+               <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+              </property>
+              <property name="textDirection">
+               <enum>QProgressBar::TopToBottom</enum>
+              </property>
+              <property name="format">
+               <string>%p%</string>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </widget>
+         </item>
+         <item row="2" column="0">
+          <widget class="QGroupBox" name="groupBox_2">
+           <property name="title">
+            <string>Current Objective Position</string>
+           </property>
+           <layout class="QGridLayout" name="gridLayout_5">
+            <item row="0" column="2">
+             <widget class="QLabel" name="label_5">
+              <property name="text">
+               <string>Y</string>
+              </property>
+             </widget>
+            </item>
+            <item row="0" column="3">
+             <widget class="QLabel" name="label_6">
+              <property name="text">
+               <string>Z</string>
+              </property>
+             </widget>
+            </item>
+            <item row="1" column="1">
+             <widget class="QDoubleSpinBox" name="doubleSpinBox_4">
+              <property name="readOnly">
+               <bool>true</bool>
+              </property>
+              <property name="buttonSymbols">
+               <enum>QAbstractSpinBox::NoButtons</enum>
+              </property>
+             </widget>
+            </item>
+            <item row="0" column="1">
+             <widget class="QLabel" name="label_4">
+              <property name="text">
+               <string>X</string>
+              </property>
+             </widget>
+            </item>
+            <item row="1" column="2">
+             <widget class="QDoubleSpinBox" name="doubleSpinBox_5">
+              <property name="readOnly">
+               <bool>true</bool>
+              </property>
+              <property name="buttonSymbols">
+               <enum>QAbstractSpinBox::NoButtons</enum>
+              </property>
+             </widget>
+            </item>
+            <item row="1" column="3">
+             <widget class="QDoubleSpinBox" name="doubleSpinBox_6">
+              <property name="readOnly">
+               <bool>true</bool>
+              </property>
+              <property name="buttonSymbols">
+               <enum>QAbstractSpinBox::NoButtons</enum>
+              </property>
+             </widget>
+            </item>
+            <item row="1" column="4">
+             <widget class="QPushButton" name="pushButton_2">
+              <property name="sizePolicy">
+               <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+                <horstretch>0</horstretch>
+                <verstretch>0</verstretch>
+               </sizepolicy>
+              </property>
+              <property name="maximumSize">
+               <size>
+                <width>30</width>
+                <height>30</height>
+               </size>
+              </property>
+              <property name="focusPolicy">
+               <enum>Qt::TabFocus</enum>
+              </property>
+              <property name="text">
+               <string/>
+              </property>
+              <property name="icon">
+               <iconset>
+                <normaloff>../../../qnami-qudi/artwork/icons/oxygen/22x22/view-refresh.png</normaloff>../../../qnami-qudi/artwork/icons/oxygen/22x22/view-refresh.png</iconset>
+              </property>
+              <property name="iconSize">
+               <size>
+                <width>16</width>
+                <height>16</height>
+               </size>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </widget>
+         </item>
+        </layout>
+       </widget>
+      </item>
+     </layout>
+    </item>
+    <item row="0" column="1">
+     <widget class="QWidget" name="logo_widget" native="true">
+      <property name="sizePolicy">
+       <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+        <horstretch>0</horstretch>
+        <verstretch>0</verstretch>
+       </sizepolicy>
+      </property>
+      <property name="maximumSize">
+       <size>
+        <width>200</width>
+        <height>16777215</height>
+       </size>
+      </property>
+     </widget>
+    </item>
+    <item row="0" column="0">
+     <widget class="QGroupBox" name="meas_op_groupBox">
+      <property name="layoutDirection">
+       <enum>Qt::LeftToRight</enum>
+      </property>
+      <property name="title">
+       <string>Measurement Operations</string>
+      </property>
+      <property name="alignment">
+       <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
+      </property>
+      <property name="flat">
+       <bool>false</bool>
+      </property>
+      <property name="checkable">
+       <bool>false</bool>
+      </property>
+      <layout class="QHBoxLayout" name="horizontalLayout">
+       <item>
+        <widget class="QRadioButton" name="radioButton_3">
+         <property name="text">
+          <string>Preparation</string>
+         </property>
+         <property name="checked">
+          <bool>true</bool>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QRadioButton" name="meas_op_confocal_radioButton">
+         <property name="layoutDirection">
+          <enum>Qt::LeftToRight</enum>
+         </property>
+         <property name="text">
+          <string>Confocal</string>
+         </property>
+         <property name="iconSize">
+          <size>
+           <width>16</width>
+           <height>16</height>
+          </size>
+         </property>
+         <property name="checked">
+          <bool>false</bool>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="Line" name="line">
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Fixed" vsizetype="Minimum">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
+         </property>
+         <property name="lineWidth">
+          <number>1</number>
+         </property>
+         <property name="midLineWidth">
+          <number>0</number>
+         </property>
+         <property name="orientation">
+          <enum>Qt::Vertical</enum>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QRadioButton" name="meas_op_quenching_radioButton">
+         <property name="text">
+          <string>Quenching</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="Line" name="line_2">
+         <property name="orientation">
+          <enum>Qt::Vertical</enum>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QRadioButton" name="meas_op_single_isob_radioButton">
+         <property name="text">
+          <string>Single IsoB</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="Line" name="line_3">
+         <property name="orientation">
+          <enum>Qt::Vertical</enum>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QRadioButton" name="meas_op_full_b_radioButton">
+         <property name="text">
+          <string>Full B</string>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </widget>
+    </item>
+   </layout>
+  </widget>
+  <widget class="QMenuBar" name="menubar">
+   <property name="geometry">
+    <rect>
+     <x>0</x>
+     <y>0</y>
+     <width>1024</width>
+     <height>21</height>
+    </rect>
+   </property>
+   <widget class="QMenu" name="menuAbout">
+    <property name="title">
+     <string>About</string>
+    </property>
+   </widget>
+   <widget class="QMenu" name="menuSettings">
+    <property name="title">
+     <string>Settings</string>
+    </property>
+   </widget>
+   <addaction name="menuSettings"/>
+   <addaction name="menuAbout"/>
+  </widget>
+  <widget class="QStatusBar" name="statusbar"/>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>
