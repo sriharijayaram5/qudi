@@ -37,9 +37,95 @@ from deprecation import deprecated
 
 from qtpy import QtCore
 
+import traceback
+import sys
+
+#TODO: Write this to its own file because this is a pretty general way of 
+#      creating Threaded objects/methods.
+#
+# this implementation was adapted from here:
+#https://www.learnpyqt.com/tutorials/multithreading-pyqt-applications-qthreadpool/
+
+class WorkerThread(QtCore.QRunnable):
+    """ Create a simple Worker Thread class, with a similar usage to a python
+    Thread object. This Runnable Thread object is indented to be run from a
+    QThreadpool.
+
+    @param obj_reference target: A reference to a method, which will be executed
+                                 with the given arguments and keyword arguments.
+                                 Note, if no target function or method is passed
+                                 then nothing will be executed in the run
+                                 routine. This will serve as a dummy thread.
+    @param tuple args: Arguments to make available to the run code, should be
+                       passed in the form of a tuple
+    @param dict kwargs: Keywords arguments to make available to the run code
+                        should be passed in the form of a dict
+    @param str name: optional, give the thread a name to identify it.
+
+    Signals:
+        sigFinished(): will be fired if measurement is finished
+        sigError(tuple): contains error in the form tuple(exctype, value, traceback.format_exc() )
+        sigResult(object): contains the data of the result of the target function
+        sigProgress(int): can be used to indicate progress
+    """
+
+    # signals of these object
+    sigFinished = QtCore.Signal()
+    sigError = QtCore.Signal(tuple)
+    sigResult = QtCore.Signal(object)
+    sigProgress = QtCore.Signal(int)
+
+    #FIXME: change function signature to something like (self, target=None, name='', *args, **kwargs)
+    def __init__(self, target=None, args=(), kwargs={}, name=''):
+        super(WorkerThread, self).__init__()
+        # Store constructor arguments (re-used for processing)
+        self.target = target
+        self.args = args
+        self.kwargs = kwargs
+
+        if name == '':
+            name = str(self.get_thread_obj_id())
+
+        self.name = name
+        self._is_running = False
+
+    def get_thread_obj_id(self):
+        """ Get the ID from the current thread object. """
+
+        return id(self)
+
+    @QtCore.Slot()
+    def run(self):
+        """ Initialise the runner function with passed self.args, self.kwargs."""
+
+        try:
+            if self.target is None:
+                return
+
+            self._is_running = True
+            result = self.target(*self.args, **self.kwargs)
+        except:
+            traceback.print_exc()
+            exctype, value = sys.exc_info()[:2]
+            self.sigError.emit((exctype, value, traceback.format_exc()))
+        else:
+            self.sigResult.emit(result)  # Return the result of the processing
+        finally:
+            self.sigFinished.emit()  # Done
+            
+        self._is_running = False
+
+    def is_running(self):
+        return self._is_running
+
+    def autoDelete(self):
+        """ Delete the thread. """
+        self._is_running = False
+        return super(WorkerThread, self).autoDelete()
+
 
 class ScanLogic(GenericLogic):
-    """ Main AFM logic class providing advanced measurement control. """
+    """ Main Scanning logic of the ProteusQ. """
 
 
     _modclass = 'ScanLogic'
