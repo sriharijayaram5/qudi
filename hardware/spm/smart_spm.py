@@ -356,6 +356,7 @@ class SmartSPM(Base):
         # for server interfaces less than aist 3.5.150, ServerInterfaceVersion() returns -1
         self._lib.ServerInterfaceVersion.restype = c_int
         self._lib.ClientInterfaceVersion.restype = c_int
+        self._lib.IsServerCompatible.restype = c_bool
 
         self._lib.SendLogMessage.argtypes = [c_char_p, c_char_p]
         self._lib.SendLogMessage.restype = None
@@ -454,7 +455,7 @@ class SmartSPM(Base):
         return bool(self._lib.IsConnected())
 
     def server_interface_version(self):
-        if self.is_connected():
+        if hasattr(self, '_lib') and self.is_connected():
             # returns -1 if servers software is < 3.5.150
             return self._lib.ServerInterfaceVersion()
         else:
@@ -462,6 +463,10 @@ class SmartSPM(Base):
 
     def client_interface_version(self):
         return self._lib.ClientInterfaceVersion()
+
+    def is_server_compatible(self):
+        if hasattr(self, '_lib') and self.is_connected():
+            return self._lib.IsServerCompatible()
 
     def connect_spm(self):
         """ Establish connection to SPM-software. 
@@ -495,18 +500,17 @@ class SmartSPM(Base):
 
         clientv = self.client_interface_version()
         serverv = self.server_interface_version()
+        isCompatible = self.is_server_compatible()
 
-        is_ok = False
-        if serverv < 0:
-            self.log.warning(f"SPM server side is old and inconsistent with client side; use {self._spm_dll_ver}")
-        elif clientv > serverv:
-            self.log.warning(f"SPM client > server interface; possible incompatibilities; use aist version= {self._spm_dll_ver}")
-        elif clientv < serverv:
-            self.log.warning(f"SPM server > client interface; possible incompatibilities; use aist version= {self._spm_dll_ver}")
-        else:
-            is_ok = True
+        if not isCompatible:
+            if serverv < 0:
+                self.log.warning(f"SPM server side is old and inconsistent with client side; use {self._spm_dll_ver}")
+            elif clientv > serverv:
+                self.log.warning(f"SPM client > server interface; possible incompatibilities; use aist version= {self._spm_dll_ver}")
+            elif clientv < serverv:
+                self.log.warning(f"SPM server > client interface; possible incompatibilities; use aist version= {self._spm_dll_ver}")
 
-        return is_ok
+        return isCompatible 
 
     def send_log_message(self, message):
         """ Send a log message to the spm software.

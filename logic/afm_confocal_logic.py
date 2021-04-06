@@ -640,7 +640,8 @@ class AFMConfocalLogic(GenericLogic):
         if request is None:
             request = ['available_features','unlocked_features',
                        'fpga_version','dac_alarms',
-                       'spm_library_version','spm_server_version','spm_client_version' ]
+                       'spm_library_version',
+                       'spm_server_version','spm_client_version','spm_is_server_compatible' ]
 
         status = dict()
         if 'available_features' in request:
@@ -663,6 +664,9 @@ class AFMConfocalLogic(GenericLogic):
 
         if 'spm_client_version' in request:
             status['spm_client_version'] = self._spm.client_interface_version()
+    
+        if 'spm_is_server_compatible' in request:
+            status['spm_is_server_compatible'] = self._spm.is_server_compatible()
         
         return status
 
