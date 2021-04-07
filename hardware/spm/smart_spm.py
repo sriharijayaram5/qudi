@@ -1640,6 +1640,7 @@ class SmartSPM(Base):
         """
         return self._lib.ProbeLand2()
 
+    #FIXME: THIS FUNCTION IS DEPRECATED! DO NOT USE IT!
     #FIXME: make function name consistent, choose either x_val, y_val, z_val or
     #       a general name e.g. coord0, coord1, coord2
     def setup_scan_line_xyz(self, x_start, x_stop, y_start, y_stop, z_start, 
