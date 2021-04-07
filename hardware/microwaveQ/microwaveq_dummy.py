@@ -67,15 +67,19 @@ class MicrowaveQDummy(Base):
     # RecorderInterface:
 
     """
-    prepare_pixelclock
+    prepare_pixelclock                  => configure_recorder(mode, params)
     prepare_pixelclock_single_iso_b
-    arm_device
+
+    arm_device  => start_recorder(arm=True)
+
     get_line
     stop_measurement
         get_counter() ==> NOT USED!!
+    
     prepare_cw_esr
     start_esr
     get_esr_meas
+    
     get_device_mode
     is_measurement_running
     meas_cond   => should be not accessed!!
@@ -83,5 +87,51 @@ class MicrowaveQDummy(Base):
     #TODO: GPI and GPO control !!!
     """
 
+
+    # Interface methods
+    """
+    configure_recorder(mode, params)
+    start_recorder(arm=True)
+    get_measurement()  => blocking method, either with timeout or stoppable via stop measurement
+    stop_measurement()  => hardcore stop mechanism
+
+    get_parameter_for_modes()   => obtain the required parameter for the current mode
+    get_current_device_mode()
+    get_current_device_state()
+    """
+
+    # OPERATION_MODES   => get_available_recorder_modes()  can be also configured in DUMMY or UNCONFIGURED
+    """
+    PIXELCLOCK                  
+    PIXELCLOCK_SINGLE_ISO_B
+    PIXELCLOCK_N_ISO_B
+
+    CW_MW
+    ESR
+    PULSED_ESR
+    COUNTER
+
+    PULSED
+    """
+
+    #RECORDER_STATE     => get_recorder_state()
+    """
+    DISCONNECTED
+    IDLE
+    ARMED => whenever new data arrives switch to BUSY
+    BUSY => whenever finished with data switch to idle
+    """
+
+
+
+    # Modes which are used in MicrowaveQ, these are implemented in logic
+    """
+    optimizer
+    confocal
+    quenching
+    single-iso-b
+    dual-iso-b
+    full-b 
+    """
 
 
