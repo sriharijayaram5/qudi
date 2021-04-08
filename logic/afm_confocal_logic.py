@@ -171,6 +171,7 @@ class AFMConfocalLogic(GenericLogic):
     _iso_b_single_mode = StatusVar(default=True)
     _freq1_iso_b_frequency = StatusVar(default=500e6)
     _freq2_iso_b_frequency = StatusVar(default=550e6)
+    _fwhm_iso_b_frequency = StatusVar(default=10e6)
     _iso_b_gain = StatusVar(default=0.0)
 
     # acceptable object types for gwyddion
@@ -687,15 +688,21 @@ class AFMConfocalLogic(GenericLogic):
         """ Check whether single iso-b is switched on. """
         return self._sg_iso_b_single_mode
 
-    def set_iso_b_params(self, single_mode=None, freq1=None, freq2=None, gain=None):
+    def set_iso_b_params(self, single_mode=None, freq1=None, freq2=None, fwhm=None, gain=None):
 
         if single_mode is not None:
             self._iso_b_single_mode = single_mode
             self.set_iso_b_mode(state=single_mode)
+
         if freq1 is not None:
             self._freq1_iso_b_frequency = freq1
+
         if freq2 is not None:
             self._freq2_iso_b_frequency = freq2
+
+        if fwhm is not None:
+            self._fwhm_iso_b_frequency = fwhm
+
         if gain is not None:
             self._iso_b_gain = gain
 
@@ -707,6 +714,7 @@ class AFMConfocalLogic(GenericLogic):
                self._sg_iso_b_single_mode, \
                self._freq1_iso_b_frequency, \
                self._freq2_iso_b_frequency, \
+               self._fwhm_iso_b_frequency, \
                self._iso_b_gain
 
 
@@ -821,7 +829,8 @@ class AFMConfocalLogic(GenericLogic):
                     # add counts2 parameter
                     curr_scan_params.insert(1, 'counts2')      # fluorescence of freq2 parameter
                     curr_scan_params.insert(2, 'counts_diff')  # difference in 'counts2' - 'counts' 
-                    spm_start_idx = 3 # start index of the temporary scan for the spm parameters
+                    curr_scan_params.insert(3, 'b_field')  # insert the magnetic field parameter
+                    spm_start_idx = 4 # start index of the temporary scan for the spm parameters
 
                     self.log.info(f'Prepared pixelclock dual iso b, val {ret_val_mq}')
 
@@ -927,9 +936,18 @@ class AFMConfocalLogic(GenericLogic):
             if 'counts2' in meas_params:
                 i = meas_params.index('counts2')
                 self._qafm_scan_line[i] = self._counter.get_line('counts2')/freq2_pulse_time
+
                 i = meas_params.index('counts_diff')
                 self._qafm_scan_line[i] = self._counter.get_line('counts_diff')/ \
                     (freq1_pulse_time + freq2_pulse_time) / 2
+
+                i = meas_params.index('b_field')
+                self._qafm_scan_line[i] = self.calc_mag_field_dual_iso_b(
+                    counts1=self._counter.get_line('counts'),
+                    counts2=self._counter.get_line('counts2'),
+                    freq1=self._freq1_iso_b_frequency,
+                    freq2=self._freq2_iso_b_frequency,
+                    sigma=self._fwhm_iso_b_frequency / 2)
 
             if reverse_meas:
 
@@ -982,13 +1000,6 @@ class AFMConfocalLogic(GenericLogic):
 
                     # save to the corresponding matrix line and renormalize the results to SI units:
                     self._qafm_scan_array[name]['data'][line_num // 2] = self._qafm_scan_line[index] * self._qafm_scan_array[name]['scale_fac']
-
-                    #if 'counts2' in param_name:
-                    #    # special tranformation for dual iso-B, form the counts_diff
-                    #    self._qafm_scan_array['counts_diff_fw']['data'][line_num // 2] = \
-                    #        self._qafm_scan_array['counts2_fw']['data'][line_num // 2]  \
-                    #        - self._qafm_scan_array['counts_fw']['data'][line_num // 2] 
-
 
                 # ==== BUG FIX Normalization Adjustment of AFM data - Start ====
                 # normalization flag will be set when optimization is requested.
@@ -1288,8 +1299,8 @@ class AFMConfocalLogic(GenericLogic):
 #           Quantitative Mode with ESR forward and backward movement
 # ==============================================================================
 
-
-    def calc_mag_field_single_res(self, res_freq, zero_field=2.87e9, e_field=0.0):
+    @staticmethod
+    def calc_mag_field_single_res(res_freq, zero_field=2.87e9, e_field=0.0):
         """ Calculate the magnetic field experience by the NV, assuming low 
             mag. field.
 
@@ -1302,8 +1313,8 @@ class AFMConfocalLogic(GenericLogic):
 
         return np.sqrt(abs(res_freq - zero_field)**2 - e_field**2) / gyro_nv
 
-
-    def calc_mag_field_double_res(self, res_freq_low, res_freq_high, 
+    @staticmethod
+    def calc_mag_field_double_res(res_freq_low, res_freq_high, 
                                   zero_field=2.87e9, e_field=0.0):
         """ Calculate the magnetic field experience by the NV, assuming low 
             mag. field by measuring two frequencies.
@@ -1323,6 +1334,52 @@ class AFMConfocalLogic(GenericLogic):
         gyro_nv = 28e9  # gyromagnetic ratio of the NV in Hz/T (would be 28 GHz/T)
 
         return np.sqrt((res_freq_low**2 +res_freq_high**2 - res_freq_low*res_freq_high - zero_field**2)/3 - e_field**2) / gyro_nv
+
+    @staticmethod
+    def calc_mag_field_dual_iso_b(counts1, counts2, freq1, freq2, sigma=None):
+        """ Calculate the relative magnetic field in the dual isoB situation, 
+            where counts1 and counts2 refer to photon count at lower & upper frequencies respectively.
+            For initialization, sigma = FWHM/2;  d = abs(freq2 - freq1)/2.  Ideally, freq1 & freq2
+            will be chosen such that d = abs(freq2 - freq1)/2 = sigma/sqrt(3).  This gives the inflection 
+            point of the Lorenztian. In short, a centered definition is freq1 = x_0 - d; freq2 = x_0 + d
+            Refer to qudi\logic\lorentzianlikemethods.py
+                             !      A
+                f(x=x_0) = I = -----------
+                                pi * sigma
+
+
+                                            _                            _
+                                            |         (sigma)^2          |
+                L(x; I, x_0, sigma) =   I * |  --------------------------|
+                                            |_ (x_0 - x)^2 + (sigma)^2  _|
+
+        @param float counts1: counts achieved at lower frequency (left of dip) (c/s)
+        @param float counts2: counts achieved at upper frequency (right of dip) (c/s)
+        @param float freq1: lower frequency (Hz)
+        @param float freq2: upper frequency (Hz)
+        @param float sigma: width of curve at HWHM.  At FWHM, this is 2*sigma
+
+        @return float mag_field: the relative mag. field of the NV in Tesla
+        """
+
+        ratio = counts1/counts2
+        d = abs(freq2 - freq1)/2
+
+        if sigma is None:
+            sigma = d 
+
+        if ratio < 1:
+            # using eps1 method, 
+            mag_field = np.sqrt( 4*d**2 * ( ratio/ (1-ratio)**2) -sigma**2) \
+                        - d * ( (1+ratio)/(1-ratio))
+
+        else:
+            # using eps4 method (x,d,sigma)
+            mag_field = - np.sqrt( 4*d**2 * ( ratio/ (ratio-1)**2) -sigma**2) \
+                        + d * ( (1+ratio)/(ratio-1))
+
+        return mag_field
+
 
 
     def scan_area_quanti_qafm_fw_bw_by_point(self, coord0_start, coord0_stop,

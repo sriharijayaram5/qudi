@@ -303,6 +303,7 @@ class ProteusQGUI(GUIBase):
         self._mw.use_dual_isob_RadioButton.toggled.connect(self._enable_dual_iso_b_plots)
         self._mw.freq1_isob_freq_DSpinBox.valueChanged.connect(self._set_freq1_iso_b_freq)
         self._mw.freq2_isob_freq_DSpinBox.valueChanged.connect(self._set_freq2_iso_b_freq)
+        self._mw.fwhm_isob_freq_DSpinBox.valueChanged.connect(self._set_fwhm_iso_b_freq)
         self._mw.isob_gain_DSpinBox.valueChanged.connect(self._set_iso_b_gain)
 
         self._mw.freq1_isob_freq_DSpinBox.setMinimalStep = 10e3
@@ -608,15 +609,19 @@ class ProteusQGUI(GUIBase):
         self._qafm_logic.set_iso_b_params(single_mode=single_mode)
 
     def _set_freq1_iso_b_freq(self, freq1):
-        #print('val changed:', freq1)
+        #print('freq1 changed:', freq1)
         self._qafm_logic.set_iso_b_params(freq1=freq1)
 
     def _set_freq2_iso_b_freq(self, freq2):
-        #print('val changed:', freq2)
+        #print('freq2 changed:', freq2)
         self._qafm_logic.set_iso_b_params(freq2=freq2)
 
+    def _set_fwhm_iso_b_freq(self, fwhm):
+        #print('fwhm changed', fwhm)
+        self._qafm_logic.set_iso_b_params(fwhm=fwhm)
+
     def _set_iso_b_gain(self, gain):
-        #print('val changed:', gain)
+        #print('gain changed:', gain)
         self._qafm_logic.set_iso_b_params(gain=gain)  
 
     def _enable_dual_iso_b_plots(self,enable):
@@ -635,24 +640,43 @@ class ProteusQGUI(GUIBase):
         self._mw.use_dual_isob_RadioButton.blockSignals(True) 
         self._mw.freq1_isob_freq_DSpinBox.blockSignals(True)
         self._mw.freq2_isob_freq_DSpinBox.blockSignals(True)
+        self._mw.fwhm_isob_freq_DSpinBox.blockSignals(True)
         self._mw.isob_gain_DSpinBox.blockSignals(True)
+        self._mw.calibrate_dual_isob_PushButton.blockSignals(True)
 
-        iso_b_operation, single_mode, freq1, freq2, gain = \
+        iso_b_operation, single_mode, freq1, freq2, fwhm, gain = \
             self._qafm_logic.get_iso_b_params()
 
         if single_mode is not None:
             if single_mode == True:
+                # inputs
                 self._mw.use_single_isob_RadioButton.setChecked(True)
                 self._mw.freq2_isob_freq_DSpinBox.setEnabled(False)
+                self._mw.fwhm_isob_freq_DSpinBox.setEnabled(False)
+                self._mw.calibrate_dual_isob_PushButton.setEnabled(False)
+
+                # labels
+                self._mw.mw_freq2_Label.setEnabled(False)
+                self._mw.odmr_fwhm_Label.setEnabled(False)
             else:
+                # inputs
                 self._mw.use_dual_isob_RadioButton.setChecked(True)
                 self._mw.freq2_isob_freq_DSpinBox.setEnabled(True)
+                self._mw.fwhm_isob_freq_DSpinBox.setEnabled(True)
+                self._mw.calibrate_dual_isob_PushButton.setEnabled(True)
+
+                # labels
+                self._mw.mw_freq2_Label.setEnabled(True)
+                self._mw.odmr_fwhm_Label.setEnabled(True)
 
         if freq1 is not None:
             self._mw.freq1_isob_freq_DSpinBox.setValue(freq1)
 
         if freq2 is not None:
             self._mw.freq2_isob_freq_DSpinBox.setValue(freq2)
+
+        if fwhm is not None:
+            self._mw.fwhm_isob_freq_DSpinBox.setValue(fwhm)
 
         if gain is not None:
             self._mw.isob_gain_DSpinBox.setValue(gain)
@@ -663,7 +687,9 @@ class ProteusQGUI(GUIBase):
         self._mw.use_dual_isob_RadioButton.blockSignals(False) 
         self._mw.freq1_isob_freq_DSpinBox.blockSignals(False)
         self._mw.freq2_isob_freq_DSpinBox.blockSignals(False)
+        self._mw.fwhm_isob_freq_DSpinBox.blockSignals(False)
         self._mw.isob_gain_DSpinBox.blockSignals(False)
+        self._mw.calibrate_dual_isob_PushButton.blockSignals(False)
 
 
     def update_qafm_settings(self):
@@ -1757,7 +1783,7 @@ class ProteusQGUI(GUIBase):
         # add dual ISO-B mode parameter if necessary
         if self._qafm_logic._sg_iso_b_operation \
            and not self._qafm_logic._sg_iso_b_single_mode:
-           meas_params.extend(['counts2', 'counts_diff'])
+           meas_params.extend(['counts2', 'counts_diff','b_field'])
 
         for entry in self._checkbox_container:
             if self._checkbox_container[entry].isChecked():

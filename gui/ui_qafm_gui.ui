@@ -858,24 +858,24 @@
         <string>Single/Dual Iso-B</string>
        </property>
        <layout class="QGridLayout" name="gridLayout_11">
-        <item row="0" column="0">
-         <widget class="QLabel" name="label_23">
+        <item row="2" column="0">
+         <widget class="QLabel" name="mw_gain_Label">
           <property name="text">
-           <string>MW Frequency 1</string>
+           <string>MW gain</string>
           </property>
          </widget>
         </item>
         <item row="0" column="1">
-         <widget class="QLabel" name="label_25">
+         <widget class="QLabel" name="mw_freq2_Label">
           <property name="text">
            <string>MW Frequency 2</string>
           </property>
          </widget>
         </item>
-        <item row="2" column="0">
-         <widget class="QLabel" name="label_24">
+        <item row="0" column="0">
+         <widget class="QLabel" name="mw_freq1_Label">
           <property name="text">
-           <string>MW gain</string>
+           <string>MW Frequency 1</string>
           </property>
          </widget>
         </item>
@@ -918,6 +918,26 @@
           </property>
          </widget>
         </item>
+        <item row="2" column="1">
+         <widget class="QLabel" name="odmr_fwhm_Label">
+          <property name="text">
+           <string>ODMR FWHM</string>
+          </property>
+         </widget>
+        </item>
+        <item row="3" column="1">
+         <widget class="ScienDSpinBox" name="fwhm_isob_freq_DSpinBox">
+          <property name="suffix">
+           <string>Hz</string>
+          </property>
+          <property name="maximum">
+           <double>10000000000.000000000000000</double>
+          </property>
+          <property name="singleStep">
+           <double>0.010000000000000</double>
+          </property>
+         </widget>
+        </item>
        </layout>
       </widget>
      </item>
@@ -937,6 +957,13 @@
         <widget class="QRadioButton" name="use_dual_isob_RadioButton">
          <property name="text">
           <string>Dual Iso-B</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QPushButton" name="calibrate_dual_isob_PushButton">
+         <property name="text">
+          <string>Calibrate</string>
          </property>
         </widget>
        </item>
