@@ -1361,22 +1361,32 @@ class AFMConfocalLogic(GenericLogic):
 
         @return float mag_field: the relative mag. field of the NV in Tesla
         """
+        # protect against /0; ideally counts2 is very large and 1 is ~0
+        c2 = counts2.copy()
+        c2[c2 == 0] = 1
 
-        ratio = counts1/counts2
+        ratio = counts1/c2
         d = abs(freq2 - freq1)/2
 
         if sigma is None:
             sigma = d 
 
-        if ratio < 1:
-            # using eps1 method, 
-            mag_field = np.sqrt( 4*d**2 * ( ratio/ (1-ratio)**2) -sigma**2) \
-                        - d * ( (1+ratio)/(1-ratio))
+        # at ratio = 1, the field is 0
+        mag_field = np.zeros_like(counts1,dtype='float64')
 
-        else:
-            # using eps4 method (x,d,sigma)
-            mag_field = - np.sqrt( 4*d**2 * ( ratio/ (ratio-1)**2) -sigma**2) \
-                        + d * ( (1+ratio)/(ratio-1))
+        # using eps1 method, ratio < 1
+        s = ratio < 1
+        operand = 4*d**2 * ( ratio[s]/ (1-ratio[s])**2) -sigma**2
+        operand[operand < 0.0 ] = 0.0
+            
+        mag_field[s] = np.sqrt(operand) - d * ( (1+ratio[s])/(1-ratio[s]))
+
+        # using eps4 method, ratio > 1 
+        s = ratio > 1
+        operand = 4*d**2 * ( ratio[s]/ (ratio[s]-1)**2) -sigma**2
+        operand[operand < 0.0 ] = 0.0
+
+        mag_field[s] = -np.sqrt(operand) + d * ( (1+ratio[s])/(ratio[s]-1))
 
         return mag_field
 
