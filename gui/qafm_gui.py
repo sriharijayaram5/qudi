@@ -663,7 +663,9 @@ class ProteusQGUI(GUIBase):
                 self._mw.use_dual_isob_RadioButton.setChecked(True)
                 self._mw.freq2_isob_freq_DSpinBox.setEnabled(True)
                 self._mw.fwhm_isob_freq_DSpinBox.setEnabled(True)
-                self._mw.calibrate_dual_isob_PushButton.setEnabled(True)
+                #self._mw.calibrate_dual_isob_PushButton.setEnabled(True)
+                # for now disabled till next release
+                self._mw.calibrate_dual_isob_PushButton.setEnabled(False)  
 
                 # labels
                 self._mw.mw_freq2_Label.setEnabled(True)

@@ -498,11 +498,11 @@ class SmartSPM(Base):
         if pause is not None:
             time.sleep(pause)
 
-        clientv = self.client_interface_version()
-        serverv = self.server_interface_version()
         isCompatible = self.is_server_compatible()
 
         if not isCompatible:
+            clientv = self.client_interface_version()
+            serverv = self.server_interface_version()
             if serverv < 0:
                 self.log.warning(f"SPM server side is old and inconsistent with client side; use {self._spm_dll_ver}")
             elif clientv > serverv:
