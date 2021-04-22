@@ -658,18 +658,30 @@ class ProteusQGUI(GUIBase):
                 # labels
                 self._mw.mw_freq2_Label.setEnabled(False)
                 self._mw.odmr_fwhm_Label.setEnabled(False)
+
+                # changes to remove magnetic field calcuation
+                self._mw.fwhm_isob_freq_DSpinBox.setVisible(False) # for now  hidden
+                self._mw.calibrate_dual_isob_PushButton.setVisible(False)  
+                self._mw.odmr_fwhm_Label.setVisible(False)  # for now hidden
+
             else:
                 # inputs
                 self._mw.use_dual_isob_RadioButton.setChecked(True)
                 self._mw.freq2_isob_freq_DSpinBox.setEnabled(True)
-                self._mw.fwhm_isob_freq_DSpinBox.setEnabled(True)
-                #self._mw.calibrate_dual_isob_PushButton.setEnabled(True)
-                # for now disabled till next release
-                self._mw.calibrate_dual_isob_PushButton.setEnabled(False)  
+                #self._mw.fwhm_isob_freq_DSpinBox.setEnabled(True) # for now disabled
+                #self._mw.fwhm_isob_freq_DSpinBox.setVisible(True)  # for now hidden
+                #self._mw.calibrate_dual_isob_PushButton.setEnabled(True) # for now disabled till next release
 
                 # labels
                 self._mw.mw_freq2_Label.setEnabled(True)
                 self._mw.odmr_fwhm_Label.setEnabled(True)
+
+                # changes to remove magnetic field calcuation, for now canceled
+                self._mw.fwhm_isob_freq_DSpinBox.setEnabled(False) # for now disabled
+                self._mw.fwhm_isob_freq_DSpinBox.setVisible(False)  # for now hidden
+                self._mw.calibrate_dual_isob_PushButton.setEnabled(False)  
+                self._mw.calibrate_dual_isob_PushButton.setVisible(False)  
+                self._mw.odmr_fwhm_Label.setVisible(False)  # for now hidden
 
         if freq1 is not None:
             self._mw.freq1_isob_freq_DSpinBox.setValue(freq1)

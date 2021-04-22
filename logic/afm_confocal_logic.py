@@ -829,8 +829,9 @@ class AFMConfocalLogic(GenericLogic):
                     # add counts2 parameter
                     curr_scan_params.insert(1, 'counts2')      # fluorescence of freq2 parameter
                     curr_scan_params.insert(2, 'counts_diff')  # difference in 'counts2' - 'counts' 
-                    curr_scan_params.insert(3, 'b_field')  # insert the magnetic field parameter
-                    spm_start_idx = 4 # start index of the temporary scan for the spm parameters
+                    spm_start_idx = 3 # start index of the temporary scan for the spm parameters
+                    #curr_scan_params.insert(3, 'b_field')  # insert the magnetic field parameter   # FIXME
+                    #spm_start_idx = 4 # start index of the temporary scan for the spm parameters
 
                     self.log.info(f'Prepared pixelclock dual iso b, val {ret_val_mq}')
 
@@ -941,13 +942,25 @@ class AFMConfocalLogic(GenericLogic):
                 self._qafm_scan_line[i] = self._counter.get_line('counts_diff')/ \
                     (freq1_pulse_time + freq2_pulse_time) / 2
 
-                i = meas_params.index('b_field')
-                self._qafm_scan_line[i] = self.calc_mag_field_dual_iso_b(
-                    counts1=self._counter.get_line('counts'),
-                    counts2=self._counter.get_line('counts2'),
-                    freq1=self._freq1_iso_b_frequency,
-                    freq2=self._freq2_iso_b_frequency,
-                    sigma=self._fwhm_iso_b_frequency / 2)
+                # FIXME: currently, this method will not work based on only 2 points
+                #        Issues:
+                #               - In reducing the slope formed by L(freq1)/L(freq2)   (L()=Lorenztian)
+                #                 there are two possible solutions: to left and right of inflection point (sigma/sqrt(3))
+                #                 It is not possible to determine which side you are on without a 3rd point
+                #               - With only 2 points, the slope of a curve is not distguishable from noise
+                #               
+                #i = meas_params.index('b_field')
+                #self._qafm_scan_line[i] = self.calc_mag_field_single_res(
+                #        self.calc_eps_shift_dual_iso_b(
+                #            counts1=self._counter.get_line('counts'),
+                #            counts2=self._counter.get_line('counts2'),
+                #            freq1=self._freq1_iso_b_frequency,
+                #            freq2=self._freq2_iso_b_frequency,
+                #            sigma=self._fwhm_iso_b_frequency / 2) 
+                #        +  (self._freq1_iso_b_frequency + self._freq2_iso_b_frequency) /2,  
+                #        self.ZFS, 
+                #        self.E_FIELD) * 10000
+
 
             if reverse_meas:
 
@@ -1336,7 +1349,7 @@ class AFMConfocalLogic(GenericLogic):
         return np.sqrt((res_freq_low**2 +res_freq_high**2 - res_freq_low*res_freq_high - zero_field**2)/3 - e_field**2) / gyro_nv
 
     @staticmethod
-    def calc_mag_field_dual_iso_b(counts1, counts2, freq1, freq2, sigma=None):
+    def calc_eps_shift_dual_iso_b(counts1, counts2, freq1, freq2, sigma=None):
         """ Calculate the relative magnetic field in the dual isoB situation, 
             where counts1 and counts2 refer to photon count at lower & upper frequencies respectively.
             For initialization, sigma = FWHM/2;  d = abs(freq2 - freq1)/2.  Ideally, freq1 & freq2
