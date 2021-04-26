@@ -79,7 +79,8 @@ class AboutDialog(QtWidgets.QDialog):
                                for refkey,refname in [('release_notes', 'RELEASENOTES.md'),
                                                       ('about', 'ABOUT.md'),
                                                       ('version', 'VERSION.md'),
-                                                      ('license', 'LICENSE.md') ] 
+                                                      ('license', 'LICENSE.md'), 
+                                                      ('version_string', 'proteusQ_version.txt')]
                              } 
 
         # hardware status is updated just-in-time         
@@ -145,7 +146,7 @@ class ProteusQGUI(GUIBase):
     _modclass = 'ProteusQGUI'
     _modtype = 'gui'
 
-    _LabQversion = '1.4'
+    _LabQversion = 'x.x'      #dynmically assigned
     __version__ = '0.2.4'
 
     ## declare connectors
@@ -408,8 +409,6 @@ class ProteusQGUI(GUIBase):
         """ Initialize the LabQ About dialog box """
         self._ab = AboutDialog()
 
-        self._ab.software_version_Label.setText(f"LabQ version {self._LabQversion}")
-
         self._mw.actionAbout.triggered.connect(self.show_about_tab)
         self._mw.actionVersion.triggered.connect(self.show_version_tab)
         self._mw.actionHardwareStatus.triggered.connect(self.show_hardware_status_tab)
@@ -443,6 +442,15 @@ class ProteusQGUI(GUIBase):
                 message = markdown.markdown(f.read()) # renders to HTML
             self._ab.release_notes_Label.setText(message)
     
+        # 'Version string' text
+        doc_path = self._ab._refDocuments.get('version_string')
+        if doc_path is not None:
+            with open(doc_path,'r') as f:
+                message = f.read() 
+            self._LabQversion = '.'.join(message.split('.')[:-1])
+
+        self._ab.software_version_Label.setText(f"LabQ version {self._LabQversion}")
+
 
     def update_hardware_status_message(self):
         """ Retrieves information from qafm_logic, regarding the hardware conditions
