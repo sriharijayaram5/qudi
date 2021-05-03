@@ -3747,6 +3747,7 @@ class AFMConfocalLogic(GenericLogic):
         #self._spm.finish_scan()
 
     def stop_immediate(self):
+        self.stop_measure()
         self._spm.stop_measure()
         self._counter.stop_measurement()
         self.sigQAFMScanFinished.emit()
