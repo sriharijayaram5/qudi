@@ -340,6 +340,8 @@ class ProteusQGUI(GUIBase):
         self._qm.close()
         self._sd.close()
         self._or.close()
+        self._ab.close()
+        self._is.close()
 
 
     def show(self):
@@ -566,7 +568,6 @@ class ProteusQGUI(GUIBase):
             self._qafm_logic.stop_immediate()
         else:
             self.log.debug(f"Immediate stop request aborted")
-
 
     # ==========================================================================
     #               Start Methods for the Optimizer Request

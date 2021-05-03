@@ -716,7 +716,35 @@ class AFMConfocalLogic(GenericLogic):
                self._freq2_iso_b_frequency, \
                self._fwhm_iso_b_frequency, \
                self._iso_b_gain
+               
+    # ==========================================================================
+    #               Start Methods for the Internal status check 
 
+    def initStatusCheckTimer(self,interval=10):
+        self._status_check = QtCore.QTimer()
+        self._status_check_interval = interval   # currently, set timer for every 10 seconds
+
+        self._status_check.timeout.connect(self.perform_health_check)
+        self._status_check.setSingleShot(False)
+
+    def start_health_check_timer(self):
+        """ Start the timer, if timer is running, it will be restarted. """
+        self._status_check.start(self._status_check_interval * 1000) # in ms
+
+    def stop_health_check_timer(self):
+        """ Stop the timer. """
+        self._status_check.stop()
+
+    def perform_health_check(self):
+        """ request health status update """
+        try:
+            # this revives the MicrowaveQ if it dies
+            status= self._counter._dev.ctrl.isBusy()
+            self.log.debug(f"MicrowaveQ reports isBusy={status}")
+        except:
+            # hopefully by asking its status, it will come back alive 
+            self.log.debug("MicrowaveQ seems dead, waiting for the resurection")
+   
 
     #FIXME: Think about transferring the normalization of the 'Height(Dac)' and 
     #       'Height(Sen)' parameter to the hardware level.
@@ -3747,7 +3775,6 @@ class AFMConfocalLogic(GenericLogic):
         #self._spm.finish_scan()
 
     def stop_immediate(self):
-        self.stop_measure()
         self._spm.stop_measure()
         self._counter.stop_measurement()
         self.sigQAFMScanFinished.emit()
