@@ -59,6 +59,8 @@
     </property>
     <addaction name="action_Quantitative_Measure"/>
     <addaction name="action_open_optimizer_request"/>
+    <addaction name="separator"/>
+    <addaction name="action_Immediate_Stop"/>
    </widget>
    <widget class="QMenu" name="menuAbout">
     <property name="title">
@@ -1191,6 +1193,11 @@
   <action name="actionAbout">
    <property name="text">
     <string>About</string>
+   </property>
+  </action>
+  <action name="action_Immediate_Stop">
+   <property name="text">
+    <string>Immediate Stop</string>
    </property>
   </action>
  </widget>

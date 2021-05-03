@@ -5,6 +5,7 @@ import os
 import markdown
 from qtpy import QtCore
 from qtpy import QtWidgets
+from qtpy.QtWidgets import QMessageBox
 from qtpy import uic
 from pyqtgraph import PlotWidget
 
@@ -84,6 +85,13 @@ class AboutDialog(QtWidgets.QDialog):
                              } 
 
         # hardware status is updated just-in-time         
+
+class InitiateImmediateStopDialog(QtWidgets.QMessageBox):
+    """ Shows a modeless dialog box allowing the user to choose hard stop"""
+
+    def __init__(self):
+        super(InitiateImmediateStopDialog,self).__init__()
+        self.setModal(False)
 
 
 class QuantitativeMeasurementWindow(QtWidgets.QWidget):
@@ -314,6 +322,10 @@ class ProteusQGUI(GUIBase):
         self._qafm_logic.sigIsoBParamsUpdated.connect(self.update_iso_b_param)
         self.update_iso_b_param()
 
+        # Create dialog box for interactive requests
+        self.initImmediateStopDialog()
+        self._mw.action_Immediate_Stop.triggered.connect(self.show_immediate_stop_warning)
+
         # Set everything up for the optimizer request 
         self.initOptimizerRequestUI()
 
@@ -346,6 +358,15 @@ class ProteusQGUI(GUIBase):
         self._qm.raise_()
 
 
+    def initImmediateStopDialog(self):
+        self._is = InitiateImmediateStopDialog()
+        self._is.setIcon(QMessageBox.Warning)
+        self._is.setWindowTitle("Initiate Immediate Stop")
+        self._is.setInformativeText("Stop on-going measurement?\n")
+        self._is.setStandardButtons(QMessageBox.Ok | QMessageBox.Cancel)
+        self._is.buttonClicked.connect(self.enact_immediate_stop)
+
+    
     def initMainUI(self):
         """ Definition, configuration and initialisation of the confocal GUI.
 
@@ -404,6 +425,8 @@ class ProteusQGUI(GUIBase):
         # react on setting changes by the logic
         self._qafm_logic.sigSettingsUpdated.connect(self.keep_former_qafm_settings)
 
+    # ==========================================================================
+    #               Start Methods for the AboutDialog 
     
     def initAboutUI(self):
         """ Initialize the LabQ About dialog box """
@@ -528,6 +551,22 @@ class ProteusQGUI(GUIBase):
 
         self._ab.show()
         self._ab.raise_()
+
+    # ==========================================================================
+    #               Start Methods for the Immediate Stop Request 
+    
+    def show_immediate_stop_warning(self):
+        """ display message box to initiate immediate stop"""
+        self._is.show()
+        self._is.raise_()
+
+    def enact_immediate_stop(self, inp):
+        if inp.text() == 'OK':
+            self.log.debug(f"Immediate stop request initiated")
+            self._qafm_logic.stop_immediate()
+        else:
+            self.log.debug(f"Immediate stop request aborted")
+
 
     # ==========================================================================
     #               Start Methods for the Optimizer Request
