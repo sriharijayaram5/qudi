@@ -565,6 +565,7 @@ class ProteusQGUI(GUIBase):
     def enact_immediate_stop(self, inp):
         if inp.text() == 'OK':
             self.log.debug(f"Immediate stop request initiated")
+            self.stop_any_scanning()
             self._qafm_logic.stop_immediate()
         else:
             self.log.debug(f"Immediate stop request aborted")

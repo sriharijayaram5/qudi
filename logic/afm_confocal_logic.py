@@ -92,7 +92,132 @@ class WorkerThread(QtCore.QRunnable):
         return super(WorkerThread, self).autoDelete()
 
 #TODO: reimplement the SetAutoDelete functionality
+               
+# ==========================================================================
+#               Start Methods for the Internal status check 
+class HealthChecker(object):
+    """ Performs a periodic check on an op function,
+        performed by a timer interval when the update status has fallen late
+    """
+    _timer = None
+    _armed = False
+    _dead_time_mult = 10
 
+    def __init__(self,log=None,**kwargs):
+        # for now, do nothing.  This will be initizliaed later
+        pass
+
+    def setup(self,interval=10,      # interval in seconds at which to perform the check
+              default_delta_t=1,     # default time to at first update 
+              dead_time_mult=10,     # multiplier of time delta, after which the op function is tested 
+              check_function=None,   # op function to check
+              connect_start = [],    # signals to trigger start
+              connect_update = [],   # signals to trigger update_status
+              connect_stop = [],     # signals to trigger stop
+              log=None,              # pointer to logger object
+            **kwargs):
+        self.log = log
+        self._timer = QtCore.QTimer()
+        self._lock = Mutex()
+        self._interval = interval   # currently, set timer for every 10 seconds
+        self._last_time = None
+        self._time_delta = None
+        self._dead_time_mult = dead_time_mult
+        self._default_delta_t = default_delta_t
+        self._armed = False
+
+        # attaches to a 0 argument function, return value is irrelevant
+        # failure to actuate indicates an ill condtion 
+        self._check_function = check_function  
+
+        # self signals
+        self._timer.timeout.connect(self.perform_check)
+        self._timer.setSingleShot(False)
+
+        # start signals to connect to
+        for sig in connect_start:
+            sig.connect(self.start_timer)
+        
+        # update signals to connect to
+        for sig in connect_update:
+            sig.connect(self.update_status)
+        
+        # stop signals to connect to
+        for sig in connect_stop:
+            sig.connect(self.stop_timer)
+
+
+    def set_armed(self,arm=True):
+        with self._lock:
+            self._armed = arm 
+
+
+    def start_timer(self,arm=False):
+        """ Start the timer, if timer is running, it will be restarted. """
+        self._timer.start(self._interval * 1000) # in ms
+        self.set_armed(arm)
+
+
+    def stop_timer(self):
+        """ Stop the timer. """
+        if self._timer is not None:
+            self._timer.stop()
+            self.set_armed(False)
+            self.log.debug("HealthCheck: stopped timer")
+
+
+    def update_status(self,pos=None):
+        """ updates the time since last writing of a measurement"""
+        with self._lock:
+            # not armed, but triggered
+            if not self._armed: 
+                return
+            # end of line call, fired from self.sigQuantiLineFinished.emit()
+            if pos is None:
+                self._last_time = None
+            
+            # pixel call, fired from self.sigNewAFMPos.emit()
+            if self._last_time is None:
+                self._time_delta = self._default_delta_t 
+                self._last_time = time.time() 
+            else:
+                now = time.time()
+                self._time_delta = now - self._last_time  
+                self._last_time = now
+            
+            #self.log.debug(f"HealthCheck:pos={pos}, last_time={self._last_time}, time_delta={self._time_delta}")
+
+
+    def perform_check(self):
+        """ request health status update """
+        # not armed, but triggered
+        if not self._armed: 
+            return
+
+        # check on the last time the health status was updated
+        # if it was a really long time ago (10* last delta), then MQ could be dead
+        docheck = False
+        with self._lock:
+            now = time.time()
+            if self._last_time is not None:
+                # see if the time since last update was > dead_time_mult*last meas delta, 
+                # if so, then perform MQ check
+                delta_t = now - self._last_time 
+                docheck = delta_t > self._dead_time_mult*self._time_delta 
+            else:
+                delta_t = 0     # can't tell, since it hasn't been run yet
+
+        self.log.debug(f"HealthCheck_perform: is healthy={not docheck}")
+
+        if docheck:
+            try:
+                # this revives the MicrowaveQ if it has disconnected 
+                status= self._check_function()
+                if self.log: self.log.debug(f"HealthCheck reports laziness, op_function result={status}")
+            except:
+                # hopefully by asking its status, it will come back alive 
+                if self.log: self.log.debug("HealthCheck reports possible death, attempting resurection")
+ 
 
 class AFMConfocalLogic(GenericLogic):
     """ Main AFM logic class providing advanced measurement control. """
@@ -125,6 +250,7 @@ class AFMConfocalLogic(GenericLogic):
 
     _stop_request = False
     _stop_request_all = False
+    _health_check = HealthChecker() 
 
     # AFM signal 
     _meas_line_scan = []
@@ -222,6 +348,7 @@ class AFMConfocalLogic(GenericLogic):
     sigQuantiDataSaved = QtCore.Signal()
 
     # Quantitative Scan (Full B Scan)
+    sigQuantiLineFinished = QtCore.Signal()
     sigQuantiScanFinished = QtCore.Signal()
 
     # Single IsoB Parameter
@@ -716,35 +843,7 @@ class AFMConfocalLogic(GenericLogic):
                self._freq2_iso_b_frequency, \
                self._fwhm_iso_b_frequency, \
                self._iso_b_gain
-               
-    # ==========================================================================
-    #               Start Methods for the Internal status check 
-
-    def initStatusCheckTimer(self,interval=10):
-        self._status_check = QtCore.QTimer()
-        self._status_check_interval = interval   # currently, set timer for every 10 seconds
-
-        self._status_check.timeout.connect(self.perform_health_check)
-        self._status_check.setSingleShot(False)
-
-    def start_health_check_timer(self):
-        """ Start the timer, if timer is running, it will be restarted. """
-        self._status_check.start(self._status_check_interval * 1000) # in ms
-
-    def stop_health_check_timer(self):
-        """ Stop the timer. """
-        self._status_check.stop()
-
-    def perform_health_check(self):
-        """ request health status update """
-        try:
-            # this revives the MicrowaveQ if it dies
-            status= self._counter._dev.ctrl.isBusy()
-            self.log.debug(f"MicrowaveQ reports isBusy={status}")
-        except:
-            # hopefully by asking its status, it will come back alive 
-            self.log.debug("MicrowaveQ seems dead, waiting for the resurection")
-   
+  
 
     #FIXME: Think about transferring the normalization of the 'Height(Dac)' and 
     #       'Height(Sen)' parameter to the hardware level.
@@ -1764,6 +1863,18 @@ class AFMConfocalLogic(GenericLogic):
         if self.check_thread_active():
             self.log.error("A measurement is currently running, stop it first!")
             return
+           
+        self._health_check.setup(interval=20,                                       # perform check every interval (s)
+                                 default_delta_t=int_time_afm * num_esr_runs *1.5,  # minimum time to expect between updates
+                                 check_function=self._counter._dev.ctrl.isBusy,     # op function to check health 
+                                 connect_start=[],                                  # start triggered manually
+                                 connect_update=[self.sigQuantiLineFinished,        # signals which will trigger update
+                                                 self.sigNewAFMPos],
+                                 connect_stop=[self.sigQuantiScanFinished],         #signal to trigger stop of health check
+                                 log=self.log
+                                )
+
+        self._health_check.start_timer(arm=True)
 
         self._worker_thread = WorkerThread(target=self.scan_area_quanti_qafm_fw_bw_by_point,
                                             args=(coord0_start, coord0_stop,
@@ -1779,6 +1890,7 @@ class AFMConfocalLogic(GenericLogic):
                                               continue_meas),
                                             name='quanti_thread')
         self.threadpool.start(self._worker_thread)
+
 
     # ==============================================================================
     #           Quantitative Mode with ESR just forward movement
@@ -2054,7 +2166,8 @@ class AFMConfocalLogic(GenericLogic):
             self.log.info(f'Line number {line_num} completed.')
             print(f'Line number {line_num} completed.')
 
-            self.sigQAFMLineScanFinished.emit()
+            self.sigQAFMLineScanFinished.emit()   # this triggers repainting of the line
+            self.sigQuantiLineFinished.emit()     # this signals line is complete, return to new line
 
             # store the current line number
             self._spm_line_num = line_num
@@ -2119,6 +2232,18 @@ class AFMConfocalLogic(GenericLogic):
         if self.check_thread_active():
             self.log.error("A measurement is currently running, stop it first!")
             return
+        
+        self._health_check.setup(interval=20,                                       # perform check every interval (s)
+                                 default_delta_t=int_time_afm * num_esr_runs *1.5,  # minimum time to expect between updates
+                                 check_function=self._counter._dev.ctrl.isBusy,     # op function to check health 
+                                 connect_start=[],                                  # start triggered manually
+                                 connect_update=[self.sigQuantiLineFinished,        # signals which will trigger update
+                                                 self.sigNewAFMPos],
+                                 connect_stop=[self.sigQuantiScanFinished],         #signal to trigger stop of health check
+                                 log=self.log
+                                )
+
+        self._health_check.start_timer(arm=True)
 
         self._worker_thread = WorkerThread(target=self.scan_area_quanti_qafm_fw_by_point,
                                             args=(coord0_start, coord0_stop,
@@ -2296,7 +2421,8 @@ class AFMConfocalLogic(GenericLogic):
                 reverse_meas = False
 
                 # emit only a signal if the reversed is finished.
-                self.sigQAFMLineScanFinished.emit() 
+                self.sigQAFMLineScanFinished.emit()   # this signals repainting of a line
+                self.sigQuantiLineFinished.emit()     # this signals line is complete, return to new line 
             else:
                 for index, param_name in enumerate(curr_scan_params):
                     name = f'{param_name}_fw'   # use the unterlying naming convention
@@ -3777,7 +3903,9 @@ class AFMConfocalLogic(GenericLogic):
     def stop_immediate(self):
         self._spm.stop_measure()
         self._counter.stop_measurement()
+        self._health_check.stop_timer()
         self.sigQAFMScanFinished.emit()
+        self.sigQuantiScanFinished.emit()
         self.log.debug("Immediate stop request completed")
 
 
