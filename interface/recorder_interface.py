@@ -41,10 +41,11 @@ class RecorderMode(Enum):
     CW_MW = 6 
     ESR = 7 
     PULSED_ESR = 8 
-    COUNTER = 9 
+    COUNTER = 9
+    C0NTINOUSCOUNTER = 10
 
     # advanced measurement mode
-    PULSED = 10 
+    PULSED = 11 
 
 
 class RecorderState(Enum):
@@ -62,8 +63,11 @@ class RecorderConstraints:
         # frequencies in Hz
         self.min_count_frequency = 5e-5
         self.max_count_frequency = 5e5
-        # add CountingMode enums to this list in instances
-        self.counting_mode = []
+
+        # add RecorderMode enums to this list in instances
+        self.recorder_modes = []
+        # here all the parameters associated to the recorder mode are stored.
+        self.recorder_modes_params = {}
 
 
 class RecorderInterface(metaclass=InterfaceMetaclass):
@@ -72,19 +76,22 @@ class RecorderInterface(metaclass=InterfaceMetaclass):
     _modtype = 'RecorderInterface'
     _modclass = 'interface'
 
-    @abc.abstractmethod
-    def configure_recorder(mode, params):
-        """ Configure recorder
-        Configures the recorder mode for current measurment; 
-        resetting the mode is also through this interface
 
-        @param RecorderMode: mode:  mode of recorder, as available from RecorderMode types
-        @param dict: params:  specific settings as required for the given measurement mode 
+    @abc.abstractmethod
+    def configure_recorder(self, mode, params):
+        """ Configures the recorder mode for current measurement. 
+
+        @param RecorderMode mode: mode of recorder, as available from 
+                                  RecorderMode types
+        @param dict params: specific settings as required for the given 
+                            measurement mode 
+
+        @return int: error code (0:OK, -1:error)
         """
         pass
 
     @abc.abstractmethod
-    def start_recorder(arm=True):
+    def start_recorder(self, arm=True):
         """ Start recorder 
         start recorder with mode as configured 
         If pixel clock based methods, will begin on first trigger
@@ -95,7 +102,7 @@ class RecorderInterface(metaclass=InterfaceMetaclass):
         pass
 
     @abc.abstractmethod
-    def get_measurment():
+    def get_measurement(self):
         """ get measurement
         returns the measurement array in integer format
 
@@ -104,41 +111,49 @@ class RecorderInterface(metaclass=InterfaceMetaclass):
         pass
 
     @abc.abstractmethod
-    def stop_measurement():
+    def stop_measurement(self):
         """ stop measurement
         stops all on-going measurements, returns device to idle state
         """
         pass
 
     @abc.abstractmethod
-    def get_parameter_for_modes(mode=None):
-        """ get_parameter_for_modes
-        returns the required parameters.  
-        If mode=None, all paramters are returned.  
-        Otherwise specific mode parameters are returned
+    def get_parameter_for_modes(self, mode=None):
+        """ Returns the required parameters for the modes
 
-        @param RecorderMode: mode:  specifies the mode for sought parameters
-        @retun dict of dicts: { RecorderMode.mode: { parameter key: value}}
+        @param RecorderMode mode: specifies the mode for sought parameters
+                                  If mode=None, all modes with their parameters 
+                                  are returned. Otherwise specific mode 
+                                  parameters are returned  
+
+        @return dict: containing as keys the RecorderMode.mode and as values a
+                      dictionary with all parameters associated to the mode.
+
+                      Example return with mode=RecorderMode.CW_MW:
+                            {RecorderMode.CW_MW: {'countwindow': 10,
+                                                  'mw_power': -30}}  
         """
         pass
 
     @abc.abstractmethod
-    def get_current_device_mode():
-        """ get_current_device_mode
-        returns the current device mode
+    def get_current_device_mode(self):
+        """ Get the current device mode with its configuration parameters
 
-        @return RecorderMode.mode
+        @return: (mode, params)
+                RecorderMode.mode mode: the current recorder mode 
+                dict params: the current configuration parameter
         """
         pass
 
     @abc.abstractmethod
-    def get_current_device_state():
+    def get_current_device_state(self):
         """  get_current_device_state
         returns the current device state
 
         @return RecorderState.state
         """
         pass
+
 
     # -------------------------------------
     # GPIO settings
