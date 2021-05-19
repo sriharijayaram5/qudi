@@ -521,6 +521,7 @@ class MicrowaveQ(Base, SlowCounterInterface):
     def prepare_dummy(self):
         self._meas_mode = 'dummy'
         self.meas_method = self.meas_method_dummy
+        return 0
 
     def prepare_counter(self, counting_window=0.001):
 
@@ -1128,3 +1129,232 @@ class MicrowaveQ(Base, SlowCounterInterface):
         limits.sweep_maxentries = 2000
         return limits
 
+
+    # ==========================================================================
+    #                 Begin: Recorder Interface Implementation
+    # ==========================================================================
+
+    """
+    Requirement
+
+    proper state handling of the mq
+
+    """
+
+    from interface.recorder_interface import RecorderMode, RecorderState, RecorderConstraints, RecorderInterface
+
+    _mq_curr_state = RecorderState.DISCONNECTED
+    _mq_curr_mode = RecorderMode.UNCONFIGURED
+    _mq_curr_mode_params = {} # store here the current configuration
+
+    def get_recorder_limits(self):
+        rc = RecorderConstraints()
+
+        #TODO: get the number of recorders and the available counting modes 
+        #      from checking the modes of the mq, make it for now hard-coded
+        rc.max_detectors = 1
+        rc.recorder_modes = [RecorderMode.UNCONFIGURED, 
+                            RecorderMode.DUMMY,
+                            RecorderMode.PIXELCLOCK,
+                            Recorder.PIXELCLOCK_SINGLE_ISO_B,
+                            Recorder.PIXELCLOCK_N_ISO_B,
+                            Recorder.CW_MW,
+                            Recorder.ESR,
+                            Recorder.COUNTER
+                            ]
+
+        rc.recorder_modes_params = {}
+        rc.recorder_modes_params[RecorderMode.UNCONFIGURE] = {}
+        rc.recorder_modes_params[RecorderMode.DUMMY] = {}
+        rc.recorder_modes_params[RecorderMode.PIXELCLOCK] = {}
+        rc.recorder_modes_params[RecorderMode.PIXELCLOCK_SINGLE_ISO_B] = {'mw_frequency': 2.8e9,
+                                                                          'mw_power': -30}
+        # rc.recorder_modes_params[RecorderMode.PIXELCLOCK_N_ISO_B] = {'mw_frequency_list': [],
+        #                                                              'count_frequency': 100,
+        #                                                              'mw_power': -30}
+        rc.recorder_modes_params[RecorderMode.CW_MW] = {'mw_frequency': 2.8e9,
+                                                        'mw_power': -30}
+        rc.recorder_modes_params[RecorderMode.ESR] = {'mw_frequency_list': [],
+                                                      'count_frequency': 100,
+                                                      'mw_power': -30}
+        rc.recorder_modes_params[RecorderMode.COUNTER] = {'count_frequency': 10}
+
+        return rc
+
+    def _check_params_for_mode(self, mode, params):
+        """ Make sure that all the parameters are present for the current mode.
+        
+        @param RecorderMode mode: mode of recorder, as available from 
+                                  RecorderMode types
+        @param dict params: specific settings as required for the given 
+                            measurement mode 
+
+        return bool:
+                True: Everything is fine
+                False: parameters are missing. Missing parameters will be 
+                       indicated in the error log/message.
+
+        This method assumes that the passed mode is in the available options,
+        no need to double check if mode is present it available modes.
+        """
+
+        is_ok = True
+        limits = self.get_recorder_limits() 
+        required_params = limits.recorder_modes_params[mode]
+
+        for entry in required_params:
+            if params.get(entry) is None:
+                self.log.warning(f'Parameter "entry" not specified for mode '
+                                 f'"{mode}". Correct this!')
+                is_ok = False
+
+        return is_ok
+
+
+    def configure_recorder(self, mode, params):
+        """ Configures the recorder mode for current measurement. 
+
+        @param RecorderMode mode: mode of recorder, as available from 
+                                  RecorderMode types
+        @param dict params: specific settings as required for the given 
+                            measurement mode 
+
+        @return int: error code (0:OK, -1:error)
+        """
+        
+        # check at first whether mode can be changed based on the state of the 
+        # device, only from the idle mode it can be configured.
+
+        dev_state = self.get_current_device_state()
+        if dev_state != RecorderState.IDLE:
+            self.log.error(f'Device cannot be configured in the requested mode '
+                           f'"{mode}", since the device state is in'
+                           f'"{dev_state}". Stop ongoing measurements and make '
+                           f'sure that the device is connected.')
+            return -1
+
+
+        # check at first if mode is available
+        limits = self.get_recorder_limits()
+
+        if mode not in limits:
+            return -1
+
+        is_ok = self._check_params_for_mode(mode, params)
+        if not is_ok:
+            self.log.error(f'Parameters are not correct for mode "{mode}". '
+                           f'Configuration stopped.')
+            return -1
+
+        ret_val = 0
+        # the associated error message for a -1 return value should come from 
+        # the method which was called (with a reason, why configuration could 
+        # not happen).
+
+        # after all the checks are successful, delegate the call to the 
+        # appropriate preparation function.
+        if mode == RecorderMode.UNCONFIGURED:
+            #TODO: sanity check: not sure whether it makes sense to configure
+            # the device in an unconfigured state, it is a contradiction in terms
+            # might be important if device is reseted.
+            self._mq_curr_mode = RecorderMode.UNCONFIGURED
+            self._mq_curr_mode_params = {}
+        elif mode == RecorderMode.DUMMY:
+            ret_val = self.prepare_dummy()
+        elif mode == RecorderMode.PIXELCLOCK
+            ret_val = self.prepare_pixelclock()
+        elif mode == RecorderMode.PIXELCLOCK_SINGLE_ISO_B:
+            #TODO: make proper conversion of power to mw gain
+            ret_val = self.prepare_pixelclock_single_iso_b(freq=params['mw_frequency'], 
+                                                           power=params['mw_power'])
+        elif mode == RecorderMode.COUNTER:
+            ret_val = self.prepare_counter(counting_window=1/params['count_frequency'])
+        elif mode == RecorderMode.CW_MW:
+            #TODO do the correct thing
+        elif mode == RecorderMode.ESR:
+            #TODO: replace gain by power (and the real value)
+            ret_val = self.prepare_cw_esr(freq_list=params['mw_frequency_list'], 
+                                          count_freq=params['count_frequency'],
+                                          power=params['mw_power'])
+
+        return ret_val
+
+
+
+    def start_recorder(self, arm=True):
+        """ Start recorder 
+        start recorder with mode as configured 
+        If pixel clock based methods, will begin on first trigger
+        If not first configured, will cause an error
+        
+        @param bool: arm: specifies armed state with regard to pixel clock trigger
+        """
+        pass
+
+    def get_measurement(self):
+        """ get measurement
+        returns the measurement array in integer format
+
+        @return int_array: array of measurement as tuple elements
+        """
+        pass
+
+    def stop_measurement(self):
+        """ Stops all on-going measurements, returns device to idle state
+        
+        @return int: error code (0:OK, -1:error)
+        """
+
+        self._mq_curr_mode = RecorderState.IDLE
+        return 0
+
+    def get_parameter_for_modes(self, mode=None):
+        """ Returns the required parameters for the modes
+
+        @param RecorderMode mode: specifies the mode for sought parameters
+                                  If mode=None, all modes with their parameters 
+                                  are returned. Otherwise specific mode 
+                                  parameters are returned  
+
+        @return dict: containing as keys the RecorderMode.mode and as values a
+                      dictionary with all parameters associated to the mode.
+                      
+                      Example return with mode=RecorderMode.CW_MW:
+                            {RecorderMode.CW_MW: {'countwindow': 10,
+                                                  'mw_power': -30}}  
+        """
+
+        #TODO: think about to remove this interface method and put the content 
+        #      of this method into self.get_recorder_limits() 
+
+        # note, this output should coincide with the recorder_modes from 
+        # get_recorder_limits()
+        
+        rc = get_recorder_limits()
+
+        if mode not in rc.recorder_modes:
+            self.log.warning(f'Requested mode "{mode}" is not in the available '
+                             f'modes. Skip the request.')
+            return {}
+
+        if mode is None:
+            return rc.recorder_modes_params
+        else:
+            return {mode: rc.recorder_modes_params[mode]}
+
+    def get_current_device_mode(self):
+        """ Get the current device mode with its configuration parameters
+
+        @return: (mode, params)
+                RecorderMode.mode mode: the current recorder mode 
+                dict params: the current configuration parameter
+        """
+        return self._mq_curr_mode, self._mq_curr_mode_params
+
+    def get_current_device_state(self):
+        """  get_current_device_state
+        returns the current device state
+
+        @return RecorderState.state
+        """
+        return self._mq_curr_state
