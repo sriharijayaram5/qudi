@@ -921,7 +921,7 @@ class AFMConfocalLogic(GenericLogic):
             self._height_sens_norm = 0.0
             self._height_dac_norm = 0.0
 
-        _update_normalization = False
+        _update_normalization = 0   # number of items to normalize
         pulse_lengths = []
         freq_list = []
         freq1_pulse_time, freq2_pulse_time = integration_time, integration_time # default divisor times 
@@ -1035,7 +1035,9 @@ class AFMConfocalLogic(GenericLogic):
             if line_num < self._spm_line_num:
                 continue
 
-            # optical + AFM signal
+            #-------------------
+            # Perform line scan
+            #-------------------
             self._qafm_scan_line = np.zeros((num_params, coord0_num))
 
             if 'counts' in meas_params:
@@ -1050,6 +1052,11 @@ class AFMConfocalLogic(GenericLogic):
 
             self._spm.scan_line()  # start the scan line
 
+            #-------------------
+            # Process line scan
+            #-------------------
+
+            # AFM signal (from SPM)
             if  set(curr_scan_params) - {'counts', 'counts2', 'counts_diff'}:
                 # i.e. afm parameters are set
                 self._qafm_scan_line[spm_start_idx:] = self._spm.get_scanned_line(reshape=True)
@@ -1057,6 +1064,7 @@ class AFMConfocalLogic(GenericLogic):
                 # perform just the scan without using the data.
                 self._spm.get_scanned_line(reshape=True)
 
+            # Optical signal (from MicrowaveQ)
             if 'counts' in meas_params:
                 # first entry is always assumed to be counts
                 self._qafm_scan_line[0] = self._counter.get_line('counts')/freq1_pulse_time
@@ -1088,87 +1096,58 @@ class AFMConfocalLogic(GenericLogic):
                 #        self.ZFS, 
                 #        self.E_FIELD) * 10000
 
-
-            if reverse_meas:
-
-                for index, param_name in enumerate(curr_scan_params):
-                    name = f'{param_name}_bw'  # use the unterlying naming convention
-
-                    # save to the corresponding matrix line and renormalize the results to SI units:
-                    self._qafm_scan_array[name]['data'][line_num // 2] = np.flip(self._qafm_scan_line[index]) * self._qafm_scan_array[name]['scale_fac']
-
-                    if 'Height(Dac)' in param_name:
-                        self._qafm_scan_array[name]['data'][line_num // 2] += self._height_dac_norm
-
-                    if 'Height(Sen)' in param_name:
-                        self._qafm_scan_array[name]['data'][line_num // 2] += self._height_sens_norm
-
-
-                # ==== BUG FIX Normalization Adjustment of AFM data - Start ====
-                # normalization flag will be set when optimization is requested.
-                # the actual value needs to be calculated from the last measured
-                # point of the previous measurement and the first measured point 
-                # of the current measurement.
-                if _update_normalization:
-
-                    # ==> solve problem with index!!! 
-                    if 'Height(Dac)' in curr_scan_params:
-                        self._height_dac_norm = self._qafm_scan_array['Height(Dac)_fw']['data'][(line_num // 2)-1][-1] - self._qafm_scan_array['Height(Dac)_bw']['data'][line_num // 2][0]
-                    
-                    if 'Height(Sen)' in curr_scan_params:
-                        self._height_sens_norm = self._qafm_scan_array['Height(Sen)_fw']['data'][(line_num // 2)-1][-1] - self._qafm_scan_array['Height(Sen)_bw']['data'][line_num // 2][0]
-
-                    _update_normalization = False
-
-                # apply normalization
-                if 'Height(Dac)' in curr_scan_params:
-                    self._qafm_scan_array['Height(Dac)_bw']['data'][line_num // 2] += self._height_dac_norm
-
-                if 'Height(Sen)' in curr_scan_params:
-                    self._qafm_scan_array['Height(Sen)_bw']['data'][line_num // 2] += self._height_sens_norm
-                # ==== BUG FIX Normalization Adjustment of AFM data - Stop ====
-
-
-                reverse_meas = False
-
-                # emit only a signal if the reversed is finished.
-                self.sigQAFMLineScanFinished.emit()
+            row_i = line_num // 2    # row number for qafm_array
+            if not reverse_meas:
+                # current is forward pass, optimization occured on backward pass
+                ref_j = -1             
+                curr_direc, past_direc  = '_fw' , '_bw'
             else:
+                # current is backward pass, optimization occured on forward pass
+                ref_j = 0             
+                curr_direc, past_direc  = '_bw' , '_fw'
 
-                for index, param_name in enumerate(curr_scan_params):
-                    name = f'{param_name}_fw'  # use the unterlying naming convention
+            # Iterate through parameters
+            for index, param_name in enumerate(curr_scan_params):
+                name = param_name + curr_direc 
 
-                    # save to the corresponding matrix line and renormalize the results to SI units:
-                    self._qafm_scan_array[name]['data'][line_num // 2] = self._qafm_scan_line[index] * self._qafm_scan_array[name]['scale_fac']
+                # check if line was a reverse scan, if so, flip
+                if not reverse_meas:
+                    data = self._qafm_scan_line[index] 
+                else:
+                    data = np.flip(self._qafm_scan_line[index]) 
 
-                # ==== BUG FIX Normalization Adjustment of AFM data - Start ====
-                # normalization flag will be set when optimization is requested.
-                # the actual value needs to be calculated from the last measured
-                # point of the previous measurement and the first measured point 
-                # of the current measurement.
+                # store transformed data
+                self._qafm_scan_array[name]['data'][row_i] = data * self._qafm_scan_array[name]['scale_fac']
+
+                # if optimization was performed after last measurement, then adjust the normalization 
                 if _update_normalization:
 
-                    # ==> solve problem with index!!! 
-                    if 'Height(Dac)' in curr_scan_params:
-                        self._height_dac_norm = self._qafm_scan_array['Height(Dac)_bw']['data'][(line_num // 2)-1][0] - self._qafm_scan_array['Height(Dac)_fw']['data'][line_num // 2][0]
-                    
-                    if 'Height(Sen)' in curr_scan_params:
-                        self._height_sens_norm = self._qafm_scan_array['Height(Sen)_bw']['data'][(line_num // 2)-1][0] - self._qafm_scan_array['Height(Sen)_fw']['data'][line_num // 2][0]
+                    if 'Height(Dac)' in name:
+                        self._height_dac_norm =   self._qafm_scan_array['Height(Dac)' + past_direc]['data'][row_i - 1][ref_j]   \
+                                                - self._qafm_scan_array['Height(Dac)' + curr_direc]['data'][row_i    ][ref_j]
+                        _update_normalization -= 1   # parameter complete
 
-                    _update_normalization = False
+                    if 'Height(Sen)' in name:
+                        self._height_sens_norm =  self._qafm_scan_array['Height(Sen)' + past_direc]['data'][row_i - 1][ref_j]   \
+                                                - self._qafm_scan_array['Height(Sen)' + curr_direc]['data'][row_i    ][ref_j]
+                        _update_normalization -= 1   # parameter complete
 
-                # apply normalization
-                if 'Height(Dac)' in curr_scan_params:
-                    self._qafm_scan_array['Height(Dac)_fw']['data'][line_num // 2] += self._height_dac_norm
+                
+                # apply normalization (at start, normalization parameters = 0)
+                if 'Height(Dac)' in name:
+                    self._qafm_scan_array[name]['data'][row_i] += self._height_dac_norm
 
-                if 'Height(Sen)' in curr_scan_params:
-                    self._qafm_scan_array['Height(Sen)_fw']['data'][line_num // 2] += self._height_sens_norm
-                # ==== BUG FIX Normalization Adjustment of AFM data - Stop ====
+                if 'Height(Sen)' in name:
+                    self._qafm_scan_array[name]['data'][row_i] += self._height_sens_norm
 
+            # change direction
+            if reverse_meas:
+                reverse_meas = False
+                self.sigQAFMLineScanFinished.emit()      # emit only a signal if the reversed is finished.
+            else:
                 reverse_meas = True
 
             self.log.info(f'Line number {line_num} completed.')
-            #print(f'Line number {line_num} completed.')
 
             # enable the break only if next scan goes into forward movement
             if self._stop_request and not reverse_meas:
@@ -1181,7 +1160,9 @@ class AFMConfocalLogic(GenericLogic):
             # and perform here an optimization first
             if self.get_optimize_request():
 
-                _update_normalization = True
+                _update_normalization = 0
+                if 'Height(Dac)' in curr_scan_params: _update_normalization += 1 
+                if 'Height(Sen)' in curr_scan_params: _update_normalization += 1 
 
                 self._counter.stop_measurement()
                 self._spm.finish_scan()
@@ -1237,6 +1218,7 @@ class AFMConfocalLogic(GenericLogic):
         self.sigQAFMScanFinished.emit()
 
         return self._qafm_scan_array
+
 
     def start_scan_area_qafm_bw_fw_by_line(self, coord0_start=48*1e-6, coord0_stop=53*1e-6, coord0_num=40,
                             coord1_start=47*1e-6, coord1_stop=52*1e-6, coord1_num=40, integration_time=None,
