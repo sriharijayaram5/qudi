@@ -208,6 +208,19 @@ class ProteusQGUI(GUIBase):
 
     _current_cs = ColorScaleInferno()
 
+
+    # Quantitative Measurement parameters
+    _qm_afm_int_time = StatusVar('qm_afm_int_time', default=0.1)
+    _qm_idle_move_time = StatusVar('qm_idle_move_time', default=0.5)
+    _qm_esr_freq_start = StatusVar('qm_esr_freq_start', default=2.78e9)
+    _qm_esr_freq_stop = StatusVar('qm_esr_freq_stop', default=2.98e9)
+    _qm_esr_freq_num = StatusVar('qm_esr_freq_num', default=30)
+    _qm_esr_count_freq = StatusVar('qm_esr_count_freq', default=200)
+    _qm_esr_mw_power = StatusVar('qm_esr_mw_power', default=-30)
+    _qm_esr_runs = StatusVar('qm_esr_runs', default=30)
+    _qm_optimizer_period = StatusVar('qm_optimizer_period', default=100)
+
+
     def __init__(self, config, **kwargs):
         super().__init__(config=config, **kwargs)
 
@@ -303,11 +316,11 @@ class ProteusQGUI(GUIBase):
         self._mw.use_dual_isob_RadioButton.toggled.connect(self._enable_dual_iso_b_plots)
         self._mw.freq1_isob_freq_DSpinBox.valueChanged.connect(self._set_freq1_iso_b_freq)
         self._mw.freq2_isob_freq_DSpinBox.valueChanged.connect(self._set_freq2_iso_b_freq)
-        self._mw.isob_gain_DSpinBox.valueChanged.connect(self._set_iso_b_gain)
+        self._mw.isob_power_DSpinBox.valueChanged.connect(self._set_iso_b_power)
 
         self._mw.freq1_isob_freq_DSpinBox.setMinimalStep = 10e3
         self._mw.freq2_isob_freq_DSpinBox.setMinimalStep = 10e3
-        self._mw.isob_gain_DSpinBox.setMinimalStep = 0.01
+        self._mw.isob_power_DSpinBox.setMinimalStep = 0.01
 
         self._qafm_logic.sigIsoBParamsUpdated.connect(self.update_iso_b_param)
         self.update_iso_b_param()
@@ -599,11 +612,11 @@ class ProteusQGUI(GUIBase):
         #print('val changed:', freq2)
         self._qafm_logic.set_iso_b_params(freq2=freq2)
 
-    def _set_iso_b_gain(self, gain):
-        #print('val changed:', gain)
-        self._qafm_logic.set_iso_b_params(gain=gain)  
+    def _set_iso_b_power(self, power):
+        #print('val changed:', power)
+        self._qafm_logic.set_iso_b_params(power=power)  
 
-    def _enable_dual_iso_b_plots(self,enable):
+    def _enable_dual_iso_b_plots(self, enable):
         enable = enable and not self._qafm_logic.get_iso_b_mode() # iso_b_mode=single
         
         for obj_name in ['counts2', 'counts_diff']:
@@ -619,9 +632,9 @@ class ProteusQGUI(GUIBase):
         self._mw.use_dual_isob_RadioButton.blockSignals(True) 
         self._mw.freq1_isob_freq_DSpinBox.blockSignals(True)
         self._mw.freq2_isob_freq_DSpinBox.blockSignals(True)
-        self._mw.isob_gain_DSpinBox.blockSignals(True)
+        self._mw.isob_power_DSpinBox.blockSignals(True)
 
-        iso_b_operation, single_mode, freq1, freq2, gain = \
+        iso_b_operation, single_mode, freq1, freq2, power = \
             self._qafm_logic.get_iso_b_params()
 
         if single_mode is not None:
@@ -638,8 +651,8 @@ class ProteusQGUI(GUIBase):
         if freq2 is not None:
             self._mw.freq2_isob_freq_DSpinBox.setValue(freq2)
 
-        if gain is not None:
-            self._mw.isob_gain_DSpinBox.setValue(gain)
+        if power is not None:
+            self._mw.isob_power_DSpinBox.setValue(power)
         
         self._enable_dual_iso_b_plots(iso_b_operation)
 
@@ -647,7 +660,7 @@ class ProteusQGUI(GUIBase):
         self._mw.use_dual_isob_RadioButton.blockSignals(False) 
         self._mw.freq1_isob_freq_DSpinBox.blockSignals(False)
         self._mw.freq2_isob_freq_DSpinBox.blockSignals(False)
-        self._mw.isob_gain_DSpinBox.blockSignals(False)
+        self._mw.isob_power_DSpinBox.blockSignals(False)
 
 
     def update_qafm_settings(self):
@@ -762,6 +775,16 @@ class ProteusQGUI(GUIBase):
 
         self._or.time_optimizer_request_SpinBox.setValue(self._periodic_opti_time)
 
+        # Handle the Quantitative measurement values
+        self._qm.afm_int_time_DoubleSpinBox.setValue(self._qm_afm_int_time)
+        self._qm.idle_move_time_QDoubleSpinBox.setValue(self._qm_idle_move_time)
+        self._qm.esr_freq_start_DoubleSpinBox.setValue(self._qm_esr_freq_start)
+        self._qm.esr_freq_stop_DoubleSpinBox.setValue(self._qm_esr_freq_stop)
+        self._qm.esr_freq_num_SpinBox.setValue(self._qm_esr_freq_num)
+        self._qm.esr_count_freq_DoubleSpinBox.setValue(self._qm_esr_count_freq)
+        self._qm.esr_mw_power_DoubleSpinBox.setValue(self._qm_esr_mw_power)
+        self._qm.esr_runs_SpinBox.setValue(self._qm_esr_runs)
+        self._qm.optimizer_period_DoubleSpinBox.setValue(self._qm_optimizer_period)
 
     def store_status_var(self):
         """ Store all those variables to file. """
@@ -802,6 +825,15 @@ class ProteusQGUI(GUIBase):
 
         self._periodic_opti_time = self._or.time_optimizer_request_SpinBox.value()
 
+        self._qm_afm_int_time = self._qm.afm_int_time_DoubleSpinBox.value()
+        self._qm_idle_move_time = self._qm.idle_move_time_QDoubleSpinBox.value()
+        self._qm_esr_freq_start = self._qm.esr_freq_start_DoubleSpinBox.value()
+        self._qm_esr_freq_stop = self._qm.esr_freq_stop_DoubleSpinBox.value()
+        self._qm_esr_freq_num = self._qm.esr_freq_num_SpinBox.value()
+        self._qm_esr_count_freq = self._qm.esr_count_freq_DoubleSpinBox.value()
+        self._qm_esr_mw_power = self._qm.esr_mw_power_DoubleSpinBox.value()
+        self._qm_esr_runs = self._qm.esr_runs_SpinBox.value()
+        self._qm_optimizer_period = self._qm.optimizer_period_DoubleSpinBox.value()
 
     def get_all_data_matrices(self):
         """ more of a helper method to get all the data matrices. """
@@ -2064,7 +2096,7 @@ class ProteusQGUI(GUIBase):
                 meas_params.append(entry)
 
         # check only one button, this is sufficient
-        fw_scan = self._qm.scan_dir_fw_RadioButton.isChecked() 
+        fw_scan = self._qm.scan_dir_fw_RadioButton.isChecked()
 
         afm_int_time = self._qm.afm_int_time_DoubleSpinBox.value()
         idle_move_time = self._qm.idle_move_time_QDoubleSpinBox.value()
