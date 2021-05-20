@@ -102,11 +102,11 @@ class MicrowaveQ(Base, SlowCounterInterface):
     #FIXME: Power not used so far
     _mw_cw_power = -30 # in dBm
     _mw_freq_list = []
-    _mw_gain = 0.4 # not exposed to interface!!!
+    _mw_power = -25 # not exposed to interface!!!
 
     # settings for iso-B mode
     _iso_b_freq_list = [500e6] # in MHz
-    _iso_b_gain = 0.0 # linear gain for iso b mode.
+    _iso_b_power = -30.0 # physical power for iso b mode.
 
     def on_activate(self):
 
@@ -664,11 +664,11 @@ class MicrowaveQ(Base, SlowCounterInterface):
 
         return 0
 
-    def prepare_pixelclock_single_iso_b(self, freq, gain):
+    def prepare_pixelclock_single_iso_b(self, freq, power):
         """ Setup the device for a single frequency output. 
 
         @param float freq: the frequency in Hz to be applied during the counting.
-        @param float gain: the linear power gain of the device, from 0.0 to 1.0
+        @param float power: the physical power of the device in dBm
 
         """
         if self._meas_running:
@@ -680,18 +680,19 @@ class MicrowaveQ(Base, SlowCounterInterface):
         self.meas_method = self.meas_method_PixelClock
 
         self._iso_b_freq_list = [freq]
-        self._iso_b_gain = gain
+        self._iso_b_power = power
         self._dev.configureCW_PIX(frequency=self._iso_b_freq_list[0])
-        self._dev.rfpulse.setGain(self._iso_b_gain)
+
+        self._dev.set_freq_power(freq, power)
         self._dev.resultFilter.set(0)
 
         return 0
 
-    def prepare_pixelclock_n_iso_b(self, freq_list, pulse_lengths, gain, laserCooldownLength=10e-6):
+    def prepare_pixelclock_n_iso_b(self, freq_list, pulse_lengths, power, laserCooldownLength=10e-6):
         """ Setup the device for n-frequency output. 
 
         @param list(float) freq_list: a list of frequencies to apply 
-        @param float gain: the linear power gain of the device, from 0.0 to 1.0
+        @param float power: the physical power of the device in dBm
         @param pulse_margin_frac: fraction of pulse margin to leave as dead time
 
         """
@@ -703,8 +704,8 @@ class MicrowaveQ(Base, SlowCounterInterface):
 
         self.meas_method = self.meas_method_n_iso_b
 
-        self._iso_b_freq_list = freq_list if isinstance(freq_list,list) else [freq_list]
-        self._iso_b_gain = gain
+        self._iso_b_freq_list = freq_list if isinstance(freq_list, list) else [freq_list]
+        self._iso_b_power = power
 
         base_freq = freq_list[0]
         ncoWords = [freq - base_freq for freq in freq_list]
@@ -714,7 +715,7 @@ class MicrowaveQ(Base, SlowCounterInterface):
                                ncoWords=ncoWords,
                                laserCooldownLength=laserCooldownLength)
 
-        self._dev.rfpulse.setGain(self._iso_b_gain)
+        self._dev.set_freq_power(base_freq, power)
         self._dev.resultFilter.set(0)
 
         return 0
@@ -776,7 +777,7 @@ class MicrowaveQ(Base, SlowCounterInterface):
     #       ESR measurements: ODMRCounterInterface Implementation
     #===========================================================================
 
-    def prepare_cw_esr(self, freq_list, count_freq=100, gain=0.4):
+    def prepare_cw_esr(self, freq_list, count_freq=100, power=-25):
         """ Prepare the CW ESR to obtain ESR frequency scans
 
         @param list freq_list: containing the frequency list entries
@@ -799,7 +800,9 @@ class MicrowaveQ(Base, SlowCounterInterface):
         self._dev.configureCW_ESR(frequencies=freq_list,
                                   countingWindowLength=count_window)
 
-        self._dev.rfpulse.setGain(gain)
+        # take the mean frequency from the list for the power.
+        #FIXME: all frequencies should be normalized.
+        self._dev.set_freq_power(np.mean(freq_list), power)
 
         # the extra two numbers are for the current number of measurement run
         # and the time
@@ -1084,15 +1087,18 @@ class MicrowaveQ(Base, SlowCounterInterface):
 
         if frequency is not None:
             self._mw_freq_list = frequency
-            self.prepare_cw_esr(self._mw_freq_list, self._esr_count_frequency, self._mw_gain)
+            #FIXME: the power setting is a bit confusing. It is mainly done in 
+            # this way in case no power value was provided
+            self.prepare_cw_esr(self._mw_freq_list, self._esr_count_frequency, self._mw_power)
 
             mean_freq = np.mean(self._mw_freq_list)
 
-        # #FIXME: use a separate variable for this!
-        # if power is not None:
-        #     self._mw_cw_power = power
+        if power is None:
+            # take the currently set power
+            _, power = self._dev.get_freq_power()
 
         self._dev.set_freq_power(mean_freq, power)
+        self._mw_power = power
 
         set_freq, self._mw_cw_power = self._dev.get_freq_power()
 
