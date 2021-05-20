@@ -348,6 +348,7 @@ class MicrowaveQ(dev.Device):
 
         val = self._calcGainCompensation(frequency)
         self.rfpulse.setGainCompensation(val)
+        self.__cur_freq = freq
 
     def configureTrfDefaultRegs(self, file_name=""):
         """Sets default values of the TRF3722 registers. These values are a baseline during ESR reconfiguration.
@@ -491,6 +492,7 @@ class MicrowaveQ(dev.Device):
 
         gain_val, self.__cur_power = self.get_gain_for_freq_power(freq, power)
         self.rfpulse.setGain(gain_val)
+        self.setFrequency(freq)
 
 
     def _setFrequencies(self, frequencies):
@@ -504,9 +506,6 @@ class MicrowaveQ(dev.Device):
         
         pointers,values = self._calculateRegs(self._default_trf_regs, frequencies)
         self.rfctrl.writeMemories(pointers, values)
-
-
-
 
     def startUp(self):
         self.com.write(0x1, 0x1)
