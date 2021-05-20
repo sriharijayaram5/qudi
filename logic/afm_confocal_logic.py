@@ -24,6 +24,7 @@ from core.module import Connector, StatusVar, ConfigOption
 from logic.generic_logic import GenericLogic
 from core.util import units
 from core.util.mutex import Mutex
+from scipy.linalg import lstsq
 import threading
 import numpy as np
 import os
@@ -556,6 +557,7 @@ class AFMConfocalLogic(GenericLogic):
                 #meas_dict[name] = {'data': np.random.rand(num_rows, num_columns)}
                 meas_dict[name]['coord0_arr'] = coord0_arr
                 meas_dict[name]['coord1_arr'] = coord1_arr
+                meas_dict[name]['corr_plane_coeff'] = [0.0, 0.0, 0.0] 
                 meas_dict[name].update(meas_params_units[param])
                 meas_dict[name]['params'] = {}
                 meas_dict[name]['display_range'] = None
@@ -1019,6 +1021,7 @@ class AFMConfocalLogic(GenericLogic):
             self._qafm_scan_array[entry]['params']['coord1_start (m)'] = coord1_start
             self._qafm_scan_array[entry]['params']['coord1_stop (m)'] = coord1_stop
             self._qafm_scan_array[entry]['params']['coord1_num (#)'] = coord1_num
+            self._qafm_scan_array[entry]['params']['correction_plane_eq'] = str(self._qafm_scan_array[entry]['corr_plane_coeff'])
             self._qafm_scan_array[entry]['params']['Scan speed per line (s)'] = scan_speed_per_line
             self._qafm_scan_array[entry]['params']['Idle movement speed (s)'] = time_idle_move
 
@@ -1139,6 +1142,23 @@ class AFMConfocalLogic(GenericLogic):
 
                 if 'Height(Sen)' in name:
                     self._qafm_scan_array[name]['data'][row_i] += self._height_sens_norm
+            
+            # determine correction plane for relative measurements
+            if row_i >= 1:
+                self.log.debug("Determining plane equations")
+                for name in {p + sfx for p in curr_scan_params for sfx in ('_fw', '_bw')} & \
+                            {'Height(Dac)_fw', 'Height(Dac)_bw', 'Height(Sen)_fw','Height(Sen)_bw'}:
+                    x_range = [self._qafm_scan_array[name]['coord0_arr'][0], 
+                               self._qafm_scan_array[name]['coord0_arr'][-1]]
+                    y_range = [self._qafm_scan_array[name]['coord1_arr'][0], 
+                               self._qafm_scan_array[name]['coord0_arr'][row_i]]
+                    xy_data = self._qafm_scan_array[name]['data'][:row_i+1]
+                    _,C = self.correct_plane(xy_data=xy_data,x_range=x_range,y_range=y_range)                    
+                    self.log.debug(f"Determined corection plane for {name} as C={C.tolist()}")
+
+                    # update plane equation
+                    self._qafm_scan_array[name]['params']['correction_plane_eq'] = str(C.tolist())
+                    self._qafm_scan_array[name]['corr_plane_coeff'] = C.copy()
 
             # change direction
             if reverse_meas:
@@ -5984,8 +6004,8 @@ class AFMConfocalLogic(GenericLogic):
             x_range = [0, 1]
             y_range = [0, 1]
     
-        x_axis = np.linspace(x_range[0], x_range[1], xy_data.shape[0])
-        y_axis = np.linspace(y_range[0], y_range[1], xy_data.shape[1])
+        x_axis = np.linspace(x_range[0], x_range[1], xy_data.shape[1])
+        y_axis = np.linspace(y_range[0], y_range[1], xy_data.shape[0])
         xv, yv = np.meshgrid(x_axis, y_axis)
         
         # flatten the data array in rows 
