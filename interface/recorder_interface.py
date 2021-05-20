@@ -117,6 +117,7 @@ class RecorderInterface(metaclass=InterfaceMetaclass):
         """
         pass
 
+    #FIXME: this might be a redundant method and can be replaced by get_recorder_limits
     @abc.abstractmethod
     def get_parameter_for_modes(self, mode=None):
         """ Returns the required parameters for the modes
@@ -152,6 +153,15 @@ class RecorderInterface(metaclass=InterfaceMetaclass):
 
         @return RecorderState.state
         """
+        pass
+
+    @abc.abstractmethod
+    def get_recorder_limits(self):
+        """ Retrieve the hardware constrains from the recorder device.
+
+        @return RecorderConstraints: object with constraints for the recorder
+        """
+
         pass
 
 
