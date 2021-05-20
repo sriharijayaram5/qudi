@@ -174,7 +174,7 @@ class AFMConfocalLogic(GenericLogic):
     _iso_b_single_mode = StatusVar(default=True)
     _freq1_iso_b_frequency = StatusVar(default=500e6)
     _freq2_iso_b_frequency = StatusVar(default=550e6)
-    _iso_b_gain = StatusVar(default=0.0)
+    _iso_b_power = StatusVar(default=-30.0)
 
     # Signals:
     # ========
@@ -648,7 +648,7 @@ class AFMConfocalLogic(GenericLogic):
         """ Check whether single iso-b is switched on. """
         return self._sg_iso_b_single_mode
 
-    def set_iso_b_params(self, single_mode=None, freq1=None, freq2=None, gain=None):
+    def set_iso_b_params(self, single_mode=None, freq1=None, freq2=None, power=None):
 
         if single_mode is not None:
             self._iso_b_single_mode = single_mode
@@ -657,18 +657,18 @@ class AFMConfocalLogic(GenericLogic):
             self._freq1_iso_b_frequency = freq1
         if freq2 is not None:
             self._freq2_iso_b_frequency = freq2
-        if gain is not None:
-            self._iso_b_gain = gain
+        if power is not None:
+            self._iso_b_power = power
 
         self.sigIsoBParamsUpdated.emit()
 
     def get_iso_b_params(self):
-        """ return the frequency and gain"""
+        """ return the frequency and power"""
         return self._sg_iso_b_operation, \
                self._sg_iso_b_single_mode, \
                self._freq1_iso_b_frequency, \
                self._freq2_iso_b_frequency, \
-               self._iso_b_gain
+               self._iso_b_power
 
 
     #FIXME: Think about transferring the normalization of the 'Height(Dac)' and 
@@ -762,7 +762,7 @@ class AFMConfocalLogic(GenericLogic):
                     # single iso-b
                     ret_val_mq = self._counter.prepare_pixelclock_single_iso_b(
                         self._freq1_iso_b_frequency, 
-                        self._iso_b_gain)
+                        self._iso_b_power)
 
                     self.log.info(f'Prepared pixelclock single iso b, val {ret_val_mq}')
                 else:
@@ -776,7 +776,7 @@ class AFMConfocalLogic(GenericLogic):
                     ret_val_mq = self._counter.prepare_pixelclock_n_iso_b(
                         freq_list=freq_list,
                         pulse_lengths=pulse_lengths,
-                        gain=self._iso_b_gain,
+                        power=self._iso_b_power,
                         laserCooldownLength=laser_cooldown_length)
                     
                     # add counts2 parameter
@@ -1012,13 +1012,13 @@ class AFMConfocalLogic(GenericLogic):
                         # single iso-b
                         self._counter.prepare_pixelclock_single_iso_b(
                             self._freq1_iso_b_frequency, 
-                            self._iso_b_gain)
+                            self._iso_b_power)
                     else:
                         # dual iso-b
                         self._counter.prepare_pixelclock_n_iso_b(
                             freq_list=freq_list,
                             pulse_lengths=pulse_lengths,
-                            gain=self._iso_b_gain,
+                            power=self._iso_b_power,
                             laserCooldownLength=laser_cooldown_length)
                 else:
                     self._counter.prepare_pixelclock()
@@ -1292,7 +1292,7 @@ class AFMConfocalLogic(GenericLogic):
                                           idle_move_time=0.1, freq_start=2.77e9,
                                           freq_stop=2.97e9, freq_points=100,
                                           esr_count_freq=200,
-                                          mw_power=0.4, num_esr_runs=30,
+                                          mw_power=-25, num_esr_runs=30,
                                           optimize_period = 100,
                                           meas_params=['Height(Dac)'],
                                           single_res=True,
@@ -1413,7 +1413,7 @@ class AFMConfocalLogic(GenericLogic):
             self._qafm_scan_array[entry]['params']['ESR Frequency stop (Hz)'] = freq_stop
             self._qafm_scan_array[entry]['params']['ESR Frequency points (#)'] = freq_points
             self._qafm_scan_array[entry]['params']['ESR Count Frequency (Hz)'] = esr_count_freq
-            self._qafm_scan_array[entry]['params']['ESR MW power (gain)'] = mw_power
+            self._qafm_scan_array[entry]['params']['ESR MW power (dBm)'] = mw_power
             self._qafm_scan_array[entry]['params']['ESR Measurement runs (#)'] = num_esr_runs
             self._qafm_scan_array[entry]['params']['Expect one resonance dip'] = single_res
             self._qafm_scan_array[entry]['params']['Optimize Period (s)'] = optimize_period
@@ -1608,7 +1608,7 @@ class AFMConfocalLogic(GenericLogic):
                                               idle_move_time=0.1, freq_start=2.77e9,
                                               freq_stop=2.97e9, freq_points=100,
                                               esr_count_freq=200,
-                                              mw_power=0.4, num_esr_runs=30,
+                                              mw_power=-25, num_esr_runs=30,
                                               optimize_period=100,
                                               meas_params=['Height(Dac)'],
                                               single_res=True,
@@ -1643,7 +1643,7 @@ class AFMConfocalLogic(GenericLogic):
                                              idle_move_time=0.1, freq_start=2.77e9,
                                              freq_stop=2.97e9, freq_points=100,
                                              esr_count_freq=200,
-                                             mw_power=0.4, num_esr_runs=30,
+                                             mw_power=-25, num_esr_runs=30,
                                              optimize_period=100,
                                              meas_params=['Height(Dac)'],
                                              single_res=True,
@@ -1762,7 +1762,7 @@ class AFMConfocalLogic(GenericLogic):
             self._qafm_scan_array[entry]['params']['ESR Frequency stop (Hz)'] = freq_stop
             self._qafm_scan_array[entry]['params']['ESR Frequency points (#)'] = freq_points
             self._qafm_scan_array[entry]['params']['ESR Count Frequency (Hz)'] = esr_count_freq
-            self._qafm_scan_array[entry]['params']['ESR MW power (gain)'] = mw_power
+            self._qafm_scan_array[entry]['params']['ESR MW power (dBm)'] = mw_power
             self._qafm_scan_array[entry]['params']['ESR Measurement runs (#)'] = num_esr_runs
             self._qafm_scan_array[entry]['params']['Expect one resonance dip'] = single_res
             self._qafm_scan_array[entry]['params']['Optimize Period (s)'] = optimize_period
@@ -1963,7 +1963,7 @@ class AFMConfocalLogic(GenericLogic):
                                                    idle_move_time=0.1, freq_start=2.77e9,
                                                    freq_stop=2.97e9, freq_points=100,
                                                    esr_count_freq=200,
-                                                   mw_power=0.4, num_esr_runs=30,
+                                                   mw_power=-25, num_esr_runs=30,
                                                    optimize_period=100,
                                                    meas_params=['Height(Dac)'],
                                                    single_res=True,
