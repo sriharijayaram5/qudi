@@ -1215,6 +1215,8 @@ class ProteusQGUI(GUIBase):
             ref_last_dockwidget = dockwidget
 
             # cover now the special adaptations:
+            if ('Height(Dac)' in obj_name) or ('Height(Sen)' in obj_name):
+                dockwidget.checkBox_tilt_corr.setVisible(True)
 
             if ('fw' in obj_name) or ('bw' in obj_name) or ('opti_xy' in obj_name):
 
@@ -1324,6 +1326,10 @@ class ProteusQGUI(GUIBase):
         radioButton_cb_per.setObjectName("radioButton_cb_per")
         radioButton_cb_per.setText('Percentiles')
         radioButton_cb_per.setChecked(True)
+        parent.checkBox_tilt_corr = checkBox_tilt_corr = CustomCheckBox(content)
+        checkBox_tilt_corr.setObjectName("checkBox_tilt_corr")
+        checkBox_tilt_corr.setText("Tilt correction")
+        checkBox_tilt_corr.setVisible(False)   # this will only be enabled for Heights
 
         # create required functions to react on change of the Radiobuttons:
         def cb_per_update(value):
@@ -1334,12 +1340,17 @@ class ProteusQGUI(GUIBase):
             radioButton_cb_man.setChecked(True)
             self.sigColorBarChanged.emit(parent_dock.name)
 
+        def tilt_corr_update(value):
+            self.sigColorBarChanged.emit(parent_dock.name)
+
         parent_dock.cb_per_update = cb_per_update
         doubleSpinBox_per_min.valueChanged.connect(cb_per_update)
         doubleSpinBox_per_max.valueChanged.connect(cb_per_update)
         parent_dock.cb_man_update = cb_man_update
         doubleSpinBox_cb_min.valueChanged.connect(cb_man_update)
         doubleSpinBox_cb_max.valueChanged.connect(cb_man_update)
+        parent_dock.tilt_corr_update = tilt_corr_update 
+        checkBox_tilt_corr.valueChanged_custom.connect(tilt_corr_update)
 
         # create SizePolicy for only one spinbox, all the other spin boxes will
         # follow this size policy if not specified otherwise.
@@ -1380,6 +1391,7 @@ class ProteusQGUI(GUIBase):
             doubleSpinBox_cb_min.hide()
             radioButton_cb_man.hide()
             radioButton_cb_per.hide()
+            checkBox_tilt_corr.hide()
         else:
 
             grid.addWidget(graphicsView_matrix,   0, 0, 7, 1) # start [0,0], span 7 rows down, 1 column wide
@@ -1390,6 +1402,7 @@ class ProteusQGUI(GUIBase):
             grid.addWidget(doubleSpinBox_cb_min,  4, 1, 1, 1) # start [4,1], span 1 rows down, 1 column wide
             grid.addWidget(radioButton_cb_man,    5, 1, 1, 1) # start [5,1], span 1 rows down, 1 column wide
             grid.addWidget(radioButton_cb_per,    6, 1, 1, 1) # start [6,1], span 1 rows down, 1 column wide
+            grid.addWidget(checkBox_tilt_corr,    7, 0, 1, 1) # start [7,0], span 1 rows down, 1 column wide
 
 
     def _create_meas_params(self):
@@ -1683,8 +1696,20 @@ class ProteusQGUI(GUIBase):
         """
 
         data_obj = self.get_all_data_matrices()[dockwidget_name]
-        cb_range = self._get_scan_cb_range(dockwidget_name)
-        data = data_obj['data']
+        dockwidget = self.get_dockwidget(dockwidget_name)
+
+        if dockwidget.checkBox_tilt_corr.isVisible() and \
+           dockwidget.checkBox_tilt_corr.isChecked():
+           # correct data for tilting 
+            data = self.tilt_correction(data= data_obj['data'],
+                                        x_axis= data_obj['coord0_arr'],
+                                        y_axis= data_obj['coord1_arr'],
+                                        C= data_obj['corr_plane_coeff'])
+        else:
+            # no correction applied
+            data = data_obj['data']
+
+        cb_range = self._get_scan_cb_range(dockwidget_name,data=data)
 
         # the name of the image object has to be the same as the dockwidget
         self._image_container[dockwidget_name].setImage(image=data, levels=(cb_range[0], cb_range[1]))
@@ -1756,7 +1781,7 @@ class ProteusQGUI(GUIBase):
         self._mw.obj_target_z_DSpinBox.setValue(z_max)
 
 
-    def _get_scan_cb_range(self, dockwidget_name):
+    def _get_scan_cb_range(self, dockwidget_name,data=None):
         """ Determines the cb_min and cb_max values for the xy scan image.
         @param str dockwidget_name: name associated to the dockwidget.
 
@@ -1773,7 +1798,10 @@ class ProteusQGUI(GUIBase):
         # Otherwise, calculate cb range from percentiles.
         else:
             # Exclude any zeros (which are typically due to unfinished scan)
-            xy_image_nonzero = xy_image.image[np.nonzero(xy_image.image)]
+            if data is None:
+                xy_image_nonzero = xy_image.image[np.nonzero(xy_image.image)]
+            else:
+                xy_image_nonzero = data[np.nonzero(data)]
 
             # Read centile range
             low_centile = dockwidget.doubleSpinBox_per_min.value()
@@ -2212,5 +2240,26 @@ class ProteusQGUI(GUIBase):
     def stop_quantitative_measure_clicked(self):
         self.stop_any_scanning()
 
+    @staticmethod
+    def tilt_correction(data, x_axis, y_axis, C):
+        """  Transforms the given measurement data by plane (tilt correction)
+             assumes all data, as passed, is in original form.  The completeness 
+             of the data matrix is determined on the spot
 
+        @param np.array([[], []]): data:  a 2-dimensional array of measurements. 
+                                          Incomplete measurements = 0.0.  
+        @param np.array([])      x_axis:  x-coordinates (= 'coord0_arr')
+        @param np.array([])      y_axis:  y-coordinates (= 'coord1_arr')
+        @param np.array([])           C:  plane coefficients (f(x,y) = C[0]*x + C[1]*y + C[2])
 
+        @return np.array([[],[]]) : data transformed by planar equation, 
+        """
+        # Note: operations are performed on copy of array..not the array itself
+
+        data_o = data.copy()
+        data_v = data_o[~np.all(data_o == 0.0, axis=1)]   # only the completed rows
+        n_row = data_v.shape[0]                           # last index achieved
+        xv, yv = np.meshgrid(x_axis, y_axis[:n_row])
+        data_o[:n_row] = data_v - (C[0]*xv + C[1]*yv + C[2])
+
+        return data_o
