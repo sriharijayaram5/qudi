@@ -1818,27 +1818,26 @@ class ProteusQGUI(GUIBase):
         """
         
         dockwidget = self.get_dockwidget(dockwidget_name)
-        xy_image = self._image_container[dockwidget_name]
+
+        if data is None:
+            data = self._image_container[dockwidget_name].image
 
         # If "Manual" is checked, or the image data is empty (all zeros), then take manual cb range.
-        if dockwidget.radioButton_cb_man.isChecked() or np.count_nonzero(xy_image.image) < 1:
+        if dockwidget.radioButton_cb_man.isChecked() or np.count_nonzero(data) < 1:
             cb_min = dockwidget.doubleSpinBox_cb_min.value()
             cb_max = dockwidget.doubleSpinBox_cb_max.value()
 
         # Otherwise, calculate cb range from percentiles.
         else:
             # Exclude any zeros (which are typically due to unfinished scan)
-            if data is None:
-                xy_image_nonzero = xy_image.image[np.nonzero(xy_image.image)]
-            else:
-                xy_image_nonzero = data[np.nonzero(data)]
+            data_nonzero = data[np.nonzero(data)]
 
             # Read centile range
             low_centile = dockwidget.doubleSpinBox_per_min.value()
             high_centile = dockwidget.doubleSpinBox_per_max.value()
 
-            cb_min = np.percentile(xy_image_nonzero, low_centile)
-            cb_max = np.percentile(xy_image_nonzero, high_centile)
+            cb_min = np.percentile(data_nonzero, low_centile)
+            cb_max = np.percentile(data_nonzero, high_centile)
 
         cb_range = [cb_min, cb_max]
 
