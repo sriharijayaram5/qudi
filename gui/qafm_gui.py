@@ -1159,6 +1159,7 @@ class ProteusQGUI(GUIBase):
                 QDoubleSpinBox_4 (for maximal percentile)
                 QRadioButton_1 (to choose abs value)
                 QRadioButton_2 (to choose percentile)
+                QCheckBox_1 (to set tilt correction)
               
         DockWidgetContent is a usual QWidget, hosting the internal content of the 
         DockWidget.
@@ -1691,32 +1692,31 @@ class ProteusQGUI(GUIBase):
         qafm_data = self._qafm_logic.get_qafm_data()
 
         # order them in forward scan and backward scan:
-        for param_name in qafm_data:
-            if 'fw' in param_name:
-                cb_range = self._get_scan_cb_range(param_name)
+        for direc in ('fw', 'bw'):
+            for param_name in qafm_data:
+                if direc in param_name:
+                    dockwidget = self.get_dockwidget(param_name)  # param_name = dockWidgetname
 
-                if qafm_data[param_name]['display_range'] is not None:
-                    qafm_data[param_name]['display_range'] = cb_range 
+                    if dockwidget.checkBox_tilt_corr.isVisible() and \
+                       dockwidget.checkBox_tilt_corr.isChecked():
+                        # correct data for tilting 
+                        data = self.tilt_correction(data= qafm_data[param_name]['data'],
+                                                    x_axis= qafm_data[param_name]['coord0_arr'],
+                                                    y_axis= qafm_data[param_name]['coord1_arr'],
+                                                    C= qafm_data[param_name]['corr_plane_coeff'])
+                    else:
+                        data = qafm_data[param_name]['data']
+                    
+                    cb_range = self._get_scan_cb_range(param_name,data=data)
 
-                self._image_container[param_name].setImage(image=qafm_data[param_name]['data'],
+                    if qafm_data[param_name]['display_range'] is not None:
+                       qafm_data[param_name]['display_range'] = cb_range 
+
+                    self._image_container[param_name].setImage(image=data,
                                                            levels=(cb_range[0], cb_range[1]))
-                self._refresh_scan_colorbar(param_name)
-                # self._image_container[obj_name].getViewBox().setAspectLocked(lock=True, ratio=1.0)
-                self._image_container[param_name].getViewBox().updateAutoRange()
-
-        for param_name in qafm_data:
-            if 'bw' in param_name:
-
-                cb_range = self._get_scan_cb_range(param_name)
-
-                if qafm_data[param_name]['display_range'] is not None:
-                    qafm_data[param_name]['display_range'] = cb_range
-
-                self._image_container[param_name].setImage(image=qafm_data[param_name]['data'],
-                                                           levels=(cb_range[0], cb_range[1]))
-                self._refresh_scan_colorbar(param_name)
-                # self._image_container[obj_name].getViewBox().setAspectLocked(lock=True, ratio=1.0)
-                self._image_container[param_name].getViewBox().updateAutoRange()
+                    self._refresh_scan_colorbar(param_name)
+                    # self._image_container[obj_name].getViewBox().setAspectLocked(lock=True, ratio=1.0)
+                    self._image_container[param_name].getViewBox().updateAutoRange()
 
 
     def _update_data_from_dockwidget(self, dockwidget_name):

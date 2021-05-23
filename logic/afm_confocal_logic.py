@@ -1145,7 +1145,6 @@ class AFMConfocalLogic(GenericLogic):
             
             # determine correction plane for relative measurements
             if row_i >= 1:
-                self.log.debug("Determining plane equations")
                 for name in {p + sfx for p in curr_scan_params for sfx in ('_fw', '_bw')} & \
                             {'Height(Dac)_fw', 'Height(Dac)_bw', 'Height(Sen)_fw','Height(Sen)_bw'}:
                     x_range = [self._qafm_scan_array[name]['coord0_arr'][0], 
@@ -1154,7 +1153,6 @@ class AFMConfocalLogic(GenericLogic):
                                self._qafm_scan_array[name]['coord0_arr'][row_i]]
                     xy_data = self._qafm_scan_array[name]['data'][:row_i+1]
                     _,C = self.correct_plane(xy_data=xy_data,x_range=x_range,y_range=y_range)                    
-                    self.log.debug(f"Determined corection plane for {name} as C={C.tolist()}")
 
                     # update plane equation
                     self._qafm_scan_array[name]['params']['correction_plane_eq'] = str(C.tolist())
