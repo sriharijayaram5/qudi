@@ -1238,9 +1238,10 @@ class ProteusQGUI(GUIBase):
                 dockwidget.graphicsView_cb.hideAxis('bottom')
 
                 data_name = data_dict[obj_name]['nice_name']
-                si_units = data_dict[obj_name]['si_units']
+                #si_units = data_dict[obj_name]['si_units']
+                meas_units = data_dict[obj_name]['measured_units']
 
-                dockwidget.graphicsView_cb.setLabel('left', data_name, units=si_units)
+                dockwidget.graphicsView_cb.setLabel('left', data_name, units=meas_units)
                 dockwidget.graphicsView_cb.setMouseEnabled(x=False, y=False)
 
             ref_last_dockwidget = dockwidget
@@ -1705,7 +1706,12 @@ class ProteusQGUI(GUIBase):
                                                     y_axis= qafm_data[param_name]['coord1_arr'],
                                                     C= qafm_data[param_name]['corr_plane_coeff'])
                     else:
-                        data = qafm_data[param_name]['data']
+                        data = qafm_data[param_name]['data'].copy()
+                    
+                    #FIXME: Colorbar is not properly displayed for big numbers (>1e9) or small numbers (<1e-3)
+                    # so scaling is applied
+                    scale_fac = qafm_data[param_name]['scale_fac']
+                    data = data / scale_fac
                     
                     cb_range = self._get_scan_cb_range(param_name,data=data)
 
@@ -1714,7 +1720,7 @@ class ProteusQGUI(GUIBase):
 
                     self._image_container[param_name].setImage(image=data,
                                                            levels=(cb_range[0], cb_range[1]))
-                    self._refresh_scan_colorbar(param_name)
+                    self._refresh_scan_colorbar(param_name, data=data)
                     # self._image_container[obj_name].getViewBox().setAspectLocked(lock=True, ratio=1.0)
                     self._image_container[param_name].getViewBox().updateAutoRange()
 
@@ -1725,8 +1731,8 @@ class ProteusQGUI(GUIBase):
         @param str dockwidget_name: name of the associated dockwidget.
         """
 
-        data_obj = self.get_all_data_matrices()[dockwidget_name]
         dockwidget = self.get_dockwidget(dockwidget_name)
+        data_obj = self.get_all_data_matrices()[dockwidget_name]
 
         if dockwidget.checkBox_tilt_corr.isVisible() and \
            dockwidget.checkBox_tilt_corr.isChecked():
@@ -1736,14 +1742,19 @@ class ProteusQGUI(GUIBase):
                                         y_axis= data_obj['coord1_arr'],
                                         C= data_obj['corr_plane_coeff'])
         else:
-            # no correction applied
-            data = data_obj['data']
+            # no correction applied, since data was already transformed
+            data = data_obj['data'].copy()
+
+        #FIXME: Colorbar is not properly displayed for big numbers (>1e9) or small numbers (<1e-3)
+        # so scaling is applied
+        scale_fac = data_obj['scale_fac']
+        data = data / scale_fac
 
         cb_range = self._get_scan_cb_range(dockwidget_name,data=data)
 
         # the name of the image object has to be the same as the dockwidget
         self._image_container[dockwidget_name].setImage(image=data, levels=(cb_range[0], cb_range[1]))
-        self._refresh_scan_colorbar(dockwidget_name)
+        self._refresh_scan_colorbar(dockwidget_name, data=data)
         # self._image_container[dockwidget_name].getViewBox().setAspectLocked(lock=True, ratio=1.0)
         self._image_container[dockwidget_name].getViewBox().updateAutoRange()
 
@@ -1844,14 +1855,15 @@ class ProteusQGUI(GUIBase):
         return cb_range
 
 
-    def _refresh_scan_colorbar(self, dockwidget_name):
+    def _refresh_scan_colorbar(self, dockwidget_name, data=None):
         """ Update the colorbar of the Dockwidget.
 
         @param str dockwidget_name: the name of the dockwidget to update.
         """
 
-        cb_range =  self._get_scan_cb_range(dockwidget_name)
+        cb_range =  self._get_scan_cb_range(dockwidget_name,data=data)
         self._cb_container[dockwidget_name].refresh_colorbar(cb_range[0], cb_range[1])
+
 
     def get_dockwidget(self, objectname):
         """ Get the reference to the dockwidget associated to the objectname.
