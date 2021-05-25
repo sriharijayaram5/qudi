@@ -40,7 +40,7 @@ class LaserQuantumLaser(Base, SimpleLaserInterface):
 
     """
     com_port = ConfigOption('COM', 'COM4', missing='error')
-    maxpower = ConfigOption('maxpower', 0.200, missing='warn')
+    maxpower = ConfigOption('maxpower', 1.000, missing='warn')
 
     def on_activate(self):
         self.ser = serial.Serial(

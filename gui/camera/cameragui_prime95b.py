@@ -313,7 +313,8 @@ class CameraGUI(GUIBase):
 
     def print_scale(self):
         x1, y1, x2, y2 = self.scaleBar.boundingRect().getCoords()
-        self.dist = np.sqrt((x1-x2)**2 + (y1-y2)**2) * 0.0395
+        px_um = self._mw.dist_px.value()
+        self.dist = np.sqrt((x1-x2)**2 + (y1-y2)**2) * px_um
         self._mw.dist_label.setText(f'{self.dist:.3f}')
 
     def updateView(self):

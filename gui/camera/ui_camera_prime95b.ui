@@ -244,6 +244,40 @@
         </widget>
        </item>
        <item>
+        <widget class="ScienDSpinBox" name="dist_px">
+        <property name="toolTip">
+          <string>Distance per pixel in um</string>
+        </property>
+         <property name="maximumSize">
+          <size>
+           <width>100</width>
+           <height>16777215</height>
+          </size>
+         </property>
+         <property name="alignment">
+          <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+         </property>
+         <property name="suffix">
+          <string>um</string>
+         </property>
+         <property name="decimals">
+          <number>3</number>
+         </property>
+         <property name="minimum">
+          <double>0.000000000000000</double>
+         </property>
+         <property name="maximum">
+          <double>10000.000000000000000</double>
+         </property>
+         <property name="singleStep">
+          <double>0.0100000000000000</double>
+         </property>
+         <property name="value">
+          <double>0.01000000000000</double>
+         </property>
+        </widget>
+       </item>
+       <item>
         <widget class="ScienDSpinBox" name="xy_cb_low_percentile_DoubleSpinBox">
          <property name="maximumSize">
           <size>
