@@ -37,4 +37,6 @@
 Trials
 .vscode
 .ipynb
-notebooks/*
+notebooks/
+notebooks/.ipynb_checkpoints/
+SLM_Examples/
