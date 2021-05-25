@@ -20,6 +20,7 @@ Copyright (c) the Qudi Developers. See the COPYRIGHT.txt file at the
 top-level directory of this distribution and at <https://github.com/Ulm-IQO/qudi/>
 """
 
+from numpy.lib.npyio import save
 from qtpy import QtCore
 from collections import OrderedDict
 from interface.microwave_interface import MicrowaveMode
@@ -1010,7 +1011,8 @@ class ODMRLogic(GenericLogic):
             self,
             tag=None,
             colorscale_range=None,
-            percentile_range=None):
+            percentile_range=None,
+            save_stack=False):
         """ Saves the current ODMR data to a file."""
         timestamp = datetime.datetime.now()
 
@@ -1079,14 +1081,13 @@ class ODMRLogic(GenericLogic):
             # The files is saved as a compressed .npz file which can be looaed by np.load('.npz')['sweep_images']
             # Provides best possible compression for array storage. Saved with almost the same timestamp
             # as used in save_logic
-            if len(tag) > 0:
-                tag = '_' + tag
-            loc = filepath + '/' + \
-                timestamp.strftime("%Y%m%d-%H%M-%S") + tag + '_sweep_images'
-            #np.savez_compressed(
-            #    loc,
-            #    sweep_images=(self.sweep_images /
-            #                  self.elapsed_sweeps).astype(np.uint16))
+            if save_stack:
+                loc = filepath + '/' + \
+                    timestamp.strftime("%Y%m%d-%H%M-%S") + '_' + filelabel + '_sweep'
+                np.savez_compressed(
+                loc,
+                sweep_images=(self.sweep_images /
+                                self.elapsed_sweeps))
             self.log.info('ODMR data saved to:\n{0}'.format(filepath))
         return
 

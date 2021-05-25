@@ -92,7 +92,7 @@ class ODMRGui(GUIBase):
     ##
     sigExpTimeChanged = QtCore.Signal(int, int)
     sigDoFit = QtCore.Signal(str, object, object, int, bool)
-    sigSaveMeasurement = QtCore.Signal(str, list, list)
+    sigSaveMeasurement = QtCore.Signal(str, list, list, bool)
     sigAverageLinesChanged = QtCore.Signal(int)
 
     def __init__(self, config, **kwargs):
@@ -137,6 +137,9 @@ class ODMRGui(GUIBase):
         self._mw.sweep_power_DoubleSpinBox.setMinimum(constraints.min_power)
 
         # Add save file tag input box
+        self._mw.save_stack_radioButton = QtWidgets.QRadioButton(self._mw)
+        self._mw.save_stack_radioButton.setToolTip('Save ODMR images stack')
+        self._mw.save_ToolBar.addWidget(self._mw.save_stack_radioButton)
         self._mw.save_tag_LineEdit = QtWidgets.QLineEdit(self._mw)
         self._mw.save_tag_LineEdit.setMaximumWidth(500)
         self._mw.save_tag_LineEdit.setMinimumWidth(200)
@@ -906,6 +909,5 @@ class ODMRGui(GUIBase):
             low_centile = self._mw.odmr_cb_low_percentile_DoubleSpinBox.value()
             high_centile = self._mw.odmr_cb_high_percentile_DoubleSpinBox.value()
             pcile_range = [low_centile, high_centile]
-
-        self.sigSaveMeasurement.emit(filetag, cb_range, pcile_range)
+        self.sigSaveMeasurement.emit(filetag, cb_range, pcile_range, self._mw.save_stack_radioButton.isChecked())
         return
