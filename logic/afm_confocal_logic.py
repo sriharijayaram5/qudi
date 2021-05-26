@@ -4873,9 +4873,14 @@ class AFMConfocalLogic(GenericLogic):
             image_dimension[2] = image_dimension[2] * 1000.
             image_dimension[3] = image_dimension[3] * 1000.
             y_prefix_count = y_prefix_count + 1
+        
+        #FIXME:: to make conforming axes, use the same scaling definition
+        # this could be done more straighforward using Log10 and a floor() function
+        prefix_count = max(x_prefix_count, y_prefix_count)
+        image_dimension = [v * 1000**prefix_count for v in image_extent] 
 
-        x_prefix = axes_prefix[x_prefix_count]
-        y_prefix = axes_prefix[y_prefix_count]
+        x_prefix = axes_prefix[prefix_count]
+        y_prefix = axes_prefix[prefix_count]
 
         self.log.debug(('image_dimension: ', image_dimension))
 
