@@ -11,7 +11,8 @@ import numpy as np
 from scipy import interpolate
 import socket
 
-# subcomponents related to this package
+# subcomponents
+from . import TrackUnit
 from . import SpiController
 from . import RFController
 from . import FPGA
@@ -99,6 +100,7 @@ class MicrowaveQ(dev.Device):
         self.pixelClkSim    = PulseGen.PulseGen(self.com,           0x10C00000)
         self.resultFilter   = RSF.ResultStreamFilter(self.com,      0x10D00000)
         self.gpio           = Gpio.Gpio(self.com,                   0x10E00000)
+        self.track          = TrackUnit.TrackUnit(self.com,         0x10F00000)
 
         self._default_trf_regs = list()
         # internal variables
@@ -311,6 +313,68 @@ class MicrowaveQ(dev.Device):
         self.ctrl._setLaserCooldownLength(laserCooldownLength)
         self.ctrl.countingMode.set('RABI')
 
+    def configureISO(self, frequency, pulseLengths, ncoWords, laserCooldownLength=0):
+        """Configure ISO measurement
+        Keyword arguments:
+            frequency             -- frequency in Hz
+            pulseLengths          -- list of lengths of the RF pulses in seconds (rounded up DAC cycle)
+            laserCooldownLength      -- length of the delay after laser excitation (default = 0)
+            ncoWords              -- list of NCO phases for different submeasurements
+        """
+        if len(pulseLengths) == len(ncoWords):
+            self.logger.info(f"Configuring ISO: frequency {frequency}, pulseLengths {pulseLengths}, ncoWords {ncoWords}")
+
+            self.ctrl.measurementLength.set(len(pulseLengths)-1)
+            self.setFrequency(frequency)
+            self.ctrl._setPulseLength(pulseLengths)
+            self.ctrl._setNcoWord(ncoWords)
+            self.ctrl._setLaserCooldownLength(laserCooldownLength)
+            self.ctrl.countingMode.set('ISO')
+        else:
+            self.logger.error("Parameters pulseLengths and frequencies size mismatch.")
+            return
+
+    def configureTrackISO(self, RFfrequency, cutOffFreq, frequencies, pulseLengths, deltaFreq, nDelta,  laserCooldownLength=0):
+        """Configure ISO Tracking measurement
+        Keyword arguments:
+            RFfrequency           -- Main RF frequency in Hz,
+            cutOffFreq            -- Cut off frequency for tracking algorithm
+              frequencies           -- Starting frequencies for tracking algoritm (these frequencies in combination with RFfrequency determines NCO words)
+            pulseLengths          -- list of lengths of the RF pulses in seconds (rounded up DAC cycle)
+            deltaFreq               -- Frequency step for tracking algorithm
+            nDelta                   -- Nx delta step if tracking algoritm is out of fine range
+            laserCooldownLength      -- length of the delay after laser excitation (default = 0)
+        """
+        if (len(pulseLengths) == 3) and (len(frequencies) == 3):
+            ncoWords      = [freq - RFfrequency for freq in frequencies]
+            ncoStarting   = ncoWords[1]
+            ncoCutOff     = cutOffFreq - RFfrequency
+            biggestOffest = ncoCutOff - ncoStarting
+
+            self.configureISO(
+               frequency           = RFfrequency,
+               pulseLengths        = pulseLengths,
+               ncoWords            = ncoWords,
+               laserCooldownLength = laserCooldownLength
+            )
+
+            self.ctrl.accumulationMode.set(1)
+
+            self.logger.info(f"Configuring Tracking: Delta Frequency {deltaFreq}, N-Delta frequency {nDelta}, Cutoff Frequency {cutOffFreq}")
+
+            self.track.rst.set(1)
+            self.track.rst.set(0)
+            self.track.trackSendEn.set(1)
+            self.track.NdeltaFreq.set(nDelta)
+            self.track._setDeltaFreq(deltaFreq)
+            self.track._setStartFreq(ncoStarting)
+            self.track._setCutOffFreq(ncoCutOff)
+            self.track.en.set(1)
+
+        else:
+            self.logger.error("Wrong number of pulseLengths/frequencies")
+            return
+
     def configurePULSED_ESR(self, frequencies, countingWindowLength, laserExcitationLength, rfLaserDelayLength, pulseLength, laserCooldownLength=0):
         """Configure RABI measurement
 
@@ -349,6 +413,27 @@ class MicrowaveQ(dev.Device):
         val = self._calcGainCompensation(frequency)
         self.rfpulse.setGainCompensation(val)
         self.__cur_freq = freq
+
+    def getFrequency(self):
+        addrData=self._getAddressData(self._conf_path+"defaultConfig.cfg", "TRF3722")
+    
+        data =[self.spiTrf.read(addr) for addr,data in addrData]
+
+        RDIV        = self._readBits(data[0], 5, 18)
+        NINT        = self._readBits(data[1], 5, 21)
+        PLL_DIV_SEL = self._readBits(data[1], 21, 23)
+        PRSC_SEL    = self._readBits(data[1], 23, 24)
+        NFRAC       = self._readBits(data[2], 5, 30)
+        LO_DIV_SEL  = self._readBits(data[5], 23, 25)
+        TX_DIV_SEL  = self._readBits(data[5], 27, 29)
+
+        PLL_DIV     = 2 ** PLL_DIV_SEL
+        TX_DIV      = 2 ** TX_DIV_SEL
+
+        f_VCO       = self.f_ref/RDIV * PLL_DIV * (NINT + NFRAC/2**25)
+        f           = f_VCO/TX_DIV
+        fin         = f * 1e6
+        return fin
 
     def configureTrfDefaultRegs(self, file_name=""):
         """Sets default values of the TRF3722 registers. These values are a baseline during ESR reconfiguration.
@@ -418,7 +503,7 @@ class MicrowaveQ(dev.Device):
 
         self._cali_freq_arr = self._freq_gain_power_data[:,0,0]
         self._cali_gain_arr = self._freq_gain_power_data[0,:,1]
-        self._cali_power_arr = self.watt_to_dbm(self._freq_gain_power_data[:,:,2].transpose()) 
+        self._cali_power_arr = self.watt_to_dbm(self._freq_gain_power_data[:,:,2].transpose())
 
         self._func_2d = interpolate.interp2d(self._cali_freq_arr, self._cali_gain_arr, self._cali_power_arr, kind='cubic')
 
@@ -428,9 +513,6 @@ class MicrowaveQ(dev.Device):
 
     def volt_to_dbm(self, volt_arr):
         return 20*np.log10(volt_arr)
-
-    def watt_to_dbm(self, watt_arr):
-        return 10*np.log10(watt_arr) + 30
 
     def gen_logrange_gain(self, start, stop, num):
         return self.dbm_to_volt(np.linspace(self.volt_to_dbm(start), self.volt_to_dbm(stop), num))
@@ -494,6 +576,8 @@ class MicrowaveQ(dev.Device):
         self.rfpulse.setGain(gain_val)
         self.setFrequency(freq)
 
+    def watt_to_dbm(self, watt_arr):
+        return 10*np.log10(watt_arr) + 30
 
     def _setFrequencies(self, frequencies):
         """Calculates the register values for given frequencies and applies them.
@@ -662,6 +746,13 @@ class MicrowaveQ(dev.Device):
         return register
 
     @staticmethod
+    def _readBits(data, bit_start, bit_stop):
+        data >>= bit_start
+        mask = sum([1 << i for i in range(bit_stop-bit_start, 32)]) ^ 0xFFFFFFFF
+        data &= mask   # clear bits
+        return data
+
+    @staticmethod
     def _getAddressData(file_name, device):
         """This method returns list of device parameters with elements [address, data]"""
         with open(file_name, 'r') as in_file:
@@ -728,8 +819,89 @@ class MicrowaveQ(dev.Device):
         features[8] = 'Pulsed ESR'
         features[16] = 'Pixel clock'
         features[32] = 'Ext Triggered Measurement'
+        features[64] = 'ISO'
 
         return features
+
+    def clear_DAC_alarms(self):
+        [self.spiDac.write(addr, 0x0000)for addr in range(0x64,0x6E)]
+
+    def get_DAC_alarms(self):
+        data =[self._readBits(self.spiDac.read(addr), 0, 16) for addr in range(0x64,0x6E)]
+
+        laneAlarms = {}
+        laneAlarms[2**0] = 'FIFO Read Empty'
+        laneAlarms[2**1] = 'FIFO Read Error'
+        laneAlarms[2**2] = 'FIFO Write Full'
+        laneAlarms[2**3] = 'FIFO Write Error'
+        laneAlarms[2**4] = 'Reserved'
+        laneAlarms[2**5] = 'Reserved'
+        laneAlarms[2**6] = 'Reserved'
+        laneAlarms[2**7] = 'Reserved'
+        laneAlarms[2**8] = '8b/10b Disparity Error'
+        laneAlarms[2**9] = '8b/10b Not-In-Table Code Error'
+        laneAlarms[2**10] = 'Code Group Synchronization Error'
+        laneAlarms[2**11] = 'elastic buffer match error.'
+        laneAlarms[2**12] = 'elastic buffer overflow'
+        laneAlarms[2**13] = 'link configuration error'
+        laneAlarms[2**14] = 'frame alignment error'
+        laneAlarms[2**15] = 'multiframe alignment error'
+
+        lanes = {}
+        for lane in range(8):
+            read_error = {}
+            for entry in laneAlarms:
+                if bool(entry & data[lane]):
+                    read_error[entry] = laneAlarms[entry]
+            lanes[lane] = read_error
+
+        sysAlarms = {}
+        sysAlarms[2**0] = 'DAC PLL Out Of Lock'
+        sysAlarms[2**1] = 'Reserved'
+        sysAlarms[2**2] = 'Serdes PLL 0 Out Of Lock'
+        sysAlarms[2**3] = 'Serdes PLL 1 Out Of Lock'
+        sysAlarms[2**4] = 'Reserved'
+        sysAlarms[2**5] = 'Reserved'
+        sysAlarms[2**6] = 'Reserved'
+        sysAlarms[2**7] = 'Reserved'
+        sysAlarms[2**8]  = 'PA Protection Alarm - data path A'
+        sysAlarms[2**9]  = 'PA Protection Alarm - data path B'
+        sysAlarms[2**10] = 'PA Protection Alarm - data path C'
+        sysAlarms[2**11] = 'PA Protection Alarm - data path D'
+        sysAlarms[2**12] = 'SYSREF Alarm - lane 0'
+        sysAlarms[2**13] = 'SYSREF Alarm - lane 1'
+        sysAlarms[2**14] = 'SYSREF Alarm - lane 2'
+        sysAlarms[2**15] = 'SYSREF Alarm - lane 3'
+
+        sys = {}
+        for entry in sysAlarms:
+            if bool(entry & data[8]):
+                sys[entry] = sysAlarms[entry]
+
+        losAlarms = {}
+        losAlarms[2**0] = 'LOS Detect Alarm - Lane 0'
+        losAlarms[2**1] = 'LOS Detect Alarm - Lane 1'
+        losAlarms[2**2] = 'LOS Detect Alarm - Lane 2'
+        losAlarms[2**3] = 'LOS Detect Alarm - Lane 3'
+        losAlarms[2**4] = 'LOS Detect Alarm - Lane 4'
+        losAlarms[2**5] = 'LOS Detect Alarm - Lane 5'
+        losAlarms[2**6] = 'LOS Detect Alarm - Lane 6'
+        losAlarms[2**7] = 'LOS Detect Alarm - Lane 7'
+        losAlarms[2**8]  = 'Short Test Error Lane 0'
+        losAlarms[2**9]  = 'Short Test Error Lane 1'
+        losAlarms[2**10] = 'Short Test Error Lane 2'
+        losAlarms[2**11] = 'Short Test Error Lane 3'
+        losAlarms[2**12] = 'Short Test Error Lane 4'
+        losAlarms[2**13] = 'Short Test Error Lane 5'
+        losAlarms[2**14] = 'Short Test Error Lane 6'
+        losAlarms[2**15] = 'Short Test Error Lane 7'  
+
+        los = {}
+        for entry in losAlarms:
+            if bool(entry & data[9]):
+                los[entry] = losAlarms[entry]
+
+        return lanes, sys, los
 
     def get_unlocked_features(self):
         """ Obtain the dictionary with all """

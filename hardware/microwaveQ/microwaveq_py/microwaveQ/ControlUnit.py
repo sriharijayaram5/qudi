@@ -28,10 +28,10 @@ class ControlUnit(dev.Device):
         super().__init__(com,addr)
     
         self.en                             = dev.Field( self.com, self.addr + 0x00000, 0,  1)
-
-        self.countingMode                   = dev.Field( self.com, self.addr + 0x00004, 0,  3, {0:'None', 1:'CW', 2:'CW_ESR', 3:'RABI', 4:'PULSED_ESR', 5:'CW_PIX'})
+        self.countingMode                   = dev.Field( self.com, self.addr + 0x00004, 0,  3, {0:'None', 1:'CW', 2:'CW_ESR', 3:'RABI', 4:'PULSED_ESR', 5:'CW_PIX', 6:'ISO'})
         self.measurementRunTrigger          = dev.Field( self.com, self.addr + 0x00004, 3,  1, {0:'Manual', 1:'Triggered'})
         self.accumulationMode               = dev.Field( self.com, self.addr + 0x00004, 4,  1, {0:'Disabled', 1:'Enabled'})
+        self.ncoWord                        = dev.Memory(self.com, self.addr + 0x20000, 32)
 
         self.countingWindowLength           = dev.Field( self.com, self.addr + 0x00008, 0, 28)
         self.rfLaserDelayLength             = dev.Field( self.com, self.addr + 0x0000c, 0, 28)
@@ -123,8 +123,14 @@ class ControlUnit(dev.Device):
     def _setPulseLength(self, times):
         iList = [self.com.convSecToDacCyc(t) for t in times]
         self.logger.info(f"Setting the pulse lengths {iList}")
-
         self.pulseLength.write(iList)
+
+
+    def _setNcoWord(self, words):
+        iList = [(round(-freq/153.6e6 * 2**28) + 2**30) for freq in words]
+        self.logger.info(f"Setting the NCO words {iList}")
+        self.ncoWord.write(iList)
+
 
 
 

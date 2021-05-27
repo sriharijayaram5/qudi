@@ -219,7 +219,7 @@
       <item row="4" column="0">
        <widget class="QLabel" name="label_7">
         <property name="text">
-         <string>Microwave Power (Gain)</string>
+         <string>Microwave Power (dBm)</string>
         </property>
        </widget>
       </item>
@@ -232,17 +232,23 @@
       </item>
       <item row="4" column="1">
        <widget class="ScienDSpinBox" name="esr_mw_power_DoubleSpinBox">
+        <property name="suffix">
+         <string>dBm</string>
+        </property>
         <property name="decimals">
-         <number>3</number>
+         <number>2</number>
+        </property>
+        <property name="minimum">
+         <double>-50.000000000000000</double>
         </property>
         <property name="maximum">
-         <double>1.000000000000000</double>
+         <double>40.000000000000000</double>
         </property>
         <property name="singleStep">
          <double>0.100000000000000</double>
         </property>
         <property name="value">
-         <double>0.000000000000000</double>
+         <double>-30.000000000000000</double>
         </property>
        </widget>
       </item>

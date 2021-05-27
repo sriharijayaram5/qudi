@@ -102,7 +102,7 @@ class MicrowaveQ(Base, SlowCounterInterface):
     _RECORDER_CONSTRAINTS = RecorderConstraints()
 
     _meas_mode = 'pixel'  # measurement modes: counter, pixel, esr
-    _meas_mode_available = ['dummy', 'counter', 'pixel', 'esr', 'single-isob']
+    _meas_mode_available = ['dummy', 'counter', 'pixel', 'esr', 'single-isob', 'n-isob']
 
     _device_status = 'idle'  # can be idle, armed or running
     _meas_running = False   # this variable will be set whenever a measurement has stopped
@@ -128,11 +128,11 @@ class MicrowaveQ(Base, SlowCounterInterface):
     #FIXME: Power not used so far
     _mw_cw_power = -30 # in dBm
     _mw_freq_list = []
-    _mw_gain = 0.4 # not exposed to interface!!!
+    _mw_power = -25 # not exposed to interface!!!
 
     # settings for iso-B mode
-    _iso_b_freq = 500e6 # in MHz
-    _iso_b_gain = 0.0 # linear gain for iso b mode.
+    _iso_b_freq_list = [500e6] # in MHz
+    _iso_b_power = -30.0 # physical power for iso b mode.
 
     def on_activate(self):
 
@@ -618,8 +618,30 @@ class MicrowaveQ(Base, SlowCounterInterface):
     def meas_method_PixelClock(self, frame_int):
         """ Process the received pixelclock data and store to array. """
 
-        self._meas_res[self._counted_pulses] = (frame_int[0], frame_int[1], time.time())
+        self._meas_res[self._counted_pulses] = (frame_int[0],  # 'count_num'
+                                                frame_int[1],  # 'counts' 
+                                                0,             # 'counts2'
+                                                0,             # 'counts_diff' 
+                                                time.time())   # 'time_rec'
 
+        if self._counted_pulses > (self._total_pulses - 2):
+            self._meas_running = False
+            self.meas_cond.wakeAll()
+            self.skip_data = True
+
+        self._counted_pulses += 1
+
+    def meas_method_n_iso_b(self,frame_int):
+        """ Process the received data for dual_iso_b and store to array"""
+
+        counts_diff = frame_int[2] - frame_int[1]
+        self._meas_res[self._counted_pulses] = (frame_int[0],  # 'count_num'
+                                                frame_int[1],  # 'counts' 
+                                                frame_int[2],  # 'counts2'
+                                                counts_diff,   # 'counts_diff' 
+                                                time.time())   # 'time_rec'
+
+        #self.log.info("was meas_method_n_iso_b was called")
         if self._counted_pulses > (self._total_pulses - 2):
             self._meas_running = False
             self.meas_cond.wakeAll()
@@ -664,39 +686,71 @@ class MicrowaveQ(Base, SlowCounterInterface):
 
         self.meas_method = self.meas_method_PixelClock
 
-        self._dev.configureCW_PIX(frequency=self._iso_b_freq)
+        self._dev.configureCW_PIX(frequency=self._iso_b_freq_list[0])
         self._dev.rfpulse.setGain(0.0)
         self._dev.resultFilter.set(0)
 
         return 0
 
-    def prepare_pixelclock_single_iso_b(self, freq, gain):
+    def prepare_pixelclock_single_iso_b(self, freq, power):
         """ Setup the device for a single frequency output. 
 
         @param float freq: the frequency in Hz to be applied during the counting.
-        @param float gain: the linear power gain of the device, from 0.0 to 1.0
+        @param float power: the physical power of the device in dBm
+
+        """
+        if self._meas_running:
+            self.log.error('A measurement is still running. Stop it first.')
+            return -1
+
+        self._meas_mode = 'single-isob'
+
+        self.meas_method = self.meas_method_PixelClock
+
+        self._iso_b_freq_list = [freq]
+        self._iso_b_power = power
+        self._dev.configureCW_PIX(frequency=self._iso_b_freq_list[0])
+
+        self._dev.set_freq_power(freq, power)
+        self._dev.resultFilter.set(0)
+
+        return 0
+
+    def prepare_pixelclock_n_iso_b(self, freq_list, pulse_lengths, power, laserCooldownLength=10e-6):
+        """ Setup the device for n-frequency output. 
+
+        @param list(float) freq_list: a list of frequencies to apply 
+        @param float power: the physical power of the device in dBm
+        @param pulse_margin_frac: fraction of pulse margin to leave as dead time
 
         """
         if self._meas_running:
             self.log.error('A measurement is still running. Stop it first.')
             return -1
         
+        self._meas_mode = 'n-isob'
 
-        self._meas_mode = 'single-isob'
+        self.meas_method = self.meas_method_n_iso_b
 
-        self.meas_method = self.meas_method_PixelClock
+        self._iso_b_freq_list = freq_list if isinstance(freq_list, list) else [freq_list]
+        self._iso_b_power = power
 
-        self._iso_b_freq = freq
-        self._iso_b_gain = gain
-        self._dev.configureCW_PIX(frequency=self._iso_b_freq)
-        self._dev.rfpulse.setGain(self._iso_b_gain)
+        base_freq = freq_list[0]
+        ncoWords = [freq - base_freq for freq in freq_list]
+
+        self._dev.configureISO(frequency=base_freq,
+                               pulseLengths=pulse_lengths,
+                               ncoWords=ncoWords,
+                               laserCooldownLength=laserCooldownLength)
+
+        self._dev.set_freq_power(base_freq, power)
         self._dev.resultFilter.set(0)
 
         return 0
 
     def arm_device(self, pulses=100):
 
-        self._meas_mode = 'pixel'
+        #self._meas_mode = 'pixel'
         self._device_status = 'armed'
 
         self._dev.ctrl.start(pulses)
@@ -707,12 +761,14 @@ class MicrowaveQ(Base, SlowCounterInterface):
         self._meas_res = np.zeros((pulses),
               dtype=[('count_num', '<i4'),
                      ('counts', '<i4'),
+                     ('counts2', '<i4'),
+                     ('counts_diff', '<i4'),
                      ('time_rec', '<f8')])
 
         self._meas_running = True
         self.skip_data = False
 
-    def get_line(self):
+    def get_line(self,meas='counts'):
 
         if self._meas_running:
             with self.threadlock:
@@ -724,7 +780,7 @@ class MicrowaveQ(Base, SlowCounterInterface):
         self._device_status = 'idle'
         self.skip_data = True
         #self.sigLineFinished.emit()
-        return self._meas_res['counts']
+        return self._meas_res[meas]
 
 
     def _decode_frame(self, frame):
@@ -749,7 +805,7 @@ class MicrowaveQ(Base, SlowCounterInterface):
     #       ESR measurements: ODMRCounterInterface Implementation
     #===========================================================================
 
-    def prepare_cw_esr(self, freq_list, count_freq=100, gain=0.4):
+    def prepare_cw_esr(self, freq_list, count_freq=100, power=-25):
         """ Prepare the CW ESR to obtain ESR frequency scans
 
         @param list freq_list: containing the frequency list entries
@@ -772,7 +828,9 @@ class MicrowaveQ(Base, SlowCounterInterface):
         self._dev.configureCW_ESR(frequencies=freq_list,
                                   countingWindowLength=count_window)
 
-        self._dev.rfpulse.setGain(gain)
+        # take the mean frequency from the list for the power.
+        #FIXME: all frequencies should be normalized.
+        self._dev.set_freq_power(np.mean(freq_list), power)
 
         # the extra two numbers are for the current number of measurement run
         # and the time
@@ -1109,11 +1167,18 @@ class MicrowaveQ(Base, SlowCounterInterface):
 
         if frequency is not None:
             self._mw_freq_list = frequency
-            self.prepare_cw_esr(self._mw_freq_list, self._esr_count_frequency, self._mw_gain)
+            #FIXME: the power setting is a bit confusing. It is mainly done in 
+            # this way in case no power value was provided
+            self.prepare_cw_esr(self._mw_freq_list, self._esr_count_frequency, self._mw_power)
 
             mean_freq = np.mean(self._mw_freq_list)
 
+        if power is None:
+            # take the currently set power
+            _, power = self._dev.get_freq_power()
+
         self._dev.set_freq_power(mean_freq, power)
+        self._mw_power = power
 
         set_freq, self._mw_cw_power = self._dev.get_freq_power()
 

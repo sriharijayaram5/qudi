@@ -22,6 +22,10 @@ class RFWindow(dev.Device):
         self._testGenerate      = dev.Field( self.com, self.addr + 0x0008,30,  1)
         self._testLen           = dev.Field( self.com, self.addr + 0x0008, 0, 30)
         self.gainCompensation   = dev.Field( self.com, self.addr + 0x000C, 0, 16)
+        self.testNcoWord        = dev.Field( self.com, self.addr + 0x0010, 0, 32)
+        self.testNcoOffset      = dev.Field( self.com, self.addr + 0x0014, 0, 32)
+        self.testNcoSync        = dev.Field( self.com, self.addr + 0x0018, 0, 32)
+        self.testNcoEn          = dev.Field( self.com, self.addr + 0x001C, 0, 32)
         self.rise               = Transition(self.com, self.addr + 0x1000)
         self.fall               = Transition(self.com, self.addr + 0x1000)
 
@@ -35,6 +39,23 @@ class RFWindow(dev.Device):
         self.setHigh(high)
         self.rise.set(rise)
         self.fall.set(fall)
+
+    def genNco(self, freq, offset):
+        self.testNcoEn.set(1)
+
+        wordNco = (round(-freq/153.6e6 * 2**28) + 2**30)
+        self.logger.info(f"Setting the NCO word {wordNco}")
+        self.testNcoWord.set(wordNco)
+
+        wordOffset = (round(offset/153.6e6 * 2**28) + 2**30)
+        self.logger.info(f"Setting the NCO offset word {wordOffset}")
+        self.testNcoOffset.set(wordOffset)
+
+        self.testNcoSync.set(1)
+        self.testNcoSync.set(0)
+
+    def stopNco(self):
+        self.testNcoEn.set(0)
 
     def setHigh(self, arg=1.0):
         """Set gain
@@ -121,7 +142,7 @@ class RFWindow(dev.Device):
 
 class Transition(dev.Device):
 
-    def __init__(self, com, addr):
+    def __init__(self,com,addr):
         super().__init__(com,addr)
 
         self.val        = dev.Memory( self.com, self.addr + 0x0400, 16)

@@ -24,6 +24,8 @@ from core.module import Connector, StatusVar, ConfigOption
 from logic.generic_logic import GenericLogic
 from core.util import units
 from core.util.mutex import Mutex
+from scipy.linalg import lstsq
+from math import log10, floor
 import threading
 import numpy as np
 import os
@@ -92,8 +94,132 @@ class WorkerThread(QtCore.QRunnable):
         return super(WorkerThread, self).autoDelete()
 
 #TODO: reimplement the SetAutoDelete functionality
+               
+# ==========================================================================
+#               Start Methods for the Internal status check 
+class HealthChecker(object):
+    """ Performs a periodic check on an op function,
+        performed by a timer interval when the update status has fallen late
+    """
+    _timer = None
+    _armed = False
+    _dead_time_mult = 10
+
+    def __init__(self,log=None,**kwargs):
+        # for now, do nothing.  This will be initizliaed later
+        pass
+
+    def setup(self,interval=10,      # interval in seconds at which to perform the check
+              default_delta_t=1,     # default time to at first update 
+              dead_time_mult=10,     # multiplier of time delta, after which the op function is tested 
+              check_function=None,   # op function to check
+              connect_start = [],    # signals to trigger start
+              connect_update = [],   # signals to trigger update_status
+              connect_stop = [],     # signals to trigger stop
+              log=None,              # pointer to logger object
+            **kwargs):
+        self.log = log
+        self._timer = QtCore.QTimer()
+        self._lock = Mutex()
+        self._interval = interval   # currently, set timer for every 10 seconds
+        self._last_time = None
+        self._time_delta = None
+        self._dead_time_mult = dead_time_mult
+        self._default_delta_t = default_delta_t
+        self._armed = False
+
+        # attaches to a 0 argument function, return value is irrelevant
+        # failure to actuate indicates an ill condtion 
+        self._check_function = check_function  
+
+        # self signals
+        self._timer.timeout.connect(self.perform_check)
+        self._timer.setSingleShot(False)
+
+        # start signals to connect to
+        for sig in connect_start:
+            sig.connect(self.start_timer)
+        
+        # update signals to connect to
+        for sig in connect_update:
+            sig.connect(self.update_status)
+        
+        # stop signals to connect to
+        for sig in connect_stop:
+            sig.connect(self.stop_timer)
 
 
+    def set_armed(self,arm=True):
+        with self._lock:
+            self._armed = arm 
+
+
+    def start_timer(self,arm=False):
+        """ Start the timer, if timer is running, it will be restarted. """
+        self._timer.start(self._interval * 1000) # in ms
+        self.set_armed(arm)
+
+
+    def stop_timer(self):
+        """ Stop the timer. """
+        if self._timer is not None:
+            self._timer.stop()
+            self.set_armed(False)
+            self.log.debug("HealthCheck: stopped timer")
+
+
+    def update_status(self,pos=None):
+        """ updates the time since last writing of a measurement"""
+        with self._lock:
+            # not armed, but triggered
+            if not self._armed: 
+                return
+            # end of line call, fired from self.sigQuantiLineFinished.emit()
+            if pos is None:
+                self._last_time = None
+            
+            # pixel call, fired from self.sigNewAFMPos.emit()
+            if self._last_time is None:
+                self._time_delta = self._default_delta_t 
+                self._last_time = time.time() 
+            else:
+                now = time.time()
+                self._time_delta = now - self._last_time  
+                self._last_time = now
+            
+            #self.log.debug(f"HealthCheck:pos={pos}, last_time={self._last_time}, time_delta={self._time_delta}")
+
+
+    def perform_check(self):
+        """ request health status update """
+        # not armed, but triggered
+        if not self._armed: 
+            return
+
+        # check on the last time the health status was updated
+        # if it was a really long time ago (10* last delta), then MQ could be dead
+        docheck = False
+        with self._lock:
+            now = time.time()
+            if self._last_time is not None:
+                # see if the time since last update was > dead_time_mult*last meas delta, 
+                # if so, then perform MQ check
+                delta_t = now - self._last_time 
+                docheck = delta_t > self._dead_time_mult*self._time_delta 
+            else:
+                delta_t = 0     # can't tell, since it hasn't been run yet
+
+        self.log.debug(f"HealthCheck_perform: is healthy={not docheck}")
+
+        if docheck:
+            try:
+                # this revives the MicrowaveQ if it has disconnected 
+                status= self._check_function()
+                if self.log: self.log.debug(f"HealthCheck reports laziness, op_function result={status}")
+            except:
+                # hopefully by asking its status, it will come back alive 
+                if self.log: self.log.debug("HealthCheck reports possible death, attempting resurection")
+ 
 
 class AFMConfocalLogic(GenericLogic):
     """ Main AFM logic class providing advanced measurement control. """
@@ -116,8 +242,6 @@ class AFMConfocalLogic(GenericLogic):
     counter_logic = Connector(interface='CounterLogic')
     fitlogic = Connector(interface='FitLogic')
 
-
-
     # configuration parameters/options for the logic. In the config file you
     # have to specify the parameter, here: 'conf_1'
     # _conf_1 = ConfigOption('conf_1', missing='error')
@@ -128,6 +252,7 @@ class AFMConfocalLogic(GenericLogic):
 
     _stop_request = False
     _stop_request_all = False
+    _health_check = HealthChecker() 
 
     # AFM signal 
     _meas_line_scan = []
@@ -171,8 +296,16 @@ class AFMConfocalLogic(GenericLogic):
     _saturation_array = {} # all saturation related data here
 
     # Single Iso-B settings
-    _single_iso_b_frequency = StatusVar(default=500e6)
-    _single_iso_b_gain = StatusVar(default=0.0)
+    _iso_b_single_mode = StatusVar(default=True)
+    _freq1_iso_b_frequency = StatusVar(default=500e6)
+    _freq2_iso_b_frequency = StatusVar(default=550e6)
+    _iso_b_power = StatusVar(default=-30.0)
+    _fwhm_iso_b_frequency = StatusVar(default=10e6)
+
+    # acceptable object types for gwyddion
+    _gwyobjecttypes = { 'imgobjects': ['qafm', 'obj', 'opti', 'afm'],
+                        'graphobjects': ['esr']
+                      }
 
     # Signals:
     # ========
@@ -206,6 +339,10 @@ class AFMConfocalLogic(GenericLogic):
     sigOptimizeLineScanFinished = QtCore.Signal(str) 
     sigOptimizeScanFinished = QtCore.Signal()
 
+    # save data signals
+    sigSaveDataGwyddion = QtCore.Signal(object,object,object,object) 
+    sigSaveDataGwyddionFinished = QtCore.Signal(int)
+
     # saved signals
     sigQAFMDataSaved = QtCore.Signal()
     sigObjDataSaved = QtCore.Signal()
@@ -213,6 +350,7 @@ class AFMConfocalLogic(GenericLogic):
     sigQuantiDataSaved = QtCore.Signal()
 
     # Quantitative Scan (Full B Scan)
+    sigQuantiLineFinished = QtCore.Signal()
     sigQuantiScanFinished = QtCore.Signal()
 
     # Single IsoB Parameter
@@ -251,6 +389,10 @@ class AFMConfocalLogic(GenericLogic):
     _sg_create_summary_pic = StatusVar(default=True)
     _sg_save_to_gwyddion = StatusVar(default=False)
 
+    # Save scan automatically after it has finished
+    _sg_auto_save_quanti = StatusVar(default=False)
+    _sg_auto_save_qafm = StatusVar(default=False)
+
     # Optimizer Settings
     _sg_optimizer_x_range = StatusVar(default=1.0e-6)
     _sg_optimizer_x_res = StatusVar(default=15)
@@ -259,12 +401,15 @@ class AFMConfocalLogic(GenericLogic):
     _sg_optimizer_z_range = StatusVar(default=2.0e-6)
     _sg_optimizer_z_res = StatusVar(default=50)    
     _sg_optimizer_int_time = StatusVar(default=0.01)
-    _sg_periodic_optimizer = False  # do not safe this a status var
+    _sg_periodic_optimizer = False  # do not save this a status var
     _sg_optimizer_period = StatusVar(default=60)
     _optimize_request = False
 
     # iso-b settings
-    _sg_single_iso_b_operation = False    # indicate whether iso-b is on
+    _sg_iso_b_operation = False    # indicate whether iso-b is on
+    _sg_iso_b_single_mode = StatusVar(default=True)  # default mode is single iso-B 
+    _sg_n_iso_b_pulse_margin = StatusVar(default=0.005)  # fraction of integration time for pause 
+    _sg_n_iso_b_laser_cooldown_length = StatusVar(default=10e-6) # laser cool down time (s)
 
     # target positions of the optimizer
     _optimizer_x_target_pos = 15e-6
@@ -327,6 +472,9 @@ class AFMConfocalLogic(GenericLogic):
         self.sigNewAFMPos.emit(self.get_afm_pos())
 
         self._save_logic.sigSaveFinished.connect(self.decrease_save_counter)
+    
+        self.sigSaveDataGwyddion.connect(self._save_to_gwyddion)
+        self.sigSaveDataGwyddionFinished.connect(self.decrease_save_counter)
 
         self._meas_path = os.path.abspath(self._meas_path)
 
@@ -340,6 +488,8 @@ class AFMConfocalLogic(GenericLogic):
         # in this threadpool our worker thread will be run
         self.threadpool = QtCore.QThreadPool()
 
+        # check the version of the spm interface
+        self.start_spm_version_check()
 
         self.sigOptimizeScanFinished.connect(self._optimize_finished)
 
@@ -347,6 +497,19 @@ class AFMConfocalLogic(GenericLogic):
         """ Deinitializations performed during deactivation of the module. """
 
         pass
+
+    def start_spm_version_check(self):
+
+        if self.check_thread_active():
+            self.log.error("A measurement is currently running, stop it first!")
+            return
+
+        self._worker_thread = WorkerThread(target=self._spm.check_interface_version,
+                                           args=(10,),     # pause time to avoid threadlock
+                                           name='spm_version_check')
+
+        self.threadpool.start(self._worker_thread)
+
 
     def initialize_qafm_scan_array(self, x_start, x_stop, num_columns, 
                                          y_start, y_stop, num_rows):
@@ -362,15 +525,23 @@ class AFMConfocalLogic(GenericLogic):
 
         #FIXME: use Tesla not Gauss, right not, this is just for display purpose
         # add counts to the parameter list
-        meas_params_units = {'counts' : {'measured_units' : 'c/s',
-                                         'scale_fac': 1,    # multiplication factor to obtain SI units    
-                                         'si_units': 'c/s', 
-                                         'nice_name': 'Fluorescence'},
-                             'b_field': {'measured_units' : 'G',
-                                         'scale_fac': 1,    # multiplication factor to obtain SI units
-                                         'si_units': 'G',
-                                         'nice_name': 'Magnetic field '},
-                                         }
+        meas_params_units = {'counts':       {'measured_units' : 'c/s',
+                                            'scale_fac': 1,    # multiplication factor to obtain SI units    
+                                            'si_units': 'c/s', 
+                                            'nice_name': 'Fluorescence'},
+                             'counts2':      {'measured_units' : 'c/s',
+                                              'scale_fac': 1,    # multiplication factor to obtain SI units    
+                                              'si_units': 'c/s', 
+                                              'nice_name': 'Fluorescence'},
+                             'counts_diff':  {'measured_units' : 'c/s',
+                                              'scale_fac': 1,    # multiplication factor to obtain SI units    
+                                              'si_units': 'c/s', 
+                                              'nice_name': 'Fluorescence'},
+                             'b_field':      {'measured_units' : 'G',
+                                              'scale_fac': 1,    # multiplication factor to obtain SI units
+                                              'si_units': 'G',
+                                              'nice_name': 'Magnetic field '},
+                            }
         meas_params_units.update(self._spm.get_meas_params())
 
         meas_params = list(meas_params_units)
@@ -384,9 +555,10 @@ class AFMConfocalLogic(GenericLogic):
                 name = f'{param}_{direction}' # this is the naming convention!
 
                 meas_dict[name] = {'data': np.zeros((num_rows, num_columns))}
+                #meas_dict[name] = {'data': np.random.rand(num_rows, num_columns)}
                 meas_dict[name]['coord0_arr'] = coord0_arr
                 meas_dict[name]['coord1_arr'] = coord1_arr
-                #meas_dict[name] = {'data': np.random.rand(num_rows, num_columns)}
+                meas_dict[name]['corr_plane_coeff'] = [0.0, 0.0, 0.0] 
                 meas_dict[name].update(meas_params_units[param])
                 meas_dict[name]['params'] = {}
                 meas_dict[name]['display_range'] = None
@@ -523,7 +695,6 @@ class AFMConfocalLogic(GenericLogic):
         @return dict: with all requested or available settings for qafm.
         """
 
-
         # settings dictionary
         sd = {}
         # Move Settings
@@ -537,6 +708,8 @@ class AFMConfocalLogic(GenericLogic):
         # Save Settings
         sd['root_folder_name'] = self._sg_root_folder_name
         sd['create_summary_pic'] = self._sg_create_summary_pic
+        sd['auto_save_quanti'] = self._sg_auto_save_quanti
+        sd['auto_save_qafm'] = self._sg_auto_save_qafm
         sd['save_to_gwyddion'] = self._sg_save_to_gwyddion
         # Optimizer Settings
         sd['optimizer_x_range'] = self._sg_optimizer_x_range
@@ -549,14 +722,16 @@ class AFMConfocalLogic(GenericLogic):
         sd['optimizer_int_time'] = self._sg_optimizer_int_time
         sd['optimizer_period'] = self._sg_optimizer_period
 
-        sd['single_iso_b_operation'] = self._sg_single_iso_b_operation
+        sd['iso_b_operation'] = self._sg_iso_b_operation
+        sd['iso_b_single_mode'] = self._sg_iso_b_single_mode
+        sd['n_iso_b_pulse_margin'] = self._sg_n_iso_b_pulse_margin
 
         if setting_list is None:
             return sd
         else:
             ret_sd = {}
             for entry in setting_list:
-                item = sd.get(entry, default=None)
+                item = sd.get(entry, None)
                 if item is not None:
                     ret_sd[entry] = item
             return ret_sd
@@ -569,6 +744,10 @@ class AFMConfocalLogic(GenericLogic):
                                happen. 
                                Hint: use the get_qafm_settings method to obtain
                                      a full list of available items.
+                               E.g.: To set the single_iso_b_operation perform
+                                    setting = {'single_iso_b_operation': True}
+                                    self.set_qafm_settings(setting)
+
         """
         
         for entry in set_dict:
@@ -577,32 +756,105 @@ class AFMConfocalLogic(GenericLogic):
                 setattr(self, attr_name, set_dict[entry])
 
         self.sigSettingsUpdated.emit()
+    
+    def get_hardware_status(self,request=None):
+        """ Access function for counter logic
+        @params: none
+        @return dict:  hardware status as gathered from counter logic, 
+                       specifically microwaveQ:
+                       'available_features' : what is possible
+                       'unlocked_features'  : what the license allows
+                       'fpga_version'       : version level of FPGA
+                       'dac_alarms'         : DAC alarms as reported by board
+                    if this is a 'counter_dummy', then 'None' is returned
+        """
+        if request is None:
+            request = ['available_features','unlocked_features',
+                       'fpga_version','dac_alarms',
+                       'spm_library_version',
+                       'spm_server_version','spm_client_version','spm_is_server_compatible' ]
 
+        status = dict()
+        if 'available_features' in request:
+            status['available_features'] = self._counter._dev.get_available_features()
 
-    def set_state_single_iso_b(self, state):
-        """ switch on single iso b """
-        self.set_qafm_settings({'single_iso_b_operation': state})
+        if 'unlocked_features' in request:
+            status['unlocked_features'] = self._counter._dev.get_unlocked_features()
         
+        if 'fpga_version' in request:
+            status['fpga_version'] = self._counter._dev.sys.fpgaVersion.get()
+        
+        if 'dac_alarms' in request:
+            status['dac_alarms'] = self._counter._dev.get_DAC_alarms()
 
-    def get_state_single_iso_b(self):
+        if 'spm_library_version' in request:
+            status['spm_library_version'] = self._spm.get_library_version()
+
+        if 'spm_server_version' in request:
+            status['spm_server_version'] = self._spm.server_interface_version()
+
+        if 'spm_client_version' in request:
+            status['spm_client_version'] = self._spm.client_interface_version()
+    
+        if 'spm_is_server_compatible' in request:
+            status['spm_is_server_compatible'] = self._spm.is_server_compatible()
+        
+        return status
+
+
+    def get_iso_b_operation(self):
+        """ return status if in iso-b mode"""
+        return self._sg_iso_b_operation
+
+    def set_iso_b_operation(self, state):
+        """ set iso-b operation mode"""
+        self.set_qafm_settings({'iso_b_operation': state})
+
+    def set_iso_b_mode(self, state):
+        """ switch on single iso b """
+        self.set_qafm_settings({'iso_b_single_mode': state})
+        
+    def get_iso_b_mode(self):
         """ Check whether single iso-b is switched on. """
-        return self._sg_single_iso_b_operation
+        return self._sg_iso_b_single_mode
 
-    def set_single_iso_b_params(self, freq=None, gain=None):
+    def set_iso_b_params(self, single_mode=None, freq1=None, freq2=None, fwhm=None, power=None):
 
-        if freq is not None:
-            self._single_iso_b_frequency = freq
-        if gain is not None:
-            self._single_iso_b_gain = gain
+        if single_mode is not None:
+            self._iso_b_single_mode = single_mode
+            self.set_iso_b_mode(state=single_mode)
+
+        if freq1 is not None:
+            self._freq1_iso_b_frequency = freq1
+
+        if freq2 is not None:
+            self._freq2_iso_b_frequency = freq2
+
+        if fwhm is not None:
+            self._fwhm_iso_b_frequency = fwhm
+
+        if power is not None:
+            self._iso_b_power = power
 
         self.sigIsoBParamsUpdated.emit()
 
-    def get_single_iso_b_params(self):
-        """ return the frequency and gain"""
-        return self._single_iso_b_frequency, self._single_iso_b_gain
+    def get_iso_b_params(self):
+        """ return the frequency and power"""
+        return self._sg_iso_b_operation, \
+               self._sg_iso_b_single_mode, \
+               self._freq1_iso_b_frequency, \
+               self._freq2_iso_b_frequency, \
+               self._fwhm_iso_b_frequency, \
+               self._iso_b_power
+  
 
-
-    #FIXME: There is an error occurring if no SPM measurement parameters are specified. Fix this!
+    #FIXME: Think about transferring the normalization of the 'Height(Dac)' and 
+    #       'Height(Sen)' parameter to the hardware level.
+    #       In the hardware, the last measured value can always be tracked.
+    #       You also know that if the method setup_spm is used, then we have to 
+    #       update the normalization parameter. 
+    #       For now, it can be confusing, hence, at the moment, this 
+    #       normalization will take place in the logic.
     def scan_area_qafm_bw_fw_by_line(self, coord0_start, coord0_stop, coord0_num,
                                      coord1_start, coord1_stop, coord1_num,
                                      integration_time, plane='XY',
@@ -636,7 +888,17 @@ class AFMConfocalLogic(GenericLogic):
         # set up the spm device:
         reverse_meas = False
         self._stop_request = False
+        laser_cooldown_length = self._sg_n_iso_b_laser_cooldown_length
+        pulse_margin_frac = self._sg_n_iso_b_pulse_margin
 
+        # determine iso_b_mode
+        iso_b_mode = None
+        if self._sg_iso_b_operation:
+            if self._iso_b_single_mode:
+                iso_b_mode = 'single'
+            else:
+                iso_b_mode = 'dual'
+        
 
         # time in which the stage is just moving without measuring
         time_idle_move = self._sg_idle_move_scan_sample
@@ -652,15 +914,57 @@ class AFMConfocalLogic(GenericLogic):
                                                            scan_mode=0)  # line scan
         spm_start_idx = 0
 
+
+        #FIXME: check whether bugs can occur if you do not reset the following values.
+        if not continue_meas:
+            # if optimization happens during the scan, then we need to handle
+            # manually the normalization of both AFM parameters. Every time 
+            # 'setup_spm' is called, then the zero value is referred to the first
+            # measured point. 
+            self._height_sens_norm = 0.0
+            self._height_dac_norm = 0.0
+
+        _update_normalization = 0   # number of items to normalize
+        pulse_lengths = []
+        freq_list = []
+        freq1_pulse_time, freq2_pulse_time = integration_time, integration_time # default divisor times 
+
         if 'counts' in meas_params:
             self._spm.set_ext_trigger(True)
-            curr_scan_params.insert(0, 'counts')  # insert the fluorescence parameter
+            curr_scan_params.insert(0, 'counts')  # fluorescence of freq1 parameter
+            spm_start_idx = 1 # start index of the temporary scan for the spm parameters
             
-            if self._sg_single_iso_b_operation == True:
-                ret_val_mq = self._counter.prepare_pixelclock_single_iso_b(self._single_iso_b_frequency, 
-                                                              self._single_iso_b_gain)
+            if iso_b_mode is not None: 
+                if 'single' in iso_b_mode:
+                    # single iso-b
+                    ret_val_mq = self._counter.prepare_pixelclock_single_iso_b(
+                        self._freq1_iso_b_frequency, 
+                        self._iso_b_power)
 
-                self.log.info(f'Prepared pixelclock iso b, val {ret_val_mq}')
+                    self.log.info(f'Prepared pixelclock single iso b, val {ret_val_mq}')
+                else:
+                    # dual iso-b
+                    #FIXME : something needs to be solved here.  Where is the integration time for the SPM set?
+                    freq_list=[self._freq1_iso_b_frequency, self._freq2_iso_b_frequency] 
+                    pulse_length = integration_time * (1 - pulse_margin_frac) / len(freq_list)
+                    pulse_lengths=[pulse_length]*len(freq_list)
+                    freq1_pulse_time, freq2_pulse_time = pulse_lengths
+
+                    ret_val_mq = self._counter.prepare_pixelclock_n_iso_b(
+                        freq_list=freq_list,
+                        pulse_lengths=pulse_lengths,
+                        power=self._iso_b_power,
+                        laserCooldownLength=laser_cooldown_length)
+                    
+                    # add counts2 parameter
+                    curr_scan_params.insert(1, 'counts2')      # fluorescence of freq2 parameter
+                    curr_scan_params.insert(2, 'counts_diff')  # difference in 'counts2' - 'counts' 
+                    spm_start_idx = 3 # start index of the temporary scan for the spm parameters
+                    #curr_scan_params.insert(3, 'b_field')  # insert the magnetic field parameter   # FIXME
+                    #spm_start_idx = 4 # start index of the temporary scan for the spm parameters
+
+                    self.log.info(f'Prepared pixelclock dual iso b, val {ret_val_mq}')
+
             else:
                 ret_val_mq = self._counter.prepare_pixelclock()
 
@@ -675,7 +979,6 @@ class AFMConfocalLogic(GenericLogic):
 
                 return self._qafm_scan_array
             
-            spm_start_idx = 1 # start index of the temporary scan for the spm parameters
 
         # this case is for starting a new measurement:
         if (self._spm_line_num == 0) or (not continue_meas):
@@ -719,10 +1022,13 @@ class AFMConfocalLogic(GenericLogic):
             self._qafm_scan_array[entry]['params']['coord1_start (m)'] = coord1_start
             self._qafm_scan_array[entry]['params']['coord1_stop (m)'] = coord1_stop
             self._qafm_scan_array[entry]['params']['coord1_num (#)'] = coord1_num
+            self._qafm_scan_array[entry]['params']['correction_plane_eq'] = str(self._qafm_scan_array[entry]['corr_plane_coeff'])
             self._qafm_scan_array[entry]['params']['Scan speed per line (s)'] = scan_speed_per_line
             self._qafm_scan_array[entry]['params']['Idle movement speed (s)'] = time_idle_move
 
+            self._qafm_scan_array[entry]['params']['Counter measurement mode'] = self._counter._meas_mode
             self._qafm_scan_array[entry]['params']['integration time per pixel (s)'] = integration_time
+            self._qafm_scan_array[entry]['params']['time per frequency pulse (s)'] = str([freq1_pulse_time, freq2_pulse_time])
             self._qafm_scan_array[entry]['params']['Measurement parameter list'] = str(curr_scan_params)
             self._qafm_scan_array[entry]['params']['Measurement start'] = start_time_afm_scan.isoformat()
 
@@ -733,7 +1039,9 @@ class AFMConfocalLogic(GenericLogic):
             if line_num < self._spm_line_num:
                 continue
 
-            # optical + AFM signal
+            #-------------------
+            # Perform line scan
+            #-------------------
             self._qafm_scan_line = np.zeros((num_params, coord0_num))
 
             if 'counts' in meas_params:
@@ -748,37 +1056,118 @@ class AFMConfocalLogic(GenericLogic):
 
             self._spm.scan_line()  # start the scan line
 
-            if num_params > 1:
+            #-------------------
+            # Process line scan
+            #-------------------
+
+            # AFM signal (from SPM)
+            if  set(curr_scan_params) - {'counts', 'counts2', 'counts_diff'}:
                 # i.e. afm parameters are set
                 self._qafm_scan_line[spm_start_idx:] = self._spm.get_scanned_line(reshape=True)
             else:
                 # perform just the scan without using the data.
                 self._spm.get_scanned_line(reshape=True)
 
+            # Optical signal (from MicrowaveQ)
             if 'counts' in meas_params:
                 # first entry is always assumed to be counts
-                self._qafm_scan_line[0] = self._counter.get_line()/integration_time
+                self._qafm_scan_line[0] = self._counter.get_line('counts')/freq1_pulse_time
 
-            if reverse_meas:
+            if 'counts2' in meas_params:
+                i = meas_params.index('counts2')
+                self._qafm_scan_line[i] = self._counter.get_line('counts2')/freq2_pulse_time
 
-                for index, param_name in enumerate(curr_scan_params):
-                    name = f'{param_name}_bw'  # use the unterlying naming convention
+                i = meas_params.index('counts_diff')
+                self._qafm_scan_line[i] = self._counter.get_line('counts_diff')/ \
+                    (freq1_pulse_time + freq2_pulse_time) / 2
 
-                    # save to the corresponding matrix line and renormalize the results to SI units:
-                    self._qafm_scan_array[name]['data'][line_num // 2] = np.flip(self._qafm_scan_line[index]) * self._qafm_scan_array[name]['scale_fac']
-                reverse_meas = False
+                # FIXME: currently, this method will not work based on only 2 points
+                #        Issues:
+                #               - In reducing the slope formed by L(freq1)/L(freq2)   (L()=Lorenztian)
+                #                 there are two possible solutions: to left and right of inflection point (sigma/sqrt(3))
+                #                 It is not possible to determine which side you are on without a 3rd point
+                #               - With only 2 points, the slope of a curve is not distguishable from noise
+                #               
+                #i = meas_params.index('b_field')
+                #self._qafm_scan_line[i] = self.calc_mag_field_single_res(
+                #        self.calc_eps_shift_dual_iso_b(
+                #            counts1=self._counter.get_line('counts'),
+                #            counts2=self._counter.get_line('counts2'),
+                #            freq1=self._freq1_iso_b_frequency,
+                #            freq2=self._freq2_iso_b_frequency,
+                #            sigma=self._fwhm_iso_b_frequency / 2) 
+                #        +  (self._freq1_iso_b_frequency + self._freq2_iso_b_frequency) /2,  
+                #        self.ZFS, 
+                #        self.E_FIELD) * 10000
 
-                # emit only a signal if the reversed is finished.
-                self.sigQAFMLineScanFinished.emit()
+            row_i = line_num // 2    # row number for qafm_array
+            if not reverse_meas:
+                # current is forward pass, optimization occured on backward pass
+                ref_j = -1             
+                curr_direc, past_direc  = '_fw' , '_bw'
             else:
-                for index, param_name in enumerate(curr_scan_params):
-                    name = f'{param_name}_fw'  # use the unterlying naming convention
-                    # save to the corresponding matrix line and renormalize the results to SI units:
-                    self._qafm_scan_array[name]['data'][line_num // 2] = self._qafm_scan_line[index] * self._qafm_scan_array[name]['scale_fac']
+                # current is backward pass, optimization occured on forward pass
+                ref_j = 0             
+                curr_direc, past_direc  = '_bw' , '_fw'
+
+            # Iterate through parameters
+            for index, param_name in enumerate(curr_scan_params):
+                name = param_name + curr_direc 
+
+                # check if line was a reverse scan, if so, flip
+                if not reverse_meas:
+                    data = self._qafm_scan_line[index] 
+                else:
+                    data = np.flip(self._qafm_scan_line[index]) 
+
+                # store transformed data
+                self._qafm_scan_array[name]['data'][row_i] = data * self._qafm_scan_array[name]['scale_fac']
+
+                # if optimization was performed after last measurement, then adjust the normalization 
+                if _update_normalization:
+
+                    if 'Height(Dac)' in name:
+                        self._height_dac_norm =   self._qafm_scan_array['Height(Dac)' + past_direc]['data'][row_i - 1][ref_j]   \
+                                                - self._qafm_scan_array['Height(Dac)' + curr_direc]['data'][row_i    ][ref_j]
+                        _update_normalization -= 1   # parameter complete
+
+                    if 'Height(Sen)' in name:
+                        self._height_sens_norm =  self._qafm_scan_array['Height(Sen)' + past_direc]['data'][row_i - 1][ref_j]   \
+                                                - self._qafm_scan_array['Height(Sen)' + curr_direc]['data'][row_i    ][ref_j]
+                        _update_normalization -= 1   # parameter complete
+
+                
+                # apply normalization (at start, normalization parameters = 0)
+                if 'Height(Dac)' in name:
+                    self._qafm_scan_array[name]['data'][row_i] += self._height_dac_norm
+
+                if 'Height(Sen)' in name:
+                    self._qafm_scan_array[name]['data'][row_i] += self._height_sens_norm
+            
+            # determine correction plane for relative measurements
+            if row_i >= 1:
+                for name in {p + sfx for p in curr_scan_params for sfx in ('_fw', '_bw')} & \
+                            {'Height(Dac)_fw', 'Height(Dac)_bw', 'Height(Sen)_fw','Height(Sen)_bw'}:
+                    x_range = [self._qafm_scan_array[name]['coord0_arr'][0], 
+                               self._qafm_scan_array[name]['coord0_arr'][-1]]
+                    y_range = [self._qafm_scan_array[name]['coord1_arr'][0], 
+                               self._qafm_scan_array[name]['coord1_arr'][row_i]]
+                    xy_data = self._qafm_scan_array[name]['data'][:row_i+1]
+                    _,C = self.correct_plane(xy_data=xy_data,x_range=x_range,y_range=y_range)
+                    #self.log.debug(f"Determined tilt correction for name={name} as C={C.tolist()}")
+
+                    # update plane equation
+                    self._qafm_scan_array[name]['params']['correction_plane_eq'] = str(C.tolist())
+                    self._qafm_scan_array[name]['corr_plane_coeff'] = C.copy()
+
+            # change direction
+            if reverse_meas:
+                reverse_meas = False
+                self.sigQAFMLineScanFinished.emit()      # emit only a signal if the reversed is finished.
+            else:
                 reverse_meas = True
 
             self.log.info(f'Line number {line_num} completed.')
-            #print(f'Line number {line_num} completed.')
 
             # enable the break only if next scan goes into forward movement
             if self._stop_request and not reverse_meas:
@@ -791,10 +1180,15 @@ class AFMConfocalLogic(GenericLogic):
             # and perform here an optimization first
             if self.get_optimize_request():
 
+                _update_normalization = 0
+                if 'Height(Dac)' in curr_scan_params: _update_normalization += 1 
+                if 'Height(Sen)' in curr_scan_params: _update_normalization += 1 
+
                 self._counter.stop_measurement()
                 self._spm.finish_scan()
 
                 time.sleep(2)
+                self.log.debug('optimizer started.')
 
                 self.default_optimize()
                 _, _, _ = self._spm.setup_spm(plane=plane,
@@ -804,7 +1198,21 @@ class AFMConfocalLogic(GenericLogic):
                 if 'counts' in meas_params:
                     self._spm.set_ext_trigger(True)
 
-                self._counter.prepare_pixelclock()
+                if iso_b_mode is not None:
+                    if 'single' in iso_b_mode:
+                        # single iso-b
+                        self._counter.prepare_pixelclock_single_iso_b(
+                            self._freq1_iso_b_frequency, 
+                            self._iso_b_power)
+                    else:
+                        # dual iso-b
+                        self._counter.prepare_pixelclock_n_iso_b(
+                            freq_list=freq_list,
+                            pulse_lengths=pulse_lengths,
+                            power=self._iso_b_power,
+                            laserCooldownLength=laser_cooldown_length)
+                else:
+                    self._counter.prepare_pixelclock()
 
                 self.log.debug('optimizer finished.')
 
@@ -830,6 +1238,7 @@ class AFMConfocalLogic(GenericLogic):
         self.sigQAFMScanFinished.emit()
 
         return self._qafm_scan_array
+
 
     def start_scan_area_qafm_bw_fw_by_line(self, coord0_start=48*1e-6, coord0_stop=53*1e-6, coord0_num=40,
                             coord1_start=47*1e-6, coord1_stop=52*1e-6, coord1_num=40, integration_time=None,
@@ -1032,8 +1441,8 @@ class AFMConfocalLogic(GenericLogic):
 #           Quantitative Mode with ESR forward and backward movement
 # ==============================================================================
 
-
-    def calc_mag_field_single_res(self, res_freq, zero_field=2.87e9, e_field=0.0):
+    @staticmethod
+    def calc_mag_field_single_res(res_freq, zero_field=2.87e9, e_field=0.0):
         """ Calculate the magnetic field experience by the NV, assuming low 
             mag. field.
 
@@ -1046,8 +1455,8 @@ class AFMConfocalLogic(GenericLogic):
 
         return np.sqrt(abs(res_freq - zero_field)**2 - e_field**2) / gyro_nv
 
-
-    def calc_mag_field_double_res(self, res_freq_low, res_freq_high, 
+    @staticmethod
+    def calc_mag_field_double_res(res_freq_low, res_freq_high, 
                                   zero_field=2.87e9, e_field=0.0):
         """ Calculate the magnetic field experience by the NV, assuming low 
             mag. field by measuring two frequencies.
@@ -1068,6 +1477,62 @@ class AFMConfocalLogic(GenericLogic):
 
         return np.sqrt((res_freq_low**2 +res_freq_high**2 - res_freq_low*res_freq_high - zero_field**2)/3 - e_field**2) / gyro_nv
 
+    @staticmethod
+    def calc_eps_shift_dual_iso_b(counts1, counts2, freq1, freq2, sigma=None):
+        """ Calculate the relative magnetic field in the dual isoB situation, 
+            where counts1 and counts2 refer to photon count at lower & upper frequencies respectively.
+            For initialization, sigma = FWHM/2;  d = abs(freq2 - freq1)/2.  Ideally, freq1 & freq2
+            will be chosen such that d = abs(freq2 - freq1)/2 = sigma/sqrt(3).  This gives the inflection 
+            point of the Lorenztian. In short, a centered definition is freq1 = x_0 - d; freq2 = x_0 + d
+            Refer to qudi\logic\lorentzianlikemethods.py
+                             !      A
+                f(x=x_0) = I = -----------
+                                pi * sigma
+
+
+                                            _                            _
+                                            |         (sigma)^2          |
+                L(x; I, x_0, sigma) =   I * |  --------------------------|
+                                            |_ (x_0 - x)^2 + (sigma)^2  _|
+
+        @param float counts1: counts achieved at lower frequency (left of dip) (c/s)
+        @param float counts2: counts achieved at upper frequency (right of dip) (c/s)
+        @param float freq1: lower frequency (Hz)
+        @param float freq2: upper frequency (Hz)
+        @param float sigma: width of curve at HWHM.  At FWHM, this is 2*sigma
+
+        @return float mag_field: the relative mag. field of the NV in Tesla
+        """
+        # protect against /0; ideally counts2 is very large and 1 is ~0
+        c2 = counts2.copy()
+        c2[c2 == 0] = 1
+
+        ratio = counts1/c2
+        d = abs(freq2 - freq1)/2
+
+        if sigma is None:
+            sigma = d 
+
+        # at ratio = 1, the field is 0
+        mag_field = np.zeros_like(counts1,dtype='float64')
+
+        # using eps1 method, ratio < 1
+        s = ratio < 1
+        operand = 4*d**2 * ( ratio[s]/ (1-ratio[s])**2) -sigma**2
+        operand[operand < 0.0 ] = 0.0
+            
+        mag_field[s] = np.sqrt(operand) - d * ( (1+ratio[s])/(1-ratio[s]))
+
+        # using eps4 method, ratio > 1 
+        s = ratio > 1
+        operand = 4*d**2 * ( ratio[s]/ (ratio[s]-1)**2) -sigma**2
+        operand[operand < 0.0 ] = 0.0
+
+        mag_field[s] = -np.sqrt(operand) + d * ( (1+ratio[s])/(ratio[s]-1))
+
+        return mag_field
+
+
 
     def scan_area_quanti_qafm_fw_bw_by_point(self, coord0_start, coord0_stop,
                                           coord0_num, coord1_start, coord1_stop,
@@ -1075,7 +1540,7 @@ class AFMConfocalLogic(GenericLogic):
                                           idle_move_time=0.1, freq_start=2.77e9,
                                           freq_stop=2.97e9, freq_points=100,
                                           esr_count_freq=200,
-                                          mw_power=0.4, num_esr_runs=30,
+                                          mw_power=-25, num_esr_runs=30,
                                           optimize_period = 100,
                                           meas_params=['Height(Dac)'],
                                           single_res=True,
@@ -1196,7 +1661,7 @@ class AFMConfocalLogic(GenericLogic):
             self._qafm_scan_array[entry]['params']['ESR Frequency stop (Hz)'] = freq_stop
             self._qafm_scan_array[entry]['params']['ESR Frequency points (#)'] = freq_points
             self._qafm_scan_array[entry]['params']['ESR Count Frequency (Hz)'] = esr_count_freq
-            self._qafm_scan_array[entry]['params']['ESR MW power (gain)'] = mw_power
+            self._qafm_scan_array[entry]['params']['ESR MW power (dBm)'] = mw_power
             self._qafm_scan_array[entry]['params']['ESR Measurement runs (#)'] = num_esr_runs
             self._qafm_scan_array[entry]['params']['Expect one resonance dip'] = single_res
             self._qafm_scan_array[entry]['params']['Optimize Period (s)'] = optimize_period
@@ -1391,7 +1856,7 @@ class AFMConfocalLogic(GenericLogic):
                                               idle_move_time=0.1, freq_start=2.77e9,
                                               freq_stop=2.97e9, freq_points=100,
                                               esr_count_freq=200,
-                                              mw_power=0.4, num_esr_runs=30,
+                                              mw_power=-25, num_esr_runs=30,
                                               optimize_period=100,
                                               meas_params=['Height(Dac)'],
                                               single_res=True,
@@ -1400,6 +1865,18 @@ class AFMConfocalLogic(GenericLogic):
         if self.check_thread_active():
             self.log.error("A measurement is currently running, stop it first!")
             return
+           
+        self._health_check.setup(interval=20,                                       # perform check every interval (s)
+                                 default_delta_t=int_time_afm * num_esr_runs *1.5,  # minimum time to expect between updates
+                                 check_function=self._counter._dev.ctrl.isBusy,     # op function to check health 
+                                 connect_start=[],                                  # start triggered manually
+                                 connect_update=[self.sigQuantiLineFinished,        # signals which will trigger update
+                                                 self.sigNewAFMPos],
+                                 connect_stop=[self.sigQuantiScanFinished],         #signal to trigger stop of health check
+                                 log=self.log
+                                )
+
+        self._health_check.start_timer(arm=True)
 
         self._worker_thread = WorkerThread(target=self.scan_area_quanti_qafm_fw_bw_by_point,
                                             args=(coord0_start, coord0_stop,
@@ -1416,6 +1893,7 @@ class AFMConfocalLogic(GenericLogic):
                                             name='quanti_thread')
         self.threadpool.start(self._worker_thread)
 
+
     # ==============================================================================
     #           Quantitative Mode with ESR just forward movement
     # ==============================================================================
@@ -1426,7 +1904,7 @@ class AFMConfocalLogic(GenericLogic):
                                              idle_move_time=0.1, freq_start=2.77e9,
                                              freq_stop=2.97e9, freq_points=100,
                                              esr_count_freq=200,
-                                             mw_power=0.4, num_esr_runs=30,
+                                             mw_power=-25, num_esr_runs=30,
                                              optimize_period=100,
                                              meas_params=['Height(Dac)'],
                                              single_res=True,
@@ -1545,7 +2023,7 @@ class AFMConfocalLogic(GenericLogic):
             self._qafm_scan_array[entry]['params']['ESR Frequency stop (Hz)'] = freq_stop
             self._qafm_scan_array[entry]['params']['ESR Frequency points (#)'] = freq_points
             self._qafm_scan_array[entry]['params']['ESR Count Frequency (Hz)'] = esr_count_freq
-            self._qafm_scan_array[entry]['params']['ESR MW power (gain)'] = mw_power
+            self._qafm_scan_array[entry]['params']['ESR MW power (dBm)'] = mw_power
             self._qafm_scan_array[entry]['params']['ESR Measurement runs (#)'] = num_esr_runs
             self._qafm_scan_array[entry]['params']['Expect one resonance dip'] = single_res
             self._qafm_scan_array[entry]['params']['Optimize Period (s)'] = optimize_period
@@ -1690,7 +2168,8 @@ class AFMConfocalLogic(GenericLogic):
             self.log.info(f'Line number {line_num} completed.')
             print(f'Line number {line_num} completed.')
 
-            self.sigQAFMLineScanFinished.emit()
+            self.sigQAFMLineScanFinished.emit()   # this triggers repainting of the line
+            self.sigQuantiLineFinished.emit()     # this signals line is complete, return to new line
 
             # store the current line number
             self._spm_line_num = line_num
@@ -1746,7 +2225,7 @@ class AFMConfocalLogic(GenericLogic):
                                                    idle_move_time=0.1, freq_start=2.77e9,
                                                    freq_stop=2.97e9, freq_points=100,
                                                    esr_count_freq=200,
-                                                   mw_power=0.4, num_esr_runs=30,
+                                                   mw_power=-25, num_esr_runs=30,
                                                    optimize_period=100,
                                                    meas_params=['Height(Dac)'],
                                                    single_res=True,
@@ -1755,6 +2234,18 @@ class AFMConfocalLogic(GenericLogic):
         if self.check_thread_active():
             self.log.error("A measurement is currently running, stop it first!")
             return
+        
+        self._health_check.setup(interval=20,                                       # perform check every interval (s)
+                                 default_delta_t=int_time_afm * num_esr_runs *1.5,  # minimum time to expect between updates
+                                 check_function=self._counter._dev.ctrl.isBusy,     # op function to check health 
+                                 connect_start=[],                                  # start triggered manually
+                                 connect_update=[self.sigQuantiLineFinished,        # signals which will trigger update
+                                                 self.sigNewAFMPos],
+                                 connect_stop=[self.sigQuantiScanFinished],         #signal to trigger stop of health check
+                                 log=self.log
+                                )
+
+        self._health_check.start_timer(arm=True)
 
         self._worker_thread = WorkerThread(target=self.scan_area_quanti_qafm_fw_by_point,
                                             args=(coord0_start, coord0_stop,
@@ -1932,7 +2423,8 @@ class AFMConfocalLogic(GenericLogic):
                 reverse_meas = False
 
                 # emit only a signal if the reversed is finished.
-                self.sigQAFMLineScanFinished.emit() 
+                self.sigQAFMLineScanFinished.emit()   # this signals repainting of a line
+                self.sigQuantiLineFinished.emit()     # this signals line is complete, return to new line 
             else:
                 for index, param_name in enumerate(curr_scan_params):
                     name = f'{param_name}_fw'   # use the unterlying naming convention
@@ -3410,6 +3902,14 @@ class AFMConfocalLogic(GenericLogic):
 
         #self._spm.finish_scan()
 
+    def stop_immediate(self):
+        self._spm.stop_measure()
+        self._counter.stop_measurement()
+        self._health_check.stop_timer()
+        self.sigQAFMScanFinished.emit()
+        self.sigQuantiScanFinished.emit()
+        self.log.debug("Immediate stop request completed")
+
 
 # ==============================================================================
 #        Higher level optimization routines for objective scanner
@@ -4200,202 +4700,6 @@ class AFMConfocalLogic(GenericLogic):
 
         return return_path
 
-    @staticmethod
-    def _save_obj_to_gwyddion(dataobj,filename,datakeys=None,gwytypes=['image','xyz']):
-        """save_obj_to_gwyddion(): writes qudi data object to Gwyddion file
-            input:  
-            - dataobj: proteusQ data object of from dataobj['data_key']
-            - filename: file path to save object
-            - prefix:  name to be prefixed to all head objects
-                
-            requirements:
-            dataobj['scan_type'] must contain keys {coord0[], coord1[], data[,], params[]}
-        """
-        
-        # check for existance of valid object names
-        if datakeys is None:
-            datakeys = list(dataobj.keys())
-        else:
-            if isinstance(datakeys,str):
-                datakeys = list(datakeys)
-            alloweddatakeys = list(dataobj.keys())
-            for n in datakeys:
-                assert n in alloweddatakeys, f"Invalid object name specified '{n}'"
-
-        # check for existance of valid output types
-        assert gwytypes and set(gwytypes).issubset({'image', 'xyz'}), "Incorrect Gwyddion output type specified"
-                
-        # overall object container
-        objout = gwy.objects.GwyContainer()
-
-        for dataki,datak in enumerate(sorted(datakeys, key=str.lower)):
-            meas = dataobj[datak]
-
-            # check that data is valid
-            if not {'coord0_arr','coord1_arr','data'}.issubset(set(meas.keys())):
-                continue 
-
-            # check that there is non-trivial data (skip empty measurements)
-            if np.sum(meas['data']) == 0.0:
-                continue
-
-            # transform data
-            scalefactor = meas['scale_fac']
-            coord0 = meas['coord0_arr']
-            coord1 = meas['coord1_arr']
-            data_si = meas['data'] * scalefactor
-            xyz_data = np.array([x for j in range(coord1.shape[0]) 
-                                for i in range(coord0.shape[0]) 
-                                for x in (coord0[i], coord1[j], data_si[j,i])]) 
-
-            params = meas['params']
-            coord0_start = next(k for k in params.keys() if k.startswith('coord0_start'))
-            coord0_stop = next(k for k in params.keys() if k.startswith('coord0_stop'))
-            coord1_start = next(k for k in params.keys() if k.startswith('coord1_start'))
-            coord1_stop = next(k for k in params.keys() if k.startswith('coord1_stop'))
-
-            xy_units = coord0_start.split('(')[1].split(')')[0]
-            z_units = meas['si_units']
-            measname = datak + ":" + meas['nice_name']
-            
-            # encode to image
-            img = gwy.objects.GwyDataField(data=data_si, si_unit_xy=xy_units, si_unit_z=z_units)
-            img.xoff = params[coord0_start]
-            img.xreal = params[coord0_stop] - params[coord0_start]
-            img.yoff = params[coord1_start]
-            img.yreal = params[coord1_stop] - params[coord1_start]
-
-            # encode to xyz
-            xyz = gwy.objects.GwySurface(data=xyz_data,si_unit_xy=xy_units,si_unit_z=z_units)
-
-            # add to parent object 
-            if 'image' in gwytypes: 
-                # image types
-                basekey = '/' + str(dataki) + '/data'
-                objout[basekey + '/title'] = measname
-                objout[basekey] = img
-                
-            if 'xyz' in gwytypes:
-                # xyz types
-                basekey = '/surface/' + str(dataki) 
-                objout[basekey + '/title'] = measname
-                objout[basekey] = xyz
-                objout[basekey + '/preview'] = img
-                objout[basekey + '/visible'] = True
-
-                # comment meta data
-                comm = gwy.objects.GwyContainer()
-                for k,v in meas['params'].items():
-                    if isinstance(v,(list,tuple)):
-                        comm[k] = ",".join([str(vs) for vs in v])
-                    else:
-                        comm[k] = str(v)
-                
-                objout[basekey + '/meta'] = comm
-
-        # write out file    
-        if objout:
-            objout.tofile(filename) 
-
-    @staticmethod
-    def _save_esr_to_gwyddion(dataobj,filename, datakeys=None,prefix=None):
-        """
-            save_esr_to_gwyddion(): writes esr data object to gwy container file
-            input:  
-            - dataobj: proteusQ data object of from dataobj['data_key']
-            - filename: file path to save object
-            - prefix:  name to be prefixed to all head objects
-            
-            requirements:
-            dataobj must contain keys {coord0[], coord1[], coord2[],
-                                        data[,,], data_std[,,], data_fit[,,], parameters[]}
-        """
-
-        # helper function for color generation
-        # r/g/bspec = (min,max,number,startvalue)
-        def colors(rspec=(0,1,10,0), gspec=(0,1,10,0), bspec=(0,1,10,0)):
-            reds = np.linspace(*rspec[:3])
-            reds =np.concatenate([reds[np.argwhere(reds >= rspec[-1])], 
-                                reds[np.argwhere(reds < rspec[-1])]]).flatten()
-
-            greens = np.linspace(*gspec[:3])
-            greens =np.concatenate([greens[np.argwhere(greens >= gspec[-1])], 
-                                greens[np.argwhere(greens < gspec[-1])]]).flatten()
-
-            blues = np.linspace(*bspec[:3])
-            blues =np.concatenate([blues[np.argwhere(blues >= bspec[-1])], 
-                                blues[np.argwhere(blues < bspec[-1])]]).flatten()
-
-            while True:
-                for r in reds:
-                    for g in greens:
-                        for b in blues:
-                            yield [('color.red', r), 
-                                ('color.green', g), 
-                                ('color.blue',b)]
-
-        
-        # check for existance of valid object names
-        if datakeys is None:
-            datakeys = list(dataobj.keys())
-        else:
-            if isinstance(datakeys,str):
-                datakeys = list(datakeys)
-            alloweddatakeys = list(dataobj.keys())
-            for n in datakeys:
-                assert n in alloweddatakeys, f"Invalid object name specified '{n}'"
-
-        # determine if anything is to be done
-        if np.sum(dataobj['data']) == 0.0:
-            return False
-
-        # Output 
-        # overall object container
-        esrobj = gwy.objects.GwyContainer()
-
-        # ESR mean data (quite dense)
-        # create curves
-        xdata = dataobj['coord2_arr']  # microwave frequency
-        curves = []
-        getcolors = colors((0,1,5,0.9),(0,1,5,0),(0,0.8,5,0))   # point color generator
-
-        #  specifies 1st curve is points(1), 2nd curve is line(2), others hidden(0)
-        ltypes = [1,2] 
-        for j in range(dataobj['coord1_arr'].shape[0]):
-            for i in range(dataobj['coord0_arr'].shape[0]):
-                cols = next(getcolors)
-    
-                # measured data
-                ydata = dataobj['data'][j,i,:]
-                curve = gwy.objects.GwyGraphCurveModel(xdata=xdata, ydata=ydata)
-                curve.update(cols)
-                curve['description'] = f"coord[{j},{i}]"
-                curve['type'] = ltypes.pop(0) if ltypes else 0
-                curve['line_style'] = 0 
-                curves.append(curve)
-
-                # fit data
-                ydata = dataobj['data_fit'][j,i,:]
-                curve = gwy.objects.GwyGraphCurveModel(xdata=xdata, ydata=ydata)
-                curve.update(cols)
-                curve['description'] = f"coord[{j},{i}]_fit"
-                curve['type'] = ltypes.pop(0) if ltypes else 0
-                curve['line_style'] = 0 
-                curves.append(curve)
-
-        esrgraph = gwy.objects.GwyGraphModel()
-        esrgraph['title'] = 'ESR: data per pixel'
-        esrgraph['curves'] = curves
-        esrgraph['x_unit'] = gwy.objects.GwySIUnit(unitstr='Hz')
-        esrgraph['y_unit'] = gwy.objects.GwySIUnit(unitstr='c/s')
-        esrgraph['bottom_label'] = 'Microwave Frequency'
-        esrgraph['left_label'] = dataobj['nice_name'] + ' Count'
-
-        esrobj['/0/graph/graph/1'] = esrgraph 
-        esrobj['/0/graph/graph/1/visible'] = False 
-
-        esrobj.tofile(filename) 
-        return True
 
     def check_for_illegal_char(self, input_str):
         replace_char = '_'
@@ -4513,7 +4817,10 @@ class AFMConfocalLogic(GenericLogic):
                                     daily_folder=daily_folder, timestamp=timestamp)
 
         if self._sg_save_to_gwyddion:
-            self._save_obj_to_gwyddion(dataobj=data,filename=os.path.join(save_path,"qafm_data.gwy"))
+            filename = timestamp.strftime('%Y%m%d-%H%M-%S' + '_' + tag + '_QAFM.gwy') 
+            self.start_save_to_gwyddion(dataobj=data,
+                                          gwyobjtype='qafm',filename=os.path.join(save_path,filename))
+            self.increase_save_counter()
 
 
     def draw_figure(self, image_data, image_extent, scan_axis=None, cbar_range=None,
@@ -4532,44 +4839,29 @@ class AFMConfocalLogic(GenericLogic):
                 cbar_range[0] = image_data[np.nonzero(image_data)].min()
 
         # Scale color values using SI prefix
-        prefix = ['p', 'n', r'$\mathrm{\mu}$', 'm', '', 'k', 'M', 'G']
-        scale_fac = 1000**4 # since it starts from p
-        prefix_count = 0
+        prefix = { -4: 'p', -3: 'n',         # prefix to use for powers of 1000
+                   -2: r'$\mathrm{\mu}$', -1: 'm', 
+                    0: '', 1:'k', 
+                    2: 'M', 3: 'G', 
+                    4: 'T'}
 
+        # Scale data, determine SI prefix 
+        n = floor(log10(max([abs(v) for v in cbar_range])))  // 3     # 1000^n 
+        scale_fac = 1 / 1000**n
         draw_cb_range = np.array(cbar_range)*scale_fac
-        image_dimension = image_extent.copy()
-
-        if abs(draw_cb_range[0]) > abs(draw_cb_range[1]):
-            while abs(draw_cb_range[0]) > 1000:
-                scale_fac = scale_fac / 1000
-                draw_cb_range = draw_cb_range / 1000
-                prefix_count = prefix_count + 1
-        else:
-            while abs(draw_cb_range[1]) > 1000:
-                scale_fac = scale_fac/1000
-                draw_cb_range = draw_cb_range/1000
-                prefix_count = prefix_count + 1
-
         scaled_data = image_data*scale_fac
-        c_prefix = prefix[prefix_count]
+        c_prefix = prefix[n]
 
         # Scale axes values using SI prefix
-        axes_prefix = ['', 'm', 'u', 'n']  # mu = r'$\mathrm{\mu}$'
-        x_prefix_count = 0
-        y_prefix_count = 0
+        #prefix[-2] = 'u'  # use simple ascii for axes with 1000^-2
+        image_dimension = image_extent.copy()
+        if np.allclose(image_dimension, np.zeros_like(image_dimension), atol=0.0):
+            n = 0
+        else:
+            n = floor(log10(max([abs(v) for v in image_dimension])))  // 3     # 1000^n 
 
-        while np.abs(image_dimension[1] - image_dimension[0]) < 1:
-            image_dimension[0] = image_dimension[0] * 1000.
-            image_dimension[1] = image_dimension[1] * 1000.
-            x_prefix_count = x_prefix_count + 1
-
-        while np.abs(image_dimension[3] - image_dimension[2]) < 1:
-            image_dimension[2] = image_dimension[2] * 1000.
-            image_dimension[3] = image_dimension[3] * 1000.
-            y_prefix_count = y_prefix_count + 1
-
-        x_prefix = axes_prefix[x_prefix_count]
-        y_prefix = axes_prefix[y_prefix_count]
+        image_dimension = [v / 1000**n for v in image_dimension]
+        x_prefix = y_prefix = prefix[n]
 
         self.log.debug(('image_dimension: ', image_dimension))
 
@@ -4741,13 +5033,14 @@ class AFMConfocalLogic(GenericLogic):
                                        fmt='%.6e',
                                        delimiter='\t',
                                        plotfig=None)
+            self.increase_save_counter()
 
             if self._sg_save_to_gwyddion:
-                for dname in data.keys():
-                    self._save_esr_to_gwyddion(dataobj=data[dname],
-                                               filename=os.path.join(save_path,f"{dname}.gwy"))
+                filename_pfx = timestamp.strftime('%Y%m%d-%H%M-%S' + '_' + tag ) 
+                self.start_save_to_gwyddion(dataobj=data[entry], gwyobjtype='esr',
+                                            filename=os.path.join(save_path,f"{filename_pfx}_{entry}.gwy"))
+                self.increase_save_counter()
 
-            self.increase_save_counter()
 
 
     def increase_save_counter(self, ret_val=0):
@@ -4780,6 +5073,9 @@ class AFMConfocalLogic(GenericLogic):
     def get_save_counter(self):
         return self.__data_to_be_saved
 
+    #FIXME: update the savelogic with the new method 'save_figure' to make this work
+    #       then, uncomment the part of the code labeled with UNCOMMENT.
+    @deprecated("Current method is not maintained, use 'save_qafm_data' method instead.")
     def save_all_qafm_figures(self, tag=None, probe_name=None, sample_name=None,
                        use_qudi_savescheme=False, root_path=None, 
                        daily_folder=True):
@@ -4799,11 +5095,21 @@ class AFMConfocalLogic(GenericLogic):
                                              probe_name=probe_name,
                                              sample_name=sample_name)
 
-        data = self.get_qafm_data()
+        data = {}
+        for entry in scan_params:
+            data[entry] = self.get_qafm_data()[entry]
 
         timestamp = datetime.datetime.now()
 
         fig = self.draw_all_qafm_figures(data)
+
+        # save only total figure here
+        # UNCOMMENT THIS:
+        # filelabel = f'{tag}_QAFM'
+        # self._save_logic.save_figure(fig, 
+        #                              filepath=save_path, 
+        #                              timestamp=timestamp,
+        #                              filelabel=filelabel)
 
         for entry in scan_params:
             parameters = {}
@@ -4843,8 +5149,7 @@ class AFMConfocalLogic(GenericLogic):
                                        parameters=parameters,
                                        filelabel=filelabel,
                                        fmt='%.6e',
-                                       delimiter='\t',
-                                       plotfig=fig)
+                                       delimiter='\t')
 
             # prepare the full raw data in an OrderedDict:
 
@@ -5126,10 +5431,16 @@ class AFMConfocalLogic(GenericLogic):
                                        fmt='%.6e',
                                        delimiter='\t')
 
-            if self._sg_save_to_gwyddion:
-                self._save_obj_to_gwyddion(dataobj=data,filename=os.path.join(save_path,"obj_data.gwy"))
-
             self.increase_save_counter()
+
+            # save objective data to gwyddion format
+            if self._sg_save_to_gwyddion:
+                filename = timestamp.strftime('%Y%m%d-%H%M-%S' + '_' + tag + '_obj_data.gwy') 
+                self.start_save_to_gwyddion(dataobj=data,
+                                            gwyobjtype='obj', filename=os.path.join(save_path,filename))
+                self.increase_save_counter()
+               
+
 
     def draw_obj_figure(self):
         pass
@@ -5257,10 +5568,13 @@ class AFMConfocalLogic(GenericLogic):
                                    fmt='%.6e',
                                    delimiter='\t')
 
-        if self._sg_save_to_gwyddion:
-            self._save_obj_to_gwyddion(dataobj=data,filename=os.path.join(save_path,"opti_data.gwy"))
-
         self.increase_save_counter()
+
+        if self._sg_save_to_gwyddion:
+            filename = timestamp.strftime('%Y%m%d-%H%M-%S' + '_' + tag + '_opti_data.gwy') 
+            self.start_save_to_gwyddion(dataobj=data,gwyobjtype='opti',filename=os.path.join(save_path,filename))
+            self.increase_save_counter()
+
 
     def draw_optimizer_figure(self, image_data_xy, image_data_z, image_extent, scan_axis=None, 
                               cbar_range=None, percentile_range=None, signal_name='', signal_unit=''):
@@ -5391,6 +5705,321 @@ class AFMConfocalLogic(GenericLogic):
         axz.set_xlabel(figure_data_z['params']['axis name for coord0'] + ' position (' + r'$\mathrm{\mu}$' + 'm)')
 
         return fig
+
+
+    def start_save_to_gwyddion(self, dataobj, gwyobjtype=None, 
+                               filename=None, filelabel=None, 
+                               timestamp=None, datakeys=None):
+        """ 'save_data' signal instigator 
+            - method depends on gwytype specified
+        """
+        if timestamp is None:
+            timestamp = datetime.datetime.now()
+
+        if filename is None:
+            savefilename = timestamp.strftime('%Y%m%d-%H%M-%S' + '_' 
+                                          + filelabel + f'_{gwyobjtype.upper()}.gwy') 
+        else:
+            savefilename = filename
+
+        self.sigSaveDataGwyddion.emit(dataobj, gwyobjtype, savefilename, datakeys)
+
+
+    def _save_to_gwyddion(self, dataobj, gwyobjtype=None, filename=None, datakeys=None):
+        """ 'save_data' method selector (called in thread) 
+            - method depends on gwytype specified
+        """
+
+        if gwyobjtype in self._gwyobjecttypes['imgobjects']:
+            self._save_obj_to_gwyddion(dataobj=dataobj,filename=filename,datakeys=datakeys)
+            self.sigSaveDataGwyddionFinished.emit(0)
+        elif gwyobjtype in self._gwyobjecttypes['graphobjects']:
+            self._save_esr_to_gwyddion(dataobj=dataobj,filename=filename,datakeys=datakeys)
+            self.sigSaveDataGwyddionFinished.emit(0)
+        else:
+            self.log.error(f"SaveLogicGwyddion(): unknown gwyobjtype specified: {gwyobjtype}")
+            self.sigSaveDataGwyddionFinished.emit(-1)
+
+
+    def _save_obj_to_gwyddion(self,dataobj,filename,datakeys=None,gwytypes=['image','xyz']):
+        """save_obj_to_gwyddion(): writes qudi data object to Gwyddion file
+            input:  
+            - dataobj: proteusQ data object of from dataobj['data_key']
+            - filename: file path to save object
+            - prefix:  name to be prefixed to all head objects
+                
+            requirements:
+            dataobj['scan_type'] must contain keys {coord0[], coord1[], data[,], params[]}
+        """
+        
+        # check for existance of valid object names
+        if datakeys is None:
+            datakeys = list(dataobj.keys())
+        else:
+            if isinstance(datakeys,str):
+                datakeys = list(datakeys)
+            alloweddatakeys = list(dataobj.keys())
+            for n in datakeys:
+                if not n in alloweddatakeys: 
+                    self.log.error(f"_save_obj_to_gwyddion(): Invalid object name specified '{n}'")
+
+        # check for existance of valid output types
+        if not (gwytypes and set(gwytypes).issubset({'image', 'xyz'})): 
+            self.log.error("_save_obj_to_gwyddion(): Incorrect Gwyddion output type specified")
+                
+        # overall object container
+        objout = gwy.objects.GwyContainer()
+
+        for dataki,datak in enumerate(sorted(datakeys, key=str.lower)):
+            meas = dataobj[datak]
+
+            # check that data is valid
+            if not {'coord0_arr','coord1_arr','data'}.issubset(set(meas.keys())):
+                continue 
+
+            # check that there is non-trivial data (skip empty measurements)
+            if np.sum(meas['data']) == 0.0:
+                continue
+
+            # transform data
+            scalefactor = meas['scale_fac']
+            coord0 = meas['coord0_arr']
+            coord1 = meas['coord1_arr']
+            data_si = meas['data'] * scalefactor
+            xyz_data = np.array([x for j in range(coord1.shape[0]) 
+                                for i in range(coord0.shape[0]) 
+                                for x in (coord0[i], coord1[j], data_si[j,i])]) 
+
+            params = meas['params']
+            coord0_start = next(k for k in params.keys() if k.startswith('coord0_start'))
+            coord0_stop = next(k for k in params.keys() if k.startswith('coord0_stop'))
+            coord1_start = next(k for k in params.keys() if k.startswith('coord1_start'))
+            coord1_stop = next(k for k in params.keys() if k.startswith('coord1_stop'))
+
+            xy_units = coord0_start.split('(')[1].split(')')[0]
+            z_units = meas['si_units']
+            measname = datak + ":" + meas['nice_name']
+            
+            # encode to image
+            img = gwy.objects.GwyDataField(data=data_si, si_unit_xy=xy_units, si_unit_z=z_units)
+            img.xoff = params[coord0_start]
+            img.xreal = params[coord0_stop] - params[coord0_start]
+            img.yoff = params[coord1_start]
+            img.yreal = params[coord1_stop] - params[coord1_start]
+
+            # encode to xyz
+            xyz = gwy.objects.GwySurface(data=xyz_data,si_unit_xy=xy_units,si_unit_z=z_units)
+
+            # add to parent object 
+            if 'image' in gwytypes: 
+                # image types
+                basekey = '/' + str(dataki) + '/data'
+                objout[basekey + '/title'] = measname
+                objout[basekey] = img
+                
+            if 'xyz' in gwytypes:
+                # xyz types
+                basekey = '/surface/' + str(dataki) 
+                objout[basekey + '/title'] = measname
+                objout[basekey] = xyz
+                objout[basekey + '/preview'] = img
+                objout[basekey + '/visible'] = True
+
+                # comment meta data
+                comm = gwy.objects.GwyContainer()
+                for k,v in meas['params'].items():
+                    if isinstance(v,(list,tuple)):
+                        comm[k] = ",".join([str(vs) for vs in v])
+                    else:
+                        comm[k] = str(v)
+                
+                objout[basekey + '/meta'] = comm
+
+        # write out file    
+        if objout:
+            objout.tofile(filename) 
+
+
+    def _save_esr_to_gwyddion(self,dataobj,filename, datakeys=None,prefix=None):
+        """
+            save_esr_to_gwyddion(): writes esr data object to gwy container file
+            input:  
+            - dataobj: proteusQ data object of from dataobj['data_key']
+            - filename: file path to save object
+            - prefix:  name to be prefixed to all head objects
+            
+            requirements:
+            dataobj must contain keys {coord0[], coord1[], coord2[],
+                                        data[,,], data_std[,,], data_fit[,,], parameters[]}
+        """
+
+        # helper function for color generation
+        # r/g/bspec = (min,max,number,startvalue)
+        def colors(rspec=(0,1,10,0), gspec=(0,1,10,0), bspec=(0,1,10,0)):
+            reds = np.linspace(*rspec[:3])
+            reds =np.concatenate([reds[np.argwhere(reds >= rspec[-1])], 
+                                reds[np.argwhere(reds < rspec[-1])]]).flatten()
+
+            greens = np.linspace(*gspec[:3])
+            greens =np.concatenate([greens[np.argwhere(greens >= gspec[-1])], 
+                                greens[np.argwhere(greens < gspec[-1])]]).flatten()
+
+            blues = np.linspace(*bspec[:3])
+            blues =np.concatenate([blues[np.argwhere(blues >= bspec[-1])], 
+                                blues[np.argwhere(blues < bspec[-1])]]).flatten()
+
+            while True:
+                for r in reds:
+                    for g in greens:
+                        for b in blues:
+                            yield [('color.red', r), 
+                                   ('color.green', g), 
+                                   ('color.blue',b)]
+        
+
+        # check for existance of valid object names
+        if datakeys is None:
+            datakeys = list(dataobj.keys())
+        else:
+            if isinstance(datakeys,str):
+                datakeys = list(datakeys)
+            alloweddatakeys = list(dataobj.keys())
+            for n in datakeys:
+                if not n in alloweddatakeys:
+                    self.log.error("_save_esr_to_gwyddion():Invalid object name specified '{n}'")
+
+        # determine if anything is to be done
+        if np.sum(dataobj['data']) == 0.0:
+            return False
+
+        # Output 
+        # overall object container
+        esrobj = gwy.objects.GwyContainer()
+
+        # ESR mean data (quite dense)
+        # create curves
+        xdata = dataobj['coord2_arr']  # microwave frequency
+        curves = []
+        getcolors = colors((0,1,5,0.9),(0,1,5,0),(0,0.8,5,0))   # point color generator
+
+        #  specifies 1st curve is points(1), 2nd curve is line(2), others hidden(0)
+        ltypes = [1,2] 
+        for j in range(dataobj['coord1_arr'].shape[0]):
+            for i in range(dataobj['coord0_arr'].shape[0]):
+                cols = next(getcolors)
+    
+                # measured data
+                ydata = dataobj['data'][j,i,:]
+                curve = gwy.objects.GwyGraphCurveModel(xdata=xdata, ydata=ydata)
+                curve.update(cols)
+                curve['description'] = f"coord[{j},{i}]"
+                curve['type'] = ltypes.pop(0) if ltypes else 0
+                curve['line_style'] = 0 
+                curves.append(curve)
+
+                # fit data
+                ydata = dataobj['data_fit'][j,i,:]
+                curve = gwy.objects.GwyGraphCurveModel(xdata=xdata, ydata=ydata)
+                curve.update(cols)
+                curve['description'] = f"coord[{j},{i}]_fit"
+                curve['type'] = ltypes.pop(0) if ltypes else 0
+                curve['line_style'] = 0 
+                curves.append(curve)
+
+        esrgraph = gwy.objects.GwyGraphModel()
+        esrgraph['title'] = 'ESR: data per pixel'
+        esrgraph['curves'] = curves
+        esrgraph['x_unit'] = gwy.objects.GwySIUnit(unitstr='Hz')
+        esrgraph['y_unit'] = gwy.objects.GwySIUnit(unitstr='c/s')
+        esrgraph['bottom_label'] = 'Microwave Frequency'
+        esrgraph['left_label'] = dataobj['nice_name'] + ' Count'
+
+        esrobj['/0/graph/graph/1'] = esrgraph 
+        esrobj['/0/graph/graph/1/visible'] = False 
+
+        esrobj.tofile(filename) 
+        return True
+
+
+# Baseline correction functionality.
+#TODO: put this in a more generic logic method structure, which can be used to
+#      by other methods.
+
+    @staticmethod
+    def correct_plane(xy_data, zero_corr=False, x_range=None, y_range=None):
+        """ Baseline correction algorithm, essentially based on solving an Eigenvalue equation.  
+
+        @param np.array((N_row, M_col)) xy_data: 2D matrix
+        @param bool zero_corr: Shift at the end of the algorithm the whole 
+                               matrix by a specific offset, so that the smallest
+                               value in the matrix is zero.
+        @param list x_range: optional, containing the minimal and maximal value 
+                             of the x axis of the matrix, if not provided, then
+                             normalized values for the range are taken, i.e. 
+                             values from 0 to 1. Both, x and y range needs to be
+                             provided, otherwise the normalized values will be
+                             taken.
+        @param list y_range: optional, containing the minimal and maximal value
+                             of the y axis of the matrix, if not provided, then
+                             normalized values for the range are taken, i.e. 
+                             values from 0 to 1. Both, x and y range needs to be
+                             provided, otherwise the normalized values will be
+                             taken.                           
+
+        @return (mat_bc, C) 
+            np.array((N_row, M_col)) mat: the baseline corrected matrix with 
+                                          same, dimensions.
+            np.array(3) C: containing the coefficients for the plane equation:
+                            a*x + b*y + c = z 
+                            => C = [a, b, c]
+                            These can be used to generate the plane correction 
+                            matrix. 
+                            Note: Provide x_range and y_range to obtain have
+                            meaningful values for C. If you are only interested
+                            in a simple plane correction, then those values are
+                            not required.
+        
+        similar to this solution:
+        https://math.stackexchange.com/questions/99299/best-fitting-plane-given-a-set-of-points
+        """
+        
+        # create at first a mash grid with the data, x and y are selected as 
+        # normalized coordinates running from 0 to 1. Both arrays have to be 
+        # specified, otherwise they are ignored.
+        if (x_range is None) or (y_range is None):
+            x_range = [0, 1]
+            y_range = [0, 1]
+    
+        x_axis = np.linspace(x_range[0], x_range[1], xy_data.shape[1])
+        y_axis = np.linspace(y_range[0], y_range[1], xy_data.shape[0])
+        xv, yv = np.meshgrid(x_axis, y_axis)
+        
+        # flatten the data array in rows 
+        data_rows = np.c_[xv.flatten(), yv.flatten() , xy_data.flatten()]
+
+        # get the best-fit linear plane (1st-order):
+        A = np.c_[data_rows[:,0], data_rows[:,1], np.ones(data_rows.shape[0])]
+        # so the least square method tries to minimize the the vertical distance
+        # from the points to the plane, i.e. to solve the equation A*x = b, or
+        #       A * x = data_rows[:,2] 
+          
+        C,_,_,_ = lstsq(A, data_rows[:,2])    
+        # C is essentially the minimize solution of , i.e.
+        #       C = min( |data_rows[:,2] - A*x| ) 
+        # where the coefficients in C represent a plane.
+
+        # create a plane correction of the matrix:
+        mat_corr = xy_data - (C[0]*xv + C[1]*yv + C[2])
+        
+        # make also a zero correction if required. This is not a baseline 
+        # correction, it simply shifts the offset of the matrix such that the 
+        # smallest entry in the matrix is zero. Note that an actual baseline 
+        # corrected matrix would have a matrix mean value of zero). Applying 
+        # this would shift the mean value of the matrix from zero.
+        if zero_corr:
+            mat_corr = mat_corr - mat_corr.min()
+        
+        return mat_corr, C
 
 
 

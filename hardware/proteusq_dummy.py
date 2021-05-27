@@ -140,6 +140,9 @@ class ProteusQDummy(Base):
     def prepare_pixelclock(self):
         pass
 
+    def check_interface_version(self,pause=None):
+        pass
+
 
 
 
