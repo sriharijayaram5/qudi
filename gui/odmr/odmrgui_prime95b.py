@@ -20,6 +20,7 @@ top-level directory of this distribution and at <https://github.com/Ulm-IQO/qudi
 """
 
 
+from PyQt5 import QtGui
 import numpy as np
 import os
 import pyqtgraph as pg
@@ -137,6 +138,9 @@ class ODMRGui(GUIBase):
         self._mw.sweep_power_DoubleSpinBox.setMinimum(constraints.min_power)
 
         # Add save file tag input box
+        self._mw.stack_label = QtWidgets.QLabel(self._mw)
+        self._mw.stack_label.setText('Image stack')
+        self._mw.save_ToolBar.addWidget(self._mw.stack_label)
         self._mw.save_stack_radioButton = QtWidgets.QRadioButton(self._mw)
         self._mw.save_stack_radioButton.setToolTip('Save ODMR images stack')
         self._mw.save_ToolBar.addWidget(self._mw.save_stack_radioButton)
@@ -154,6 +158,20 @@ class ODMRGui(GUIBase):
                                                   'current ODMR measurements.')
         self._mw.clear_odmr_PushButton.setEnabled(False)
         self._mw.toolBar.addWidget(self._mw.clear_odmr_PushButton)
+
+        self._mw.sim_label = QtWidgets.QLabel(self._mw)
+        self._mw.sim_label.setText('SIM-ODMR')
+        self._mw.toolBar.addWidget(self._mw.sim_label)
+        self._mw.sim_radioButton = QtWidgets.QRadioButton(self._mw)
+        self._mw.sim_radioButton.setToolTip('Enable SIM-ODMR')
+        self._mw.toolBar.addWidget(self._mw.sim_radioButton)
+
+        self._mw.sim_images_folder_LineEdit = QtWidgets.QLineEdit(self._mw)
+        # self._mw.sim_images_folder_LineEdit.setMaximumWidth(500)
+        # self._mw.sim_images_folder_LineEdit.setMinimumWidth(200)
+        self._mw.sim_images_folder_LineEdit.setToolTip('Enter SIM images directory in full.')
+        self._mw.sim_images_folder_LineEdit.setPlaceholderText('C:/Images/SIM_Images/')
+        self._mw.toolBar.addWidget(self._mw.sim_images_folder_LineEdit)
 
         # Set up and connect channel combobox
         self.display_channel = 0
@@ -356,6 +374,8 @@ class ODMRGui(GUIBase):
         self.sigAverageLinesChanged.connect(
             self._odmr_logic.set_average_length,
             QtCore.Qt.QueuedConnection)
+        self._mw.sim_images_folder_LineEdit.textEdited.connect(self._update_sim_images_folder)
+        self._mw.sim_radioButton.toggled.connect(self._update_sim_radioButton)
 
         # Update signals coming from logic:
         self._odmr_logic.sigParameterUpdated.connect(
@@ -600,6 +620,12 @@ class ODMRGui(GUIBase):
         ##
         self._sd.clock_frequency_DoubleSpinBox.setEnabled(False)
         return
+    
+    def _update_sim_images_folder(self, folder_name):
+        self._odmr_logic.imageFolder = folder_name
+
+    def _update_sim_radioButton(self):
+        self._odmr_logic.sim = self._mw.sim_radioButton.isChecked()
 
     def clear_odmr_data(self):
         """ Clear the ODMR data. """

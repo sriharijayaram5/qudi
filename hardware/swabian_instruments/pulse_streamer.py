@@ -804,7 +804,7 @@ class PulseStreamer(Base, PulserInterface, ODMRCounterInterface):
 
         self._seq = self._seq * no_x
 
-        return 0
+        return 0, self._seq.getDuration()/1e6
     
     def set_up_odmr(self, counter_channel=None, photon_source=None,
                     clock_channel=None, odmr_trigger_channel=None):

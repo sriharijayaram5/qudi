@@ -308,7 +308,10 @@ class CameraGUI(GUIBase):
 
     def print_counts(self):
         x, y = self.cross.pos()
-        self.counts = self._logic.get_last_image()[int(y),int(x)]
+        try:
+            self.counts = self._logic.get_last_image()[int(y),int(x)]
+        except:
+            self.counts = 0
         self._mw.counts_label.setText(str(self.counts))
 
     def print_scale(self):

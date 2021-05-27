@@ -35,6 +35,20 @@ from core.util.mutex import Mutex
 from core.connector import Connector
 from core.configoption import ConfigOption
 from core.statusvariable import StatusVar
+import os, sys
+import SLM_Examples.detect_heds_module_path
+from holoeye import slmdisplaysdk
+
+import matplotlib.pyplot as plt
+import numpy as np
+from PIL import Image
+import datetime
+
+# Make some enumerations available locally to avoid too much code:
+ErrorCode = slmdisplaysdk.SLMDisplay.ErrorCode
+ShowFlags = slmdisplaysdk.SLMDisplay.ShowFlags
+State = slmdisplaysdk.SLMDisplay.State
+ApplyDataHandleValue = slmdisplaysdk.SLMDisplay.ApplyDataHandleValue
 
 
 class ODMRLogic(GenericLogic):
@@ -138,8 +152,9 @@ class ODMRLogic(GenericLogic):
         )
         # The array for images of the entire sweep is intialized.
         self.sweep_images = np.zeros(
-            (self.odmr_plot_x.size, *np.flip(self._camera.get_size(), axis=0))
+            (1, self.odmr_plot_x.size, *np.flip(self._camera.get_size(), axis=0))
         )
+        self.sim = False
         # Switch off microwave and set CW frequency and power
         self.mw_off()
         self.set_cw_parameters(self.cw_mw_frequency, self.cw_mw_power)
@@ -628,10 +643,13 @@ class ODMRLogic(GenericLogic):
         @return int: error code (0:OK, -1:error)
         """
 
-        clock_status = self._odmr_counter.set_up_odmr_clock(
+        clock_status, duration_ms = self._odmr_counter.set_up_odmr_clock(
             clock_frequency=self.clock_frequency, no_x=self.odmr_plot_x.size)
         # Seting exposure mode on camera via logic "Ext Trig Internal"
         # self._camera.set_trigger_seq("Ext Trig Internal")
+        self.number_of_sim_images = 1
+        if self.sim:
+            self.load_sim_images(duration_ms)
         self._camera.set_trigger_seq("Edge Trigger")
         if clock_status < 0:
             return -1
@@ -715,8 +733,9 @@ class ODMRLogic(GenericLogic):
             )
             # Sweep images are set to zero at every new scan
             self.sweep_images = np.zeros(
-                (self.odmr_plot_x.size, *np.flip(self._camera.get_size(), axis=0))
+                (self.number_of_sim_images, self.odmr_plot_x.size, *np.flip(self._camera.get_size(), axis=0))
             )
+            self.new_counts = np.zeros((self.number_of_sim_images, self.odmr_plot_x.size))
             self.sigNextLine.emit()
             return 0
 
@@ -800,35 +819,38 @@ class ODMRLogic(GenericLogic):
             if self._clearOdmrData:
                 self.elapsed_sweeps = 0
                 self.sweep_images = np.zeros(
-                    (self.odmr_plot_x.size, *np.flip(self._camera.get_size(), axis=0))
+                    (self.number_of_sim_images, self.odmr_plot_x.size, *np.flip(self._camera.get_size(), axis=0))
                 )
                 self._startTime = time.time()
+            
+            for i in range(self.number_of_sim_images):
+                # reset position so every line starts from the same frequency
+                self.reset_sweep()
+                if self.sim:
+                    self.show_sim_image(i)
 
-            # reset position so every line starts from the same frequency
-            self.reset_sweep()
-
-            # Acquire count data
-            # The trigger sequcne is started below after the specified delay.
-            # The camera is also set to acquire and the code only goes below that line after
-            # all the images in the sequence has been acquired. The triggers
-            # are all stopped after that.
-            error, new_counts = self._odmr_counter.count_odmr(
-                length=self.odmr_plot_x.size)
-            self._camera.start_trigger_seq(self.odmr_plot_x.size * 2)
-            # self._odmr_counter.stop_tasks()
-            # The collected frames are then acquired by the logic here from cam logic Should consider memory issues
-            # for the future.
-            frames = self._camera.get_last_image().astype('float')
-            # The reference images from switch off time should be subtracted as below. For dummy measurements
-            # so as to not be just left with noise we can do a dummy
-            # subtraction.
-            new_counts = (frames[0::2] - frames[1::2]) / (frames[1::2] + frames[0::2]) * 100
-            # Remove for actual mesurements
-            # new_counts = frames[1::2] - np.full_like(frames[0::2], 1)
-            # The sweep images are added up and the new counts are taken as the mean of the image which is what
-            # ends up being plotted as odmr_plot_y
-            self.sweep_images += new_counts
-            new_counts = np.mean(new_counts, axis=(1, 2))
+                # Acquire count data
+                # The trigger sequcne is started below after the specified delay.
+                # The camera is also set to acquire and the code only goes below that line after
+                # all the images in the sequence has been acquired. The triggers
+                # are all stopped after that.
+                error, new_counts = self._odmr_counter.count_odmr(
+                    length=self.odmr_plot_x.size)
+                self._camera.start_trigger_seq(self.odmr_plot_x.size * 2)
+                # self._odmr_counter.stop_tasks()
+                # The collected frames are then acquired by the logic here from cam logic Should consider memory issues
+                # for the future.
+                frames = self._camera.get_last_image().astype('float')
+                # The reference images from switch off time should be subtracted as below. For dummy measurements
+                # so as to not be just left with noise we can do a dummy
+                # subtraction.
+                new_counts = (frames[0::2] - frames[1::2]) / (frames[1::2] + frames[0::2]) * 100
+                # Remove for actual mesurements
+                # new_counts = frames[1::2] - np.full_like(frames[0::2], 1)
+                # The sweep images are added up and the new counts are taken as the mean of the image which is what
+                # ends up being plotted as odmr_plot_y
+                self.sweep_images[i] += new_counts
+                self.new_counts[i] = np.mean(new_counts, axis=(1, 2))
 
             if error==-1:
                 self.stopRequested = True
@@ -858,7 +880,7 @@ class ODMRLogic(GenericLogic):
             # shift data in the array "up" and add new data at the "bottom"
             self.odmr_raw_data = np.roll(self.odmr_raw_data, 1, axis=0)
 
-            self.odmr_raw_data[0] = new_counts
+            self.odmr_raw_data[0] = np.mean(self.new_counts, axis=0)
 
             # Add new count data to mean signal
             if self._clearOdmrData:
@@ -892,6 +914,99 @@ class ODMRLogic(GenericLogic):
                 self.odmr_plot_x, self.odmr_plot_y, self.odmr_plot_xy)
             self.sigNextLine.emit()
             return
+    
+    def show_sim_image(self, i):
+        displayOptions = ShowFlags.PresentAutomatic
+        error = self.slm.showDatahandle(self.dataHandles[i], displayOptions)
+        assert error == ErrorCode.NoError, self.slm.errorString(error)
+        error = self.slm.updateDatahandle(self.dataHandles[i])
+
+        return
+
+    def load_sim_images(self, duration_ms):
+        self.imageDisplayDurationMilliSec = duration_ms  # please select the duration in ms each image file shall be shown on the SLM
+        repeatSlideshow = 1  # <= 0 (e. g. -1) repeats until Python process gets killed
+
+        # Initializes the SLM library
+        self.slm = slmdisplaysdk.SLMDisplay()
+
+        # Check if the library implements the required version
+        if not self.slm.requiresVersion(2):
+            exit(1)
+
+        # Detect SLMs and open a window on the selected SLM
+        error = self.slm.open()
+        assert error == ErrorCode.NoError, self.slm.errorString(error)
+
+        # Open the SLM preview window in non-scaled mode:
+        # This might have an impact on performance, especially in "Capture SLM screen" mode.
+        # Please adapt the file showSLMPreview.py if preview window is not at the right position or even not visible.
+        # from SLM_Examples.showSLMPreview import showSLMPreview
+        # showSLMPreview(self.slm, scale=1.0)
+
+        # Please select how to scale and transform image files while displaying:
+        # displayOptions = ShowFlags.PresentAutomatic  # PresentAutomatic == 0 (default)
+        #displayOptions |= ShowFlags.TransposeData
+        #displayOptions |= ShowFlags.PresentTiledCentered  # This makes much sense for holographic images
+        #displayOptions |= ShowFlags.PresentFitWithBars
+        #displayOptions |= ShowFlags.PresentFitNoBars
+        #displayOptions |= ShowFlags.PresentFitScreen
+
+        # Search image files in given folder:
+        filesList = os.listdir(self.imageFolder)
+
+        # Filter *.png, *.bmp, *.gif, and *.jpg files:
+        imagesList = [filename for filename in filesList if str(filename).endswith(".png") or str(filename).endswith(".gif") or str(filename).endswith(".bmp") or str(filename).endswith(".jpg")]
+
+        imagesList.sort()
+
+        self.log.info("Number of images found in imageFolder = " + str(len(imagesList)))
+
+        if len(imagesList) <= 0:
+            self.log.error('No images found!')
+            return
+
+        # Upload image data to GPU:
+        self.log.info("Loading data ...")
+        start_time = time.time()
+
+        durationInFrames = int((float(self.imageDisplayDurationMilliSec)/1000.0) * self.slm.refreshrate_hz)
+        if durationInFrames <= 0:
+            durationInFrames = 1  # The minimum duration is one video frame of the SLM
+
+        # print("self.slm.refreshrate_hz = " + str(self.slm.refreshrate_hz))
+        # print("durationInFrames = " + str(durationInFrames))
+
+        self.dataHandles = []
+
+        nHandle = 0  # total number of images loaded to GPU
+        for filename in imagesList:
+            filepath = os.path.join(self.imageFolder, filename)
+
+            # Load image data to GPU:
+            error, handle = self.slm.loadDataFromFile(filepath)
+            assert error == ErrorCode.NoError, self.slm.errorString(error)
+
+            error = self.slm.datahandleWaitFor(handle, State.LoadingFile)
+            assert error == ErrorCode.NoError, self.slm.errorString(error)
+
+            handle.durationInFrames = durationInFrames
+
+            error = self.slm.datahandleApplyValues(handle, ApplyDataHandleValue.DurationInFrames)
+            assert error == ErrorCode.NoError, self.slm.errorString(error)
+
+            # Wait for actual upload of image data to GPU:
+            self.slm.datahandleWaitFor(handle, State.ReadyToRender)
+
+            nHandle += 1
+            self.dataHandles.append(handle)
+
+        # print("100%")
+        end_time = time.time()
+        self.log.info("Loading files took "+ str("%0.3f" % (end_time - start_time)) +" seconds\n")
+        self.number_of_sim_images = nHandle
+
+        return
 
     def get_odmr_channels(self):
         return ['Prime95B']
@@ -953,8 +1068,9 @@ class ODMRLogic(GenericLogic):
         # To enable default odmr_plot_y if no pixel is clicke and imshow is
         # just closed. Good for preview.
         self.coord = None
-        if pixel_fit and np.count_nonzero(self.sweep_images) != 0:
-            frames = self.sweep_images / self.elapsed_sweeps
+        sweep_images_red = np.mean(self.sweep_images, axis=0)
+        if pixel_fit and np.count_nonzero(sweep_images_red) != 0:
+            frames = sweep_images_red / self.elapsed_sweeps
             frames1 = np.zeros((np.shape(frames)[0], 600, 600))
             frames1[:] = [
                 cv2.resize(
