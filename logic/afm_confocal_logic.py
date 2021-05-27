@@ -25,6 +25,7 @@ from logic.generic_logic import GenericLogic
 from core.util import units
 from core.util.mutex import Mutex
 from scipy.linalg import lstsq
+from math import log10, floor
 import threading
 import numpy as np
 import os
@@ -4838,49 +4839,29 @@ class AFMConfocalLogic(GenericLogic):
                 cbar_range[0] = image_data[np.nonzero(image_data)].min()
 
         # Scale color values using SI prefix
-        prefix = ['p', 'n', r'$\mathrm{\mu}$', 'm', '', 'k', 'M', 'G']
-        scale_fac = 1000**4 # since it starts from p
-        prefix_count = 0
+        prefix = { -4: 'p', -3: 'n',         # prefix to use for powers of 1000
+                   -2: r'$\mathrm{\mu}$', -1: 'm', 
+                    0: '', 1:'k', 
+                    2: 'M', 3: 'G', 
+                    4: 'T'}
 
+        # Scale data, determine SI prefix 
+        n = floor(log10(max([abs(v) for v in cbar_range])))  // 3     # 1000^n 
+        scale_fac = 1 / 1000**n
         draw_cb_range = np.array(cbar_range)*scale_fac
-        image_dimension = image_extent.copy()
-
-        if abs(draw_cb_range[0]) > abs(draw_cb_range[1]):
-            while abs(draw_cb_range[0]) > 1000:
-                scale_fac = scale_fac / 1000
-                draw_cb_range = draw_cb_range / 1000
-                prefix_count = prefix_count + 1
-        else:
-            while abs(draw_cb_range[1]) > 1000:
-                scale_fac = scale_fac/1000
-                draw_cb_range = draw_cb_range/1000
-                prefix_count = prefix_count + 1
-
         scaled_data = image_data*scale_fac
-        c_prefix = prefix[prefix_count]
+        c_prefix = prefix[n]
 
         # Scale axes values using SI prefix
-        axes_prefix = ['', 'm', 'u', 'n']  # mu = r'$\mathrm{\mu}$'
-        x_prefix_count = 0
-        y_prefix_count = 0
+        #prefix[-2] = 'u'  # use simple ascii for axes with 1000^-2
+        image_dimension = image_extent.copy()
+        if np.allclose(image_dimension, np.zeros_like(image_dimension), atol=0.0):
+            n = 0
+        else:
+            n = floor(log10(max([abs(v) for v in image_dimension])))  // 3     # 1000^n 
 
-        while np.abs(image_dimension[1] - image_dimension[0]) < 1:
-            image_dimension[0] = image_dimension[0] * 1000.
-            image_dimension[1] = image_dimension[1] * 1000.
-            x_prefix_count = x_prefix_count + 1
-
-        while np.abs(image_dimension[3] - image_dimension[2]) < 1:
-            image_dimension[2] = image_dimension[2] * 1000.
-            image_dimension[3] = image_dimension[3] * 1000.
-            y_prefix_count = y_prefix_count + 1
-        
-        #FIXME:: to make conforming axes, use the same scaling definition
-        # this could be done more straighforward using Log10 and a floor() function
-        prefix_count = max(x_prefix_count, y_prefix_count)
-        image_dimension = [v * 1000**prefix_count for v in image_extent] 
-
-        x_prefix = axes_prefix[prefix_count]
-        y_prefix = axes_prefix[prefix_count]
+        image_dimension = [v / 1000**n for v in image_dimension]
+        x_prefix = y_prefix = prefix[n]
 
         self.log.debug(('image_dimension: ', image_dimension))
 
