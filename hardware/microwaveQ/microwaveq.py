@@ -1222,7 +1222,7 @@ class MicrowaveQ(Base, SlowCounterInterface):
         rc.recorder_modes = [RecorderMode.UNCONFIGURED, 
                             RecorderMode.DUMMY]
 
-        rc.recorder_modes_params[RecorderMode.UNCONFIGURE] = {}
+        rc.recorder_modes_params[RecorderMode.UNCONFIGURED] = {}
         rc.recorder_modes_params[RecorderMode.DUMMY] = {}
 
         if features.get(16) is not None:
@@ -1234,8 +1234,8 @@ class MicrowaveQ(Base, SlowCounterInterface):
                                                                               'mw_power': -30,
                                                                               'num_meas': 100}
         if features.get(2) is not None:
-            rc.recorder_modes.append(Recorder.CW_MW)
-            rc.recorder_modes.append(Recorder.ESR)
+            rc.recorder_modes.append(RecorderMode.CW_MW)
+            rc.recorder_modes.append(RecorderMode.ESR)
 
             rc.recorder_modes_params[RecorderMode.CW_MW] = {'mw_frequency': 2.8e9,
                                                             'mw_power': -30}
@@ -1244,7 +1244,7 @@ class MicrowaveQ(Base, SlowCounterInterface):
                                                           'mw_power': -30,
                                                           'num_meas': 100}
         if features.get(1) is not None:
-            rc.recorder_modes.append(Recorder.COUNTER)
+            rc.recorder_modes.append(RecorderMode.COUNTER)
 
             rc.recorder_modes_params[RecorderMode.COUNTER] = {'count_frequency': 10,
                                                               'num_meas': 100}
@@ -1359,7 +1359,7 @@ class MicrowaveQ(Base, SlowCounterInterface):
 
         elif mode == RecorderMode.DUMMY:
             ret_val = self.prepare_dummy()
-        elif mode == RecorderMode.PIXELCLOCK
+        elif mode == RecorderMode.PIXELCLOCK:
             ret_val = self.prepare_pixelclock()
         elif mode == RecorderMode.PIXELCLOCK_SINGLE_ISO_B:
             #TODO: make proper conversion of power to mw gain
