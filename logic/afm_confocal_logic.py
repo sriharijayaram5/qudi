@@ -5075,6 +5075,7 @@ class AFMConfocalLogic(GenericLogic):
 
     #FIXME: update the savelogic with the new method 'save_figure' to make this work
     #       then, uncomment the part of the code labeled with UNCOMMENT.
+    @deprecated("Current method is not maintained, use 'save_qafm_data' method instead.")
     def save_all_qafm_figures(self, tag=None, probe_name=None, sample_name=None,
                        use_qudi_savescheme=False, root_path=None, 
                        daily_folder=True):
