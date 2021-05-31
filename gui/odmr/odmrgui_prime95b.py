@@ -21,9 +21,11 @@ top-level directory of this distribution and at <https://github.com/Ulm-IQO/qudi
 
 
 from PyQt5 import QtGui
+from PyQt5.QtWidgets import QSizePolicy
 import numpy as np
 import os
 import pyqtgraph as pg
+from qroundprogressbar import QRoundProgressBar
 
 from core.connector import Connector
 from core.util import units
@@ -145,10 +147,12 @@ class ODMRGui(GUIBase):
         self._mw.save_stack_radioButton.setToolTip('Save ODMR images stack')
         self._mw.save_ToolBar.addWidget(self._mw.save_stack_radioButton)
         self._mw.save_tag_LineEdit = QtWidgets.QLineEdit(self._mw)
-        self._mw.save_tag_LineEdit.setMaximumWidth(500)
-        self._mw.save_tag_LineEdit.setMinimumWidth(200)
         self._mw.save_tag_LineEdit.setToolTip('Enter a nametag which will be\n'
                                               'added to the filename.')
+        self._mw.save_tag_LineEdit.setPlaceholderText('Sample_80K_0.5mT_-21dBm_1mW_ROI10')                                              
+        self._mw.save_tag_LineEdit.setMinimumWidth(150)
+        self._mw.save_tag_LineEdit.setSizePolicy((QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Expanding,
+                                                 QtWidgets.QSizePolicy.Fixed)))
         self._mw.save_ToolBar.addWidget(self._mw.save_tag_LineEdit)
 
         # add a clear button to clear the ODMR plots:
@@ -160,7 +164,7 @@ class ODMRGui(GUIBase):
         self._mw.toolBar.addWidget(self._mw.clear_odmr_PushButton)
 
         self._mw.sim_label = QtWidgets.QLabel(self._mw)
-        self._mw.sim_label.setText('SIM-ODMR')
+        self._mw.sim_label.setText('  SIM-ODMR')
         self._mw.toolBar.addWidget(self._mw.sim_label)
         self._mw.sim_radioButton = QtWidgets.QRadioButton(self._mw)
         self._mw.sim_radioButton.setToolTip('Enable SIM-ODMR')
@@ -170,8 +174,24 @@ class ODMRGui(GUIBase):
         # self._mw.sim_images_folder_LineEdit.setMaximumWidth(500)
         # self._mw.sim_images_folder_LineEdit.setMinimumWidth(200)
         self._mw.sim_images_folder_LineEdit.setToolTip('Enter SIM images directory in full.')
-        self._mw.sim_images_folder_LineEdit.setPlaceholderText('C:/Images/SIM_Images/')
+        self._mw.sim_images_folder_LineEdit.setPlaceholderText('C:\Images\SIM_Images')
+        self._mw.sim_images_folder_LineEdit.setMinimumWidth(150)
+        self._mw.sim_images_folder_LineEdit.setSizePolicy((QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Expanding,
+                                                 QtWidgets.QSizePolicy.Fixed)))
         self._mw.toolBar.addWidget(self._mw.sim_images_folder_LineEdit)
+
+        self._mw.progress = QtGui.QProgressBar(self._mw)
+        self._mw.progress.setGeometry(200, 80, 250, 15)
+
+        # style accordingly via palette
+        pb_palette = QtGui.QPalette()
+        brush = QtGui.QBrush(QtGui.QColor(0, 0, 255))
+        brush.setStyle(QtCore.Qt.SolidPattern)
+        pb_palette.setBrush(QtGui.QPalette.Active, QtGui.QPalette.Highlight, brush)
+
+        # self._mw.progress.setPalette(pb_palette)
+        self._mw.toolBar.addWidget(self._mw.progress)
+        self._mw.progress.show()
 
         # Set up and connect channel combobox
         self.display_channel = 0
@@ -388,6 +408,8 @@ class ODMRGui(GUIBase):
             self.update_fit, QtCore.Qt.QueuedConnection)
         self._odmr_logic.sigOdmrElapsedTimeUpdated.connect(
             self.update_elapsedtime, QtCore.Qt.QueuedConnection)
+        self._odmr_logic.sigSIMProgress.connect(
+            self._update_sim_progress, QtCore.Qt.QueuedConnection)
 
         # connect settings signals
         self._mw.action_Settings.triggered.connect(self._menu_settings)
@@ -415,6 +437,7 @@ class ODMRGui(GUIBase):
         self._odmr_logic.sigParameterUpdated.disconnect()
         self._odmr_logic.sigOutputStateUpdated.disconnect()
         self._odmr_logic.sigOdmrPlotsUpdated.disconnect()
+        self._odmr_logic.sigSIMProgress.disconnect()
         self._odmr_logic.sigOdmrFitUpdated.disconnect()
         self._odmr_logic.sigOdmrElapsedTimeUpdated.disconnect()
         self.sigCwMwOn.disconnect()
@@ -622,10 +645,13 @@ class ODMRGui(GUIBase):
         return
     
     def _update_sim_images_folder(self, folder_name):
-        self._odmr_logic.imageFolder = folder_name
+        self._odmr_logic.imageFolder = folder_name + "\\"
 
     def _update_sim_radioButton(self):
         self._odmr_logic.sim = self._mw.sim_radioButton.isChecked()
+    
+    def _update_sim_progress(self, progress):
+        self._mw.progress.setValue(progress)
 
     def clear_odmr_data(self):
         """ Clear the ODMR data. """

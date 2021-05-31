@@ -173,6 +173,7 @@ class CameraGUI(GUIBase):
             ([0, 0], [100, 0]), pen={'color': "#E0D8D8", 'width': 3})
         self._mw.image_PlotWidget.addItem(self.scaleBar)
         self.scaleBar.sigRegionChanged.connect(self.print_scale)
+        self._mw.dist_px.setValue(0.065)
 
         # Get the colorscale and set the LUTs
         self.my_colors = ColorScaleInferno()
@@ -237,7 +238,8 @@ class CameraGUI(GUIBase):
         self._sd.buttonBox.button(
             QtWidgets.QDialogButtonBox.Apply).clicked.connect(
             self.update_settings)
-
+        self._sd.buttonBox.button(
+            QtWidgets.QDialogButtonBox.Cancel).clicked.connect(lambda: self._sd.close())
         # write the configuration to the settings window of the GUI.
         self.keep_former_settings()
 
@@ -247,6 +249,7 @@ class CameraGUI(GUIBase):
         self._logic.set_gain(self._sd.gainSpinBox.value())
         exp_res = self._sd.rescomboBox.currentIndex()
         self._logic.set_exposure_resolution(exp_res)
+        self._sd.close()
 
     def keep_former_settings(self):
         """ Keep the old settings and restores them in the gui. """

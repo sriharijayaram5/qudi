@@ -20,6 +20,7 @@ Copyright (c) the Qudi Developers. See the COPYRIGHT.txt file at the
 top-level directory of this distribution and at <https://github.com/Ulm-IQO/qudi/>
 """
 
+from gui.odmr.odmrgui_prime95b import ODMRGui
 from numpy.lib.npyio import save
 from qtpy import QtCore
 from collections import OrderedDict
@@ -96,6 +97,7 @@ class ODMRLogic(GenericLogic):
     sigOdmrPlotsUpdated = QtCore.Signal(np.ndarray, np.ndarray, np.ndarray)
     sigOdmrFitUpdated = QtCore.Signal(np.ndarray, np.ndarray, dict, str)
     sigOdmrElapsedTimeUpdated = QtCore.Signal(float, int)
+    sigSIMProgress = QtCore.Signal(float)
 
     def __init__(self, config, **kwargs):
         super().__init__(config=config, **kwargs)
@@ -152,7 +154,7 @@ class ODMRLogic(GenericLogic):
         )
         # The array for images of the entire sweep is intialized.
         self.sweep_images = np.zeros(
-            (1, self.odmr_plot_x.size, *np.flip(self._camera.get_size(), axis=0))
+            (1, 2, self.odmr_plot_x.size, *np.flip(self._camera.get_size(), axis=0))
         )
         self.sim = False
         # Switch off microwave and set CW frequency and power
@@ -733,7 +735,7 @@ class ODMRLogic(GenericLogic):
             )
             # Sweep images are set to zero at every new scan
             self.sweep_images = np.zeros(
-                (self.number_of_sim_images, self.odmr_plot_x.size, *np.flip(self._camera.get_size(), axis=0))
+                (self.number_of_sim_images, 2, self.odmr_plot_x.size, *np.flip(self._camera.get_size(), axis=0))
             )
             self.new_counts = np.zeros((self.number_of_sim_images, self.odmr_plot_x.size))
             self.sigNextLine.emit()
@@ -819,7 +821,7 @@ class ODMRLogic(GenericLogic):
             if self._clearOdmrData:
                 self.elapsed_sweeps = 0
                 self.sweep_images = np.zeros(
-                    (self.number_of_sim_images, self.odmr_plot_x.size, *np.flip(self._camera.get_size(), axis=0))
+                    (self.number_of_sim_images, 2, self.odmr_plot_x.size, *np.flip(self._camera.get_size(), axis=0))
                 )
                 self._startTime = time.time()
             
@@ -849,8 +851,10 @@ class ODMRLogic(GenericLogic):
                 # new_counts = frames[1::2] - np.full_like(frames[0::2], 1)
                 # The sweep images are added up and the new counts are taken as the mean of the image which is what
                 # ends up being plotted as odmr_plot_y
-                self.sweep_images[i] += new_counts
+                self.sweep_images[i,0] += frames[0::2]
+                self.sweep_images[i,1] += frames[1::2]
                 self.new_counts[i] = np.mean(new_counts, axis=(1, 2))
+                self.sigSIMProgress.emit((i+1)/self.number_of_sim_images*100)
 
             if error==-1:
                 self.stopRequested = True
@@ -924,8 +928,7 @@ class ODMRLogic(GenericLogic):
         return
 
     def load_sim_images(self, duration_ms):
-        self.imageDisplayDurationMilliSec = duration_ms  # please select the duration in ms each image file shall be shown on the SLM
-        repeatSlideshow = 1  # <= 0 (e. g. -1) repeats until Python process gets killed
+        self.imageDisplayDurationMilliSec = duration_ms + 24 # please select the duration in ms each image file shall be shown on the SLM
 
         # Initializes the SLM library
         self.slm = slmdisplaysdk.SLMDisplay()
@@ -1068,7 +1071,7 @@ class ODMRLogic(GenericLogic):
         # To enable default odmr_plot_y if no pixel is clicke and imshow is
         # just closed. Good for preview.
         self.coord = None
-        sweep_images_red = np.mean(self.sweep_images, axis=0)
+        sweep_images_red = np.mean(self.sweep_images[:,0,:,:,:]-self.sweep_images[:,1,:,:,:], axis=0)
         if pixel_fit and np.count_nonzero(sweep_images_red) != 0:
             frames = sweep_images_red / self.elapsed_sweeps
             frames1 = np.zeros((np.shape(frames)[0], 600, 600))
