@@ -25,15 +25,36 @@ import threading
 import numpy as np
 import time
 import struct
+from enum import Enum
 
 from core.module import Base, ConfigOption
 from core.util.mutex import Mutex
 from interface.slow_counter_interface import SlowCounterInterface, SlowCounterConstraints, CountingMode
-from interface.recorder_interface import RecorderInterface, RecorderMode, RecorderState, RecorderConstraints, 
+from interface.recorder_interface import RecorderInterface, RecorderMode, RecorderState, RecorderConstraints 
 from interface.microwave_interface import MicrowaveInterface, MicrowaveLimits, MicrowaveMode, TriggerEdge
 from interface.odmr_counter_interface import ODMRCounterInterface
 
 from .microwaveq_py.microwaveQ import microwaveQ
+
+
+class MicrowaveQFeatures(Enum):
+    """ Prototype class, to be fulfilled at time of use
+        Currently, these values are defined by the microwaveQ/microwaveQ.py deployment interface
+        Note:  This is a manual transcription of MicrowaveQ features from the microwaveq/microwaveQ.py interface
+               They are transcribed here since this is specific to ProteusQ implementation.  This 
+               requires periodic update with the MicrowaveQ defintions
+    """
+    UNCONFIGURED              = 0
+    CONTINUOUS_COUNTING       = 1
+    CONTINUOUS_ESR            = 2
+    RABI                      = 4
+    PULSED_ESR                = 8
+    PIXEL_CLOCK               = 16
+    EXT_TRIGGERED_MEASUREMENT = 32
+    ISO                       = 64
+
+    def __int__(self):
+        return self.value
 
 
 class MicrowaveQ(Base, SlowCounterInterface):
@@ -118,7 +139,6 @@ class MicrowaveQ(Base, SlowCounterInterface):
     # variables for ESR measurement
     _esr_counter = 0
     _esr_count_frequency = 100 # in Hz
-
 
     # for MW interface:
 
@@ -545,12 +565,12 @@ class MicrowaveQ(Base, SlowCounterInterface):
         """
         pass
 
-    def prepare_dummy(self):
+    def _prepare_dummy(self):
         self._meas_mode = 'dummy'
         self.meas_method = self.meas_method_dummy
         return 0
 
-    def prepare_counter(self, counting_window=0.001):
+    def _prepare_counter(self, counting_window=0.001):
 
         if self._meas_running:
             self.log.error('A measurement is still running. Stop it first.')
@@ -675,7 +695,7 @@ class MicrowaveQ(Base, SlowCounterInterface):
         self.sigNewData.emit(frame_int)
         return frame_int
 
-    def prepare_pixelclock(self):
+    def _prepare_pixelclock(self):
         """ Setup the device to count upon an external clock. """
 
         if self._meas_running:
@@ -692,7 +712,7 @@ class MicrowaveQ(Base, SlowCounterInterface):
 
         return 0
 
-    def prepare_pixelclock_single_iso_b(self, freq, power):
+    def _prepare_pixelclock_single_iso_b(self, freq, power):
         """ Setup the device for a single frequency output. 
 
         @param float freq: the frequency in Hz to be applied during the counting.
@@ -716,7 +736,7 @@ class MicrowaveQ(Base, SlowCounterInterface):
 
         return 0
 
-    def prepare_pixelclock_n_iso_b(self, freq_list, pulse_lengths, power, laserCooldownLength=10e-6):
+    def _prepare_pixelclock_n_iso_b(self, freq_list, pulse_lengths, power, laserCooldownLength=10e-6):
         """ Setup the device for n-frequency output. 
 
         @param list(float) freq_list: a list of frequencies to apply 
@@ -805,7 +825,7 @@ class MicrowaveQ(Base, SlowCounterInterface):
     #       ESR measurements: ODMRCounterInterface Implementation
     #===========================================================================
 
-    def prepare_cw_esr(self, freq_list, count_freq=100, power=-25):
+    def _prepare_cw_esr(self, freq_list, count_freq=100, power=-25):
         """ Prepare the CW ESR to obtain ESR frequency scans
 
         @param list freq_list: containing the frequency list entries
@@ -1166,10 +1186,12 @@ class MicrowaveQ(Base, SlowCounterInterface):
         mean_freq = None
 
         if frequency is not None:
-            self._mw_freq_list = frequency
             #FIXME: the power setting is a bit confusing. It is mainly done in 
             # this way in case no power value was provided
-            self.prepare_cw_esr(self._mw_freq_list, self._esr_count_frequency, self._mw_power)
+            params = {'mw_frequency_list': self._mw_freq_list,
+                      'count_frequency':   self._esr_count_frequency,
+                      'mw_power':          self._mw_power }
+            self.configure_recorder(mode=RecorderMode.ESR, params=params)
 
             mean_freq = np.mean(self._mw_freq_list)
 
@@ -1180,7 +1202,7 @@ class MicrowaveQ(Base, SlowCounterInterface):
         self._dev.set_freq_power(mean_freq, power)
         self._mw_power = power
 
-        set_freq, self._mw_cw_power = self._dev.get_freq_power()
+        _, self._mw_cw_power = self._dev.get_freq_power()
 
         return self._mw_freq_list, self._mw_cw_power, self._mw_mode
 
@@ -1290,37 +1312,41 @@ class MicrowaveQ(Base, SlowCounterInterface):
         rc.recorder_modes_params[RecorderMode.UNCONFIGURED] = {}
         rc.recorder_modes_params[RecorderMode.DUMMY] = {}
 
-        if features.get(16) is not None:
+        if features.get(MicrowaveQFeatures.PIXEL_CLOCK.value) is not None:
             rc.recorder_modes.append(RecorderMode.PIXELCLOCK)
             rc.recorder_modes.append(RecorderMode.PIXELCLOCK_SINGLE_ISO_B)
+            rc.recorder_modes.append(RecorderMode.PIXELCLOCK_N_ISO_B)
 
             rc.recorder_modes_params[RecorderMode.PIXELCLOCK] = {'num_meas': 100}
-            rc.recorder_modes_params[RecorderMode.PIXELCLOCK_SINGLE_ISO_B] = {'mw_frequency': 2.8e9,
+            rc.recorder_modes_params[RecorderMode.PIXELCLOCK_SINGLE_ISO_B] = {'mw_frequency_list': [2.8e9],
                                                                               'mw_power': -30,
                                                                               'num_meas': 100}
-        if features.get(2) is not None:
+            rc.recorder_modes_params[RecorderMode.PIXELCLOCK_N_ISO_B] = {'mw_frequency_list': [2.8e9, 2.81e9],
+                                                                         'mw_pulse_lengths': [10e-3, 10e-3],
+                                                                         'mw_power': -30,
+                                                                         'mw_laser_cooldown_time': 10e-6,
+                                                                         'num_meas': 100}
+
+        if features.get(MicrowaveQFeatures.CONTINUOUS_ESR.value) is not None:
             rc.recorder_modes.append(RecorderMode.CW_MW)
             rc.recorder_modes.append(RecorderMode.ESR)
 
             rc.recorder_modes_params[RecorderMode.CW_MW] = {'mw_frequency': 2.8e9,
                                                             'mw_power': -30}
             rc.recorder_modes_params[RecorderMode.ESR] = {'mw_frequency_list': [],
-                                                          'count_frequency': 100,
                                                           'mw_power': -30,
+                                                          'count_frequency': 100,
                                                           'num_meas': 100}
-        if features.get(1) is not None:
+
+        if features.get(MicrowaveQFeatures.CONTINUOUS_COUNTING.value) is not None:
             rc.recorder_modes.append(RecorderMode.COUNTER)
 
             rc.recorder_modes_params[RecorderMode.COUNTER] = {'count_frequency': 10,
                                                               'num_meas': 100}
 
-        # rc.recorder_modes_params[RecorderMode.PIXELCLOCK_N_ISO_B] = {'mw_frequency_list': [],
-        #                                                              'count_frequency': 100,
-        #                                                              'mw_power': -30}
-
 
     def get_recorder_limits(self):
-        """ Retrieve the hardware constrains from the recorder device.
+        """ Retrieve the hardware constraints from the recorder device.
 
         @return RecorderConstraints: object with constraints for the recorder
         """
@@ -1347,7 +1373,12 @@ class MicrowaveQ(Base, SlowCounterInterface):
 
         is_ok = True
         limits = self.get_recorder_limits() 
+        allowed_modes = limits.recorder_modes
         required_params = limits.recorder_modes_params[mode]
+
+        if mode not in allowed_modes:
+            is_ok = False
+            return is_ok
 
         for entry in required_params:
             if params.get(entry) is None:
@@ -1358,7 +1389,7 @@ class MicrowaveQ(Base, SlowCounterInterface):
         return is_ok
 
 
-    def configure_recorder(self, mode, params):
+    def configure_recorder(self, mode, params=None):
         """ Configures the recorder mode for current measurement. 
 
         @param RecorderMode mode: mode of recorder, as available from 
@@ -1423,21 +1454,21 @@ class MicrowaveQ(Base, SlowCounterInterface):
             pass
 
         elif mode == RecorderMode.DUMMY:
-            ret_val = self.prepare_dummy()
+            ret_val = self._prepare_dummy()
         elif mode == RecorderMode.PIXELCLOCK:
-            ret_val = self.prepare_pixelclock()
+            ret_val = self._prepare_pixelclock()
         elif mode == RecorderMode.PIXELCLOCK_SINGLE_ISO_B:
             #TODO: make proper conversion of power to mw gain
-            ret_val = self.prepare_pixelclock_single_iso_b(freq=params['mw_frequency'], 
+            ret_val = self._prepare_pixelclock_single_iso_b(freq=params['mw_frequency'], 
                                                            power=params['mw_power'])
         elif mode == RecorderMode.COUNTER:
-            ret_val = self.prepare_counter(counting_window=1/params['count_frequency'])
+            ret_val = self._prepare_counter(counting_window=1/params['count_frequency'])
         elif mode == RecorderMode.CW_MW:
             ret_val = self._configure_cw_mw(frequency=params['mw_frequency'],
                                             power=params['mw_power'])
         elif mode == RecorderMode.ESR:
             #TODO: replace gain by power (and the real value)
-            ret_val = self.prepare_cw_esr(freq_list=params['mw_frequency_list'], 
+            ret_val = self._prepare_cw_esr(freq_list=params['mw_frequency_list'], 
                                           count_freq=params['count_frequency'],
                                           power=params['mw_power'])
         if ret_val == -1:
@@ -1513,7 +1544,7 @@ class MicrowaveQ(Base, SlowCounterInterface):
         # note, this output should coincide with the recorder_modes from 
         # get_recorder_limits()
         
-        rc = get_recorder_limits()
+        rc = self.get_recorder_limits()
 
         if mode not in rc.recorder_modes:
             self.log.warning(f'Requested mode "{mode}" is not in the available '

@@ -42,7 +42,7 @@ class RecorderMode(Enum):
     ESR = 7 
     PULSED_ESR = 8 
     COUNTER = 9
-    C0NTINOUSCOUNTER = 10
+    CONTINOUS_COUNTING = 10
 
     # advanced measurement mode
     PULSED = 11 
