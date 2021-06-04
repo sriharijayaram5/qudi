@@ -20,6 +20,9 @@ top-level directory of this distribution and at <https://github.com/Ulm-IQO/qudi
 """
 
 
+from typing_extensions import ParamSpec
+
+from scipy.sparse import coo
 from interface.recorder_interface import RecorderMode
 #from hardware.microwaveQ.microwaveq import MicrowaveQ
 from core.module import Connector, StatusVar, ConfigOption
@@ -482,7 +485,9 @@ class AFMConfocalLogic(GenericLogic):
         self._meas_path = os.path.abspath(self._meas_path)
 
         #FIXME: Introduce a state variable to prevent redundant configuration calls of the hardware.
-        self._counter.configure_recorder(mode=RecorderMode.PIXELCLOCK)
+        self._counter.configure_recorder(mode=RecorderMode.PIXELCLOCK,
+                                         params={'mw_frequency': 2.8e9, 
+                                                 'num_meas': 100})
 
         # safety precaution in case the meas path does not exist
         if not os.path.exists(self._meas_path):
@@ -942,8 +947,8 @@ class AFMConfocalLogic(GenericLogic):
                     ret_val_mq = self._counter.configure_recorder(
                         mode=RecorderMode.PIXELCLOCK_SINGLE_ISO_B,
                         params={'mw_frequency_list':[self._freq2_iso_b_frequency],
-                                'mw_power': self._iso_b_power }
-                        )
+                                'mw_power': self._iso_b_power, 
+                                'num_meas': coord0_num })
 
                     self.log.info(f'Prepared pixelclock single iso b, val {ret_val_mq}')
                 else:
@@ -959,7 +964,8 @@ class AFMConfocalLogic(GenericLogic):
                         params={'mw_frequency_list': freq_list,
                                 'mw_pulse_lengths': pulse_lengths,
                                 'mw_power': self._iso_b_power,
-                                'laser_cooldown_time': self._sg_n_iso_b_laser_cooldown_length })
+                                'laser_cooldown_time': self._sg_n_iso_b_laser_cooldown_length,
+                                'num_meas': coord0_num })
                     
                     # add counts2 parameter
                     curr_scan_params.insert(1, 'counts2')      # fluorescence of freq2 parameter
@@ -971,7 +977,9 @@ class AFMConfocalLogic(GenericLogic):
                     self.log.info(f'Prepared pixelclock dual iso b, val {ret_val_mq}')
 
             else:
-                ret_val_mq = self._counter.configure_recorder(mode=RecorderMode.PIXELCLOCK)
+                ret_val_mq = self._counter.configure_recorder(mode=RecorderMode.PIXELCLOCK, 
+                                                              params={'mw_frequency': freq_list[0],
+                                                                      'num_meas': coord0_num})
 
                 self.log.info(f'Prepared pixelclock, val {ret_val_mq}')
 
@@ -1050,7 +1058,8 @@ class AFMConfocalLogic(GenericLogic):
             self._qafm_scan_line = np.zeros((num_params, coord0_num))
 
             if 'counts' in meas_params:
-                self._counter.arm_device(coord0_num)
+                self._counter.start_recorder(arm=True)
+                #DGC self._counter.arm_device(coord0_num)
 
             self._spm.setup_scan_line(corr0_start=scan_coords[0],
                                       corr0_stop=scan_coords[1],
@@ -1209,7 +1218,8 @@ class AFMConfocalLogic(GenericLogic):
                         self._counter.configure_recorder(
                             mode=RecorderMode.PIXELCLOCK_SINGLE_ISO_B,
                             params={'mw_frequency_list': [self._freq1_iso_b_frequency],
-                                    'mw_power': self._iso_b_power })
+                                    'mw_power': self._iso_b_power,
+                                    'num_meas': coord0_num })
                     else:
                         # dual iso-b
                         self._counter.configure_recorder(
@@ -1217,9 +1227,12 @@ class AFMConfocalLogic(GenericLogic):
                             params={'mw_frequency_list': freq_list,
                                     'mw_pulse_lengths': pulse_lengths,
                                     'mw_power': self._iso_b_power,
-                                    'mw_laser_cooldown_time': laser_cooldown_length })
+                                    'mw_laser_cooldown_time': laser_cooldown_length,
+                                    'num_meas': coord0_num })
                 else:
-                    self._counter.configure_recorder(mode=RecorderMode.PIXELCLOCK)
+                    self._counter.configure_recorder(mode=RecorderMode.PIXELCLOCK,
+                                                     params={'mw_frequency': self._freq1_iso_b_frequency,
+                                                             'num_meas': coord0_num})
 
                 self.log.debug('optimizer finished.')
 
@@ -1648,7 +1661,9 @@ class AFMConfocalLogic(GenericLogic):
 
                 self.log.info('Enter optimization.')
                 self._counter.stop_measurement()
-                self._counter.configure_recorder(mode=RecorderMode.PIXELCLOCK)
+                self._counter.configure_recorder(mode=RecorderMode.PIXELCLOCK,
+                                                 params={'mw_frequency': np.mean(freq_list),
+                                                         'num_meas': coord0_num})
 
                 self._spm.finish_scan()
 
@@ -2020,7 +2035,9 @@ class AFMConfocalLogic(GenericLogic):
 
                 self.log.info('Enter optimization.')
 
-                self._counter.configure_recorder(mode=RecorderMode.PIXELCLOCK)
+                self._counter.configure_recorder(mode=RecorderMode.PIXELCLOCK,
+                                                 params={'mw_frequency': np.mean(freq_list),
+                                                         'num_meas': coord0_num})
                 self._spm.finish_scan()
 
                 time.sleep(1)
@@ -2159,8 +2176,12 @@ class AFMConfocalLogic(GenericLogic):
         # time in which the stage is just moving without measuring
         time_idle_move = self._sg_idle_move_scan_obj
 
-        if self._counter.get_device_mode() != 'pixel':
-            ret_val = self._counter.configure_recorder(mode=RecorderMode.PIXELCLOCK)
+        mode, _ = self._counter.get_current_device_mode()
+        if mode != RecorderMode.PIXELCLOCK:
+            ret_val = self._counter.configure_recorder(
+                mode=RecorderMode.PIXELCLOCK,
+                params={'mw_frequency': self._freq1_iso_b_frequency,
+                        'num_meas': coord0_num})
 
             if ret_val < 0:
                 self.module_state.unlock()
@@ -2258,7 +2279,8 @@ class AFMConfocalLogic(GenericLogic):
                                       time_forward=scan_speed_per_line,
                                       time_back=time_idle_move)
 
-            self._counter.arm_device(coord0_num)
+            self._counter.start_recorder(arm=True)
+            #DGC self._counter.arm_device(coord0_num)
             self._spm.scan_line()
 
             #FIXME: Uncomment for snake like scan, however, not recommended!!!
@@ -2365,8 +2387,12 @@ class AFMConfocalLogic(GenericLogic):
         time_idle_move = 0.1 # in seconds, time in which the stage is just
                              # moving without measuring
 
-        if self._counter.get_device_mode() != 'pixel':
-            ret_val = self._counter.configure_recorder(mode=RecorderMode.PIXELCLOCK)
+        mode, _ = self._counter.get_current_device_mode()
+        if mode != RecorderMode.PIXELCLOCK:
+            ret_val = self._counter.configure_recorder(
+                mode=RecorderMode.PIXELCLOCK, 
+                params={'mw_frequency': self._freq1_iso_b_frequency,
+                        'num_meas': coord0_num})
 
             if ret_val < 0:
                 self.sigObjScanFinished.emit()
@@ -2431,7 +2457,8 @@ class AFMConfocalLogic(GenericLogic):
                                       time_forward=scan_speed_per_line,
                                       time_back=time_idle_move)
 
-            self._counter.arm_device(coord0_num)
+            self._counter.start_recorder(arm=True)
+            #DGC self._counter.arm_device(coord0_num)
             self._spm.scan_line()
 
             self._opti_scan_array[opti_name]['data'][line_num] = self._counter.get_line()/integration_time
@@ -2502,8 +2529,12 @@ class AFMConfocalLogic(GenericLogic):
         time_idle_move = 0.1 # in seconds, time in which the stage is just
                              # moving without measuring
 
-        if self._counter.get_device_mode() != 'pixel':
-            ret_val = self._counter.configure_recorder(mode=RecorderMode.PIXELCLOCK)
+        mode, _ = self._counter.get_current_device_mode()
+        if mode != RecorderMode.PIXELCLOCK:
+            ret_val = self._counter.configure_recorder(
+                mode=RecorderMode.PIXELCLOCK, 
+                params={'mw_frequency': self._freq1_iso_b_frequency,
+                        'num_meas': res})
 
             if ret_val < 0:
                 self.sigOptimizeLineScanFinished.emit(opti_name)
@@ -2563,7 +2594,8 @@ class AFMConfocalLogic(GenericLogic):
                                   time_forward=scan_speed_per_line,
                                   time_back=time_idle_move)
 
-        self._counter.arm_device(res)
+        self._counter.start_recorder(arm=True)
+        #DGC self._counter.arm_device(res)  
         self._spm.scan_line()
 
         self._opti_scan_array[opti_name]['data'] = self._counter.get_line()/integration_time
@@ -2647,6 +2679,7 @@ class AFMConfocalLogic(GenericLogic):
             self.optimize_obj_pos(x_start, x_stop, res_x, y_start, y_stop,
                                   res_y, z_start, z_stop, res_z, int_time_xy, 
                                   int_time_z)
+
 
     def optimize_obj_pos(self, x_start, x_stop, res_x, y_start, y_stop, res_y,
                          z_start, z_stop, res_z, int_time_xy, int_time_z):
@@ -2775,6 +2808,7 @@ class AFMConfocalLogic(GenericLogic):
 # ==============================================================================
 
     #FIXME: This methods needs to be checked!!
+    @deprecated("This method seems not to be used")
     def measure_point_optimized(self, x_start_afm=48*1e-6, x_stop_afm=53*1e-6, 
                                 y_start_afm=47*1e-6, y_stop_afm=52*1e-6, 
                                 res_x_afm=40, res_y_afm=40, integration_time_afm=0.02, 
@@ -2844,6 +2878,7 @@ class AFMConfocalLogic(GenericLogic):
         self.log.info("Measurement completely finished, yeehaa!")
 
 
+    @deprecated("This method seems not to be used")
     def start_measure_point_optimized(self, x_start_afm=48*1e-6, x_stop_afm=53*1e-6, 
                                       y_start_afm=47*1e-6, y_stop_afm=52*1e-6, 
                                       res_x_afm=40, res_y_afm=40, 
@@ -2873,6 +2908,7 @@ class AFMConfocalLogic(GenericLogic):
 # ==============================================================================
 #           Method to measure just one line instead of whole area point
 # ==============================================================================
+    @deprecated("This method seems not to be used")
     def scan_line_by_point(self, coord0_start, coord0_stop, coord1_start, coord1_stop, res, 
                            integration_time, plane='XY', meas_params=['Height(Dac)'],
                            wait_first_point=False, continue_meas=False):
@@ -2984,6 +3020,7 @@ class AFMConfocalLogic(GenericLogic):
         
         return self._apd_array_scan, self._meas_array_scan
 
+    @deprecated("This method seems not to be used")
     def start_measure_line_point(self, coord0_start=0*1e-6, coord0_stop=0*1e-6, 
                                  coord1_start=0*1e-6, coord1_stop=10*1e-6, 
                                  res=100, integration_time=0.02, plane='XY',
@@ -3143,6 +3180,7 @@ class AFMConfocalLogic(GenericLogic):
         return z_max, c_max
 
 
+    @deprecated("This method seems not to be used")
     def start_measure_opt_pos(self, x_start, x_stop, y_start, y_stop, z_start, z_stop, 
                               res_x, res_y, res_z, int_time_xy, int_time_z):
 
@@ -3163,6 +3201,7 @@ class AFMConfocalLogic(GenericLogic):
 #        Perform a scan just in one direction
 # ==============================================================================
 
+    @deprecated("This method seems not to be used")
     def scan_by_point_single_line(self, coord0_start, coord0_stop, 
                                   coord1_start, coord1_stop, 
                                   res_x, res_y, integration_time, plane='XY', 
@@ -3274,6 +3313,7 @@ class AFMConfocalLogic(GenericLogic):
         return (self._apd_array_scan, self._meas_array_scan)
 
 
+    @deprecated("This method seems not to be used")
     def start_measure_scan_by_point_single_line(self, coord0_start=0*1e-6, coord0_stop=0*1e-6, 
                                                 coord1_start=0*1e-6, coord1_stop=10*1e-6, 
                                                 res_x=100, res_y=100, integration_time=0.02, 
@@ -3297,6 +3337,7 @@ class AFMConfocalLogic(GenericLogic):
 #        Perform a scan in a snake line way
 # ==============================================================================
 
+    @deprecated("This method seems not to be used")
     def scan_area_by_point_snakeline(self, coord0_start, coord0_stop, 
                                      coord1_start, coord1_stop, res_x, res_y, 
                                      integration_time, plane='XY', 
@@ -3408,6 +3449,7 @@ class AFMConfocalLogic(GenericLogic):
         return (self._apd_array_scan, self._meas_array_scan)
 
 
+    @deprecated("This method seems not to be used")
     def start_measure_scan_area_by_point_snakeline(self, coord0_start=0*1e-6, coord0_stop=0*1e-6, 
                                                    coord1_start=0*1e-6, coord1_stop=10*1e-6, 
                                                    res_x=100, res_y=100, integration_time=0.02, 
@@ -3474,7 +3516,7 @@ class AFMConfocalLogic(GenericLogic):
     def get_optimize_request(self):
         return self._optimize_request
 
-
+    @deprecated("This method seems not be used")
     def track_optimal_pos(self, x_start, x_stop, y_start, y_stop, z_start,z_stop, 
                           res_x, res_y, res_z, int_time_xy, int_time_z, wait_inbetween=60):
 
@@ -3512,6 +3554,7 @@ class AFMConfocalLogic(GenericLogic):
 
         return self._opt_pos
 
+    @deprecated("This method seems not to be used")
     def start_track_optimal_pos(self, x_start=14*1e-6, x_stop=15*1e-6, y_start=14*1e-6, y_stop=15*1e-6, 
                                 z_start=0*1e-6, z_stop=10*1e-6, res_x=25, res_y=25, res_z=500, 
                                 int_time_xy=0.05, int_time_z=0.05, wait_inbetween=60):
@@ -3534,6 +3577,7 @@ class AFMConfocalLogic(GenericLogic):
 #        Record fluorescence as a function of time at fixed objective position
 # ==============================================================================
 
+    @deprecated("This method seems not to be used")
     def record_fluorescence(self, timeinterval=10, average_time=1, count_freq=50):
         """ Record the fluorescence signal over a certain time interval.
 
@@ -3558,6 +3602,7 @@ class AFMConfocalLogic(GenericLogic):
 
         return (self._f_track_time, self._f_track_counts)
 
+    @deprecated("This method seems not to be used")
     def start_record_fluorescence(self, timeinterval=10, average_time=1, count_freq=50):
 
         if self.check_meas_run():

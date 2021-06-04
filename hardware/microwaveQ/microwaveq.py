@@ -20,6 +20,7 @@ top-level directory of this distribution and at <https://github.com/Ulm-IQO/qudi
 """
 
 from datetime import datetime
+from deprecation import deprecated
 from qtpy import QtCore
 import threading
 import numpy as np
@@ -30,7 +31,8 @@ from enum import Enum
 from core.module import Base, ConfigOption
 from core.util.mutex import Mutex
 from interface.slow_counter_interface import SlowCounterInterface, SlowCounterConstraints, CountingMode
-from interface.recorder_interface import RecorderInterface, RecorderMode, RecorderState, RecorderConstraints 
+from interface.recorder_interface import RecorderInterface, RecorderMode, RecorderConstraints, \
+                                         RecorderState, RecorderStateMachine 
 from interface.microwave_interface import MicrowaveInterface, MicrowaveLimits, MicrowaveMode, TriggerEdge
 from interface.odmr_counter_interface import ODMRCounterInterface
 
@@ -57,7 +59,7 @@ class MicrowaveQFeatures(Enum):
         return self.value
 
 
-class MicrowaveQ(Base, SlowCounterInterface):
+class MicrowaveQ(Base, SlowCounterInterface, RecorderInterface):
     """ Hardware module implementation for the microwaveQ device.
 
     Example config for copy-paste:
@@ -107,11 +109,21 @@ class MicrowaveQ(Base, SlowCounterInterface):
     sigNewData = QtCore.Signal(tuple)
     sigLineFinished = QtCore.Signal()
 
-    _threaded = True
+    #_threaded = True 
+    _threaded = False  # for debugging 
 
+    _mq_state = RecorderStateMachine()
+    _mq_state.set_allowed_transitions(
+        transitions={RecorderState.DISCONNECTED: [RecorderState.LOCKED],
+                     RecorderState.LOCKED: [RecorderState.UNLOCKED, RecorderState.DISCONNECTED],
+                     RecorderState.UNLOCKED: [RecorderState.IDLE, RecorderState.DISCONNECTED],
+                     RecorderState.IDLE: [RecorderState.ARMED, RecorderState.BUSY, RecorderState.DISCONNECTED],
+                     RecorderState.ARMED: [RecorderState.IDLE, RecorderState.BUSY, RecorderState.DISCONNECTED], 
+                     RecorderState.BUSY: [RecorderState.IDLE, RecorderState.DISCONNECTED]
+                     }, 
+                     initial_state=RecorderState.DISCONNECTED
+                    )
 
-
-    _mq_curr_state = RecorderState.DISCONNECTED
     _mq_curr_mode = RecorderMode.UNCONFIGURED
     _mq_curr_mode_params = {} # store here the current configuration
 
@@ -122,10 +134,10 @@ class MicrowaveQ(Base, SlowCounterInterface):
     _SLOW_COUNTER_CONSTRAINTS = SlowCounterConstraints()
     _RECORDER_CONSTRAINTS = RecorderConstraints()
 
-    _meas_mode = 'pixel'  # measurement modes: counter, pixel, esr
-    _meas_mode_available = ['dummy', 'counter', 'pixel', 'esr', 'single-isob', 'n-isob']
+    #DGC _meas_mode = 'pixel'  # measurement modes: counter, pixel, esr
+    #DGC _meas_mode_available = ['dummy', 'counter', 'pixel', 'esr', 'single-isob', 'n-isob']
 
-    _device_status = 'idle'  # can be idle, armed or running
+    #DGC _device_status = 'idle'  # can be idle, armed or running
     _meas_running = False   # this variable will be set whenever a measurement has stopped
 
     _stop_request = False   # this variable will be internally set to request a stop
@@ -154,6 +166,7 @@ class MicrowaveQ(Base, SlowCounterInterface):
     _iso_b_freq_list = [500e6] # in MHz
     _iso_b_power = -30.0 # physical power for iso b mode.
 
+
     def on_activate(self):
 
         # prepare for data acquisition:
@@ -168,11 +181,13 @@ class MicrowaveQ(Base, SlowCounterInterface):
 
         self.__measurements = 0
         # try:
-        self._dev = microwaveQ.MicrowaveQ(self.ip_address,
-                                         self.port,
-                                         self.streamCb,
-                                         self._CLK_FREQ_FPGA)
-        self._dev.ctrl.unlock(self.unlock_key)
+        self._dev = self.connect_mq(ip_address= self.ip_address,
+                                  port=self.port,
+                                  streamCb=self.streamCb,
+                                  clock_freq_fpga=self._CLK_FREQ_FPGA)
+
+        self.unlock_mq(self.unlock_key)
+
         self._dev.initialize()
         # except Exception as e:
         #     self.log.error(f'Cannot establish connection to MicrowaveQ due to {str(e)}.')
@@ -236,22 +251,50 @@ class MicrowaveQ(Base, SlowCounterInterface):
     def moveToThread(self, thread):
         super().moveToThread(thread)
 
-
-    def connect_mq(self):
+    def connect_mq(self, ip_address=None, port=None, streamCb=None, clock_freq_fpga=None):
         """ Establish a connection to microwaveQ. """
+        # handle legacy calls
+        if ip_address is None:      ip_address = self.ip_address
+        if port is None:            port = self.port
+        if streamCb is None:        streamCb = self.streamCb
+        if clock_freq_fpga is None: clock_freq_fpga = self._CLK_FREQ_FPGA
+
         if hasattr(self, '_dev'):
             if self.is_connected():
                 self.disconnect_mq()
+        
+        if self._mq_state.set_state(RecorderState.LOCKED) > 0:
+            # this was a transition from disconnected-->locked
+            pass   # all was ok
+        else:
+            cs = self._mq_state.get_state()
+            self.log.error(f'MicrowaveQ {RecorderState.LOCKED} state change not allowed, curr_state={cs}')
 
         try:
-            self._dev = microwaveQ.MicrowaveQ(self.ip_address,
-                                             self.port,
-                                             self.streamCb,
-                                             self._CLK_FREQ_FPGA)
-            self._dev.ctrl.unlock(self.unlock_key)
-            self._dev.initialize()
+            dev = microwaveQ.MicrowaveQ(ip_address, port, streamCb,clock_freq_fpga)
         except Exception as e:
             self.log.error(f'Cannot establish connection to MicrowaveQ due to {str(e)}.')
+
+        return dev
+
+    def unlock_mq(self, unlock_key=None):
+        if hasattr(self, '_dev'):
+            if unlock_key is None:
+                unlock_key = self.unlock_key 
+        
+        status = self._mq_state.is_legal_transition(RecorderState.UNLOCKED) 
+        if status > 0:
+            try:
+                self._dev.ctrl.unlock(unlock_key)
+                self._dev.initialize()
+            except Exception as e:
+                self.log.error(f'Cannot unlock MicrowaveQ due to {str(e)}.')
+            status = self._mq_state.set_state(RecorderState.UNLOCKED)
+
+        if status <= 0:
+            cs = self._mq_state.get_state()
+            self.log.error(f'MQ {RecorderState.UNLOCKED} state change not allowed, curr_state={cs}')
+
 
     def is_connected(self):
         """Check whether connection protocol is initialized and ready. """
@@ -265,14 +308,19 @@ class MicrowaveQ(Base, SlowCounterInterface):
         self.disconnect_mq()
         self.connect_mq()
         #FIXME: This should be removed later on!
-        self.prepare_pixelclock()
+        self._prepare_pixelclock()  #DGCcheck
 
     def disconnect_mq(self):
         self._dev.disconnect()
+        self._mq_state.set_state(RecorderState.DISCONNECTED)
 
-
+    @deprecated("Use 'get_current_device_mode()' instead")
     def get_device_mode(self):
-        return self._meas_mode
+        if hasattr(self,'_RECORDER_CONSTRAINTS'):
+            return self._mq_curr_mode 
+        else:
+            return RecorderMode.UNCONFIGURED 
+
 
 
     def getModuleThread(self):
@@ -393,7 +441,10 @@ class MicrowaveQ(Base, SlowCounterInterface):
 
         counting_window = 1/clock_frequency # in seconds
 
-        return self.prepare_counter(counting_window)
+        ret_val = self.configure_recorder(mode=RecorderMode.COUNTER,
+                                          params={'count_frequency': clock_frequency} )
+        #DGC ret_val = self._prepare_counter(counting_window)  
+        return ret_val
 
         # if counting_window > 1.0:
 
@@ -470,7 +521,8 @@ class MicrowaveQ(Base, SlowCounterInterface):
 
         self.skip_data = False  # do not record data unless it is necessary
 
-        self._device_status = 'running'
+        self._mq_state.set_state(RecorderState.BUSY)
+        #DGC self._device_status = 'running'
         self._dev.ctrl.start(cnt_num_actual)
 
        # with self.threadlock:
@@ -695,10 +747,10 @@ class MicrowaveQ(Base, SlowCounterInterface):
         self.sigNewData.emit(frame_int)
         return frame_int
 
-    def _prepare_pixelclock(self):
+    def _prepare_pixelclock(self, freq):
         """ Setup the device to count upon an external clock. """
 
-        if self._meas_running:
+        if self._meas_running:   #DGCcheck
             self.log.error('A measurement is still running. Stop it first.')
             return -1
 
@@ -706,8 +758,11 @@ class MicrowaveQ(Base, SlowCounterInterface):
 
         self.meas_method = self.meas_method_PixelClock
 
-        self._dev.configureCW_PIX(frequency=self._iso_b_freq_list[0])
-        self._dev.rfpulse.setGain(0.0)
+        self._dev.configureCW_PIX(frequency=freq)
+        
+        # pixel clock is configured with zero power at start 
+        # power is set during recorder_start()
+        self._dev.rfpulse.setGain(0.0)            
         self._dev.resultFilter.set(0)
 
         return 0
@@ -768,10 +823,12 @@ class MicrowaveQ(Base, SlowCounterInterface):
 
         return 0
 
+    #DGC
+    """
     def arm_device(self, pulses=100):
 
         #self._meas_mode = 'pixel'
-        self._device_status = 'armed'
+        #DGC self._device_status = 'armed'
 
         self._dev.ctrl.start(pulses)
         self._total_pulses = pulses
@@ -787,19 +844,25 @@ class MicrowaveQ(Base, SlowCounterInterface):
 
         self._meas_running = True
         self.skip_data = False
+    """
 
     def get_line(self,meas='counts'):
+        """ get line, blocking method: waits for measurement of line to complete
+            called from pixel clock activated modes
+        """
 
         if self._meas_running:
+            self._mq_state.set_state(RecorderState.BUSY)  #
             with self.threadlock:
                 #self._cond_waiting = True
                 #self.cond.wait(self.threadlock)
                 #self._cond_waiting = False
                 self.meas_cond.wait(self.threadlock)
 
-        self._device_status = 'idle'
+
+        self._mq_state.set_state(RecorderState.IDLE)
+        #DGC self._device_status = 'idle'
         self.skip_data = True
-        #self.sigLineFinished.emit()
         return self._meas_res[meas]
 
 
@@ -813,7 +876,8 @@ class MicrowaveQ(Base, SlowCounterInterface):
         self._dev.ctrl.stop()
         self.meas_cond.wakeAll()
         self.skip_data = True
-        self._device_status = 'idle'
+        self._mq_state.set_state(RecorderState.IDLE)
+        #DGC self._device_status = 'idle'
 
         self._esr_process_cond.wakeAll()
         self._meas_running = False
@@ -839,7 +903,7 @@ class MicrowaveQ(Base, SlowCounterInterface):
 
         self._meas_mode = 'esr'
 
-        self._esr_count_frequency = count_freq
+        self._esr_count_frequency = count_freq  #DGCcheck
 
         if isinstance(freq_list, np.ndarray):
             freq_list = freq_list.tolist()
@@ -870,7 +934,8 @@ class MicrowaveQ(Base, SlowCounterInterface):
         self._meas_esr_res = np.zeros((num_meas, len(self._meas_esr_line)))
         self._current_esr_meas = []
 
-        self._device_status = 'running'
+        self._mq_state.set_state(RecorderState.BUSY)
+        #DGC self._device_status = 'running'
         self._meas_running = True
         self.skip_data = False
 
@@ -887,7 +952,7 @@ class MicrowaveQ(Base, SlowCounterInterface):
             with self.threadlock:
                 self.meas_cond.wait(self.threadlock)
 
-        self._meas_esr_res[:, 2:] = self._meas_esr_res[:, 2:] * self._esr_count_frequency
+        self._meas_esr_res[:, 2:] = self._meas_esr_res[:, 2:] * self._esr_count_frequency  #DGCcheck, can be mode param
 
         return self._meas_esr_res
 
@@ -907,7 +972,7 @@ class MicrowaveQ(Base, SlowCounterInterface):
         """
 
         if clock_frequency is not None:
-            self._esr_count_frequency = clock_frequency
+            self._esr_count_frequency = clock_frequency    #DGCcheck can be mode param
 
         if self._meas_running:
             self.log.error('A measurement is still running. Stop it first.')
@@ -1304,24 +1369,33 @@ class MicrowaveQ(Base, SlowCounterInterface):
         rc.max_detectors = 1
         features = self._dev.get_unlocked_features()
 
-        rc.recorder_modes_params = {}
+        rc.recorder_mode_params = {}
 
         rc.recorder_modes = [RecorderMode.UNCONFIGURED, 
                             RecorderMode.DUMMY]
 
-        rc.recorder_modes_params[RecorderMode.UNCONFIGURED] = {}
-        rc.recorder_modes_params[RecorderMode.DUMMY] = {}
+        rc.recorder_mode_states[RecorderMode.UNCONFIGURED] = [RecorderState.LOCKED, RecorderState.UNLOCKED]
+
+        rc.recorder_mode_params[RecorderMode.UNCONFIGURED] = {}
+        rc.recorder_mode_params[RecorderMode.DUMMY] = {}
 
         if features.get(MicrowaveQFeatures.PIXEL_CLOCK.value) is not None:
-            rc.recorder_modes.append(RecorderMode.PIXELCLOCK)
+            rc.recorder_modes.append()
             rc.recorder_modes.append(RecorderMode.PIXELCLOCK_SINGLE_ISO_B)
             rc.recorder_modes.append(RecorderMode.PIXELCLOCK_N_ISO_B)
+            
+            # configure possible states in a mode
+            rc.recorder_mode_states[RecorderMode.PIXELCLOCK] = [RecorderState.IDLE, RecorderState.ARMED, RecorderState.BUSY]
+            rc.recorder_mode_states[RecorderMode.PIXELCLOCK_SINGLE_ISO_B] = [RecorderState.IDLE, RecorderState.ARMED, RecorderState.BUSY]
+            rc.recorder_mode_states[RecorderMode.PIXELCLOCK_N_ISO_B] = [RecorderState.IDLE, RecorderState.ARMED, RecorderState.BUSY]
 
-            rc.recorder_modes_params[RecorderMode.PIXELCLOCK] = {'num_meas': 100}
-            rc.recorder_modes_params[RecorderMode.PIXELCLOCK_SINGLE_ISO_B] = {'mw_frequency_list': [2.8e9],
+            # configure required paramaters for a mode
+            rc.recorder_mode_params[RecorderMode.PIXELCLOCK] = {'mw_frequency': 2.8e9,
+                                                                'num_meas': 100}
+            rc.recorder_mode_params[RecorderMode.PIXELCLOCK_SINGLE_ISO_B] = {'mw_frequency_list': [2.8e9],
                                                                               'mw_power': -30,
                                                                               'num_meas': 100}
-            rc.recorder_modes_params[RecorderMode.PIXELCLOCK_N_ISO_B] = {'mw_frequency_list': [2.8e9, 2.81e9],
+            rc.recorder_mode_params[RecorderMode.PIXELCLOCK_N_ISO_B] = {'mw_frequency_list': [2.8e9, 2.81e9],
                                                                          'mw_pulse_lengths': [10e-3, 10e-3],
                                                                          'mw_power': -30,
                                                                          'mw_laser_cooldown_time': 10e-6,
@@ -1330,22 +1404,33 @@ class MicrowaveQ(Base, SlowCounterInterface):
         if features.get(MicrowaveQFeatures.CONTINUOUS_ESR.value) is not None:
             rc.recorder_modes.append(RecorderMode.CW_MW)
             rc.recorder_modes.append(RecorderMode.ESR)
+            
+            # configure possible states in a mode
+            rc.recorder_mode_states[RecorderMode.CW_MW] = [RecorderState.IDLE, RecorderState.BUSY]
+            rc.recorder_mode_states[RecorderMode.ESR] = [RecorderState.IDLE, RecorderState.BUSY]
 
-            rc.recorder_modes_params[RecorderMode.CW_MW] = {'mw_frequency': 2.8e9,
+            # configure required paramaters for a mode
+            rc.recorder_mode_params[RecorderMode.CW_MW] = {'mw_frequency': 2.8e9,
                                                             'mw_power': -30}
-            rc.recorder_modes_params[RecorderMode.ESR] = {'mw_frequency_list': [],
+            rc.recorder_mode_params[RecorderMode.ESR] = {'mw_frequency_list': [],
                                                           'mw_power': -30,
                                                           'count_frequency': 100,
                                                           'num_meas': 100}
 
         if features.get(MicrowaveQFeatures.CONTINUOUS_COUNTING.value) is not None:
             rc.recorder_modes.append(RecorderMode.COUNTER)
+            rc.recorder_modes.append(RecorderMode.CONTINUOUS_COUNTING)
 
-            rc.recorder_modes_params[RecorderMode.COUNTER] = {'count_frequency': 10,
-                                                              'num_meas': 100}
+            # configure possible states in a mode
+            rc.recorder_mode_states[RecorderMode.COUNTER] = [RecorderState.IDLE, RecorderState.BUSY]
+            rc.recorder_mode_states[RecorderMode.CONTINUOUS_COUNTING] = [RecorderState.IDLE, RecorderState.BUSY]
+
+            # configure required paramaters for a mode
+            rc.recorder_mode_params[RecorderMode.COUNTER] = {'count_frequency': 100}
+            rc.recorder_mode_params[RecorderMode.CONTINUOUS_COUNTING] = {'count_frequency': 100}
 
 
-    def get_recorder_limits(self):
+    def get_recorder_constraints(self):
         """ Retrieve the hardware constraints from the recorder device.
 
         @return RecorderConstraints: object with constraints for the recorder
@@ -1372,9 +1457,9 @@ class MicrowaveQ(Base, SlowCounterInterface):
         """
 
         is_ok = True
-        limits = self.get_recorder_limits() 
+        limits = self.get_recorder_constraints() 
         allowed_modes = limits.recorder_modes
-        required_params = limits.recorder_modes_params[mode]
+        required_params = limits.recorder_mode_params[mode]
 
         if mode not in allowed_modes:
             is_ok = False
@@ -1389,7 +1474,7 @@ class MicrowaveQ(Base, SlowCounterInterface):
         return is_ok
 
 
-    def configure_recorder(self, mode, params=None):
+    def configure_recorder(self, mode, params):
         """ Configures the recorder mode for current measurement. 
 
         @param RecorderMode mode: mode of recorder, as available from 
@@ -1407,28 +1492,24 @@ class MicrowaveQ(Base, SlowCounterInterface):
         # check at first whether mode can be changed based on the state of the 
         # device, only from the idle mode it can be configured.
 
-        dev_state = self.get_current_device_state()
+        dev_state = self._mq_state.get_state()
+        curr_mode, _ = self.get_current_device_mode()
 
-        if dev_state != RecorderState.IDLE:
-
-            curr_mode, _ = self.get_current_device_mode()
+        if (dev_state == RecorderState.BUSY) and (curr_mode != RecorderMode.CW_MW): 
             # on the fly configuration (in BUSY state) is only allowed in CW_MW mode.
-
-            if (dev_state == RecorderState.BUSY) and (curr_mode == RecorderMode.CW_MW): 
-                pass
-            else:   
-                self.log.error(f'MicrowaveQ cannot be configured in the '
-                               f'requested mode "{mode}", since the device '
-                               f'state is in "{dev_state}". Stop ongoing '
-                               f'measurements and make sure that the device is '
-                               f'connected to be able to configure if '
-                               f'properly.')
-                return -1
+            self.log.error(f'MicrowaveQ cannot be configured in the '
+                           f'requested mode "{mode}", since the device '
+                           f'state is in "{dev_state}". Stop ongoing '
+                           f'measurements and make sure that the device is '
+                           f'connected to be able to configure if '
+                           f'properly.')
+            return -1
+            
 
         # check at first if mode is available
-        limits = self.get_recorder_limits()
+        limits = self.get_recorder_constraints()
 
-        if mode not in limits:
+        if mode not in limits.recorder_modes:
             self.log.error(f'Requested mode "{mode}" not available in '
                             'microwaveQ. Configuration stopped.')
             return -1
@@ -1456,13 +1537,16 @@ class MicrowaveQ(Base, SlowCounterInterface):
         elif mode == RecorderMode.DUMMY:
             ret_val = self._prepare_dummy()
         elif mode == RecorderMode.PIXELCLOCK:
-            ret_val = self._prepare_pixelclock()
+            ret_val = self._prepare_pixelclock(freq=params['mw_frequency'])
         elif mode == RecorderMode.PIXELCLOCK_SINGLE_ISO_B:
             #TODO: make proper conversion of power to mw gain
             ret_val = self._prepare_pixelclock_single_iso_b(freq=params['mw_frequency'], 
                                                            power=params['mw_power'])
         elif mode == RecorderMode.COUNTER:
             ret_val = self._prepare_counter(counting_window=1/params['count_frequency'])
+        elif mode == RecorderMode.CONTINUOUS_COUNTING:
+            #TODO: implement this mode
+            self.log.error(f"Configure recorder: mode {mode} currently not implemented")
         elif mode == RecorderMode.CW_MW:
             ret_val = self._configure_cw_mw(frequency=params['mw_frequency'],
                                             power=params['mw_power'])
@@ -1481,28 +1565,62 @@ class MicrowaveQ(Base, SlowCounterInterface):
         return ret_val
 
 
-
-    def start_recorder(self, arm=True):
+    def start_recorder(self, arm=False):
         """ Start recorder 
         start recorder with mode as configured 
         If pixel clock based methods, will begin on first trigger
         If not first configured, will cause an error
         
         @param bool: arm: specifies armed state with regard to pixel clock trigger
+        
+        @return bool: success of command
         """
-        if self.get_current_device_state != RecorderState.IDLE:
-            self.log.warning('MicrowaveQ is not in Idle mode to start the measurement.')
-            return -1
 
-        if self.get_current_device_mode() == RecorderMode.UNCONFIGURED:
+        if self._mq_state.get_state() != RecorderState.IDLE:
+            self.log.warning('MicrowaveQ is not in Idle mode to start the measurement.')
+            return False 
+
+        if self._mq_state.get_state() == RecorderMode.UNCONFIGURED:
             self.log.warning('MicrowaveQ not properly configured to start a measurement.')
-            return -1
+            return  False
 
         mode, params = self.get_current_device_mode()
 
-        if arm:
-            num_meas = params['num_meas']
-        pass
+        num_meas = params['num_meas']
+
+        if arm and mode.activation != 'trigger':
+            self.log.warning('MicrowaveQ: attempt to set ARMED state for a continuous measurement mode')
+            return False 
+
+        # Pixel clock modes
+        if mode.activation == 'trigger':
+            self._mq_state.set_state(RecorderState.ARMED)
+            self._total_pulses = num_meas 
+            self._counted_pulses = 0
+
+            self._curr_frame = []
+            self._meas_res = np.zeros((num_meas),
+              dtype=[('count_num', '<i4'),
+                     ('counts', '<i4'),
+                     ('counts2', '<i4'),
+                     ('counts_diff', '<i4'),
+                     ('time_rec', '<f8')])
+
+        elif mode.activation == 'continuous':
+            self._mq_state.set_state(RecorderState.BUSY)
+            self._meas_esr_res = np.zeros((num_meas, len(self._meas_esr_line)))
+            self._esr_counter = 0
+            self._current_esr_meas = []
+
+        else:
+            self.log.error(f'MicrowaveQ: method {mode.name}, activation={mode.activation} not implemented yet')
+            return False 
+
+        self._meas_running = True
+        self.skip_data = False
+        self._dev.ctrl.start(num_meas)
+        return True 
+
 
     def get_measurement(self):
         """ get measurement
@@ -1542,9 +1660,9 @@ class MicrowaveQ(Base, SlowCounterInterface):
         #      of this method into self.get_recorder_limits() 
 
         # note, this output should coincide with the recorder_modes from 
-        # get_recorder_limits()
+        # get_recorder_constraints()
         
-        rc = self.get_recorder_limits()
+        rc = self.get_recorder_constraints()
 
         if mode not in rc.recorder_modes:
             self.log.warning(f'Requested mode "{mode}" is not in the available '
@@ -1552,9 +1670,9 @@ class MicrowaveQ(Base, SlowCounterInterface):
             return {}
 
         if mode is None:
-            return rc.recorder_modes_params
+            return rc.recorder_mode_params
         else:
-            return {mode: rc.recorder_modes_params[mode]}
+            return {mode: rc.recorder_mode_params[mode]}
 
     def get_current_device_mode(self):
         """ Get the current device mode with its configuration parameters
@@ -1586,7 +1704,7 @@ class MicrowaveQ(Base, SlowCounterInterface):
 
         @return RecorderState.state
         """
-        return self._mq_curr_state
+        return self._mq_state.get_state() 
 
     def _set_current_device_state(self, state):
         """ Set the current device state. 
@@ -1596,4 +1714,5 @@ class MicrowaveQ(Base, SlowCounterInterface):
         generic and private function, only used inside this file, hence no 
         checking routine.
         """
-        self._mq_curr_state = state
+        return self._mq_state.set_state(state) 
+       

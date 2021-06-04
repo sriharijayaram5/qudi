@@ -22,38 +22,135 @@ top-level directory of this distribution and at <https://github.com/Ulm-IQO/qudi
 
 import abc
 from enum import Enum
+from collections import namedtuple
+from datetime import datetime
 from core.util.interfaces import InterfaceMetaclass
+from core.util.mutex import Mutex
 
 
-class RecorderMode(Enum):
+class RecorderMode(namedtuple('RecorderMode', 'value name activation'), Enum):
     """ Operation mode configuration for a microwave/counting devices"""
     # starting methods
-    UNCONFIGURED = 0 
-    DUMMY = 1 
+    UNCONFIGURED             = 0, 'UNCONFIGURED', 'null'
+    DUMMY                    = 1, 'DUMMY', 'null'
 
     # pixel clock counting methods
-    PIXELCLOCK = 2 
-    PIXELCLOCK_SINGLE_ISO_B = 3 
-    PIXELCLOCK_N_ISO_B = 4 
-    PIXELCLOCK_TRACKED_ISO_B = 5 
+    PIXELCLOCK               = 2, 'PIXELCLOCK', 'trigger'
+    PIXELCLOCK_SINGLE_ISO_B  = 3, 'PIXELCLOCK_SINGLE_ISO_B', 'trigger'
+    PIXELCLOCK_N_ISO_B       = 4, 'PIXELCLOCK_N_ISO_B', 'trigger'
+    PIXELCLOCK_TRACKED_ISO_B = 5, 'PIXELCLOCK_TRACKED_ISO_B', 'trigger'
 
     # continous counting methods
-    CW_MW = 6 
-    ESR = 7 
-    PULSED_ESR = 8 
-    COUNTER = 9
-    CONTINOUS_COUNTING = 10
+    CW_MW                    = 6, 'CW_MW', 'continuous'
+    ESR                      = 7, 'ESR', 'continuous'
+    COUNTER                  = 8, 'COUNTER', 'continuous'
+    CONTINUOUS_COUNTING      = 9, 'CONTINUOUS_COUNTING', 'continuous'
 
     # advanced measurement mode
-    PULSED = 11 
+    PULSED_ESR               = 10, 'PULSED_ESR', 'advanced'
+    PULSED                   = 11, 'PULSED', 'advanced'
+
+    def __str__(self):
+        return self.name
+
+    def __int__(self):
+        return self.value
 
 
 class RecorderState(Enum):
     DISCONNECTED = 0 
-    IDLE = 1 
-    ARMED = 2 
-    BUSY = 3 
+    LOCKED = 1
+    UNLOCKED = 2
+    IDLE = 3 
+    ARMED = 4 
+    BUSY = 5 
 
+
+class RecorderStateMachine:
+    """ Interface to mantain the recorder device state
+        Enforcement of the state is set here
+    """
+    def __init__(self):
+        self._last_update = None                        # time when last updated
+        self._allowed_transitions = {}                  # dictionary of allowed state trasitions
+        self._curr_state = None                         # current state 
+        self._lock = Mutex()                            # thread lock
+
+    def set_allowed_transitions(self,transitions, initial_state=None):
+        """ allowed transitions is a dictionary with { 'curr_state1': ['allowed_state1', 'allowed_state2', etc.],
+                                                       'curr_state2': ['allowed_state3', etc.]}
+        """
+        status = -1 
+        if isinstance(transitions,dict):
+            self._allowed_transitions = transitions
+            state = initial_state if initial_state is not None else list(transitions.keys())[0]
+            status = self.set_state(state,initial_state=True)
+
+        return status 
+
+    def get_allowed_transitions(self):
+        return self._allowed_trasitions
+
+    def is_legal_transition(self, requested_state, curr_state=None):
+        """ Checks for a legal transition of state
+            @param requested_state:  the next state sought
+            @param curr_state:  state to check from (can be hypothetical)
+
+            @return int: error code (1: change OK, 0:could not change, -1:incorrect setting)
+        """
+        if self._allowed_transitions is None: 
+            return -1       # was not configured
+
+        if curr_state is None:
+            curr_state = self._curr_state
+
+        if (curr_state in self._allowed_transitions.keys()) and \
+           (requested_state in self._allowed_transitions.keys()):
+
+            if requested_state in self._allowed_transitions[curr_state]:
+                return 1    # is possible to change
+            else: 
+                return 0    # is not possible to change
+        else:
+            return -1       # check your inputs, you asked the wrong question
+
+    def get_state(self):
+        return self._curr_state
+
+    def set_state(self,requested_state, initial_state=False):
+        """ performs state trasition, if allowed 
+
+            @return int: error code (1: change OK, 0:could not change, -1:incorrect setting)
+        """
+        if self._allowed_transitions is None: 
+            return -1       # was not configured
+
+        if initial_state:
+            # required only for initial state, otherwise should be set by transition 
+            with self._lock:
+                self._curr_state = requested_state
+                self._last_update = datetime.now()
+            return 1
+        else:
+            status = self.is_legal_transition(requested_state)
+            if status > 0:
+                with self._lock:
+                    self._prior_state = self._curr_state
+                    self._curr_state = requested_state
+                    self._last_update = datetime.now()
+                    return 1    # state transition was possible
+            else:
+                return status   # state transition was not possible
+        
+    def get_last_change(self):
+        """ returns the last change of state
+
+            @return tuple: 
+            - prior_state: what occured before the current
+            - curr_state:  where we are now
+            - last_update: when it happened
+        """ 
+        return self._prior_state, self._curr_state, self._last_update
 
 class RecorderConstraints:
 
@@ -67,7 +164,9 @@ class RecorderConstraints:
         # add RecorderMode enums to this list in instances
         self.recorder_modes = []
         # here all the parameters associated to the recorder mode are stored.
-        self.recorder_modes_params = {}
+        self.recorder_mode_params = {}
+        # set allowable states, to be populated by allowable states of a mode
+        self.recorder_mode_states = {}
 
 
 class RecorderInterface(metaclass=InterfaceMetaclass):
@@ -156,7 +255,7 @@ class RecorderInterface(metaclass=InterfaceMetaclass):
         pass
 
     @abc.abstractmethod
-    def get_recorder_limits(self):
+    def get_recorder_constraints(self):
         """ Retrieve the hardware constrains from the recorder device.
 
         @return RecorderConstraints: object with constraints for the recorder
