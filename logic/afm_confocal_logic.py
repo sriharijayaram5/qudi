@@ -1039,7 +1039,7 @@ class AFMConfocalLogic(GenericLogic):
             self._qafm_scan_array[entry]['params']['Scan speed per line (s)'] = scan_speed_per_line
             self._qafm_scan_array[entry]['params']['Idle movement speed (s)'] = time_idle_move
 
-            self._qafm_scan_array[entry]['params']['Counter measurement mode'] = self._counter._meas_mode
+            self._qafm_scan_array[entry]['params']['Counter measurement mode'] = self._counter.get_current_measurement_method_name()
             self._qafm_scan_array[entry]['params']['integration time per pixel (s)'] = integration_time
             self._qafm_scan_array[entry]['params']['time per frequency pulse (s)'] = str([freq1_pulse_time, freq2_pulse_time])
             self._qafm_scan_array[entry]['params']['Measurement parameter list'] = str(curr_scan_params)
@@ -1085,14 +1085,14 @@ class AFMConfocalLogic(GenericLogic):
             # Optical signal (from MicrowaveQ)
             if 'counts' in meas_params:
                 # first entry is always assumed to be counts
-                self._qafm_scan_line[0] = self._counter.get_line('counts')/freq1_pulse_time
+                self._qafm_scan_line[0] = self._counter.get_measurement('counts')/freq1_pulse_time
 
             if 'counts2' in meas_params:
                 i = meas_params.index('counts2')
-                self._qafm_scan_line[i] = self._counter.get_line('counts2')/freq2_pulse_time
+                self._qafm_scan_line[i] = self._counter.get_measurement('counts2')/freq2_pulse_time
 
                 i = meas_params.index('counts_diff')
-                self._qafm_scan_line[i] = self._counter.get_line('counts_diff')/ \
+                self._qafm_scan_line[i] = self._counter.get_measurement('counts_diff')/ \
                     (freq1_pulse_time + freq2_pulse_time) / 2
 
                 # FIXME: currently, this method will not work based on only 2 points
@@ -1105,8 +1105,8 @@ class AFMConfocalLogic(GenericLogic):
                 #i = meas_params.index('b_field')
                 #self._qafm_scan_line[i] = self.calc_mag_field_single_res(
                 #        self.calc_eps_shift_dual_iso_b(
-                #            counts1=self._counter.get_line('counts'),
-                #            counts2=self._counter.get_line('counts2'),
+                #            counts1=self._counter.get_measurement('counts'),
+                #            counts2=self._counter.get_measurement('counts2'),
                 #            freq1=self._freq1_iso_b_frequency,
                 #            freq2=self._freq2_iso_b_frequency,
                 #            sigma=self._fwhm_iso_b_frequency / 2) 
@@ -1437,7 +1437,8 @@ class AFMConfocalLogic(GenericLogic):
             mode=RecorderMode.ESR,
             params={'mw_frequency_list': freq_list,
                     'mw_power': mw_power,
-                    'count_frequency': esr_count_freq})
+                    'count_frequency': esr_count_freq,
+                    'num_meas': num_esr_runs})
 
         if ret_val < 0:
             self.sigQuantiScanFinished.emit()
@@ -1554,8 +1555,9 @@ class AFMConfocalLogic(GenericLogic):
                 self._scan_point[2:] = self._spm.scan_point()  
                 
                 # obtain ESR measurement
-                self._counter.start_esr(num_esr_runs)
-                esr_meas = self._counter.get_esr_meas()[:, 2:]
+                #DGC self._counter.start_esr(num_esr_runs)
+                self._counter.start_recorder()
+                esr_meas = self._counter.get_measurement()[:, 2:]
 
                 esr_meas_mean = esr_meas.mean(axis=0)
                 esr_meas_std = esr_meas.std(axis=0)
@@ -1805,7 +1807,8 @@ class AFMConfocalLogic(GenericLogic):
             mode=RecorderMode.ESR,
             params={'mw_frequency_list': freq_list,
                     'mw_power': mw_power,
-                    'count_freq': esr_count_freq} )
+                    'count_freq': esr_count_freq,
+                    'num_meas': num_esr_runs } )
 
         if ret_val < 0:
             self.sigQuantiScanFinished.emit()
@@ -1934,8 +1937,9 @@ class AFMConfocalLogic(GenericLogic):
                 self._scan_point[2:] = self._debug 
                 
                 # obtain ESR measurement
-                self._counter.start_esr(num_esr_runs)
-                esr_meas = self._counter.get_esr_meas()[:, 2:]
+                #DGC self._counter.start_esr(num_esr_runs)
+                self._counter.start_recorder()
+                esr_meas = self._counter.get_measurement()[:, 2:]
 
                 esr_meas_mean = esr_meas.mean(axis=0)
                 esr_meas_std = esr_meas.std(axis=0)
@@ -2286,11 +2290,11 @@ class AFMConfocalLogic(GenericLogic):
             #FIXME: Uncomment for snake like scan, however, not recommended!!!
             #       As it will distort the picture.
             # if line_num % 2 == 0:
-            #     self._obj_scan_array[arr_name]['data'][line_num] = self._counter.get_line() / integration_time
+            #     self._obj_scan_array[arr_name]['data'][line_num] = self._counter.get_measurement() / integration_time
             # else:
-            #     self._obj_scan_array[arr_name]['data'][line_num] = self._counter.get_line()[::-1] / integration_time
+            #     self._obj_scan_array[arr_name]['data'][line_num] = self._counter.get_measurement()[::-1] / integration_time
 
-            self._obj_scan_array[arr_name]['data'][line_num] = self._counter.get_line()/integration_time
+            self._obj_scan_array[arr_name]['data'][line_num] = self._counter.get_measurement()/integration_time
             self.sigObjLineScanFinished.emit(arr_name)
 
             # enable the break only if next scan goes into forward movement
@@ -2461,7 +2465,7 @@ class AFMConfocalLogic(GenericLogic):
             #DGC self._counter.arm_device(coord0_num)
             self._spm.scan_line()
 
-            self._opti_scan_array[opti_name]['data'][line_num] = self._counter.get_line()/integration_time
+            self._opti_scan_array[opti_name]['data'][line_num] = self._counter.get_measurement()/integration_time
             self.sigOptimizeLineScanFinished.emit(opti_name)
 
             if self._stop_request:
@@ -2598,7 +2602,7 @@ class AFMConfocalLogic(GenericLogic):
         #DGC self._counter.arm_device(res)  
         self._spm.scan_line()
 
-        self._opti_scan_array[opti_name]['data'] = self._counter.get_line()/integration_time
+        self._opti_scan_array[opti_name]['data'] = self._counter.get_measurement()/integration_time
 
         #print(f'Optimizer Z scan complete.')
         self.sigOptimizeLineScanFinished.emit(opti_name)

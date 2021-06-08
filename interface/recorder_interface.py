@@ -29,7 +29,6 @@ from core.util.mutex import Mutex
 
 
 class RecorderMode(namedtuple('RecorderMode', 'value name activation'), Enum):
-    """ Operation mode configuration for a microwave/counting devices"""
     # starting methods
     UNCONFIGURED             = 0, 'UNCONFIGURED', 'null'
     DUMMY                    = 1, 'DUMMY', 'null'
@@ -56,25 +55,54 @@ class RecorderMode(namedtuple('RecorderMode', 'value name activation'), Enum):
     def __int__(self):
         return self.value
 
+class RecorderMeasurementMode(namedtuple('RecorderMeasurementMode', 'value name movement'), Enum):
+    DUMMY = 0, 'DUMMY', 'null'
+    COUNTER = 1, 'COUNTER', 'null'
+    PIXELCLOCK = 2, 'PIXELCLOCK', 'line' 
+    PIXELCLOCK_N_ISO_B = 3, 'PIXELCLOCK_N_ISO_B', 'line'
+    ESR = 4, 'ESR', 'point'
+    PULSED_ESR = 5, 'PULSED_ESR', 'point'
+
+    def __str__(self):
+        return self.name
+
+    def __int__(self):
+        return self.value
+
+# Note: RecorderMeasurement class was meant 
+#       to hold the measurement relevant information, not complete
+# 
+#class RecorderMeasurement:
+#    """ Interface to interact with measurments
+#    """
+#    def __init__(self):
+#        self._lock = Mutex()  # thread lock
+#        self._running = False
+#        self._mode = RecorderMeasurementMode.DUMMY
+
+
 
 class RecorderState(Enum):
     DISCONNECTED = 0 
     LOCKED = 1
     UNLOCKED = 2
     IDLE = 3 
-    ARMED = 4 
-    BUSY = 5 
+    IDLE_UNACK = 4
+    ARMED = 5 
+    BUSY = 6 
 
 
 class RecorderStateMachine:
     """ Interface to mantain the recorder device state
         Enforcement of the state is set here
     """
-    def __init__(self):
-        self._last_update = None                        # time when last updated
-        self._allowed_transitions = {}                  # dictionary of allowed state trasitions
-        self._curr_state = None                         # current state 
-        self._lock = Mutex()                            # thread lock
+    def __init__(self, enforce=False):
+        self._enforce = enforce          # check state changes, warn if not allowed 
+        self._last_update = None         # time when last updated
+        self._allowed_transitions = {}   # dictionary of allowed state trasitions
+        self._curr_state = None          # current state 
+        self._lock = Mutex()             # thread lock
+        self._log = None
 
     def set_allowed_transitions(self,transitions, initial_state=None):
         """ allowed transitions is a dictionary with { 'curr_state1': ['allowed_state1', 'allowed_state2', etc.],
@@ -140,6 +168,8 @@ class RecorderStateMachine:
                     self._last_update = datetime.now()
                     return 1    # state transition was possible
             else:
+                if self._enforce:
+                    raise Exception(f'RecorderStateMachine: invalid change of state requested: {self._curr_state} --> {requested_state} ')
                 return status   # state transition was not possible
         
     def get_last_change(self):
@@ -153,6 +183,8 @@ class RecorderStateMachine:
         return self._prior_state, self._curr_state, self._last_update
 
 class RecorderConstraints:
+    """ Defines the parameters to configure the recorder device
+    """
 
     def __init__(self):
         # maximum numer of possible detectors for slow counter
@@ -167,7 +199,20 @@ class RecorderConstraints:
         self.recorder_mode_params = {}
         # set allowable states, to be populated by allowable states of a mode
         self.recorder_mode_states = {}
+        # set method for measurement type
+        self.recorder_mode_measurements = {}
 
+class RecorderMeasurementConstraints:
+    """ Defines the measurement data formats for the recorder
+    """
+
+    def __init__(self):
+        # recorder data mode
+        self.meas_modes = [] 
+        # recorder data format, returns the structure of expected format
+        self.meas_formats = {}
+        # recorder measurement processing function 
+        self.meas_method = {}
 
 class RecorderInterface(metaclass=InterfaceMetaclass):
     """ Define the controls for a recorder device."""
@@ -262,6 +307,16 @@ class RecorderInterface(metaclass=InterfaceMetaclass):
         """
 
         pass
+
+    @abc.abstractmethod
+    def get_measurement_methods(self):
+        """ Retrieve the measurent methods for the recorder.
+
+        @return RecorderMeasurements: object with measurement contraints for the recorder
+        """
+
+        pass
+        
 
 
     # -------------------------------------

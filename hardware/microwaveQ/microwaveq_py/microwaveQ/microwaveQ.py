@@ -412,7 +412,7 @@ class MicrowaveQ(dev.Device):
 
         val = self._calcGainCompensation(frequency)
         self.rfpulse.setGainCompensation(val)
-        self.__cur_freq = freq
+        self.__cur_freq = frequency
 
     def getFrequency(self):
         addrData=self._getAddressData(self._conf_path+"defaultConfig.cfg", "TRF3722")
