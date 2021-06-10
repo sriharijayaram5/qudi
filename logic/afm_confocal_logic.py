@@ -23,7 +23,7 @@ top-level directory of this distribution and at <https://github.com/Ulm-IQO/qudi
 from typing_extensions import ParamSpec
 
 from scipy.sparse import coo
-from interface.recorder_interface import RecorderMode
+from interface.recorder_interface import MicrowaveQMode
 #from hardware.microwaveQ.microwaveq import MicrowaveQ
 from core.module import Connector, StatusVar, ConfigOption
 from logic.generic_logic import GenericLogic
@@ -485,7 +485,7 @@ class AFMConfocalLogic(GenericLogic):
         self._meas_path = os.path.abspath(self._meas_path)
 
         #FIXME: Introduce a state variable to prevent redundant configuration calls of the hardware.
-        self._counter.configure_recorder(mode=RecorderMode.PIXELCLOCK,
+        self._counter.configure_recorder(mode=MicrowaveQMode.PIXELCLOCK,
                                          params={'mw_frequency': 2.8e9, 
                                                  'num_meas': 100})
 
@@ -945,7 +945,7 @@ class AFMConfocalLogic(GenericLogic):
             if iso_b_mode is not None: 
                 if 'single' in iso_b_mode:
                     ret_val_mq = self._counter.configure_recorder(
-                        mode=RecorderMode.PIXELCLOCK_SINGLE_ISO_B,
+                        mode=MicrowaveQMode.PIXELCLOCK_SINGLE_ISO_B,
                         params={'mw_frequency_list':[self._freq2_iso_b_frequency],
                                 'mw_power': self._iso_b_power, 
                                 'num_meas': coord0_num })
@@ -960,7 +960,7 @@ class AFMConfocalLogic(GenericLogic):
                     freq1_pulse_time, freq2_pulse_time = pulse_lengths
 
                     ret_val_mq = self._counter.configure_recorder(
-                        mode=RecorderMode.PIXELCLOCK_N_ISO_B,
+                        mode=MicrowaveQMode.PIXELCLOCK_N_ISO_B,
                         params={'mw_frequency_list': freq_list,
                                 'mw_pulse_lengths': pulse_lengths,
                                 'mw_power': self._iso_b_power,
@@ -977,7 +977,7 @@ class AFMConfocalLogic(GenericLogic):
                     self.log.info(f'Prepared pixelclock dual iso b, val {ret_val_mq}')
 
             else:
-                ret_val_mq = self._counter.configure_recorder(mode=RecorderMode.PIXELCLOCK, 
+                ret_val_mq = self._counter.configure_recorder(mode=MicrowaveQMode.PIXELCLOCK, 
                                                               params={'mw_frequency': freq_list[0],
                                                                       'num_meas': coord0_num})
 
@@ -1216,21 +1216,21 @@ class AFMConfocalLogic(GenericLogic):
                     if 'single' in iso_b_mode:
                         # single iso-b
                         self._counter.configure_recorder(
-                            mode=RecorderMode.PIXELCLOCK_SINGLE_ISO_B,
+                            mode=MicrowaveQMode.PIXELCLOCK_SINGLE_ISO_B,
                             params={'mw_frequency_list': [self._freq1_iso_b_frequency],
                                     'mw_power': self._iso_b_power,
                                     'num_meas': coord0_num })
                     else:
                         # dual iso-b
                         self._counter.configure_recorder(
-                            mode=RecorderMode.PIXELCLOCK_N_ISO_B,
+                            mode=MicrowaveQMode.PIXELCLOCK_N_ISO_B,
                             params={'mw_frequency_list': freq_list,
                                     'mw_pulse_lengths': pulse_lengths,
                                     'mw_power': self._iso_b_power,
                                     'mw_laser_cooldown_time': laser_cooldown_length,
                                     'num_meas': coord0_num })
                 else:
-                    self._counter.configure_recorder(mode=RecorderMode.PIXELCLOCK,
+                    self._counter.configure_recorder(mode=MicrowaveQMode.PIXELCLOCK,
                                                      params={'mw_frequency': self._freq1_iso_b_frequency,
                                                              'num_meas': coord0_num})
 
@@ -1434,7 +1434,7 @@ class AFMConfocalLogic(GenericLogic):
         freq_list = np.linspace(freq_start, freq_stop, freq_points, endpoint=True)
 
         ret_val = self._counter.configure_recorder(
-            mode=RecorderMode.ESR,
+            mode=MicrowaveQMode.ESR,
             params={'mw_frequency_list': freq_list,
                     'mw_power': mw_power,
                     'count_frequency': esr_count_freq,
@@ -1663,7 +1663,7 @@ class AFMConfocalLogic(GenericLogic):
 
                 self.log.info('Enter optimization.')
                 self._counter.stop_measurement()
-                self._counter.configure_recorder(mode=RecorderMode.PIXELCLOCK,
+                self._counter.configure_recorder(mode=MicrowaveQMode.PIXELCLOCK,
                                                  params={'mw_frequency': np.mean(freq_list),
                                                          'num_meas': coord0_num})
 
@@ -1674,7 +1674,7 @@ class AFMConfocalLogic(GenericLogic):
                                               line_points=coord0_num,
                                               meas_params=meas_params)
                 self._counter.configure_recorder(
-                    mode=RecorderMode.ESR,
+                    mode=MicrowaveQMode.ESR,
                     params={'mw_frequency_list': freq_list,
                             'mw_power': mw_power,
                             'count_frequency': esr_count_freq})
@@ -1804,7 +1804,7 @@ class AFMConfocalLogic(GenericLogic):
         freq_list = np.linspace(freq_start, freq_stop, freq_points, endpoint=True)
         
         ret_val = self._counter.configure_recorder(
-            mode=RecorderMode.ESR,
+            mode=MicrowaveQMode.ESR,
             params={'mw_frequency_list': freq_list,
                     'mw_power': mw_power,
                     'count_freq': esr_count_freq,
@@ -2039,7 +2039,7 @@ class AFMConfocalLogic(GenericLogic):
 
                 self.log.info('Enter optimization.')
 
-                self._counter.configure_recorder(mode=RecorderMode.PIXELCLOCK,
+                self._counter.configure_recorder(mode=MicrowaveQMode.PIXELCLOCK,
                                                  params={'mw_frequency': np.mean(freq_list),
                                                          'num_meas': coord0_num})
                 self._spm.finish_scan()
@@ -2051,7 +2051,7 @@ class AFMConfocalLogic(GenericLogic):
                                               line_points=coord0_num,
                                               meas_params=meas_params)
                 self._counter.configure_recorder(
-                    mode=RecorderMode.ESR,
+                    mode=MicrowaveQMode.ESR,
                     params={'mw_frequency_list': freq_list,
                             'mw_power': mw_power,
                             'count_frequency': esr_count_freq })
@@ -2181,9 +2181,9 @@ class AFMConfocalLogic(GenericLogic):
         time_idle_move = self._sg_idle_move_scan_obj
 
         mode, _ = self._counter.get_current_device_mode()
-        if mode != RecorderMode.PIXELCLOCK:
+        if mode != MicrowaveQMode.PIXELCLOCK:
             ret_val = self._counter.configure_recorder(
-                mode=RecorderMode.PIXELCLOCK,
+                mode=MicrowaveQMode.PIXELCLOCK,
                 params={'mw_frequency': self._freq1_iso_b_frequency,
                         'num_meas': coord0_num})
 
@@ -2392,9 +2392,9 @@ class AFMConfocalLogic(GenericLogic):
                              # moving without measuring
 
         mode, _ = self._counter.get_current_device_mode()
-        if mode != RecorderMode.PIXELCLOCK:
+        if mode != MicrowaveQMode.PIXELCLOCK:
             ret_val = self._counter.configure_recorder(
-                mode=RecorderMode.PIXELCLOCK, 
+                mode=MicrowaveQMode.PIXELCLOCK, 
                 params={'mw_frequency': self._freq1_iso_b_frequency,
                         'num_meas': coord0_num})
 
@@ -2534,9 +2534,9 @@ class AFMConfocalLogic(GenericLogic):
                              # moving without measuring
 
         mode, _ = self._counter.get_current_device_mode()
-        if mode != RecorderMode.PIXELCLOCK:
+        if mode != MicrowaveQMode.PIXELCLOCK:
             ret_val = self._counter.configure_recorder(
-                mode=RecorderMode.PIXELCLOCK, 
+                mode=MicrowaveQMode.PIXELCLOCK, 
                 params={'mw_frequency': self._freq1_iso_b_frequency,
                         'num_meas': res})
 

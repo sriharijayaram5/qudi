@@ -21,65 +21,18 @@ top-level directory of this distribution and at <https://github.com/Ulm-IQO/qudi
 """
 
 import abc
-from enum import Enum
+from enum import Enum, EnumMeta
 from collections import namedtuple
 from datetime import datetime
 from core.util.interfaces import InterfaceMetaclass
-from core.util.mutex import Mutex
 
 
-class RecorderMode(namedtuple('RecorderMode', 'value name activation'), Enum):
+class RecorderMode(EnumMeta):
+    # Specific recorder modes are to be defined by user
+
     # starting methods
-    UNCONFIGURED             = 0, 'UNCONFIGURED', 'null'
-    DUMMY                    = 1, 'DUMMY', 'null'
-
-    # pixel clock counting methods
-    PIXELCLOCK               = 2, 'PIXELCLOCK', 'trigger'
-    PIXELCLOCK_SINGLE_ISO_B  = 3, 'PIXELCLOCK_SINGLE_ISO_B', 'trigger'
-    PIXELCLOCK_N_ISO_B       = 4, 'PIXELCLOCK_N_ISO_B', 'trigger'
-    PIXELCLOCK_TRACKED_ISO_B = 5, 'PIXELCLOCK_TRACKED_ISO_B', 'trigger'
-
-    # continous counting methods
-    CW_MW                    = 6, 'CW_MW', 'continuous'
-    ESR                      = 7, 'ESR', 'continuous'
-    COUNTER                  = 8, 'COUNTER', 'continuous'
-    CONTINUOUS_COUNTING      = 9, 'CONTINUOUS_COUNTING', 'continuous'
-
-    # advanced measurement mode
-    PULSED_ESR               = 10, 'PULSED_ESR', 'advanced'
-    PULSED                   = 11, 'PULSED', 'advanced'
-
-    def __str__(self):
-        return self.name
-
-    def __int__(self):
-        return self.value
-
-class RecorderMeasurementMode(namedtuple('RecorderMeasurementMode', 'value name movement'), Enum):
-    DUMMY = 0, 'DUMMY', 'null'
-    COUNTER = 1, 'COUNTER', 'null'
-    PIXELCLOCK = 2, 'PIXELCLOCK', 'line' 
-    PIXELCLOCK_N_ISO_B = 3, 'PIXELCLOCK_N_ISO_B', 'line'
-    ESR = 4, 'ESR', 'point'
-    PULSED_ESR = 5, 'PULSED_ESR', 'point'
-
-    def __str__(self):
-        return self.name
-
-    def __int__(self):
-        return self.value
-
-# Note: RecorderMeasurement class was meant 
-#       to hold the measurement relevant information, not complete
-# 
-#class RecorderMeasurement:
-#    """ Interface to interact with measurments
-#    """
-#    def __init__(self):
-#        self._lock = Mutex()  # thread lock
-#        self._running = False
-#        self._mode = RecorderMeasurementMode.DUMMY
-
+    UNCONFIGURED             = 0
+    DUMMY                    = 1
 
 
 class RecorderState(Enum):
@@ -92,96 +45,6 @@ class RecorderState(Enum):
     BUSY = 6 
 
 
-class RecorderStateMachine:
-    """ Interface to mantain the recorder device state
-        Enforcement of the state is set here
-    """
-    def __init__(self, enforce=False):
-        self._enforce = enforce          # check state changes, warn if not allowed 
-        self._last_update = None         # time when last updated
-        self._allowed_transitions = {}   # dictionary of allowed state trasitions
-        self._curr_state = None          # current state 
-        self._lock = Mutex()             # thread lock
-        self._log = None
-
-    def set_allowed_transitions(self,transitions, initial_state=None):
-        """ allowed transitions is a dictionary with { 'curr_state1': ['allowed_state1', 'allowed_state2', etc.],
-                                                       'curr_state2': ['allowed_state3', etc.]}
-        """
-        status = -1 
-        if isinstance(transitions,dict):
-            self._allowed_transitions = transitions
-            state = initial_state if initial_state is not None else list(transitions.keys())[0]
-            status = self.set_state(state,initial_state=True)
-
-        return status 
-
-    def get_allowed_transitions(self):
-        return self._allowed_trasitions
-
-    def is_legal_transition(self, requested_state, curr_state=None):
-        """ Checks for a legal transition of state
-            @param requested_state:  the next state sought
-            @param curr_state:  state to check from (can be hypothetical)
-
-            @return int: error code (1: change OK, 0:could not change, -1:incorrect setting)
-        """
-        if self._allowed_transitions is None: 
-            return -1       # was not configured
-
-        if curr_state is None:
-            curr_state = self._curr_state
-
-        if (curr_state in self._allowed_transitions.keys()) and \
-           (requested_state in self._allowed_transitions.keys()):
-
-            if requested_state in self._allowed_transitions[curr_state]:
-                return 1    # is possible to change
-            else: 
-                return 0    # is not possible to change
-        else:
-            return -1       # check your inputs, you asked the wrong question
-
-    def get_state(self):
-        return self._curr_state
-
-    def set_state(self,requested_state, initial_state=False):
-        """ performs state trasition, if allowed 
-
-            @return int: error code (1: change OK, 0:could not change, -1:incorrect setting)
-        """
-        if self._allowed_transitions is None: 
-            return -1       # was not configured
-
-        if initial_state:
-            # required only for initial state, otherwise should be set by transition 
-            with self._lock:
-                self._curr_state = requested_state
-                self._last_update = datetime.now()
-            return 1
-        else:
-            status = self.is_legal_transition(requested_state)
-            if status > 0:
-                with self._lock:
-                    self._prior_state = self._curr_state
-                    self._curr_state = requested_state
-                    self._last_update = datetime.now()
-                    return 1    # state transition was possible
-            else:
-                if self._enforce:
-                    raise Exception(f'RecorderStateMachine: invalid change of state requested: {self._curr_state} --> {requested_state} ')
-                return status   # state transition was not possible
-        
-    def get_last_change(self):
-        """ returns the last change of state
-
-            @return tuple: 
-            - prior_state: what occured before the current
-            - curr_state:  where we are now
-            - last_update: when it happened
-        """ 
-        return self._prior_state, self._curr_state, self._last_update
-
 class RecorderConstraints:
     """ Defines the parameters to configure the recorder device
     """
@@ -193,7 +56,7 @@ class RecorderConstraints:
         self.min_count_frequency = 5e-5
         self.max_count_frequency = 5e5
 
-        # add RecorderMode enums to this list in instances
+        # add MicrowaveQMode enums to this list in instances
         self.recorder_modes = []
         # here all the parameters associated to the recorder mode are stored.
         self.recorder_mode_params = {}
@@ -202,17 +65,6 @@ class RecorderConstraints:
         # set method for measurement type
         self.recorder_mode_measurements = {}
 
-class RecorderMeasurementConstraints:
-    """ Defines the measurement data formats for the recorder
-    """
-
-    def __init__(self):
-        # recorder data mode
-        self.meas_modes = [] 
-        # recorder data format, returns the structure of expected format
-        self.meas_formats = {}
-        # recorder measurement processing function 
-        self.meas_method = {}
 
 class RecorderInterface(metaclass=InterfaceMetaclass):
     """ Define the controls for a recorder device."""
@@ -225,8 +77,8 @@ class RecorderInterface(metaclass=InterfaceMetaclass):
     def configure_recorder(self, mode, params):
         """ Configures the recorder mode for current measurement. 
 
-        @param RecorderMode mode: mode of recorder, as available from 
-                                  RecorderMode types
+        @param MicrowaveQMode mode: mode of recorder, as available from 
+                                  MicrowaveQMode types
         @param dict params: specific settings as required for the given 
                             measurement mode 
 
@@ -266,16 +118,16 @@ class RecorderInterface(metaclass=InterfaceMetaclass):
     def get_parameter_for_modes(self, mode=None):
         """ Returns the required parameters for the modes
 
-        @param RecorderMode mode: specifies the mode for sought parameters
+        @param MicrowaveQMode mode: specifies the mode for sought parameters
                                   If mode=None, all modes with their parameters 
                                   are returned. Otherwise specific mode 
                                   parameters are returned  
 
-        @return dict: containing as keys the RecorderMode.mode and as values a
+        @return dict: containing as keys the MicrowaveQMode.mode and as values a
                       dictionary with all parameters associated to the mode.
 
-                      Example return with mode=RecorderMode.CW_MW:
-                            {RecorderMode.CW_MW: {'countwindow': 10,
+                      Example return with mode=MicrowaveQMode.CW_MW:
+                            {MicrowaveQMode.CW_MW: {'countwindow': 10,
                                                   'mw_power': -30}}  
         """
         pass
@@ -285,7 +137,7 @@ class RecorderInterface(metaclass=InterfaceMetaclass):
         """ Get the current device mode with its configuration parameters
 
         @return: (mode, params)
-                RecorderMode.mode mode: the current recorder mode 
+                MicrowaveQMode.mode mode: the current recorder mode 
                 dict params: the current configuration parameter
         """
         pass
