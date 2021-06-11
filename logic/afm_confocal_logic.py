@@ -105,6 +105,10 @@ class WorkerThread(QtCore.QRunnable):
 class HealthChecker(object):
     """ Performs a periodic check on an op function,
         performed by a timer interval when the update status has fallen late
+
+        The health check should be suspended in the time the optimizer is operating, 
+        since if performed in this time, will cause a failed run.  However, we should 
+        not let it sleep forever, as it may have also died during the optimization
     """
     _timer = None
     _armed = False
@@ -114,14 +118,17 @@ class HealthChecker(object):
         # for now, do nothing.  This will be initizliaed later
         pass
 
-    def setup(self,interval=10,      # interval in seconds at which to perform the check
-              default_delta_t=1,     # default time to at first update 
-              dead_time_mult=10,     # multiplier of time delta, after which the op function is tested 
-              check_function=None,   # op function to check
-              connect_start = [],    # signals to trigger start
-              connect_update = [],   # signals to trigger update_status
-              connect_stop = [],     # signals to trigger stop
-              log=None,              # pointer to logger object
+    def setup(self,interval=10,         # interval in seconds at which to perform the check
+              default_delta_t=10,       # default time to at first update 
+              dead_time_mult=10,        # multiplier of time delta, after which the op function is tested 
+              check_function=None,      # op function to check
+              connect_start = [],       # signals to trigger start
+              connect_update = [],      # signals to trigger update_status
+              connect_stop = [],        # signals to trigger stop
+              connect_opt_start = [],   # signals for start of optimizer
+              connect_opt_stop = [],    # signals for stop of optimizer
+              default_opt_skips = 10,   # number of times to skip check waiting for optimizer
+              log=None,                 # pointer to logger object
             **kwargs):
         self.log = log
         self._timer = QtCore.QTimer()
@@ -131,6 +138,8 @@ class HealthChecker(object):
         self._time_delta = None
         self._dead_time_mult = dead_time_mult
         self._default_delta_t = default_delta_t
+        self._optimizer_skip_n = default_opt_skips
+        self._optimizer_skip_i = 0    # burndown counter for optimizer skips
         self._armed = False
 
         # attaches to a 0 argument function, return value is irrelevant
@@ -153,17 +162,23 @@ class HealthChecker(object):
         for sig in connect_stop:
             sig.connect(self.stop_timer)
 
+        # start of the optimizer skip
+        for sig in connect_opt_start:
+            sig.connect(self.start_optimizer_skip)
+        
+        # stop of the optimizer skip
+        for sig in connect_opt_stop:
+            sig.connect(self.stop_optimizer_skip)
+
 
     def set_armed(self,arm=True):
         with self._lock:
             self._armed = arm 
 
-
     def start_timer(self,arm=False):
         """ Start the timer, if timer is running, it will be restarted. """
         self._timer.start(self._interval * 1000) # in ms
         self.set_armed(arm)
-
 
     def stop_timer(self):
         """ Stop the timer. """
@@ -172,6 +187,20 @@ class HealthChecker(object):
             self.set_armed(False)
             self.log.debug("HealthCheck: stopped timer")
 
+    def start_optimizer_skip(self):
+        """ The optimizer has been started """
+        with self._lock:
+            if not self._armed: return
+            self._optimizer_skip_i = self._optimizer_skip_n
+        #self.log.debug("HeathChecker: started skipping due to optimizer")
+
+    def stop_optimizer_skip(self):
+        """ The optimizer has finished, no more skipping """
+        with self._lock:
+            if not self._armed: return
+            self._optimizer_skip_i = 0
+        self.update_status()
+        #self.log.debug("HeathChecker: stopped skipping")
 
     def update_status(self,pos=None):
         """ updates the time since last writing of a measurement"""
@@ -194,7 +223,6 @@ class HealthChecker(object):
             
             #self.log.debug(f"HealthCheck:pos={pos}, last_time={self._last_time}, time_delta={self._time_delta}")
 
-
     def perform_check(self):
         """ request health status update """
         # not armed, but triggered
@@ -206,11 +234,16 @@ class HealthChecker(object):
         docheck = False
         with self._lock:
             now = time.time()
-            if self._last_time is not None:
+            if self._optimizer_skip_i:
+                # waiting for optimizer to finish
+                self._optimizer_skip_i -= 1
+                self.log.debug(f"HealthCheck_perform: skipped due to optimizer, remaining skips={self._optimizer_skip_i}")
+
+            elif self._last_time is not None:
                 # see if the time since last update was > dead_time_mult*last meas delta, 
                 # if so, then perform MQ check
                 delta_t = now - self._last_time 
-                docheck = delta_t > self._dead_time_mult*self._time_delta 
+                docheck = delta_t > max(self._dead_time_mult*self._time_delta, self._default_delta_t)
             else:
                 delta_t = 0     # can't tell, since it hasn't been run yet
 
@@ -342,6 +375,7 @@ class AFMConfocalLogic(GenericLogic):
     # Optimizer related signals
     sigOptimizeScanInitialized = QtCore.Signal(str)
     sigOptimizeLineScanFinished = QtCore.Signal(str) 
+    sigOptimizeScanStarted = QtCore.Signal()
     sigOptimizeScanFinished = QtCore.Signal()
 
     # save data signals
@@ -1722,7 +1756,9 @@ class AFMConfocalLogic(GenericLogic):
                                  connect_start=[],                                  # start triggered manually
                                  connect_update=[self.sigQuantiLineFinished,        # signals which will trigger update
                                                  self.sigNewAFMPos],
-                                 connect_stop=[self.sigQuantiScanFinished],         #signal to trigger stop of health check
+                                 connect_stop=[self.sigQuantiScanFinished],         # signal to trigger stop of health check
+                                 connect_opt_start=[self.sigOptimizeScanStarted],   # signal to note that optimizer has started 
+                                 connect_opt_stop=[self.sigOptimizeScanFinished],    # signal to note that optimizer has finished
                                  log=self.log
                                 )
 
@@ -2103,7 +2139,9 @@ class AFMConfocalLogic(GenericLogic):
                                  connect_start=[],                                  # start triggered manually
                                  connect_update=[self.sigQuantiLineFinished,        # signals which will trigger update
                                                  self.sigNewAFMPos],
-                                 connect_stop=[self.sigQuantiScanFinished],         #signal to trigger stop of health check
+                                 connect_stop=[self.sigQuantiScanFinished],         # signal to trigger stop of health check
+                                 connect_opt_start=[self.sigOptimizeScanStarted],   # signal to note that optimizer has started 
+                                 connect_opt_stop=[self.sigOptimizeScanFinished],    # signal to note that optimizer has finished
                                  log=self.log
                                 )
 
@@ -2689,6 +2727,7 @@ class AFMConfocalLogic(GenericLogic):
                          z_start, z_stop, res_z, int_time_xy, int_time_z):
         """ Optimize position for x, y and z by going to maximal value"""
 
+        self.sigOptimizeScanStarted.emit()
         self._opt_val[0], self._opt_val[1], self._opt_val[3] = self.get_optimizer_target()
 
         # If the optimizer is called by itself, the the module state needs to be
