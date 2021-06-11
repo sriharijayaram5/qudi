@@ -98,9 +98,18 @@ class RecorderInterface(metaclass=InterfaceMetaclass):
         pass
 
     @abc.abstractmethod
+    def get_available_measurement(self):
+        """ get measurement, non-blocking, non-state changing
+        returns the measurement array in integer format
+
+        @return int_array: array of measurement as tuple elements
+        """
+        pass
+
+    @abc.abstractmethod
     def get_measurement(self):
         """ get measurement
-        returns the measurement array in integer format
+        returns the measurement array in integer format, blocking, state changing
 
         @return int_array: array of measurement as tuple elements
         """
@@ -115,7 +124,7 @@ class RecorderInterface(metaclass=InterfaceMetaclass):
 
     #FIXME: this might be a redundant method and can be replaced by get_recorder_limits
     @abc.abstractmethod
-    def get_parameter_for_modes(self, mode=None):
+    def get_parameters_for_modes(self, mode=None):
         """ Returns the required parameters for the modes
 
         @param MicrowaveQMode mode: specifies the mode for sought parameters
