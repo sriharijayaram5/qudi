@@ -254,8 +254,8 @@ class MicrowaveQ(Base, SlowCounterInterface, RecorderInterface):
     sigNewData = QtCore.Signal(tuple)
     sigLineFinished = QtCore.Signal()
 
-    #_threaded = True 
-    _threaded = False  # for debugging 
+    _threaded = True 
+    #_threaded = False  # for debugging 
 
     _mq_state = MicrowaveQStateMachine(enforce=True)
     _mq_state.set_allowed_transitions(
@@ -264,7 +264,7 @@ class MicrowaveQ(Base, SlowCounterInterface, RecorderInterface):
                      RecorderState.UNLOCKED: [RecorderState.IDLE, RecorderState.DISCONNECTED],
                      RecorderState.IDLE: [RecorderState.ARMED, RecorderState.BUSY, RecorderState.IDLE, RecorderState.DISCONNECTED],
                      RecorderState.IDLE_UNACK: [RecorderState.ARMED, RecorderState.BUSY, RecorderState.IDLE, RecorderState.DISCONNECTED],
-                     RecorderState.ARMED: [RecorderState.IDLE_UNACK, RecorderState.BUSY, RecorderState.DISCONNECTED], 
+                     RecorderState.ARMED: [RecorderState.IDLE, RecorderState.IDLE_UNACK, RecorderState.BUSY, RecorderState.DISCONNECTED], 
                      RecorderState.BUSY: [RecorderState.IDLE_UNACK, RecorderState.DISCONNECTED]
                      }, 
                      initial_state=RecorderState.DISCONNECTED
@@ -1759,6 +1759,7 @@ class MicrowaveQ(Base, SlowCounterInterface, RecorderInterface):
         
         else:
             self.log.error(f'MicrowaveQ error: measurement method {meas_method_type} not implemented yet')
+            return 0
 
 
 
@@ -1799,6 +1800,7 @@ class MicrowaveQ(Base, SlowCounterInterface, RecorderInterface):
         
         else:
             self.log.error(f'MicrowaveQ error: measurement method {meas_method_type} not implemented yet')
+            return 0
 
 
     #FIXME: this might be a redundant method and can be replaced by get_recorder_limits

@@ -20,11 +20,9 @@ top-level directory of this distribution and at <https://github.com/Ulm-IQO/qudi
 """
 
 
-from typing_extensions import ParamSpec
-
 from scipy.sparse import coo
-from interface.recorder_interface import MicrowaveQMode
 #from hardware.microwaveQ.microwaveq import MicrowaveQ
+from hardware.microwaveQ.microwaveq import MicrowaveQMode
 from core.module import Connector, StatusVar, ConfigOption
 from logic.generic_logic import GenericLogic
 from core.util import units
@@ -980,7 +978,7 @@ class AFMConfocalLogic(GenericLogic):
                 if 'single' in iso_b_mode:
                     ret_val_mq = self._counter.configure_recorder(
                         mode=MicrowaveQMode.PIXELCLOCK_SINGLE_ISO_B,
-                        params={'mw_frequency_list':[self._freq2_iso_b_frequency],
+                        params={'mw_frequency_list':[self._freq1_iso_b_frequency],
                                 'mw_power': self._iso_b_power, 
                                 'num_meas': coord0_num })
 
@@ -1012,7 +1010,7 @@ class AFMConfocalLogic(GenericLogic):
 
             else:
                 ret_val_mq = self._counter.configure_recorder(mode=MicrowaveQMode.PIXELCLOCK, 
-                                                              params={'mw_frequency': freq_list[0],
+                                                              params={'mw_frequency': self._freq1_iso_b_frequency,
                                                                       'num_meas': coord0_num})
 
                 self.log.info(f'Prepared pixelclock, val {ret_val_mq}')
@@ -1487,6 +1485,7 @@ class AFMConfocalLogic(GenericLogic):
                                                            line_points=coord0_num,
                                                            meas_params=meas_params)
 
+        curr_scan_params.insert(0, 'b_field')  # insert the magnetic field (place holder) 
         curr_scan_params.insert(0, 'counts')  # insert the fluorescence parameter
 
         # this case is for starting a new measurement:
@@ -1711,7 +1710,8 @@ class AFMConfocalLogic(GenericLogic):
                     mode=MicrowaveQMode.ESR,
                     params={'mw_frequency_list': freq_list,
                             'mw_power': mw_power,
-                            'count_frequency': esr_count_freq})
+                            'count_frequency': esr_count_freq,
+                            'num_meas': num_esr_runs } )
 
                 opti_counter = datetime.datetime.now()
 
@@ -1843,7 +1843,7 @@ class AFMConfocalLogic(GenericLogic):
             mode=MicrowaveQMode.ESR,
             params={'mw_frequency_list': freq_list,
                     'mw_power': mw_power,
-                    'count_freq': esr_count_freq,
+                    'count_frequency': esr_count_freq,
                     'num_meas': num_esr_runs } )
 
         if ret_val < 0:
@@ -2076,7 +2076,7 @@ class AFMConfocalLogic(GenericLogic):
                 self.log.info('Enter optimization.')
 
                 self._counter.configure_recorder(mode=MicrowaveQMode.PIXELCLOCK,
-                                                 params={'mw_frequency': np.mean(freq_list),
+                                                 params={'mw_frequency': self._freq1_iso_b_frequency,
                                                          'num_meas': coord0_num})
                 self._spm.finish_scan()
 
@@ -2090,7 +2090,8 @@ class AFMConfocalLogic(GenericLogic):
                     mode=MicrowaveQMode.ESR,
                     params={'mw_frequency_list': freq_list,
                             'mw_power': mw_power,
-                            'count_frequency': esr_count_freq })
+                            'count_frequency': esr_count_freq,
+                            'num_meas': num_esr_runs } )
                 time.sleep(1)
                 opti_counter = datetime.datetime.now()
 
@@ -2219,16 +2220,14 @@ class AFMConfocalLogic(GenericLogic):
         time_idle_move = self._sg_idle_move_scan_obj
 
         mode, _ = self._counter.get_current_device_mode()
-        if mode != MicrowaveQMode.PIXELCLOCK:
-            ret_val = self._counter.configure_recorder(
-                mode=MicrowaveQMode.PIXELCLOCK,
-                params={'mw_frequency': self._freq1_iso_b_frequency,
-                        'num_meas': coord0_num})
+        ret_val = self._counter.configure_recorder(mode=MicrowaveQMode.PIXELCLOCK,
+                                                   params={'mw_frequency': self._freq1_iso_b_frequency,
+                                                           'num_meas': coord0_num})
 
-            if ret_val < 0:
-                self.module_state.unlock()
-                self.sigObjScanFinished.emit()
-                return self._obj_scan_array
+        if ret_val < 0:
+            self.module_state.unlock()
+            self.sigObjScanFinished.emit()
+            return self._obj_scan_array
 
         # scan_speed_per_line = 0.01  # in seconds
         scan_speed_per_line = integration_time * coord0_num
@@ -2429,17 +2428,15 @@ class AFMConfocalLogic(GenericLogic):
         time_idle_move = 0.1 # in seconds, time in which the stage is just
                              # moving without measuring
 
-        mode, _ = self._counter.get_current_device_mode()
-        if mode != MicrowaveQMode.PIXELCLOCK:
-            ret_val = self._counter.configure_recorder(
-                mode=MicrowaveQMode.PIXELCLOCK, 
-                params={'mw_frequency': self._freq1_iso_b_frequency,
-                        'num_meas': coord0_num})
+        ret_val = self._counter.configure_recorder(
+            mode=MicrowaveQMode.PIXELCLOCK, 
+            params={'mw_frequency': self._freq1_iso_b_frequency,
+                    'num_meas': coord0_num})
 
-            if ret_val < 0:
-                self.sigObjScanFinished.emit()
-                self._stop_request = True   # Set a stop request to stop a false measurement!
-                return self._opti_scan_array
+        if ret_val < 0:
+            self.sigObjScanFinished.emit()
+            self._stop_request = True   # Set a stop request to stop a false measurement!
+            return self._opti_scan_array
 
 
         scan_arr = self._spm.create_scan_leftright(coord0_start, coord0_stop,
@@ -2571,17 +2568,15 @@ class AFMConfocalLogic(GenericLogic):
         time_idle_move = 0.1 # in seconds, time in which the stage is just
                              # moving without measuring
 
-        mode, _ = self._counter.get_current_device_mode()
-        if mode != MicrowaveQMode.PIXELCLOCK:
-            ret_val = self._counter.configure_recorder(
-                mode=MicrowaveQMode.PIXELCLOCK, 
-                params={'mw_frequency': self._freq1_iso_b_frequency,
-                        'num_meas': res})
+        ret_val = self._counter.configure_recorder(
+            mode=MicrowaveQMode.PIXELCLOCK, 
+            params={'mw_frequency': self._freq1_iso_b_frequency,
+                    'num_meas': res})
 
-            if ret_val < 0:
-                self.sigOptimizeLineScanFinished.emit(opti_name)
-                self._stop_request = True   # Set a stop request to stop a false measurement!
-                return self._opti_scan_array
+        if ret_val < 0:
+            self.sigOptimizeLineScanFinished.emit(opti_name)
+            self._stop_request = True   # Set a stop request to stop a false measurement!
+            return self._opti_scan_array
             
         # scan_speed_per_line = 0.01  # in seconds
         scan_speed_per_line = integration_time * res
