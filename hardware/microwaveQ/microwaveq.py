@@ -265,7 +265,7 @@ class MicrowaveQ(Base, SlowCounterInterface, RecorderInterface):
                      RecorderState.IDLE: [RecorderState.ARMED, RecorderState.BUSY, RecorderState.IDLE, RecorderState.DISCONNECTED],
                      RecorderState.IDLE_UNACK: [RecorderState.ARMED, RecorderState.BUSY, RecorderState.IDLE, RecorderState.DISCONNECTED],
                      RecorderState.ARMED: [RecorderState.IDLE, RecorderState.IDLE_UNACK, RecorderState.BUSY, RecorderState.DISCONNECTED], 
-                     RecorderState.BUSY: [RecorderState.IDLE_UNACK, RecorderState.DISCONNECTED]
+                     RecorderState.BUSY: [RecorderState.IDLE, RecorderState.IDLE_UNACK, RecorderState.DISCONNECTED]
                      }, 
                      initial_state=RecorderState.DISCONNECTED
                     )
@@ -1119,12 +1119,11 @@ class MicrowaveQ(Base, SlowCounterInterface, RecorderInterface):
         @return int: error code (0:OK, -1:error)
         """
 
-        dev_state = self.get_current_device_state()
         mode, _ = self.get_current_device_mode()
         
         # allow to run this method in the unconfigured mode, it is more a 
         if (mode == MicrowaveQMode.CW_MW) or (mode == MicrowaveQMode.ESR) or (mode == MicrowaveQMode.UNCONFIGURED):
-            self._mq_state.set_state(RecorderState.IDLE)
+
             self._dev.rfpulse.setGain(0.0)
             self._dev.ctrl.stop()
             self.trf_off()
@@ -1133,8 +1132,8 @@ class MicrowaveQ(Base, SlowCounterInterface, RecorderInterface):
             self.stop_measurement()
 
             # allow the state transition only in the proper state.
-            if dev_state == RecorderState.BUSY:
-                self._set_current_device_state(RecorderState.IDLE)
+            if self._mq_state.is_legal_transition(RecorderState.IDLE):
+                self._mq_state.set_state(RecorderState.IDLE)
             
             return 0
         else:
@@ -1264,7 +1263,7 @@ class MicrowaveQ(Base, SlowCounterInterface, RecorderInterface):
         mode, _ = self.get_current_device_mode()
         if mode == MicrowaveQMode.ESR:
             self.start_recorder()
-            self._mq_state.set_state(RecorderState.BUSY)
+            #self._mq_state.set_state(RecorderState.BUSY)
             return 0
         else:
             # was not configured correctly 
@@ -1288,7 +1287,8 @@ class MicrowaveQ(Base, SlowCounterInterface, RecorderInterface):
             self._mw_freq_list = frequency
             params = {'mw_frequency_list': frequency,
                       'count_frequency':   self._esr_count_frequency,
-                      'mw_power':          self._mw_power }
+                      'mw_power':          self._mw_power,
+                      'num_meas':          1000 }
             self.configure_recorder(mode=MicrowaveQMode.ESR, params=params)
 
             mean_freq = np.mean(self._mw_freq_list)
