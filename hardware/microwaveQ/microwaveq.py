@@ -46,14 +46,20 @@ class MicrowaveQFeatures(Enum):
                They are transcribed here since this is specific to ProteusQ implementation.  This 
                requires periodic update with the MicrowaveQ defintions
     """
-    UNCONFIGURED              = 0
-    CONTINUOUS_COUNTING       = 1
-    CONTINUOUS_ESR            = 2
-    RABI                      = 4
-    PULSED_ESR                = 8
-    PIXEL_CLOCK               = 16
-    EXT_TRIGGERED_MEASUREMENT = 32
-    ISO                       = 64
+    UNCONFIGURED               = 0
+    CONTINUOUS_COUNTING        = 1
+    CONTINUOUS_ESR             = 2
+    RABI                       = 4
+    PULSED_ESR                 = 8
+    PIXEL_CLOCK                = 16
+    EXT_TRIGGERED_MEASUREMENT  = 32
+    ISO                        = 64
+    TRACKING                   = 128
+    GENERAL_PULSED_MODE        = 256
+    APD_TO_GPO                 = 512
+    PARALLEL_STREAMING_CHANNEL = 1024
+    MICROSD_WRITE_ACCESS       = 2048
+
 
     def __int__(self):
         return self.value
@@ -1415,32 +1421,24 @@ class MicrowaveQ(Base, SlowCounterInterface, RecorderInterface):
         rc.recorder_mode_measurements = {MicrowaveQMode.UNCONFIGURED: MicrowaveQMeasurementMode.DUMMY, 
                                          MicrowaveQMode.DUMMY: MicrowaveQMeasurementMode.DUMMY}
 
-        if features.get(MicrowaveQFeatures.PIXEL_CLOCK.value) is not None:
-            rc.recorder_modes.append(MicrowaveQMode.PIXELCLOCK)
-            rc.recorder_modes.append(MicrowaveQMode.PIXELCLOCK_SINGLE_ISO_B)
-            rc.recorder_modes.append(MicrowaveQMode.PIXELCLOCK_N_ISO_B)
-            
+        # feature set 1 = 'Continous Counting'
+        if features.get(MicrowaveQFeatures.CONTINUOUS_COUNTING.value) is not None:
+            rc.recorder_modes.append(MicrowaveQMode.COUNTER)
+            rc.recorder_modes.append(MicrowaveQMode.CONTINUOUS_COUNTING)
+
             # configure possible states in a mode
-            rc.recorder_mode_states[MicrowaveQMode.PIXELCLOCK] = [RecorderState.IDLE, RecorderState.ARMED, RecorderState.BUSY]
-            rc.recorder_mode_states[MicrowaveQMode.PIXELCLOCK_SINGLE_ISO_B] = [RecorderState.IDLE, RecorderState.ARMED, RecorderState.BUSY]
-            rc.recorder_mode_states[MicrowaveQMode.PIXELCLOCK_N_ISO_B] = [RecorderState.IDLE, RecorderState.ARMED, RecorderState.BUSY]
+            rc.recorder_mode_states[MicrowaveQMode.COUNTER] = [RecorderState.IDLE, RecorderState.BUSY]
+            rc.recorder_mode_states[MicrowaveQMode.CONTINUOUS_COUNTING] = [RecorderState.IDLE, RecorderState.BUSY]
 
             # configure required paramaters for a mode
-            rc.recorder_mode_params[MicrowaveQMode.PIXELCLOCK] = {'mw_frequency': 2.8e9,
-                                                                'num_meas': 100}
-            rc.recorder_mode_params[MicrowaveQMode.PIXELCLOCK_SINGLE_ISO_B] = {'mw_frequency_list': [2.8e9],
-                                                                              'mw_power': -30,
-                                                                              'num_meas': 100}
-            rc.recorder_mode_params[MicrowaveQMode.PIXELCLOCK_N_ISO_B] = {'mw_frequency_list': [2.8e9, 2.81e9],
-                                                                         'mw_pulse_lengths': [10e-3, 10e-3],
-                                                                         'mw_power': -30,
-                                                                         'mw_laser_cooldown_time': 10e-6,
-                                                                         'num_meas': 100}
+            rc.recorder_mode_params[MicrowaveQMode.COUNTER] = {'count_frequency': 100}
+            rc.recorder_mode_params[MicrowaveQMode.CONTINUOUS_COUNTING] = {'count_frequency': 100}
 
-            rc.recorder_mode_measurements[MicrowaveQMode.PIXELCLOCK] = MicrowaveQMeasurementMode.PIXELCLOCK
-            rc.recorder_mode_measurements[MicrowaveQMode.PIXELCLOCK_SINGLE_ISO_B] = MicrowaveQMeasurementMode.PIXELCLOCK
-            rc.recorder_mode_measurements[MicrowaveQMode.PIXELCLOCK_N_ISO_B] = MicrowaveQMeasurementMode.PIXELCLOCK_N_ISO_B
+            # configure required measurement method
+            rc.recorder_mode_measurements[MicrowaveQMode.COUNTER] = MicrowaveQMeasurementMode.COUNTER
+            rc.recorder_mode_measurements[MicrowaveQMode.CONTINUOUS_COUNTING] = MicrowaveQMeasurementMode.COUNTER
 
+        # feature set 2 = 'Continuous ESR'
         if features.get(MicrowaveQFeatures.CONTINUOUS_ESR.value) is not None:
             rc.recorder_modes.append(MicrowaveQMode.CW_MW)
             rc.recorder_modes.append(MicrowaveQMode.ESR)
@@ -1461,21 +1459,86 @@ class MicrowaveQ(Base, SlowCounterInterface, RecorderInterface):
             rc.recorder_mode_measurements[MicrowaveQMode.CW_MW] = MicrowaveQMeasurementMode.ESR
             rc.recorder_mode_measurements[MicrowaveQMode.ESR] = MicrowaveQMeasurementMode.ESR
 
-        if features.get(MicrowaveQFeatures.CONTINUOUS_COUNTING.value) is not None:
-            rc.recorder_modes.append(MicrowaveQMode.COUNTER)
-            rc.recorder_modes.append(MicrowaveQMode.CONTINUOUS_COUNTING)
+        # feature set 4 = 'Rabi'
+        if features.get(MicrowaveQFeatures.RABI) is not None:
+            # to be implemented
+            pass
 
+        # feature set 8 = 'Pulsed ESR'
+        if features.get(MicrowaveQFeatures.PULSED_ESR) is not None:
+            # to be implemented
+            pass
+
+        # feature set 16 = 'Pixel Clock'
+        if features.get(MicrowaveQFeatures.PIXEL_CLOCK.value) is not None:
+            rc.recorder_modes.append(MicrowaveQMode.PIXELCLOCK)
+            rc.recorder_modes.append(MicrowaveQMode.PIXELCLOCK_SINGLE_ISO_B)
+            
             # configure possible states in a mode
-            rc.recorder_mode_states[MicrowaveQMode.COUNTER] = [RecorderState.IDLE, RecorderState.BUSY]
-            rc.recorder_mode_states[MicrowaveQMode.CONTINUOUS_COUNTING] = [RecorderState.IDLE, RecorderState.BUSY]
+            rc.recorder_mode_states[MicrowaveQMode.PIXELCLOCK] = [RecorderState.IDLE, RecorderState.ARMED, RecorderState.BUSY]
+            rc.recorder_mode_states[MicrowaveQMode.PIXELCLOCK_SINGLE_ISO_B] = [RecorderState.IDLE, RecorderState.ARMED, RecorderState.BUSY]
 
             # configure required paramaters for a mode
-            rc.recorder_mode_params[MicrowaveQMode.COUNTER] = {'count_frequency': 100}
-            rc.recorder_mode_params[MicrowaveQMode.CONTINUOUS_COUNTING] = {'count_frequency': 100}
+            rc.recorder_mode_params[MicrowaveQMode.PIXELCLOCK] = {'mw_frequency': 2.8e9,
+                                                                'num_meas': 100}
+            rc.recorder_mode_params[MicrowaveQMode.PIXELCLOCK_SINGLE_ISO_B] = {'mw_frequency_list': [2.8e9],
+                                                                              'mw_power': -30,
+                                                                              'num_meas': 100}
 
-            # configure required measurement method
-            rc.recorder_mode_measurements[MicrowaveQMode.COUNTER] = MicrowaveQMeasurementMode.COUNTER
-            rc.recorder_mode_measurements[MicrowaveQMode.CONTINUOUS_COUNTING] = MicrowaveQMeasurementMode.COUNTER
+            rc.recorder_mode_measurements[MicrowaveQMode.PIXELCLOCK] = MicrowaveQMeasurementMode.PIXELCLOCK
+            rc.recorder_mode_measurements[MicrowaveQMode.PIXELCLOCK_SINGLE_ISO_B] = MicrowaveQMeasurementMode.PIXELCLOCK
+
+        # feature set 32 = 'Ext Triggered Measurement'
+        if features.get(MicrowaveQFeatures.EXT_TRIGGERED_MEASUREMENT.value) is not None:
+            # to be implemented
+            pass
+
+        # feature set 64 = 'ISO' (n iso-B)
+        if features.get(MicrowaveQFeatures.ISO.value) is not None:
+            rc.recorder_modes.append(MicrowaveQMode.PIXELCLOCK_N_ISO_B)
+
+            # configure possible states in a mode
+            rc.recorder_mode_states[MicrowaveQMode.PIXELCLOCK_N_ISO_B] = [RecorderState.IDLE, RecorderState.ARMED, RecorderState.BUSY]
+
+            # configure required paramaters for a mode
+            rc.recorder_mode_params[MicrowaveQMode.PIXELCLOCK_N_ISO_B] = {'mw_frequency_list': [2.8e9, 2.81e9],
+                                                                         'mw_pulse_lengths': [10e-3, 10e-3],
+                                                                         'mw_power': -30,
+                                                                         'mw_laser_cooldown_time': 10e-6,
+                                                                         'num_meas': 100}
+
+            rc.recorder_mode_measurements[MicrowaveQMode.PIXELCLOCK_N_ISO_B] = MicrowaveQMeasurementMode.PIXELCLOCK_N_ISO_B
+
+        # feature set 128 = 'Tracking' (tracked n iso-B)
+        if features.get(MicrowaveQFeatures.TRACKING.value) is not None:
+            # to be implemented
+            pass
+        
+        # feature set 256 = 'General Pulsed Mode'
+        if features.get(MicrowaveQFeatures.GENERAL_PULSED_MODE.value) is not None:
+            # to be implemented
+            pass
+
+        # feature set 256 = 'General Pulsed Mode'
+        if features.get(MicrowaveQFeatures.GENERAL_PULSED_MODE.value) is not None:
+            # to be implemented
+            pass
+
+        # feature set 512 = 'APD to GPO'
+        if features.get(MicrowaveQFeatures.APD_TO_GPO.value) is not None:
+            # to be implemented
+            pass
+
+        # feature set 1024 = 'Parallel Streaming Channel'
+        if features.get(MicrowaveQFeatures.PARALLEL_STREAMING_CHANNEL.value) is not None:
+            # to be implemented
+            pass
+
+        # feature set 2048 = 'MicroSD Write Access'
+        if features.get(MicrowaveQFeatures.MICROSD_WRITE_ACCESS.value) is not None:
+            # is there something to implement here?  This is only an access flag 
+            pass
+
 
 
     def get_recorder_constraints(self):
@@ -1613,7 +1676,8 @@ class MicrowaveQ(Base, SlowCounterInterface, RecorderInterface):
 
         if mode not in limits.recorder_modes:
             self.log.error(f'Requested mode "{MicrowaveQMode.name(mode)}" not available in '
-                            'microwaveQ. Configuration stopped.')
+                            'microwaveQ. Check "mq._dev.get_unlocked_features()"; '
+                            'Possibly incorrect MQ feature key. Configuration stopped.')
             return -1
 
         is_ok = self._check_params_for_mode(mode, params)
