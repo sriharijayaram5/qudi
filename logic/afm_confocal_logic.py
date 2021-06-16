@@ -599,6 +599,7 @@ class AFMConfocalLogic(GenericLogic):
                 meas_dict[name]['coord0_arr'] = coord0_arr
                 meas_dict[name]['coord1_arr'] = coord1_arr
                 meas_dict[name]['corr_plane_coeff'] = [0.0, 0.0, 0.0] 
+                meas_dict[name]['image_correction'] = False
                 meas_dict[name].update(meas_params_units[param])
                 meas_dict[name]['params'] = {}
                 meas_dict[name]['display_range'] = None
@@ -1068,6 +1069,7 @@ class AFMConfocalLogic(GenericLogic):
             self._qafm_scan_array[entry]['params']['coord1_stop (m)'] = coord1_stop
             self._qafm_scan_array[entry]['params']['coord1_num (#)'] = coord1_num
             self._qafm_scan_array[entry]['params']['correction_plane_eq'] = str(self._qafm_scan_array[entry]['corr_plane_coeff'])
+            self._qafm_scan_array[entry]['params']['image_correction'] = str(self._qafm_scan_array[entry]['image_correction'])
             self._qafm_scan_array[entry]['params']['Scan speed per line (s)'] = scan_speed_per_line
             self._qafm_scan_array[entry]['params']['Idle movement speed (s)'] = time_idle_move
 
@@ -1204,6 +1206,7 @@ class AFMConfocalLogic(GenericLogic):
 
                     # update plane equation
                     self._qafm_scan_array[name]['params']['correction_plane_eq'] = str(C.tolist())
+                    self._qafm_scan_array[name]['params']['image_correction'] = str(self._qafm_scan_array[name]['image_correction'])
                     self._qafm_scan_array[name]['corr_plane_coeff'] = C.copy()
 
             # change direction
@@ -3950,6 +3953,10 @@ class AFMConfocalLogic(GenericLogic):
 
             figure_data = data[entry]['data']
 
+            corr_plane_coeff = None
+            if data[entry]['image_correction']:
+                corr_plane_coeff = data[entry]['corr_plane_coeff']
+
             # check whether figure has only zeros as data, skip this then
             if not np.any(figure_data):
                 self.log.debug(f'The data array "{entry}" contains only zeros and will be not saved.')
@@ -3968,7 +3975,7 @@ class AFMConfocalLogic(GenericLogic):
 
             #self.log.info(f'Save: {entry}')
             fig = self.draw_figure(figure_data, image_extent, axes, cbar_range,
-                                        signal_name=nice_name, signal_unit=unit)
+                                        signal_name=nice_name, signal_unit=unit, corr_plane_coeff=corr_plane_coeff )
 
             image_data = {}
             image_data[f'QAFM XY scan image of a {nice_name} measurement without axis.\n'
@@ -4024,12 +4031,25 @@ class AFMConfocalLogic(GenericLogic):
             self.increase_save_counter()
 
 
-    def draw_figure(self, image_data, image_extent, scan_axis=None, cbar_range=None,
-                    percentile_range=None, signal_name='', signal_unit=''):
+    def draw_figure(self, image_data_in, image_extent, scan_axis=None, cbar_range=None,
+                    percentile_range=None, signal_name='', signal_unit='', corr_plane_coeff=None):
 
+
+        cbar_range = None     #FIXME: as passed, this is in the display scaled values. 
+                              # this should be scaled as well.  For now, we just do it here
 
         if scan_axis is None:
             scan_axis = ['X', 'Y']
+
+        # save image data with plane correction?
+        if corr_plane_coeff is not None:
+            image_data = self.tilt_correction(data= image_data_in, 
+                                              x_axis= np.linspace(image_extent[0],image_extent[1],image_data_in.shape[1]),
+                                              y_axis= np.linspace(image_extent[2],image_extent[3],image_data_in.shape[0]),
+                                              C= corr_plane_coeff) 
+            signal_name += ', tilt corrected' 
+        else:
+            image_data = image_data_in.copy()
 
         # If no colorbar range was given, take full range of data
         if cbar_range is None:
@@ -5222,5 +5242,29 @@ class AFMConfocalLogic(GenericLogic):
         
         return mat_corr, C
 
+
+    @staticmethod
+    def tilt_correction(data, x_axis, y_axis, C):
+        """  Transforms the given measurement data by plane (tilt correction)
+             assumes all data, as passed, is in original form.  The completeness 
+             of the data matrix is determined on the spot
+
+        @param np.array([[], []]): data:  a 2-dimensional array of measurements. 
+                                          Incomplete measurements = 0.0.  
+        @param np.array([])      x_axis:  x-coordinates (= 'coord0_arr')
+        @param np.array([])      y_axis:  y-coordinates (= 'coord1_arr')
+        @param np.array([])           C:  plane coefficients (f(x,y) = C[0]*x + C[1]*y + C[2])
+
+        @return np.array([[],[]]) : data transformed by planar equation, 
+        """
+        # Note: operations are performed on copy of array..not the array itself
+
+        data_o = data.copy()
+        data_v = data_o[~np.all(data_o == 0.0, axis=1)]   # only the completed rows
+        n_row = data_v.shape[0]                           # last index achieved
+        xv, yv = np.meshgrid(x_axis, y_axis[:n_row])
+        data_o[:n_row] = data_v - (C[0]*xv + C[1]*yv + C[2])
+
+        return data_o
 
 

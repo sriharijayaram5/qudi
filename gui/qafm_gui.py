@@ -1688,7 +1688,7 @@ class ProteusQGUI(GUIBase):
 
 
     def _update_qafm_data(self):
-        """ Update all displays of the qaft scan with data from the logic. """
+        """ Update all displays of the qafm scan with data from the logic. """
 
         qafm_data = self._qafm_logic.get_qafm_data()
 
@@ -1705,8 +1705,10 @@ class ProteusQGUI(GUIBase):
                                                     x_axis= qafm_data[param_name]['coord0_arr'],
                                                     y_axis= qafm_data[param_name]['coord1_arr'],
                                                     C= qafm_data[param_name]['corr_plane_coeff'])
+                        qafm_data[param_name]['image_correction'] = True
                     else:
                         data = qafm_data[param_name]['data'].copy()
+                        qafm_data[param_name]['image_correction'] = False
                     
                     #FIXME: Colorbar is not properly displayed for big numbers (>1e9) or small numbers (<1e-3)
                     # so scaling is applied
@@ -1741,9 +1743,11 @@ class ProteusQGUI(GUIBase):
                                         x_axis= data_obj['coord0_arr'],
                                         y_axis= data_obj['coord1_arr'],
                                         C= data_obj['corr_plane_coeff'])
+            data_obj['image_correction'] = True
         else:
             # no correction applied, since data was already transformed
             data = data_obj['data'].copy()
+            data_obj['image_correction'] = False
 
         #FIXME: Colorbar is not properly displayed for big numbers (>1e9) or small numbers (<1e-3)
         # so scaling is applied
