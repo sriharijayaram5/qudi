@@ -979,7 +979,7 @@ class AFMConfocalLogic(GenericLogic):
                 if 'single' in iso_b_mode:
                     ret_val_mq = self._counter.configure_recorder(
                         mode=MicrowaveQMode.PIXELCLOCK_SINGLE_ISO_B,
-                        params={'mw_frequency_list':[self._freq1_iso_b_frequency],
+                        params={'mw_frequency':self._freq1_iso_b_frequency,
                                 'mw_power': self._iso_b_power, 
                                 'num_meas': coord0_num })
 
@@ -997,7 +997,7 @@ class AFMConfocalLogic(GenericLogic):
                         params={'mw_frequency_list': freq_list,
                                 'mw_pulse_lengths': pulse_lengths,
                                 'mw_power': self._iso_b_power,
-                                'laser_cooldown_time': self._sg_n_iso_b_laser_cooldown_length,
+                                'mw_laser_cooldown_time': self._sg_n_iso_b_laser_cooldown_length,
                                 'num_meas': coord0_num })
                     
                     # add counts2 parameter
