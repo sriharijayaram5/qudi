@@ -29,6 +29,7 @@ from math import log10, floor
 import threading
 import numpy as np
 import os
+import re
 import time
 import datetime
 import matplotlib.pyplot as plt
@@ -4739,16 +4740,30 @@ class AFMConfocalLogic(GenericLogic):
 
 
     def check_for_illegal_char(self, input_str):
-        replace_char = '_'
-        illegal = ['\\', '/', ':', '?', '*', '<', '>', '|']
+        # remove illegal characters for Windows file names/paths 
+        # (illegal filenames are a superset (41) of the illegal path names (36))
+        # this is according to windows blacklist obtained with Powershell
+        # from: https://stackoverflow.com/questions/1976007/what-characters-are-forbidden-in-windows-and-linux-directory-names/44750843#44750843
+        #
+        # PS> $enc = [system.Text.Encoding]::UTF8
+        # PS> $FileNameInvalidChars = [System.IO.Path]::GetInvalidFileNameChars()
+        # PS> $FileNameInvalidChars | foreach { $enc.GetBytes($_) } | Out-File -FilePath InvalidFileCharCodes.txt
 
-        for entry in illegal:
-            if entry in input_str:
-                self.log.warning(f'The name {input_str} has an invalid input '
-                                 f'character:  {entry} . It is replaced by _ ')
-                input_str = input_str.replace(entry, replace_char)
+        illegal = '\u0022\u003c\u003e\u007c\u0000\u0001\u0002\u0003\u0004\u0005\u0006\u0007\u0008' + \
+                  '\u0009\u000a\u000b\u000c\u000d\u000e\u000f\u0010\u0011\u0012\u0013\u0014\u0015' + \
+                  '\u0016\u0017\u0018\u0019\u001a\u001b\u001c\u001d\u001e\u001f\u003a\u002a\u003f\u005c\u002f' 
 
-        return input_str
+        output_str, _ = re.subn('['+illegal+']','_', input_str)
+        output_str = output_str.replace('\\','_')   # backslash cannot be handled by regex
+        output_str = output_str.replace('..','_')   # double dots are illegal too 
+        output_str = output_str[:-1] if output_str[-1] == '.' else output_str # can't have end of line '.'
+
+        if output_str != input_str:
+            self.log.warning(f"The name '{input_str}' had invalid characters, "
+                             f"name was modified to '{output_str}'")
+
+        return output_str
+
 
     def save_qafm_data(self, tag=None, probe_name=None, sample_name=None,
                        use_qudi_savescheme=False, root_path=None, 
@@ -4859,17 +4874,25 @@ class AFMConfocalLogic(GenericLogic):
 
         if self._sg_save_to_gwyddion:
             filename = timestamp.strftime('%Y%m%d-%H%M-%S' + '_' + tag + '_QAFM.gwy') 
+
+            # threaded
             self.start_save_to_gwyddion(dataobj=data,
                                           gwyobjtype='qafm',filename=os.path.join(save_path,filename))
+
+            # main thread, for debugging
+            #self._save_to_gwyddion(dataobj=data,gwyobjtype='qafm',filename=os.path.join(save_path,filename))
             self.increase_save_counter()
 
 
     def draw_figure(self, image_data_in, image_extent, scan_axis=None, cbar_range=None,
                     percentile_range=None, signal_name='', signal_unit='', corr_plane_coeff=None):
 
-
-        cbar_range = None     #FIXME: as passed, this is in the display scaled values. 
-                              # this should be scaled as well.  For now, we just do it here
+        # Prefix definition for SI units measurement, powers of 1000
+        prefix = { -4: 'p', -3: 'n',         # prefix to use for powers of 1000
+                   -2: r'$\mathrm{\mu}$', -1: 'm', 
+                    0: '', 1:'k', 
+                    2: 'M', 3: 'G', 
+                    4: 'T'}
 
         if scan_axis is None:
             scan_axis = ['X', 'Y']
@@ -4883,29 +4906,33 @@ class AFMConfocalLogic(GenericLogic):
             signal_name += ', tilt corrected' 
         else:
             image_data = image_data_in.copy()
+            
+        # Scale data, determine SI prefix 
+        value_range =  [np.min(image_data), np.max(image_data)]
+        n = floor(log10(max([abs(v) for v in value_range])))  // 3     # 1000^n 
+        scale_fac = 1 / 1000**n
+
+        # scale the data
+        scaled_data = image_data*scale_fac
+        c_prefix = prefix[n]    # data prefix
 
         # If no colorbar range was given, take full range of data
         if cbar_range is None:
-            cbar_range = [np.min(image_data), np.max(image_data)]
+            # no color bar range specified, determine from data min/max
+            draw_cb_range = np.array(value_range)  # scale to the plot range
 
             # discard zeros if they are exactly the lowest value
-            if np.isclose(cbar_range[0], 0.0):
-                cbar_range[0] = image_data[np.nonzero(image_data)].min()
+            if np.isclose(draw_cb_range[0], 0.0):
+                draw_cb_range[0] = image_data[np.nonzero(image_data)].min()
+        else:
+            # was already scaled
+            draw_cb_range = np.array(cbar_range)
+        
+        draw_cb_range *= scale_fac
 
-        # Scale color values using SI prefix
-        prefix = { -4: 'p', -3: 'n',         # prefix to use for powers of 1000
-                   -2: r'$\mathrm{\mu}$', -1: 'm', 
-                    0: '', 1:'k', 
-                    2: 'M', 3: 'G', 
-                    4: 'T'}
-
-        # Scale data, determine SI prefix 
-        n = floor(log10(max([abs(v) for v in cbar_range])))  // 3     # 1000^n 
-        scale_fac = 1 / 1000**n
-        draw_cb_range = np.array(cbar_range)*scale_fac
-        scaled_data = image_data*scale_fac
-        c_prefix = prefix[n]
-
+        # ------------------
+        # coordinate scaling
+        # ------------------
         # Scale axes values using SI prefix
         #prefix[-2] = 'u'  # use simple ascii for axes with 1000^-2
         image_dimension = image_extent.copy()
@@ -5836,10 +5863,10 @@ class AFMConfocalLogic(GenericLogic):
                 continue
 
             # transform data
-            scalefactor = meas['scale_fac']
+            #scalefactor = meas['scale_fac']
             coord0 = meas['coord0_arr']
             coord1 = meas['coord1_arr']
-            data_si = meas['data'] * scalefactor
+            data_si = meas['data'] #* scalefactor
             xyz_data = np.array([x for j in range(coord1.shape[0]) 
                                 for i in range(coord0.shape[0]) 
                                 for x in (coord0[i], coord1[j], data_si[j,i])]) 
