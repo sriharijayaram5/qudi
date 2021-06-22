@@ -1764,7 +1764,7 @@ class ProteusQGUI(GUIBase):
 
         # Be careful! I use here the feature that dicts are passed by reference,
         # i.e. changing this object, will change the initial data!
-        data_obj['display_range'] = cb_range
+        data_obj['display_range'] = [ c * scale_fac for c in cb_range]
 
 
     @QtCore.Slot(str)
