@@ -880,6 +880,11 @@ class MicrowaveQ(Base, SlowCounterInterface, RecorderInterface):
         mm = self.get_measurement_methods()
         self.meas_method = mm.meas_method[MicrowaveQMeasurementMode.PIXELCLOCK] 
 
+        if freq < 500e6:
+            self.log.warn(f"MicrowaveQ: _prepare_pixelclock(): freq={freq}Hz"
+                           " was below minimimum, resetting")
+
+        freq = max(500e6, freq)
         self._dev.configureCW_PIX(frequency=freq)
         
         # pixel clock is configured with zero power at start 
