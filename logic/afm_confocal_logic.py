@@ -191,7 +191,7 @@ class HealthChecker(object):
         with self._lock:
             if not self._armed: return
             self._optimizer_skip_i = self._optimizer_skip_n
-        #self.log.debug("HeathChecker: started skipping due to optimizer")
+        self.log.debug("HeathChecker: recognized optimizer start")
 
     def stop_optimizer_skip(self):
         """ The optimizer has finished, no more skipping """
@@ -199,7 +199,7 @@ class HealthChecker(object):
             if not self._armed: return
             self._optimizer_skip_i = 0
         self.update_status()
-        #self.log.debug("HeathChecker: stopped skipping")
+        self.log.debug("HeathChecker: recognized optimizer finish")
 
     def update_status(self,pos=None):
         """ updates the time since last writing of a measurement"""
@@ -243,10 +243,9 @@ class HealthChecker(object):
                 # if so, then perform MQ check
                 delta_t = now - self._last_time 
                 docheck = delta_t > max(self._dead_time_mult*self._time_delta, self._default_delta_t)
+                self.log.debug(f"HealthCheck_perform: is healthy={not docheck}")
             else:
                 delta_t = 0     # can't tell, since it hasn't been run yet
-
-        self.log.debug(f"HealthCheck_perform: is healthy={not docheck}")
 
         if docheck:
             try:
@@ -1237,6 +1236,7 @@ class AFMConfocalLogic(GenericLogic):
                 self._counter.stop_measurement()
                 self._spm.finish_scan()
 
+                self.sigOptimizeScanStarted.emit()
                 time.sleep(2)
                 self.log.debug('optimizer started.')
 
@@ -1699,6 +1699,9 @@ class AFMConfocalLogic(GenericLogic):
             if (datetime.datetime.now() - opti_counter).total_seconds() > self._optimize_period:
 
                 self.log.info('Enter optimization.')
+                self.sigOptimizeScanStarted.emit()
+                time.sleep(2)
+
                 self._counter.stop_measurement()
                 self._counter.configure_recorder(mode=MicrowaveQMode.PIXELCLOCK,
                                                  params={'mw_frequency': np.mean(freq_list),
