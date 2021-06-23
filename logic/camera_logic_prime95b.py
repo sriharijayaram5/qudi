@@ -201,6 +201,9 @@ class CameraLogic(GenericLogic):
         """ Return last acquired image """
         return self._last_image
 
+    def ready_pulsed(self, trigger_mode='Trigger Level', mode=3):
+        self._hardware.ready_pulsed(trigger_mode, mode)
+
     def set_trigger_seq(self, mode):
         """Used to set camera to edge trigger for all frames in a sequence.
         For applying the exposure mode.

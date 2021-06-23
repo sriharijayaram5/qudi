@@ -32,7 +32,8 @@
 # log files
 *.log
 *.log.*
-
+.ipynb_checkpoints
+.ipynb
 #
 Trials
 .vscode

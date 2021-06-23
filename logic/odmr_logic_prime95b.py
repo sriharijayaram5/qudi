@@ -652,7 +652,9 @@ class ODMRLogic(GenericLogic):
         self.number_of_sim_images = 1
         if self.sim:
             self.load_sim_images(duration_ms)
-        self._camera.set_trigger_seq("Edge Trigger")
+        # self._camera.set_trigger_seq("Edge Trigger")
+        # 3: Max expose mode
+        self._camera.ready_pulsed('Trigger Level', 1)
         if clock_status < 0:
             return -1
         # Try not running the counter since we dont need it
@@ -838,24 +840,27 @@ class ODMRLogic(GenericLogic):
                 # are all stopped after that.
                 error, new_counts = self._odmr_counter.count_odmr(
                     length=self.odmr_plot_x.size)
-                self._camera.start_trigger_seq(self.odmr_plot_x.size * 2)
+                self._camera.start_trigger_seq(self.odmr_plot_x.size * 2) #Only line which controls number of images and in turn number of oulses in new independence scheme
                 # self._odmr_counter.stop_tasks()
                 # The collected frames are then acquired by the logic here from cam logic Should consider memory issues
                 # for the future.
                 frames = self._camera.get_last_image().astype('float')
+                self._odmr_counter.close_odmr()
                 # The reference images from switch off time should be subtracted as below. For dummy measurements
                 # so as to not be just left with noise we can do a dummy
                 # subtraction.
-                new_counts = (frames[0::2] - frames[1::2]) / (frames[1::2] + frames[0::2]) * 100
+                new_counts = (frames[1::2] - frames[0::2]) / (frames[1::2] + frames[0::2]) * 100
                 # Remove for actual mesurements
                 # new_counts = frames[1::2] - np.full_like(frames[0::2], 1)
                 # The sweep images are added up and the new counts are taken as the mean of the image which is what
                 # ends up being plotted as odmr_plot_y
-                self.sweep_images[i,0] += frames[0::2]
-                self.sweep_images[i,1] += frames[1::2]
+                self.sweep_images[i,0] += frames[1::2]
+                self.sweep_images[i,1] += frames[0::2]
                 self.new_counts[i] = np.mean(new_counts, axis=(1, 2))
-                self.sigSIMProgress.emit((i+1)/self.number_of_sim_images*100)
-
+                if self.sim:
+                    self.sigSIMProgress.emit((i+1)/self.number_of_sim_images*100)
+                else:
+                    self.sigSIMProgress.emit(self.elapsed_time/self.run_time*100)
             if error==-1:
                 self.stopRequested = True
                 self.sigNextLine.emit()
@@ -1071,7 +1076,7 @@ class ODMRLogic(GenericLogic):
         # To enable default odmr_plot_y if no pixel is clicke and imshow is
         # just closed. Good for preview.
         self.coord = None
-        sweep_images_red = np.mean(self.sweep_images[:,0,:,:,:]-self.sweep_images[:,1,:,:,:], axis=0)
+        sweep_images_red = np.mean(self.sweep_images[:,1,:,:,:]-self.sweep_images[:,0,:,:,:], axis=0)
         if pixel_fit and np.count_nonzero(sweep_images_red) != 0:
             frames = sweep_images_red / self.elapsed_sweeps
             frames1 = np.zeros((np.shape(frames)[0], 600, 600))

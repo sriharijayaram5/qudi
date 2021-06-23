@@ -230,7 +230,7 @@ class PulseStreamer(Base, PulserInterface, ODMRCounterInterface):
         return constraints
 
     
-    def pulser_on(self, trigger=False, laser=False, n=-1, rearm=False):
+    def pulser_on(self, trigger=False, laser=False, n=-1, rearm=False, final=ps.OutputState([], 0, 0)):
         """ Switches the pulsing device on.
 
         @return int: error code (0:OK, -1:error)
@@ -242,7 +242,7 @@ class PulseStreamer(Base, PulserInterface, ODMRCounterInterface):
                 self.pulse_streamer.setTrigger(start=ps.TriggerStart.SOFTWARE)
             if rearm:
                 self.pulse_streamer.setTrigger(start=ps.TriggerStart.HARDWARE_RISING, rearm=ps.TriggerRearm.MANUAL)
-            self.pulse_streamer.stream(self._seq, n_runs = n)
+            self.pulse_streamer.stream(self._seq, n_runs = n, final = final)
             self.pulse_streamer.startNow()
             self.__current_status = 1
             return 0
@@ -790,19 +790,20 @@ class PulseStreamer(Base, PulserInterface, ODMRCounterInterface):
     def set_up_odmr_clock(self, clock_frequency, no_x):
         """Sets up an ODMR clock for the contrast ODMR measurement using Prime95B ODMR logic.
         """
-        exp_time = (1/clock_frequency)*1e9 + (25*1e6)
-        cam_patt = [(2e8, 0), (exp_time, 1), (2e8, 0), (exp_time, 1)]
-        smiq_patt = [(2e8, 0), (exp_time, 1), (2e8, 0), (exp_time, 0)]
-        switch_patt = [(2e8, 1), (exp_time, 0), (2e8, 0), (exp_time, 1)]
-        laser_patt = [(2e8, 1), (exp_time, 1), (2e8, 1), (exp_time, 1)]
+        exp_time = (1/clock_frequency)*1e9 
+        cam_patt = [(10e3, 0), (exp_time, 1),(1e3, 0)]
+        smiq_patt = [(10e3, 0), (exp_time, 1),(1e3, 0)]
+        switch_patt = [(10e3, 0), (exp_time, 1),(1e3, 0)]
+        laser_patt = [(10e3, 1), (exp_time, 1),(1e3, 1)]
+        set_patt = [(10e3, 1), (exp_time, 1),(1e3, 1)]
 
         self._seq = self.pulse_streamer.createSequence()
         self._seq.setDigital(self._cam_channel, cam_patt)
         self._seq.setDigital(self._smiq_channel, smiq_patt)
         self._seq.setDigital(self._switch_channel, switch_patt)
         self._seq.setDigital(self._laser_channel, laser_patt)
-
-        self._seq = self._seq * no_x
+        self._seq.setDigital(4, set_patt)
+        # self._seq = self._seq * no_x * 2
 
         return 0, self._seq.getDuration()/1e6
     
@@ -839,7 +840,7 @@ class PulseStreamer(Base, PulserInterface, ODMRCounterInterface):
 
         @return (bool, float[]): tuple: was there an error, the photon counts per second
         """
-        return self.pulser_on(trigger=True), 0
+        return self.pulser_on(trigger=True, n=1, final=ps.OutputState([4], 0, 0)), 0
     
     def close_odmr(self):
         """ Close the odmr and clean up afterwards.
