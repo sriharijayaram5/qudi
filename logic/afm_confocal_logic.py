@@ -373,8 +373,11 @@ class AFMConfocalLogic(GenericLogic):
     # Optimizer related signals
     sigOptimizeScanInitialized = QtCore.Signal(str)
     sigOptimizeLineScanFinished = QtCore.Signal(str) 
-    sigOptimizeScanStarted = QtCore.Signal()
     sigOptimizeScanFinished = QtCore.Signal()
+
+    # HealthChecker signals
+    sigHealthCheckStartSkip = QtCore.Signal()
+    sigHealthCheckStopSkip = QtCore.Signal()
 
     # save data signals
     sigSaveDataGwyddion = QtCore.Signal(object,object,object,object) 
@@ -1236,7 +1239,7 @@ class AFMConfocalLogic(GenericLogic):
                 self._counter.stop_measurement()
                 self._spm.finish_scan()
 
-                self.sigOptimizeScanStarted.emit()
+                self.sigHealthCheckStartSkip.emit()
                 time.sleep(2)
                 self.log.debug('optimizer started.')
 
@@ -1480,6 +1483,9 @@ class AFMConfocalLogic(GenericLogic):
             self.sigQuantiScanFinished.emit()
             return self._qafm_scan_array
 
+        # return to normal operation
+        self.sigHealthCheckStopSkip.emit()
+
         # scan_speed_per_line = 0.01  # in seconds
         scan_speed_per_line = int_time_afm
         scan_arr = self._spm.create_scan_leftright2(coord0_start, coord0_stop,
@@ -1699,7 +1705,7 @@ class AFMConfocalLogic(GenericLogic):
             if (datetime.datetime.now() - opti_counter).total_seconds() > self._optimize_period:
 
                 self.log.info('Enter optimization.')
-                self.sigOptimizeScanStarted.emit()
+                self.sigHealthCheckStartSkip.emit()
                 time.sleep(2)
 
                 self._counter.stop_measurement()
@@ -1720,7 +1726,10 @@ class AFMConfocalLogic(GenericLogic):
                             'count_frequency': esr_count_freq,
                             'num_meas': num_esr_runs } )
 
+
+                time.sleep(2)
                 opti_counter = datetime.datetime.now()
+                self.sigHealthCheckStopSkip.emit()
 
         stop_time_afm_scan = datetime.datetime.now()
         self._afm_meas_duration = self._afm_meas_duration + (stop_time_afm_scan - start_time_afm_scan).total_seconds()
@@ -1764,12 +1773,13 @@ class AFMConfocalLogic(GenericLogic):
                                  connect_update=[self.sigQuantiLineFinished,        # signals which will trigger update
                                                  self.sigNewAFMPos],
                                  connect_stop=[self.sigQuantiScanFinished],         # signal to trigger stop of health check
-                                 connect_opt_start=[self.sigOptimizeScanStarted],   # signal to note that optimizer has started 
-                                 connect_opt_stop=[self.sigOptimizeScanFinished],    # signal to note that optimizer has finished
+                                 connect_opt_start=[self.sigHealthCheckStartSkip],   # signal to note that optimizer has started 
+                                 connect_opt_stop=[self.sigHealthCheckStopSkip],    # signal to note that optimizer has finished
                                  log=self.log
                                 )
 
         self._health_check.start_timer(arm=True)
+        self.sigHealthCheckStartSkip.emit()
 
         self._worker_thread = WorkerThread(target=self.scan_area_quanti_qafm_fw_bw_by_point,
                                             args=(coord0_start, coord0_stop,
@@ -1857,6 +1867,9 @@ class AFMConfocalLogic(GenericLogic):
             self.sigQuantiScanFinished.emit()
             return self._qafm_scan_array
 
+        # return to normal operation
+        self.sigHealthCheckStopSkip.emit()
+
         # scan_speed_per_line = 0.01  # in seconds
         scan_speed_per_line = int_time_afm
 
@@ -1892,8 +1905,7 @@ class AFMConfocalLogic(GenericLogic):
                                                                   coord1_stop, 
                                                                   coord1_num)
 
-
-            # check input values
+        # check input values
         ret_val |= self._spm.check_spm_scan_params_by_plane(plane, coord0_start, coord0_stop,
                                                             coord1_start, coord1_stop)
         if ret_val < 1:
@@ -2079,8 +2091,9 @@ class AFMConfocalLogic(GenericLogic):
             # perform optimization always after line finishes
             if (datetime.datetime.now() - opti_counter).total_seconds() > self._optimize_period:
 
-
                 self.log.info('Enter optimization.')
+                self.sigHealthCheckStartSkip.emit()
+                time.sleep(2)
 
                 self._counter.configure_recorder(mode=MicrowaveQMode.PIXELCLOCK,
                                                  params={'mw_frequency': self._freq1_iso_b_frequency,
@@ -2099,9 +2112,9 @@ class AFMConfocalLogic(GenericLogic):
                             'mw_power': mw_power,
                             'count_frequency': esr_count_freq,
                             'num_meas': num_esr_runs } )
-                time.sleep(1)
+                time.sleep(2)
                 opti_counter = datetime.datetime.now()
-
+                self.sigHealthCheckStopSkip.emit()
 
             self.log.info('Pass optimization.')
 
@@ -2148,12 +2161,13 @@ class AFMConfocalLogic(GenericLogic):
                                  connect_update=[self.sigQuantiLineFinished,        # signals which will trigger update
                                                  self.sigNewAFMPos],
                                  connect_stop=[self.sigQuantiScanFinished],         # signal to trigger stop of health check
-                                 connect_opt_start=[self.sigOptimizeScanStarted],   # signal to note that optimizer has started 
-                                 connect_opt_stop=[self.sigOptimizeScanFinished],    # signal to note that optimizer has finished
+                                 connect_opt_start=[self.sigHealthCheckStartSkip],   # signal to note that optimizer has started 
+                                 connect_opt_stop=[self.sigHealthCheckStopSkip],    # signal to note that optimizer has finished
                                  log=self.log
                                 )
 
         self._health_check.start_timer(arm=True)
+        self.sigHealthCheckStartSkip.emit()
 
         self._worker_thread = WorkerThread(target=self.scan_area_quanti_qafm_fw_by_point,
                                             args=(coord0_start, coord0_stop,
@@ -2729,7 +2743,6 @@ class AFMConfocalLogic(GenericLogic):
                          z_start, z_stop, res_z, int_time_xy, int_time_z):
         """ Optimize position for x, y and z by going to maximal value"""
 
-        self.sigOptimizeScanStarted.emit()
         self._opt_val[0], self._opt_val[1], self._opt_val[3] = self.get_optimizer_target()
 
         # If the optimizer is called by itself, the the module state needs to be
