@@ -264,7 +264,7 @@ class MicrowaveQ(Base, SlowCounterInterface, RecorderInterface):
     _threaded = True 
     #_threaded = False  # for debugging 
 
-    _mq_state = MicrowaveQStateMachine(enforce=True)
+    _mq_state = MicrowaveQStateMachine(enforce=False)
     _mq_state.set_allowed_transitions(
         transitions={RecorderState.DISCONNECTED: [RecorderState.LOCKED],
                      RecorderState.LOCKED: [RecorderState.UNLOCKED, RecorderState.DISCONNECTED],

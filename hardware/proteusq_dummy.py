@@ -102,6 +102,9 @@ class ProteusQDummy(Base):
         return copy.copy(self.MEAS_PARAMS)
 
 
+    # ----------------------
+    #  Fake SPM methods
+    # ----------------------
     def get_sample_scanner_pos(self, axis_label_list=['X1', 'Y1', 'Z1']):
         """ Get the sample scanner position. 
 
@@ -137,12 +140,13 @@ class ProteusQDummy(Base):
  
         return sc_pos
 
-    def prepare_pixelclock(self):
-        pass
+    # -----------------------
+    # Fake MicrowaveQ methods
+    # -----------------------
+
+    def configure_recorder(self, mode, params):
+        return 0 
 
     def check_interface_version(self,pause=None):
         pass
-
-
-
 
