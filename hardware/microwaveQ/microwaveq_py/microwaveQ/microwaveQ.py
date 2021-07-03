@@ -355,19 +355,22 @@ class MicrowaveQ(dev.Device):
             self.logger.error("Parameters pulseLengths and frequencies size mismatch.")
             return
 
-    def configureTrackISO(self, RFfrequency, cutOffFreq, frequencies, pulseLengths, deltaFreq, nDelta,  laserCooldownLength=1e-6, trackingMode=0):
+    def configureTrackISO(self, RFfrequency, cutOffFreq, frequencies, ncoGains, pulseLengths, deltaFreq, nDelta,  
+                          laserCooldownLength=1e-6, trackingMode=0, accumulationMode=1):
         """Configure ISO Tracking measurement
         Keyword arguments:
             RFfrequency           -- Main RF frequency in Hz,
             cutOffFreq            -- Cut off frequency for tracking algorithm
             frequencies           -- Starting frequencies for tracking algoritm (these frequencies in combination with RFfrequency determines NCO words)
+            ncoGains              -- list of NCO gains for different submeasurements - usable range [0.0, 1.0]
             pulseLengths          -- list of lengths of the RF pulses in seconds (rounded up DAC cycle)
             deltaFreq             -- Frequency step for tracking algorithm
             nDelta                -- Nx delta step if tracking algoritm is out of fine range
             laserCooldownLength   -- length of the delay after laser excitation (default = 1e-6)
             trackingMode          -- 3 modes : 0 = sync to pixel clock, 1 = async with acc values, 2 = async with buff values
+            accumulationMode      -- accumulation mode for submeasurements. Default is accumulate results through measurements, but can be disabled
         """
-        if (len(pulseLengths) == 3) and (len(frequencies) == 3):
+        if (len(pulseLengths) == 3) and (len(frequencies) == 3) and (len(ncoGains) == 3):
             ncoWords      = [freq - RFfrequency for freq in frequencies]
             ncoStarting   = ncoWords[1]
             ncoCutOff     = cutOffFreq - RFfrequency
@@ -377,7 +380,9 @@ class MicrowaveQ(dev.Device):
                frequency           = RFfrequency,
                pulseLengths        = pulseLengths,
                ncoWords            = ncoWords,
-               laserCooldownLength = laserCooldownLength
+               ncoGains            = ncoGains,
+               laserCooldownLength = laserCooldownLength,
+               accumulationMode    = accumulationMode 
             )
 
             self.logger.info(f"Configuring Tracking: Delta Frequency {deltaFreq}, N-Delta frequency {nDelta}, Cutoff Frequency {cutOffFreq}")
