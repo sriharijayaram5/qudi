@@ -33,11 +33,13 @@ class MqConn:
     def __initAxiConn(self):
         self.axiConn = AxiStreamPacketConnection(self.rssiConfig)
         self.srpConn = SRPv3Connection(self.axiConn, 0, self.__onSrpPacketRecvd)
-        self.axiConn.setChannelCallback(1, self.streamCallback)
+        self.axiConn.setChannelCallback(1, self.streamCallback0)
+        self.axiConn.setChannelCallback(2, self.streamCallback1)
 
-    def __init__(self, rssiConfig, streamCallback):
+    def __init__(self, rssiConfig, streamCallback0, streamCallback1):
         self.rssiConfig = rssiConfig
-        self.streamCallback = streamCallback
+        self.streamCallback0 = streamCallback0
+        self.streamCallback1 = streamCallback1
 
         self.__cv = threading.Condition()
 
