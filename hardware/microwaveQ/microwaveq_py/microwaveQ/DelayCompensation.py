@@ -18,17 +18,19 @@ class DelayCompensation(dev.Device):
         super().__init__(com,addr)
         self.rfDelay        = dev.Field( self.com, self.addr + 0x00, 0, 8)
         self.lsDelay        = dev.Field( self.com, self.addr + 0x08, 0, 8)
-        self.ncoDelay       = dev.Field( self.com, self.addr + 0x0C, 0, 8)
         self.cntDelay0      = dev.Field( self.com, self.addr + 0x10, 0, 8)
         self.cntDelay1      = dev.Field( self.com, self.addr + 0x18, 0, 8)
+        self.ncoDelay       = dev.Field( self.com, self.addr + 0x100, 0, 8)
+        self.gainDelay      = dev.Field( self.com, self.addr + 0x200, 0, 8)
 
         self.rfLatency      = dev.Field( self.com, self.addr + 0x04, 0, 8)
 
     def configure(self):
-        """Configures the delays to default values."""
+        """ configures the delays to default values """
         
         self.rfDelay.set(0)
-        self.ncoDelay.set(8)
+        self.ncoDelay.set(10)
+        self.gainDelay.set(11)
         self.lsDelay.set(81)
         self.cntDelay0.set(88)
         self.cntDelay1.set(88)

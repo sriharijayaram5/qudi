@@ -3,6 +3,7 @@ import logging
 import time
 import re
 from math import floor, ceil
+import math
 import copy
 import struct
 import os
@@ -12,6 +13,9 @@ from scipy import interpolate
 import socket
 
 # subcomponents
+from . import MicroSd
+from . import ParStreamUnit
+from . import DDR4Control
 from . import TrackUnit
 from . import SpiController
 from . import RFController
@@ -46,6 +50,10 @@ class MicrowaveQ(dev.Device):
         apdPulseSim    -- APD pulse simulator
         resultFilter   -- Measurement filer
         gpio           -- GPIO module
+        track          -- ISO tracking module
+        ddr4Ctrl       -- DDR4 and DMA controller
+        parStreamUnit  -- Parallel streaming module
+        microSd        -- MicroSD card controller
     """
     
     dev_id_trf = 0
@@ -57,13 +65,14 @@ class MicrowaveQ(dev.Device):
     __cur_power = 0.0   # in dBm
     __cur_freq = 2.87e9 # in Hz
 
-    def __init__(self, ip, local_port, streamCb, cu_clk_freq, conf_path=""):
+    def __init__(self, ip, local_port, streamCb0, streamCb1, cu_clk_freq, conf_path=""):
         """MicrowaveQ top level module
         
         Keyword arguments:
             ip          -- microwaveQ FPGA ip (192.168.2.10)
             local_port  -- microwaveQ local port 55555
-            streamCb    -- received measurement data callback
+            streamCb0    -- received measurement data callback
+            streamCb1    -- received measurement data callback for parallel stremaing channel
             cu_clk_freq -- Counting clock frequency in Hz
             conf_path   -- configuration files path
         """
@@ -75,10 +84,12 @@ class MicrowaveQ(dev.Device):
                           f'cannot be established.')
 
 
-        com     = FPGA.FPGA(ip, local_port, streamCb, cu_clk_freq)
+        com     = FPGA.FPGA(ip, local_port, streamCb0, streamCb1, cu_clk_freq)
         super().__init__(com, 0x10000000)
         
-        self.streamCb = streamCb
+        self.streamCb0 = streamCb0
+        self.streamCb1 = streamCb1
+
         if conf_path == "":
             self._conf_path = os.path.abspath(os.path.dirname(__file__)) + "/files/"
         else:
@@ -101,6 +112,11 @@ class MicrowaveQ(dev.Device):
         self.resultFilter   = RSF.ResultStreamFilter(self.com,      0x10D00000)
         self.gpio           = Gpio.Gpio(self.com,                   0x10E00000)
         self.track          = TrackUnit.TrackUnit(self.com,         0x10F00000)
+
+        self.ddr4Ctrl       = DDR4Control.DDR4Control(self.com,     0x20000000)
+        self.parStreamUnit  = ParStreamUnit.ParStreamUnit(self.com, 0x20100000)
+
+        self.microSd        = MicroSd.MicroSd(self.com,             0x30000000)
 
         self._default_trf_regs = list()
         # internal variables
@@ -149,6 +165,7 @@ class MicrowaveQ(dev.Device):
         self.com.conn.disconnect()
         time.sleep(0.1)
         self.com.conn.closeAndJoinThreads()
+
         self._initialized = False
 
     def _seqResetJesdCore(self, file_name=""):
@@ -225,6 +242,7 @@ class MicrowaveQ(dev.Device):
         """
         return self.com.read(addr,length)
 
+
 # ==============================================================================
 #           High level function wrapper of the microwaveQ object
 # ==============================================================================
@@ -293,7 +311,6 @@ class MicrowaveQ(dev.Device):
 
     def configureRABI(self, frequency, countingWindowLength, laserExcitationLength, rfLaserDelayLength, pulseLengths, laserCooldownLength=0):
         """Configure RABI measurement
-
         Keyword arguments:
             frequency             -- frequency in Hz
             countingWindowLength  -- length of counting window in seconds (rounded up to counting cycle, greater or equal to 2 counting cycles)
@@ -313,13 +330,15 @@ class MicrowaveQ(dev.Device):
         self.ctrl._setLaserCooldownLength(laserCooldownLength)
         self.ctrl.countingMode.set('RABI')
 
-    def configureISO(self, frequency, pulseLengths, ncoWords, laserCooldownLength=0):
+    def configureISO(self, frequency, pulseLengths, ncoWords, ncoGains, laserCooldownLength=1e-6, accumulationMode=1):
         """Configure ISO measurement
         Keyword arguments:
             frequency             -- frequency in Hz
             pulseLengths          -- list of lengths of the RF pulses in seconds (rounded up DAC cycle)
-            laserCooldownLength      -- length of the delay after laser excitation (default = 0)
-            ncoWords              -- list of NCO phases for different submeasurements
+            laserCooldownLength   -- length of the delay after laser excitation (default = 1e-6)
+            ncoWords              -- list of NCO frequencies for different submeasurements - usable range [-250,250]MHz
+            ncoGains              -- list of NCO gains for different submeasurements - usable range [0.0, 1.0]
+            accumulationMode      -- accumulation mode for submeasurements. Default is accumulate results through measurements, but can be disabled
         """
         if len(pulseLengths) == len(ncoWords):
             self.logger.info(f"Configuring ISO: frequency {frequency}, pulseLengths {pulseLengths}, ncoWords {ncoWords}")
@@ -328,22 +347,25 @@ class MicrowaveQ(dev.Device):
             self.setFrequency(frequency)
             self.ctrl._setPulseLength(pulseLengths)
             self.ctrl._setNcoWord(ncoWords)
+            self.ctrl._setNcoGain(ncoGains)
             self.ctrl._setLaserCooldownLength(laserCooldownLength)
             self.ctrl.countingMode.set('ISO')
+            self.ctrl.accumulationMode.set(accumulationMode)
         else:
             self.logger.error("Parameters pulseLengths and frequencies size mismatch.")
             return
 
-    def configureTrackISO(self, RFfrequency, cutOffFreq, frequencies, pulseLengths, deltaFreq, nDelta,  laserCooldownLength=0):
+    def configureTrackISO(self, RFfrequency, cutOffFreq, frequencies, pulseLengths, deltaFreq, nDelta,  laserCooldownLength=1e-6, trackingMode=0):
         """Configure ISO Tracking measurement
         Keyword arguments:
             RFfrequency           -- Main RF frequency in Hz,
             cutOffFreq            -- Cut off frequency for tracking algorithm
-              frequencies           -- Starting frequencies for tracking algoritm (these frequencies in combination with RFfrequency determines NCO words)
+            frequencies           -- Starting frequencies for tracking algoritm (these frequencies in combination with RFfrequency determines NCO words)
             pulseLengths          -- list of lengths of the RF pulses in seconds (rounded up DAC cycle)
-            deltaFreq               -- Frequency step for tracking algorithm
-            nDelta                   -- Nx delta step if tracking algoritm is out of fine range
-            laserCooldownLength      -- length of the delay after laser excitation (default = 0)
+            deltaFreq             -- Frequency step for tracking algorithm
+            nDelta                -- Nx delta step if tracking algoritm is out of fine range
+            laserCooldownLength   -- length of the delay after laser excitation (default = 1e-6)
+            trackingMode          -- 3 modes : 0 = sync to pixel clock, 1 = async with acc values, 2 = async with buff values
         """
         if (len(pulseLengths) == 3) and (len(frequencies) == 3):
             ncoWords      = [freq - RFfrequency for freq in frequencies]
@@ -358,12 +380,11 @@ class MicrowaveQ(dev.Device):
                laserCooldownLength = laserCooldownLength
             )
 
-            self.ctrl.accumulationMode.set(1)
-
             self.logger.info(f"Configuring Tracking: Delta Frequency {deltaFreq}, N-Delta frequency {nDelta}, Cutoff Frequency {cutOffFreq}")
 
             self.track.rst.set(1)
             self.track.rst.set(0)
+            self.track.mode.set(trackingMode)
             self.track.trackSendEn.set(1)
             self.track.NdeltaFreq.set(nDelta)
             self.track._setDeltaFreq(deltaFreq)
@@ -377,7 +398,6 @@ class MicrowaveQ(dev.Device):
 
     def configurePULSED_ESR(self, frequencies, countingWindowLength, laserExcitationLength, rfLaserDelayLength, pulseLength, laserCooldownLength=0):
         """Configure RABI measurement
-
         Keyword arguments:
             frequencies           -- list of frequencies in Hz
             countingWindowLength  -- length of counting window in seconds (rounded up to counting cycle, greater or equal to 2 counting cycles)
@@ -397,6 +417,100 @@ class MicrowaveQ(dev.Device):
         self.ctrl._setPulseLength([pulseLength])
         self.ctrl._setLaserCooldownLength(laserCooldownLength)
         self.ctrl.countingMode.set('PULSED_ESR')
+
+    def setGenSeqRegs(self, genSeqRegs, offset=0, updateSeqSizeReg = 1):
+        baseAddr = 0x80000000 + 4*4*offset;
+
+        if (len(genSeqRegs)%4 == 0):
+            [hex(genSeqRegs[i]) for i in range(len(genSeqRegs))]
+            [self.write(baseAddr | i*4,genSeqRegs[i]) for i in range(len(genSeqRegs))]
+
+            if updateSeqSizeReg == 1:
+                self.ddr4Ctrl.size.set((len(genSeqRegs)/4))
+        else:
+            self.logger.error("Wrong number of General Seqeunce registers to be writen")
+            return
+
+    def setGenSeqCmds(self, genSeqCmds, offset=0, updateSeqSizeReg = 1):
+        """Setting/Writing the General sequence commands to DDR register space
+
+        Keyword arguments:
+            genSeqCmds -- array of commands to be written to memory. Each command must have parameters:
+                RF_EN   -- enable RF state
+                RF_PHASE -- RF output phase
+                RF_GAIN -- RF output gain
+                LS_EN -- laser/trigger output state
+                CU_EN -- Counting state
+                RF_RECONFIG_EN -- RF frequency reconfig flag, work on rising edge (must be cleared before next reconfig)
+                GPOS - 4bits for state of mq GPOs
+                RF_FREQ_SEL -- frequency selection for reconfiguration if RF reconfig is set
+                DURATION -- duration of this command in clock cycles (cca 6.5ns)
+            offset -- offset to writing commands to memory
+            updateSeqSizeReg -- flag for automatically configuring ddr dma read module size : default is on
+        """
+        baseAddr = 0x80000000 + 4*4*offset;
+
+        regs = {}
+        for i in range(len(genSeqCmds)):
+            phase = genSeqCmds[i]['RF_PHASE']
+            gain  = genSeqCmds[i]['RF_GAIN']
+
+            I=math.cos(phase*math.pi/180)
+            Q=math.sin(phase*math.pi/180)
+
+            valueI = round((2**15-1)*gain*I) & (2**16-1)
+            valueQ = round((2**15-1)*gain*Q) & (2**16-1)
+            value  = valueQ | valueI << 16
+
+            regs[0+i*4] = genSeqCmds[i]['RF_EN'] << 0 
+            regs[0+i*4] = regs[0+i*4] | genSeqCmds[i]['LS_EN'] << 1 
+            regs[0+i*4] = regs[0+i*4] | genSeqCmds[i]['CU_EN'] << 2 
+            regs[0+i*4] = regs[0+i*4] | genSeqCmds[i]['RF_RECONFIG_EN'] << 3
+            regs[0+i*4] = regs[0+i*4] | genSeqCmds[i]['GPOS'] << 4
+            regs[0+i*4] = regs[0+i*4] | genSeqCmds[i]['RF_FREQ_SEL'] << 16
+            regs[1+i*4] = value
+            regs[2+i*4] = 0
+            regs[3+i*4] = self.com.convSecToCuCyc(genSeqCmds[i]['DURATION'])
+
+        [hex(regs[i]) for i in range(len(regs))]
+        [self.write(baseAddr | i*4,regs[i]) for i in range(len(regs))]
+
+        if updateSeqSizeReg == 1:
+            self.ddr4Ctrl.size.set(math.ceil(len(genSeqCmds)/2))
+
+    def getGenSeqCmds(self, offset = 0, length = 1):
+        """Gets the current General sequence commands from DDR register space
+
+        Keyword arguments:
+            offset -- offset to reading commands from memory
+            length -- the number of sequence commands to be read from memory
+        """
+        baseAddr = 0x80000000 + 4*4*offset;
+
+        regs = {}
+        regs =self.read(baseAddr,4*length)
+
+        genSeqCmds = dict()
+        for i in range(length):
+            testI = self.track.twos_comp(self._readBits(regs[1+i*4], 16, 32),16)/int(round((2**15-1)))
+            testQ = self.track.twos_comp(self._readBits(regs[1+i*4], 0, 15),16)/int(round((2**15-1)))
+
+            gainRe = float("{:.3g}".format(math.sqrt(testI**2 + testQ**2)))
+            phaseRe = float("{:.3g}".format(math.atan2(testQ,testI)/math.pi*180))
+
+            genSeqCmds[i] = {
+                "RF_EN": self._readBits(regs[0+i*4], 0, 1),
+                "LS_EN": self._readBits(regs[0+i*4], 1, 2),
+                "CU_EN": self._readBits(regs[0+i*4], 2, 3),
+                "RF_RECONFIG_EN": self._readBits(regs[0+i*4], 3, 4),
+                "GPOS": self._readBits(regs[0+i*4], 4, 8),
+                "RF_FREQ_SEL": self._readBits(regs[0+i*4], 16, 32),
+                "RF_GAIN": gainRe,
+                "RF_PHASE": phaseRe,
+                "DURATION": float("{:.3g}".format(self.com.convCuCycToSec(regs[3+i*4]))),
+                };
+
+        return genSeqCmds
 
     def setFrequency(self, frequency):
         """Sets the current RF frequency
@@ -465,7 +579,6 @@ class MicrowaveQ(dev.Device):
         Keyword arguments:
             values -- numpy.array(2,n)  -- column 0: frequency, column 1: linear power (V)
         """
-
         self.logger.info("Configuring gain compensation")
         if file == "":
             file=self._conf_path+"gainCompensationTable.tsv"
@@ -820,6 +933,11 @@ class MicrowaveQ(dev.Device):
         features[16] = 'Pixel clock'
         features[32] = 'Ext Triggered Measurement'
         features[64] = 'ISO'
+        features[128] = 'Tracking'
+        features[256] = 'General Pulsed Mode'
+        features[512] = 'APD to GPO'
+        features[1024] = 'Parallel Streaming Channel'
+        features[2048] = 'MicroSD Write Access'
 
         return features
 

@@ -17,7 +17,7 @@ class FPGA:
 
     RETRY_COUNT = 10
 
-    def __init__(self, ip, local_port, streamCb, cu_clk_freq):
+    def __init__(self, ip, local_port, streamCb0, streamCb1, cu_clk_freq):
         self.__ip = ip
         self.__axi_clk_freq = 125e6
         self.__cu_clk_freq = cu_clk_freq
@@ -33,7 +33,7 @@ class FPGA:
         except RssiConfig.VerificationError as e:
             logging.error('Error parsing config: {}'.format(e.desc))
             return
-        self.conn = MqConn(rssiConfig, streamCb)
+        self.conn = MqConn(rssiConfig, streamCb0, streamCb1)
         self.conn.connectAndStartCallbackThread(ip, local_port)
         self.conn.waitConnected()
 
@@ -79,6 +79,9 @@ class FPGA:
 
     def convSecToCuCyc(self, arg, convMeth = math.ceil):
         return convMeth(arg * self.__cu_clk_freq)   
+
+    def convCuCycToSec(self, arg):
+        return (arg / self.__cu_clk_freq)   
 
     def convSecToDacCyc(self, arg, convMeth = math.ceil):
         return convMeth(arg * self.__cu_clk_freq * self.__cu_dac_mult)  

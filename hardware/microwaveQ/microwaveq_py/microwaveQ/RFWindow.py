@@ -29,7 +29,7 @@ class RFWindow(dev.Device):
         self.rise               = Transition(self.com, self.addr + 0x1000)
         self.fall               = Transition(self.com, self.addr + 0x1000)
 
-    def configure(self, rise=[], high=1.0, fall=[]):
+    def configure(self,rise = [],high = 1.0,fall = []):
         """configures RF window shape
         Keyword arguments:
             rise -- rise waveform list range [0:1] (default = empty list) 

@@ -22,16 +22,24 @@ class ControlUnit(dev.Device):
             currentSubmeasurement   -- currently executing sub-measurement
             currentMeasurement      -- currently executing measurement
             pulseLength             -- table of pulse lengths in DAC cycles 
+            apd2GpoAll              -- apd to all gpos enable           
+            apd2Gpo0                -- apd to gpo 0 enable         
+            apd2Gpo1                -- apd to gpo 1 enable         
+            apd2Gpo2                -- apd to gpo 2 enable         
+            apd2Gpo3                -- apd to gpo 3 enable   
+            generalPulseModeEn      -- general pulsed mode enable
+            ncoWord                 -- nco words array     
+            ncoGain                 -- nco gains array
     """
 
     def __init__(self,com,addr):
         super().__init__(com,addr)
     
         self.en                             = dev.Field( self.com, self.addr + 0x00000, 0,  1)
+
         self.countingMode                   = dev.Field( self.com, self.addr + 0x00004, 0,  3, {0:'None', 1:'CW', 2:'CW_ESR', 3:'RABI', 4:'PULSED_ESR', 5:'CW_PIX', 6:'ISO'})
         self.measurementRunTrigger          = dev.Field( self.com, self.addr + 0x00004, 3,  1, {0:'Manual', 1:'Triggered'})
         self.accumulationMode               = dev.Field( self.com, self.addr + 0x00004, 4,  1, {0:'Disabled', 1:'Enabled'})
-        self.ncoWord                        = dev.Memory(self.com, self.addr + 0x20000, 32)
 
         self.countingWindowLength           = dev.Field( self.com, self.addr + 0x00008, 0, 28)
         self.rfLaserDelayLength             = dev.Field( self.com, self.addr + 0x0000c, 0, 28)
@@ -49,9 +57,24 @@ class ControlUnit(dev.Device):
         self.currentSubmeasurement          = dev.FieldR(self.com, self.addr + 0x0004c, 0, 32)
         self.currentMeasurement             = dev.FieldR(self.com, self.addr + 0x00050, 0, 32)
         self.laserCooldownLength            = dev.Field( self.com, self.addr + 0x00060, 0, 28)
-        self.pulseLength                    = dev.Memory(self.com, self.addr + 0x10000, 32)
 
-    def start(self, len=0x0):
+        self.apd2GpoAll                     = dev.Field( self.com, self.addr + 0x00070, 0, 4)
+        self.apd2Gpo0                       = dev.Field( self.com, self.addr + 0x00070, 0, 1)
+        self.apd2Gpo1                       = dev.Field( self.com, self.addr + 0x00070, 1, 1)
+        self.apd2Gpo2                       = dev.Field( self.com, self.addr + 0x00070, 2, 1)
+        self.apd2Gpo3                       = dev.Field( self.com, self.addr + 0x00070, 3, 1)
+
+        self.sdInitDone                     = dev.FieldR( self.com, self.addr + 0x00080, 0, 1)
+        self.sdCardDet                      = dev.FieldR( self.com, self.addr + 0x00084, 0, 1)
+
+        self.generalPulseModeEn             = dev.Field( self.com, self.addr + 0x00100, 0, 1)
+        self.generalPulseState              = dev.FieldR(self.com, self.addr + 0x00140, 0, 4)
+
+        self.pulseLength                    = dev.Memory(self.com, self.addr + 0x10000, 32)
+        self.ncoWord                        = dev.Memory(self.com, self.addr + 0x20000, 32)
+        self.ncoGain                        = dev.Memory(self.com, self.addr + 0x30000, 32)
+
+    def start(self,len=0x0):
         """Arm/Start measurement run
 
         Keyword arguments:
@@ -65,11 +88,18 @@ class ControlUnit(dev.Device):
         self.en.set(0)
         self.en.set(1)
 
-    def stop(self):
-        """Stop measurement run (after competition of the current measurement)."""
-        self.en.set(0)
+    def startGenPulseMode(self):
+        """Arm/Start measurement run """
+        self.generalPulseModeEn.set(0)
+        self.generalPulseModeEn.set(1)
 
-    def unlock(self, key):
+    def stop(self):
+        """Stop measurement run (after competition of the current measurement)
+        """
+        self.en.set(0)
+        self.generalPulseModeEn.set(0)
+
+    def unlock(self,key):
         """Unlocks measurement modes.
         
         Arguments:
@@ -88,13 +118,49 @@ class ControlUnit(dev.Device):
         return self._features.get()
 
     def isBusy(self):
-        """Returns the state of the measurement run.
+        """Returns the state of the measurement run
 
         Returns:
             True - if measurement running
             False - otherwise
         """
         if self.countingState.get() == 1:
+            return False
+        else:
+            return True
+
+    def isSdCardDet(self):
+        """Returns the state of the sd card detection
+
+        Returns:
+            True - not detected
+            False - detected
+        """
+        if self.sdCardDet.get() == 1:
+            return False
+        else:
+            return True
+
+    def isSdInitDone(self):
+        """Returns the state of the sd card initiaization status
+
+        Returns:
+            True - micro SD init done successfully
+            False - micro SD not initialized
+        """
+        if self.sdInitDone.get() == 1:
+            return True
+        else:
+            return False
+
+    def isGenPulsedSeqBusy(self):
+        """Returns the state of the measurement run
+
+        Returns:
+            True - if measurement running
+            False - otherwise
+        """
+        if self.generalPulseState.get() == 1:
             return False
         else:
             return True
@@ -125,14 +191,13 @@ class ControlUnit(dev.Device):
         self.logger.info(f"Setting the pulse lengths {iList}")
         self.pulseLength.write(iList)
 
-
     def _setNcoWord(self, words):
         iList = [(round(-freq/153.6e6 * 2**28) + 2**30) for freq in words]
         self.logger.info(f"Setting the NCO words {iList}")
         self.ncoWord.write(iList)
 
-
-
-
-
+    def _setNcoGain(self, gains):
+        iList = [round((2**15-1)*gain) for gain in gains]
+        self.logger.info(f"Setting the NCO gains {iList}")
+        self.ncoGain.write(iList)
 

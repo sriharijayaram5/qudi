@@ -3,7 +3,6 @@ from . import Device as dev
 
 class ResultStreamFilter(dev.Device):
     """RF pulse generation module
-
         Attributes: 
             period -- Minimum pause between measurement result transmissions in counting unit cycles. 
     """
