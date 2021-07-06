@@ -925,24 +925,38 @@ class MicrowaveQ(dev.Device):
 
     def get_available_features(self):
         """ Obtain all available feature bits. 
+        Note: this is hardcoded against the microwaveq-fpga repo code versions
         Returns:
             dictionary with keys being the bits and items being the associated 
             mode.
         """
+        fpga_version = 0
+        if self.is_unlocked():
+            fpga_version = self.sys.fpgaVersion.get()
 
         features = {}
-        features[1] = 'Continuous Counting'
-        features[2] = 'Continuous ESR'
-        features[4] = 'Rabi'
-        features[8] = 'Pulsed ESR'
-        features[16] = 'Pixel clock'
-        features[32] = 'Ext Triggered Measurement'
-        features[64] = 'ISO'
-        features[128] = 'Tracking'
-        features[256] = 'General Pulsed Mode'
-        features[512] = 'APD to GPO'
-        features[1024] = 'Parallel Streaming Channel'
-        features[2048] = 'MicroSD Write Access'
+
+        if fpga_version > 0:
+            features[1] = 'Continuous Counting'
+            features[2] = 'Continuous ESR'
+            features[4] = 'Rabi'
+            features[8] = 'Pulsed ESR'
+            features[16] = 'Pixel clock'
+            features[32] = 'Ext Triggered Measurement'
+
+        if fpga_version >= 9: 
+            features[64] = 'ISO'
+
+        if fpga_version >= 10:
+            features[128] = 'Tracking'
+            features[256] = 'General Pulsed Mode'
+
+        if fpga_version >= 11:
+            features[512] = 'APD to GPO'
+            features[1024] = 'Parallel Streaming Channel'
+
+        if fpga_version >= 13:
+            features[2048] = 'MicroSD Write Access'
 
         return features
 

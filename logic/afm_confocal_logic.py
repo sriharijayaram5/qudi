@@ -20,7 +20,7 @@ top-level directory of this distribution and at <https://github.com/Ulm-IQO/qudi
 """
 
 
-from scipy.sparse import coo
+#from scipy.sparse import coo
 #from hardware.microwaveQ.microwaveq import MicrowaveQ
 from hardware.microwaveQ.microwaveq import MicrowaveQMode
 from core.module import Connector, StatusVar, ConfigOption
