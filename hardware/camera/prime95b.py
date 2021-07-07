@@ -344,8 +344,13 @@ class Prime95B(Base, CameraInterface, FastCounterInterface):
     def ready_pulsed(self, trigger_mode='Trigger Level', mode=3):
         self.stop_acquisition()
         self.set_exposure_mode(trigger_mode)
-        # mode = 1 #EXPOSE_OUT_ALL_ROWS
-        # mode = 3 #MAX
+        # EXPOSE_OUT_FIRST_ROW =  0
+        # EXPOSE_OUT_ALL_ROWS = EXPOSE_OUT_FIRST_ROW + 1
+        # EXPOSE_OUT_ANY_ROW = EXPOSE_OUT_ALL_ROWS + 1
+        # EXPOSE_OUT_ROLLING_SHUTTER = EXPOSE_OUT_ANY_ROW + 1
+        # EXPOSE_OUT_LINE_TRIGGER = EXPOSE_OUT_ROLLING_SHUTTER + 1
+        # EXPOSE_OUT_GLOBAL_SHUTTER = EXPOSE_OUT_LINE_TRIGGER + 1
+        # MAX_EXPOSE_OUT_MODE = EXPOSE_OUT_GLOBAL_SHUTTER + 1
         self.cam.exp_out_mode = mode
         # self.cam.clear_mode = 'Pre-Exposure' #Apparently Prime cameras can only use clear pre sequence. Other modes in constants.py are for other cameras.
         self.cam.clear_mode = 'Pre-Sequence'

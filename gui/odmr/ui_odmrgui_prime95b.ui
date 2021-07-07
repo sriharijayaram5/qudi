@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1079</width>
+    <width>1108</width>
     <height>583</height>
    </rect>
   </property>
@@ -213,7 +213,7 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>1079</width>
+     <width>1108</width>
      <height>21</height>
     </rect>
    </property>
@@ -808,6 +808,13 @@
          </property>
          <property name="text">
           <string>Fit</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QPushButton" name="do_GPUFit_PushButton">
+         <property name="text">
+          <string>GPUFit</string>
          </property>
         </widget>
        </item>

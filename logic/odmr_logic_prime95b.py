@@ -96,6 +96,7 @@ class ODMRLogic(GenericLogic):
     sigOutputStateUpdated = QtCore.Signal(str, bool)
     sigOdmrPlotsUpdated = QtCore.Signal(np.ndarray, np.ndarray, np.ndarray)
     sigOdmrFitUpdated = QtCore.Signal(np.ndarray, np.ndarray, dict, str)
+    sigOdmrGPUFitUpdated = QtCore.Signal(np.ndarray, dict)
     sigOdmrElapsedTimeUpdated = QtCore.Signal(float, int)
     sigSIMProgress = QtCore.Signal(float)
 
@@ -1031,6 +1032,15 @@ class ODMRLogic(GenericLogic):
         @return list(str): list of fit function names
         """
         return list(self.fc.fit_list)
+    
+    def do_gpu_fit(self, fit_function_str, fit_freq, tolerance, max_iterations, params):
+        model_id = self._fit_logic.fit_list['gpu'][fit_function_str]['make_model']
+        self.gpu_fc = self._fit_logic.make_gpu_fit_container(self.sweep_images, self.odmr_plot_x)
+        self.log.info(f'{params}')
+        # self.gpu_fc.fit(number_parameters, params, tolerance, max_iterations, model_id)
+        fit_img = np.random.random((2,600,600))
+        self.sigOdmrGPUFitUpdated.emit(fit_img, {})
+
 
     def print_coords(self, event, x, y, flags, param):
         '''The coords for finding the pixel spectrum are determined here from the mouse click callback.
@@ -1076,7 +1086,7 @@ class ODMRLogic(GenericLogic):
         # To enable default odmr_plot_y if no pixel is clicke and imshow is
         # just closed. Good for preview.
         self.coord = None
-        sweep_images_red = np.mean(self.sweep_images[:,1,:,:,:]-self.sweep_images[:,0,:,:,:], axis=0)
+        sweep_images_red = np.mean(self.sweep_images[:,0,:,:,:]-self.sweep_images[:,1,:,:,:], axis=0)
         if pixel_fit and np.count_nonzero(sweep_images_red) != 0:
             frames = sweep_images_red / self.elapsed_sweeps
             frames1 = np.zeros((np.shape(frames)[0], 600, 600))
@@ -1211,7 +1221,8 @@ class ODMRLogic(GenericLogic):
                 np.savez_compressed(
                 loc,
                 sweep_images=(self.sweep_images /
-                                self.elapsed_sweeps))
+                                self.elapsed_sweeps),
+                x=self.odmr_plot_x)
             self.log.info('ODMR data saved to:\n{0}'.format(filepath))
         return
 

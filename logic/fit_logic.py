@@ -29,7 +29,9 @@ import os
 import sys
 from collections import OrderedDict
 from distutils.version import LooseVersion
-
+import pygpufit.gpufit as gf
+from PIL import Image
+import datetime
 from logic.generic_logic import GenericLogic
 from core.util.modules import get_main_dir
 from core.util.mutex import Mutex
@@ -94,6 +96,7 @@ class FitLogic(GenericLogic):
         self.fit_list['1d'] = OrderedDict()
         self.fit_list['2d'] = OrderedDict()
         self.fit_list['3d'] = OrderedDict()
+        self.fit_list['gpu'] = OrderedDict()
 
         # Go through the fitmethods files and import all methods.
         # Also determine which methods need to be added to the fit_list dictionary
@@ -120,6 +123,18 @@ class FitLogic(GenericLogic):
                     except:
                         self.log.error('Method "{0}" could not be imported to FitLogic.'
                                        ''.format(str(method)))
+
+        self.log.info('CUDA available: {}'.format(gf.cuda_available()))
+        if not gf.cuda_available():
+            raise RuntimeError(gf.get_last_error())
+        self.log.info('CUDA versions runtime: {}, driver: {}'.format(*gf.get_cuda_version()))
+
+        for method in dir(gf.ModelID):
+            if method.startswith('_'):
+                pass
+            else:
+                self.fit_list['gpu'][method] = OrderedDict()
+                self.fit_list['gpu'][method]['make_model'] = getattr(gf.ModelID,method)
 
         fits_for_dict.sort()
         models_for_dict.sort()
@@ -282,7 +297,9 @@ class FitLogic(GenericLogic):
         """
       
         return FitContainer(self, container_name, dimension)
-
+    
+    def make_gpu_fit_container(self,sweep_images, x):
+        return GPUFit(self, sweep_images, x)
 
 class FitContainer(QtCore.QObject):
     """ A class for managing a single flexible fit setting in a logic module.
@@ -462,3 +479,103 @@ class FitContainer(QtCore.QObject):
         self.sigFitUpdated.emit()
 
         return fit_x, fit_y, result
+
+class GPUFit:
+    def __init__(self, fit_logic, sweep_images, x):
+        self.fit_logic = fit_logic
+        self.log = self.fit_logic.log
+        a = (-sweep_images[:,0,:,:]+sweep_images[:,1,:,:])
+        b = (sweep_images[:,1,:,:]+sweep_images[:,0,:,:])
+        contrast_data = a/b   
+        self.imgs = contrast_data.squeeze()
+        self.x = x
+        self.log.info(f'Data shape: {self.imgs.shape}')
+        self.log.info(f'X shape: {self.x.shape}')
+    
+    def parameter_map(self, n, i):
+        a = self.pm[:,:,1].argsort()
+        pi = np.take_along_axis(self.pm[:,:,i], a, axis=1)
+        
+        pmap = np.interp(pi[:,n], np.arange(self.x.shape[0]),np.linspace(self.x.min(),self.x.max(),self.x.shape[0]))
+        return pmap.reshape((self.imgs.shape[1], self.imgs.shape[2]))
+    
+    def fit(self, number_parameters, params, tolerance, max_number_iterations, model_id):
+        number_fits = self.imgs.shape[1]*self.imgs.shape[2]
+        size_x = self.x.shape[0]
+        number_points = size_x 
+        self.number_parameters = number_parameters
+        self.model_id = model_id
+        # true_parameters = np.array((amp, l0, fwhm0, offset), dtype=np.float32)
+        true_parameters = np.array(params, dtype=np.float32)
+        initial_parameters = np.tile(true_parameters, (number_fits, 1))
+
+        data = np.ascontiguousarray(self.imgs.reshape((self.x.shape[0],number_fits)).T.astype(np.float32))
+        estimator_id = gf.EstimatorID.LSE
+        self.parameters, states, chi_squares, number_iterations, execution_time = \
+            gf.fit(data=data, weights=None, model_id=self.model_id, initial_parameters=initial_parameters, 
+            tolerance=tolerance, max_number_iterations=max_number_iterations, parameters_to_fit=None,
+            estimator_id=estimator_id, user_info=None)
+
+        converged = states == 0
+        self.summary = []
+        self.summary.append('\nmodel ID:{}'.format(self.model_id))
+        self.summary.append('number of fits:  {}'.format(number_fits))
+        self.summary.append('mean chi_square: {:.2f}'.format(np.mean(chi_squares[converged])))
+        self.summary.append('iterations:  {:.2f}'.format(np.mean(number_iterations[converged])))
+        self.summary.append('time:{:.2f} s'.format(execution_time))
+
+        # get fit states
+        number_converged = np.sum(converged)
+        self.summary.append('\nratio converged {:6.2f} %'.format(number_converged / number_fits * 100))
+        self.summary.append('ratio max it. exceeded  {:6.2f} %'.format(np.sum(states == 1) / number_fits * 100))
+        self.summary.append('ratio singular hessian  {:6.2f} %'.format(np.sum(states == 2) / number_fits * 100))
+        self.summary.append('ratio neg curvature MLE {:6.2f} %'.format(np.sum(states == 3) / number_fits * 100))
+
+        # mean, std of fitted parameters
+        converged_parameters = self.parameters[converged, :]
+        converged_parameters_mean = np.mean(converged_parameters, axis=0)
+        converged_parameters_std = np.std(converged_parameters, axis=0)
+        self.summary.append('\nParameters')
+        for i in range(self.number_parameters):
+            self.summary.append('p{} true {:6.2f} mean {:6.2f} std {:6.2f}'.format(i, true_parameters[i], converged_parameters_mean[i], converged_parameters_std[i]))
+        timestamp = datetime.datetime.now()
+        self.t = timestamp.strftime("%Y%m%d-%H%M-%S")
+        self.summary.append(self.t)
+    
+    def process(self, number_of_fnt, number_param_per_fnt, which_param):
+        self.ids = {    0 : 'GAUSS_1D',
+             1 : 'GAUSS_2D',
+             2 : 'GAUSS_2D_ELLIPTIC' ,
+             3 : 'GAUSS_2D_ROTATED' ,
+             4 : 'CAUCHY_2D_ELLIPTIC' ,
+             5 : 'LINEAR_1D',
+             6 : 'FLETCHER_POWELL_HELIX' ,
+             7 : 'BROWN_DENNIS' ,
+             8 : 'SPLINE_1D' ,
+             9 : 'SPLINE_2D' ,
+            10 : 'SPLINE_3D',
+            11 : 'SPLINE_3D_MULTICHANNEL',
+            12 : 'SPLINE_3D_PHASE_MULTICHANNEL',
+            13 : 'LORENTZ_1D' ,
+            14 : 'LORENTZ_1D_DOUBLE',
+            15 : 'LORENTZ_1D_OCT',
+            16 : 'LORENTZ_1D_TRIPLE',
+            17 : 'LORENTZ_1D_QUAD',
+            18 : 'GAUSS_1D_DOUBLE',
+            19 : 'LORENTZ_1D_OCT_SINGLE_OFFSET',
+            20 : 'LORENTZ_1D_DOUBLE_SINGLE_OFFSET'
+              }
+        self.P = number_param_per_fnt
+        self.N = number_of_fnt
+        self.pm = self.parameters[:,:-1].reshape((self.parameters.shape[0], self.N, self.P))
+        self.fit_img = np.zeros((self.N, self.P, self.imgs.shape[1], self.imgs.shape[2]))
+        for n in range(self.N):
+            i = {'amp':0,'l':1,'fwhm':2}[which_param]
+            self.fit_img[n,i] = self.parameter_map(n,i)
+                    
+    # def save(self, n, i):
+    #     filepath = self._save_logic.get_path_for_module(module_name='ODMR')
+    #     img = Image.fromarray(self.fit_img[n,i])
+    #     img.save(f'{self.loc_npz[:-4]}_GPUFit_LSE_{self.ids[self.model_id]}_{self.t}_{which_param}{n}.tif')
+    #     pp.pprint('Saved at: ', f'{self.loc_npz[:-4]}_GPUFit_LSE_{self.ids[self.model_id]}_{self.t}_{which_param}{n}.tif')
+    

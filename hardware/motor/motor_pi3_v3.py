@@ -303,7 +303,7 @@ class MotorPi3(Base, MotorInterface):
         self.__sendCommand("STOPALL")
         return  
 
-    def get_pos(self, param_list=None):
+    def get_pos(self, param_dict):
         """ Gets current position of the stage arms
 
         @param list param_list: axes to check
@@ -311,10 +311,10 @@ class MotorPi3(Base, MotorInterface):
         @return dict: with keys being the axis labels and item the current
                       position.
         """
-        m = param_list[0]
+        m = [*param_dict.keys()][0]
         motors = {'phi': 0, 'x': 1, 'y' :2, 'z': 3}
         motor = motors[m]
-        unit = self.STEPS
+        unit = param_dict['unit']
         if self.__checkMotor(motor) and self.__checkUnit(unit):    
             self.__sendCommand("GETPOS " + str(motor) + " " + unit)
             # print(self.__readResponse())

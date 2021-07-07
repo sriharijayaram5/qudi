@@ -791,11 +791,11 @@ class PulseStreamer(Base, PulserInterface, ODMRCounterInterface):
         """Sets up an ODMR clock for the contrast ODMR measurement using Prime95B ODMR logic.
         """
         exp_time = (1/clock_frequency)*1e9 
-        cam_patt = [(10e3, 0), (exp_time, 1),(1e3, 0)]
-        smiq_patt = [(10e3, 0), (exp_time, 1),(1e3, 0)]
-        switch_patt = [(10e3, 0), (exp_time, 1),(1e3, 0)]
-        laser_patt = [(10e3, 1), (exp_time, 1),(1e3, 1)]
-        set_patt = [(10e3, 1), (exp_time, 1),(1e3, 1)]
+        cam_patt = [(1e3, 0), (exp_time, 1),(1e3, 0)]
+        smiq_patt = [(1e3, 0), (exp_time, 1),(1e3, 0)]
+        switch_patt = [(1e3, 0), (exp_time, 1),(1e3, 0)]
+        laser_patt = [(1e3, 1), (exp_time, 1),(1e3, 1)]
+        set_patt = [(1e3, 1), (exp_time, 1),(1e3, 1)]
 
         self._seq = self.pulse_streamer.createSequence()
         self._seq.setDigital(self._cam_channel, cam_patt)
