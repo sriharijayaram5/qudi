@@ -20,8 +20,11 @@ top-level directory of this distribution and at <https://github.com/Ulm-IQO/qudi
 """
 
 
+import re
+from PyQt5.QtCore import oct_
+from core import manager
 from PyQt5 import QtGui
-from PyQt5.QtWidgets import QSizePolicy
+from PyQt5.QtWidgets import QSizePolicy, QSlider
 import numpy as np
 import os
 import pyqtgraph as pg
@@ -34,9 +37,24 @@ from gui.guiutils import ColorBar
 from gui.colordefs import ColorScaleInferno
 from gui.colordefs import QudiPalettePale as palette
 from gui.fitsettings import FitSettingsDialog, FitSettingsComboBox
+from qtwidgets.scientific_spinbox import ScienDSpinBox
 from qtpy import QtCore
 from qtpy import QtWidgets
 from qtpy import uic
+
+class GPUFitWindow(QtWidgets.QMainWindow):
+    """ Class defined for the main window (not the module)
+
+    """
+
+    def __init__(self):
+        # Get the path to the *.ui file
+        this_dir = os.path.dirname(__file__)
+        ui_file = os.path.join(this_dir, 'ui_odmrgui_gpu_prime95b.ui')
+
+        # Load it
+        super().__init__()
+        uic.loadUi(ui_file, self)
 
 
 class ODMRMainWindow(QtWidgets.QMainWindow):
@@ -95,6 +113,7 @@ class ODMRGui(GUIBase):
     ##
     sigExpTimeChanged = QtCore.Signal(int, int)
     sigDoFit = QtCore.Signal(str, object, object, int, bool)
+    sigDoGPUFit = QtCore.Signal(str, int, float, int, object)
     sigSaveMeasurement = QtCore.Signal(str, list, list, bool)
     sigAverageLinesChanged = QtCore.Signal(int)
 
@@ -228,7 +247,7 @@ class ODMRGui(GUIBase):
         # in the UI file.
         self._mw.odmr_PlotWidget.addItem(self.odmr_image)
         self._mw.odmr_PlotWidget.setLabel(
-            axis='left', text='Arb.', units='units')
+            axis='left', text='Mich. contrast', units='perc.')
         self._mw.odmr_PlotWidget.setLabel(
             axis='bottom', text='Frequency', units='Hz')
         self._mw.odmr_PlotWidget.showGrid(x=True, y=True, alpha=0.8)
@@ -253,7 +272,7 @@ class ODMRGui(GUIBase):
         self._mw.odmr_cb_PlotWidget.hideAxis('bottom')
         self._mw.odmr_cb_PlotWidget.hideAxis('left')
         self._mw.odmr_cb_PlotWidget.setLabel(
-            'right', 'Arb.', units='units')
+            'right', 'Mich. contrast', units='perc.')
 
         #######################################################################
         #          Configuration of the various display Widgets                #
@@ -294,6 +313,18 @@ class ODMRGui(GUIBase):
         self._fsd.applySettings()
         self._mw.action_FitSettings.triggered.connect(self._fsd.show)
 
+        self._gpufitw = GPUFitWindow()
+        self._mw.do_GPUFit_PushButton.clicked.connect(self._gpufitw.show)
+        self._gpufitw.start_fit.triggered.connect(self.do_gpu_fit)
+        self._image = pg.ImageItem(image=np.random.random((1024,1024)), axisOrder='row-major')
+        self._gpufitw.img_horizontalSlider.setMaximum(0)
+        self._gpufitw.img_horizontalSlider.setValue(0)
+        self._gpufitw.img_horizontalSlider.setTickPosition(QSlider.TicksBothSides)
+        self._gpufitw.image_PlotWidget_2.addItem(self._image)
+        self._gpufitw.img_horizontalSlider.valueChanged.connect(self.change_GPUfit)
+        for method in list(self._odmr_logic.fitlogic().fit_list['gpu'].keys()):
+            self._gpufitw.fit_methods_comboBox.addItem(method)
+        self._gpufitw.fit_methods_comboBox.currentTextChanged.connect(self.make_gpu_parameter_settings_tab)
         #######################################################################
         #                       Connect signals                                #
         #######################################################################
@@ -362,6 +393,9 @@ class ODMRGui(GUIBase):
         self.sigDoFit.connect(
             self._odmr_logic.do_fit,
             QtCore.Qt.QueuedConnection)
+        self.sigDoGPUFit.connect(
+            self._odmr_logic.do_gpu_fit,
+            QtCore.Qt.QueuedConnection)
         self.sigMwCwParamsChanged.connect(self._odmr_logic.set_cw_parameters,
                                           QtCore.Qt.QueuedConnection)
         self.sigMwSweepParamsChanged.connect(
@@ -406,6 +440,8 @@ class ODMRGui(GUIBase):
             self.update_plots, QtCore.Qt.QueuedConnection)
         self._odmr_logic.sigOdmrFitUpdated.connect(
             self.update_fit, QtCore.Qt.QueuedConnection)
+        self._odmr_logic.sigOdmrGPUFitUpdated.connect(
+            self.update_GPUfit, QtCore.Qt.QueuedConnection)
         self._odmr_logic.sigOdmrElapsedTimeUpdated.connect(
             self.update_elapsedtime, QtCore.Qt.QueuedConnection)
         self._odmr_logic.sigSIMProgress.connect(
@@ -439,6 +475,7 @@ class ODMRGui(GUIBase):
         self._odmr_logic.sigOdmrPlotsUpdated.disconnect()
         self._odmr_logic.sigSIMProgress.disconnect()
         self._odmr_logic.sigOdmrFitUpdated.disconnect()
+        self._odmr_logic.sigOdmrGPUFitUpdated.disconnect()
         self._odmr_logic.sigOdmrElapsedTimeUpdated.disconnect()
         self.sigCwMwOn.disconnect()
         self.sigMwOff.disconnect()
@@ -447,6 +484,7 @@ class ODMRGui(GUIBase):
         self.sigStopOdmrScan.disconnect()
         self.sigContinueOdmrScan.disconnect()
         self.sigDoFit.disconnect()
+        self.sigDoGPUFit.disconnect()
         self.sigMwCwParamsChanged.disconnect()
         self.sigMwSweepParamsChanged.disconnect()
         self.sigRuntimeChanged.disconnect()
@@ -467,6 +505,7 @@ class ODMRGui(GUIBase):
         self._mw.action_toggle_cw.triggered.disconnect()
         self._mw.action_RestoreDefault.triggered.disconnect()
         self._mw.do_fit_PushButton.clicked.disconnect()
+        self._gpufitw.start_fit.triggered.disconnect()
         self._mw.do_pixel_fit_PushButton.clicked.disconnect()
         self._mw.cw_frequency_DoubleSpinBox.editingFinished.disconnect()
         self._mw.start_freq_DoubleSpinBox.editingFinished.disconnect()
@@ -784,7 +823,36 @@ class ODMRGui(GUIBase):
             self._mw.odmr_channel_ComboBox.currentIndex(),
             False)
         return
-    ##
+    
+    def make_gpu_parameter_settings_tab(self, current_func):
+        def make_lorentz_list(n):
+            l_list = [] 
+            l_list.extend([f'Amp. {i}', f'Line pos. {i}', f'Sigma {i}'] for i in range(n))
+            l_list.append(['Offset'])
+            return [item for sub in l_list for item in sub]
+        d =     {   'GAUSS_1D' : ['Amp.','Line pos.', 'Sigma'],
+                    'LORENTZ_1D_OCT_SINGLE_OFFSET' : make_lorentz_list(8),
+                    'LORENTZ_1D_DOUBLE_SINGLE_OFFSET' : make_lorentz_list(2) 
+                }
+        try:
+            param = d[current_func]
+        except KeyError:
+            self.log.warning('Function not implemented yet.')
+            return
+        self._gpufitw.tabWidget.removeTab(1)
+        self.gpu_fit_param_widget = FitParametersWidget(param)
+        self._gpufitw.tabWidget.insertTab(1, self.gpu_fit_param_widget, 'Parameter Settings')
+
+ 
+    def do_gpu_fit(self):
+        fit_function = self._gpufitw.fit_methods_comboBox.currentText()
+        self.sigDoGPUFit.emit(
+            fit_function,
+            self._gpufitw.frequency_spinBox.value(),
+            self._gpufitw.tolerance_dial.value(),
+            self._gpufitw.max_iterations_spinBox.value(),
+            self.gpu_fit_param_widget.get_params())
+        return
 
     def do_pixel_fit(self):
         fit_function = self._mw.fit_methods_ComboBox.getCurrentFit()[0]
@@ -795,6 +863,14 @@ class ODMRGui(GUIBase):
             self._mw.odmr_channel_ComboBox.currentIndex(),
             True)
         return
+
+    def change_GPUfit():
+        self._image.setImage(self.fit_images[self._gpufitw.img_horizontalSlider.value()])
+
+    def update_GPUfit(self, fit_images, info):
+        self.fit_images = fit_images
+        self._image.setImage(self.fit_images[self._gpufitw.img_horizontalSlider.value()])
+        self._gpufitw.img_horizontalSlider.setMaximum(self.fit_images.shape[0])
 
     def update_fit(self, x_data, y_data, result_str_dict, current_fit):
         """ Update the shown fit. """
@@ -963,3 +1039,50 @@ class ODMRGui(GUIBase):
             pcile_range = [low_centile, high_centile]
         self.sigSaveMeasurement.emit(filetag, cb_range, pcile_range, self._mw.save_stack_radioButton.isChecked())
         return
+
+class FitParametersWidget(QtWidgets.QWidget):
+    """ A widget that manages the parameters for a fit. """
+
+    def __init__(self, parameters):
+        """ Definition, configuration and initialisation of the optimizer settings GUI. Adds a row
+            with the value, min, max and vary for each variable in parameters.
+            @param parameters Parameters: lmfit parameters collection to be displayed here
+        """
+        super().__init__()
+
+        self.parameters = parameters
+
+        # create labels and layout
+        self._layout = QtWidgets.QGridLayout(self)
+        self.useLabel = QtWidgets.QLabel('Parameter')
+        self.valueLabel = QtWidgets.QLabel('Value')
+
+        # add labels to layout
+        self._layout.addWidget(self.useLabel, 0, 0)
+        self._layout.addWidget(self.valueLabel, 0, 2)
+
+        # create all parameter fields and add to layout
+        self.widgets = {}
+        self.paramUseSettings = {}
+        n = 2
+        for name in parameters:
+            self.paramUseSettings[name] = False
+            self.widgets[name + '_label'] = parameterNameLabel = QtWidgets.QLabel(str(name))
+            self.widgets[name + '_value'] = valueSpinbox = ScienDSpinBox()
+            valueSpinbox.setMaximum(np.inf)
+            valueSpinbox.setMinimum(-np.inf)
+            valueSpinbox.setMinimumSize(QtCore.QSize(60, 16777215))
+            
+            self._layout.addWidget(parameterNameLabel, n, 0)
+            self._layout.addWidget(valueSpinbox, n, 1)
+
+            n += 1
+
+        # space at the bottom of the list
+        self._layout.setRowStretch(n, 1)
+
+    def get_params(self):
+        params = np.zeros(len(self.parameters))
+        for i, name in enumerate(self.parameters):
+            params[i] = self.widgets[name + '_value'].value()
+        return params
