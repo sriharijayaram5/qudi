@@ -259,13 +259,13 @@ class ODMRGui(GUIBase):
             axis='bottom', text='Frequency', units='Hz')
 
         # Get the colorscales at set LUT
-        my_colors = ColorScaleInferno()
-        self.odmr_matrix_image.setLookupTable(my_colors.lut)
+        self.my_colors = ColorScaleInferno()
+        self.odmr_matrix_image.setLookupTable(self.my_colors.lut)
 
         #######################################################################
         #                  Configuration of the Colorbar                       #
         #######################################################################
-        self.odmr_cb = ColorBar(my_colors.cmap_normed, 100, 0, 100000)
+        self.odmr_cb = ColorBar(self.my_colors.cmap_normed, 100, 0, 100000)
 
         # adding colorbar to ViewWidget
         self._mw.odmr_cb_PlotWidget.addItem(self.odmr_cb)
@@ -314,17 +314,63 @@ class ODMRGui(GUIBase):
         self._mw.action_FitSettings.triggered.connect(self._fsd.show)
 
         self._gpufitw = GPUFitWindow()
+        self.fit_images = np.zeros((3, 3, 600, 600))
+        
+        def make_lorentz_list(n):
+            l_list = [] 
+            l_list.extend([f'l{i}_amplitude', f'l{i}_center', f'l{i}_fwhm'] for i in range(n))
+            l_list.append(['offset'])
+            return [item for sub in l_list for item in sub]
+
+        self.implemented_fit_functions =     {   'GAUSS_1D' : ['Amp.','Line pos.', 'Sigma'],
+                    'LORENTZ_1D_OCT_SINGLE_OFFSET' : make_lorentz_list(8),
+                    'LORENTZ_1D_DOUBLE_SINGLE_OFFSET' : make_lorentz_list(2) 
+                }
         self._mw.do_GPUFit_PushButton.clicked.connect(self._gpufitw.show)
         self._gpufitw.start_fit.triggered.connect(self.do_gpu_fit)
         self._image = pg.ImageItem(image=np.random.random((1024,1024)), axisOrder='row-major')
-        self._gpufitw.img_horizontalSlider.setMaximum(0)
-        self._gpufitw.img_horizontalSlider.setValue(0)
-        self._gpufitw.img_horizontalSlider.setTickPosition(QSlider.TicksBothSides)
+        self._image.setLookupTable(self.my_colors.lut)
+
+        self._gpufitw.function_horizontalSlider.setTickPosition(QSlider.TicksBothSides)
+        self._gpufitw.param_horizontalSlider.setTickPosition(QSlider.TicksBothSides)
         self._gpufitw.image_PlotWidget_2.addItem(self._image)
-        self._gpufitw.img_horizontalSlider.valueChanged.connect(self.change_GPUfit)
+        self._gpufitw.function_horizontalSlider.valueChanged.connect(self.change_GPUfit)
+        self._gpufitw.param_horizontalSlider.valueChanged.connect(self.change_GPUfit)
         for method in list(self._odmr_logic.fitlogic().fit_list['gpu'].keys()):
             self._gpufitw.fit_methods_comboBox.addItem(method)
         self._gpufitw.fit_methods_comboBox.currentTextChanged.connect(self.make_gpu_parameter_settings_tab)
+        self._gpufitw.invoke_params_radioButton.toggled.connect(self.invoke_gpufit_parameters)
+                
+        # Connect the buttons and inputs for the colorbar
+        self._gpufitw.xy_cb_manual_RadioButton.clicked.connect(
+            self.update_xy_cb_range)
+        self._gpufitw.xy_cb_centiles_RadioButton.clicked.connect(
+            self.update_xy_cb_range)
+
+        self._gpufitw.xy_cb_min_DoubleSpinBox.valueChanged.connect(
+            self.shortcut_to_xy_cb_manual)
+        self._gpufitw.xy_cb_max_DoubleSpinBox.valueChanged.connect(
+            self.shortcut_to_xy_cb_manual)
+        self._gpufitw.xy_cb_low_percentile_DoubleSpinBox.valueChanged.connect(
+            self.shortcut_to_xy_cb_centiles)
+        self._gpufitw.xy_cb_high_percentile_DoubleSpinBox.valueChanged.connect(
+            self.shortcut_to_xy_cb_centiles)
+
+        # create color bar
+        self.xy_cb = ColorBar(
+            self.my_colors.cmap_normed,
+            width=100,
+            cb_min=0,
+            cb_max=100)
+        self.depth_cb = ColorBar(
+            self.my_colors.cmap_normed,
+            width=100,
+            cb_min=0,
+            cb_max=100)
+        self._gpufitw.xy_cb_ViewWidget.addItem(self.xy_cb)
+        self._gpufitw.xy_cb_ViewWidget.hideAxis('bottom')
+        self._gpufitw.xy_cb_ViewWidget.setLabel('left', '', units='arb.')
+        self._gpufitw.xy_cb_ViewWidget.setMouseEnabled(x=False, y=False)
         #######################################################################
         #                       Connect signals                                #
         #######################################################################
@@ -825,22 +871,13 @@ class ODMRGui(GUIBase):
         return
     
     def make_gpu_parameter_settings_tab(self, current_func):
-        def make_lorentz_list(n):
-            l_list = [] 
-            l_list.extend([f'Amp. {i}', f'Line pos. {i}', f'Sigma {i}'] for i in range(n))
-            l_list.append(['Offset'])
-            return [item for sub in l_list for item in sub]
-        d =     {   'GAUSS_1D' : ['Amp.','Line pos.', 'Sigma'],
-                    'LORENTZ_1D_OCT_SINGLE_OFFSET' : make_lorentz_list(8),
-                    'LORENTZ_1D_DOUBLE_SINGLE_OFFSET' : make_lorentz_list(2) 
-                }
         try:
-            param = d[current_func]
+            param = self.implemented_fit_functions[current_func]
         except KeyError:
             self.log.warning('Function not implemented yet.')
             return
         self._gpufitw.tabWidget.removeTab(1)
-        self.gpu_fit_param_widget = FitParametersWidget(param)
+        self.gpu_fit_param_widget = FitParametersWidget(param, None)
         self._gpufitw.tabWidget.insertTab(1, self.gpu_fit_param_widget, 'Parameter Settings')
 
  
@@ -864,13 +901,113 @@ class ODMRGui(GUIBase):
             True)
         return
 
-    def change_GPUfit():
-        self._image.setImage(self.fit_images[self._gpufitw.img_horizontalSlider.value()])
+    def invoke_gpufit_parameters(self):
+        if not self._gpufitw.invoke_params_radioButton.isChecked():
+            self._gpufitw.fit_methods_comboBox.currentTextChanged.emit(self._gpufitw.fit_methods_comboBox.currentText())
+            return
+            
+        if not self._odmr_logic.fc.current_fit_result:
+            self.log.warning('No mean fit done to invoke fit params. Do mean fit.')
+            self._gpufitw.invoke_params_radioButton.toggle()
+            return
+
+        self._gpufitw.tabWidget.removeTab(1)
+        current_func = self._gpufitw.fit_methods_comboBox.currentText()
+        try:
+            param = self.implemented_fit_functions[current_func]
+        except KeyError:
+            self.log.warning('Function not implemented yet.')
+            return
+        self._odmr_logic.do_fit(x_data=np.arange(len(self._odmr_logic.odmr_plot_x)), y_data=self._odmr_logic.odmr_plot_y[0])
+        self.gpu_fit_param_widget = FitParametersWidget(param, self._odmr_logic.fc.current_fit_result.params)
+        self._gpufitw.tabWidget.insertTab(1, self.gpu_fit_param_widget, 'Parameter Settings')
+        self._odmr_logic.do_fit(fit_function='No Fit')
+                
+
+    def change_GPUfit(self):
+        n = self._gpufitw.function_horizontalSlider.value()
+        i = self._gpufitw.param_horizontalSlider.value()
+        self._image.setImage(self.fit_images[n,i])
+        self._gpufitw.label_8.setText(f"Plotting: {self.gpu_info['params'][n][i]}")
 
     def update_GPUfit(self, fit_images, info):
         self.fit_images = fit_images
-        self._image.setImage(self.fit_images[self._gpufitw.img_horizontalSlider.value()])
-        self._gpufitw.img_horizontalSlider.setMaximum(self.fit_images.shape[0])
+        self.gpu_info = info
+        self._gpufitw.label_8.setText(f"Plotting: {self.gpu_info['params'][0][1]}")
+        self._gpufitw.odmr_fit_results_DisplayWidget.setText(self.gpu_info['summary'])
+        self._image.setImage(self.fit_images[0,1])
+        self._gpufitw.function_horizontalSlider.setMaximum(self.fit_images.shape[0]-1)
+        self._gpufitw.param_horizontalSlider.setMaximum(self.fit_images.shape[1]-1)
+        self.update_xy_cb_range()
+    
+    def get_xy_cb_range(self):
+        """ Determines the cb_min and cb_max values for the xy scan image
+        """
+        # If "Manual" is checked, or the image data is empty (all zeros), then
+        # take manual cb range.
+        if self._gpufitw.xy_cb_manual_RadioButton.isChecked() or np.max(self._image.image) == 0.0:
+            cb_min = self._gpufitw.xy_cb_min_DoubleSpinBox.value()
+            cb_max = self._gpufitw.xy_cb_max_DoubleSpinBox.value()
+
+        # Otherwise, calculate cb range from percentiles.
+        else:
+            # xy_image_nonzero = self._image.image[np.nonzero(self._image.image)]
+
+            # Read centile range
+            low_centile = self._gpufitw.xy_cb_low_percentile_DoubleSpinBox.value()
+            high_centile = self._gpufitw.xy_cb_high_percentile_DoubleSpinBox.value()
+
+            cb_min = np.percentile(self._image.image, low_centile)
+            cb_max = np.percentile(self._image.image, high_centile)
+
+        cb_range = [cb_min, cb_max]
+
+        return cb_range
+    
+    def refresh_xy_colorbar(self):
+        """ Adjust the xy colorbar.
+
+        Calls the refresh method from colorbar, which takes either the lowest
+        and higherst value in the image or predefined ranges. Note that you can
+        invert the colorbar if the lower border is bigger then the higher one.
+        """
+        cb_range = self.get_xy_cb_range()
+        self.xy_cb.refresh_colorbar(cb_range[0], cb_range[1])
+    
+    def shortcut_to_xy_cb_manual(self):
+        """Someone edited the absolute counts range for the xy colour bar, better update."""
+        self._gpufitw.xy_cb_manual_RadioButton.setChecked(True)
+        self.update_xy_cb_range()
+
+    def shortcut_to_xy_cb_centiles(self):
+        """Someone edited the centiles range for the xy colour bar, better update."""
+        self._gpufitw.xy_cb_centiles_RadioButton.setChecked(True)
+        self.update_xy_cb_range()
+
+    def update_xy_cb_range(self):
+        """Redraw xy colour bar and scan image."""
+        self.refresh_xy_colorbar()
+        self.refresh_xy_image()
+    
+    def refresh_xy_image(self):
+        """ Update the current XY image from the logic.
+
+        Everytime the scanner is scanning a line in xy the
+        image is rebuild and updated in the GUI.
+        """
+        self._image.getViewBox().updateAutoRange()
+
+        n = self._gpufitw.function_horizontalSlider.value()
+        i = self._gpufitw.param_horizontalSlider.value()
+        xy_image_data = self.fit_images[n,i]
+
+        cb_range = self.get_xy_cb_range()
+
+        # Now update image with new color scale, and update colorbar
+        self._image.setImage(
+            image=xy_image_data, levels=(
+                cb_range[0], cb_range[1]))
+        self.refresh_xy_colorbar()
 
     def update_fit(self, x_data, y_data, result_str_dict, current_fit):
         """ Update the shown fit. """
@@ -1043,7 +1180,7 @@ class ODMRGui(GUIBase):
 class FitParametersWidget(QtWidgets.QWidget):
     """ A widget that manages the parameters for a fit. """
 
-    def __init__(self, parameters):
+    def __init__(self, parameters, invoked):
         """ Definition, configuration and initialisation of the optimizer settings GUI. Adds a row
             with the value, min, max and vary for each variable in parameters.
             @param parameters Parameters: lmfit parameters collection to be displayed here
@@ -1069,6 +1206,8 @@ class FitParametersWidget(QtWidgets.QWidget):
             self.paramUseSettings[name] = False
             self.widgets[name + '_label'] = parameterNameLabel = QtWidgets.QLabel(str(name))
             self.widgets[name + '_value'] = valueSpinbox = ScienDSpinBox()
+            if invoked:
+                self.widgets[name + '_value'].setValue(invoked[name].value)
             valueSpinbox.setMaximum(np.inf)
             valueSpinbox.setMinimum(-np.inf)
             valueSpinbox.setMinimumSize(QtCore.QSize(60, 16777215))

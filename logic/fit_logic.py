@@ -499,18 +499,25 @@ class GPUFit:
         pmap = np.interp(pi[:,n], np.arange(self.x.shape[0]),np.linspace(self.x.min(),self.x.max(),self.x.shape[0]))
         return pmap.reshape((self.imgs.shape[1], self.imgs.shape[2]))
     
-    def fit(self, number_parameters, params, tolerance, max_number_iterations, model_id):
+    def fit(self, params, tolerance, max_number_iterations, model_id):
         number_fits = self.imgs.shape[1]*self.imgs.shape[2]
         size_x = self.x.shape[0]
         number_points = size_x 
-        self.number_parameters = number_parameters
         self.model_id = model_id
+        model_params = {
+            19 : [3, 8],
+            20 : [3, 2]
+        }
+        self.P = model_params[self.model_id][0]
+        self.N = model_params[self.model_id][1]
+        self.number_parameters = self.P * self.N + 1
         # true_parameters = np.array((amp, l0, fwhm0, offset), dtype=np.float32)
         true_parameters = np.array(params, dtype=np.float32)
         initial_parameters = np.tile(true_parameters, (number_fits, 1))
 
         data = np.ascontiguousarray(self.imgs.reshape((self.x.shape[0],number_fits)).T.astype(np.float32))
         estimator_id = gf.EstimatorID.LSE
+        self.fit_logic.log.info('Starting GPUFit...')
         self.parameters, states, chi_squares, number_iterations, execution_time = \
             gf.fit(data=data, weights=None, model_id=self.model_id, initial_parameters=initial_parameters, 
             tolerance=tolerance, max_number_iterations=max_number_iterations, parameters_to_fit=None,
@@ -542,7 +549,12 @@ class GPUFit:
         self.t = timestamp.strftime("%Y%m%d-%H%M-%S")
         self.summary.append(self.t)
     
-    def process(self, number_of_fnt, number_param_per_fnt, which_param):
+    def make_lorentz_list(self, n):
+            l_list = [] 
+            l_list.extend([f'Amp. {i}', f'Line pos. {i}', f'Sigma {i}'] for i in range(n))
+            return [item for sub in l_list for item in sub]
+    
+    def process(self):
         self.ids = {    0 : 'GAUSS_1D',
              1 : 'GAUSS_2D',
              2 : 'GAUSS_2D_ELLIPTIC' ,
@@ -565,13 +577,16 @@ class GPUFit:
             19 : 'LORENTZ_1D_OCT_SINGLE_OFFSET',
             20 : 'LORENTZ_1D_DOUBLE_SINGLE_OFFSET'
               }
-        self.P = number_param_per_fnt
-        self.N = number_of_fnt
+        
         self.pm = self.parameters[:,:-1].reshape((self.parameters.shape[0], self.N, self.P))
         self.fit_img = np.zeros((self.N, self.P, self.imgs.shape[1], self.imgs.shape[2]))
+        self.display_params = {}
         for n in range(self.N):
-            i = {'amp':0,'l':1,'fwhm':2}[which_param]
-            self.fit_img[n,i] = self.parameter_map(n,i)
+            self.display_params[n] = {}
+            for i in range(self.P):
+                d = {0: f'Amp. {n}', 1: f'Line pos. {n}', 2: f'FWHM {n}'}
+                self.display_params[n][i] = d[i]
+                self.fit_img[n,i] = self.parameter_map(n,i)
                     
     # def save(self, n, i):
     #     filepath = self._save_logic.get_path_for_module(module_name='ODMR')

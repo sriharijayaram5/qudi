@@ -1032,14 +1032,23 @@ class ODMRLogic(GenericLogic):
         @return list(str): list of fit function names
         """
         return list(self.fc.fit_list)
-    
+
     def do_gpu_fit(self, fit_function_str, fit_freq, tolerance, max_iterations, params):
         model_id = self._fit_logic.fit_list['gpu'][fit_function_str]['make_model']
+        # t1 = np.load('C:/Data/Prime95B/2021/07/20210708/ODMR/20210708-1048-35_test_ODMR_data_ch0_sweep.npz')
+        # self.sweep_images = t1['sweep_images']
+        # self.odmr_plot_x = t1['x']
         self.gpu_fc = self._fit_logic.make_gpu_fit_container(self.sweep_images, self.odmr_plot_x)
         self.log.info(f'{params}')
-        # self.gpu_fc.fit(number_parameters, params, tolerance, max_iterations, model_id)
-        fit_img = np.random.random((2,600,600))
-        self.sigOdmrGPUFitUpdated.emit(fit_img, {})
+        tolerance = tolerance/1e6
+        if np.sum(params)==0 or np.sum(self.sweep_images)==0:
+            self.log.warning('Cannot do fit with zero arrays')
+            return
+        self.gpu_fc.fit(params, tolerance, max_iterations, model_id)
+        self.gpu_fc.process()
+        # fit_img = np.random.random((2,600,600))
+        self.sigOdmrGPUFitUpdated.emit(self.gpu_fc.fit_img, {'params': self.gpu_fc.display_params,
+                                                 'summary': '\n'.join(self.gpu_fc.summary)})
 
 
     def print_coords(self, event, x, y, flags, param):
