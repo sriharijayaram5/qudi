@@ -1121,10 +1121,18 @@ class AFMConfocalLogic(GenericLogic):
 
             # Optical signal (from MicrowaveQ)
             if 'counts' in meas_params:
-                # first entry is always assumed to be counts
-                self._qafm_scan_line[0] = self._counter.get_measurement('counts')/freq1_pulse_time
+                # utilize integration time measurement if available 
+                counts = self._counter.get_measurement('counts') 
+                int_time = self._counter.get_available_measurement('int_time') 
+
+                if int_time is None: 
+                    int_time = freq1_pulse_time
+
+                i = meas_params.index('counts')
+                self._qafm_scan_line[i] = counts/int_time
 
             if 'counts2' in meas_params:
+                # integration times for iso-B measurements are exact, not dependent upon pixel clock pulse
                 i = meas_params.index('counts2')
                 self._qafm_scan_line[i] = self._counter.get_measurement('counts2')/freq2_pulse_time
 
@@ -2342,7 +2350,6 @@ class AFMConfocalLogic(GenericLogic):
                                       time_back=time_idle_move)
 
             self._counter.start_recorder(arm=True)
-            #DGC self._counter.arm_device(coord0_num)
             self._spm.scan_line()
 
             #FIXME: Uncomment for snake like scan, however, not recommended!!!
@@ -2352,7 +2359,13 @@ class AFMConfocalLogic(GenericLogic):
             # else:
             #     self._obj_scan_array[arr_name]['data'][line_num] = self._counter.get_measurement()[::-1] / integration_time
 
-            self._obj_scan_array[arr_name]['data'][line_num] = self._counter.get_measurement()/integration_time
+            counts = self._counter.get_measurement('counts') 
+            int_time = self._counter.get_available_measurment('int_time')
+
+            if int_time is None:
+                int_time = integration_time
+
+            self._obj_scan_array[arr_name]['data'][line_num] = counts / int_time 
             self.sigObjLineScanFinished.emit(arr_name)
 
             # enable the break only if next scan goes into forward movement
@@ -2521,7 +2534,13 @@ class AFMConfocalLogic(GenericLogic):
             #DGC self._counter.arm_device(coord0_num)
             self._spm.scan_line()
 
-            self._opti_scan_array[opti_name]['data'][line_num] = self._counter.get_measurement()/integration_time
+            counts = self._counter.get_measurement('counts') 
+            int_time = self._counter.get_available_measurment('int_time')
+
+            if int_time is None:
+                int_time = integration_time
+
+            self._opti_scan_array[opti_name]['data'][line_num] = counts / int_time
             self.sigOptimizeLineScanFinished.emit(opti_name)
 
             if self._stop_request:
@@ -2656,7 +2675,13 @@ class AFMConfocalLogic(GenericLogic):
         #DGC self._counter.arm_device(res)  
         self._spm.scan_line()
 
-        self._opti_scan_array[opti_name]['data'] = self._counter.get_measurement()/integration_time
+        counts = self._counter.get_measurement('counts') 
+        int_time = self._counter.get_available_measurment('int_time')
+
+        if int_time is None:
+            int_time = integration_time
+
+        self._opti_scan_array[opti_name]['data'] = counts / int_time 
 
         #print(f'Optimizer Z scan complete.')
         self.sigOptimizeLineScanFinished.emit(opti_name)
