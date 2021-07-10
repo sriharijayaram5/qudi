@@ -26,7 +26,7 @@ from core.connector import Connector
 from gui.colordefs import QudiPalettePale as Palette
 from gui.guibase import GUIBase
 from gui.colordefs import ColorScaleInferno
-
+from core.statusvariable import StatusVar
 from qtpy import QtCore
 from qtpy import QtGui
 from qtpy import QtWidgets
@@ -73,6 +73,7 @@ class CameraGUI(GUIBase):
 
     camera_logic = Connector(interface='CameraLogic')
     savelogic = Connector(interface='SaveLogic')
+    gui_roi = StatusVar('abs_roi', (1200,1200))
 
     sigVideoStart = QtCore.Signal()
     sigVideoStop = QtCore.Signal()
@@ -144,10 +145,11 @@ class CameraGUI(GUIBase):
         # clicked.
         self.roi_p1 = self.roi_p2 = 0
         self.roi_s1, self.roi_s2 = self._logic.get_sensor()
+        self.roi_s1_statusVar, self.roi_s2_statusVar = self.gui_roi
         self.roi = pg.RectROI(
             [
                 self.roi_p1, self.roi_p2], [
-                self.roi_s1, self.roi_s2], pen=(
+                self.roi_s1_statusVar, self.roi_s2_statusVar], pen=(
                 0, 0, 0, 0), scaleSnap=True, translateSnap=True, maxBounds=QtCore.QRectF(
                     self.roi_p1, self.roi_p2, self.roi_s1, self.roi_s2),movable=False)
         self.roi.handleSize=12
@@ -356,6 +358,7 @@ class CameraGUI(GUIBase):
         self.sigROISet.emit(self.roi.saveState())
         self.start_image_clicked()
         self.roi.setSize(self.roi.saveState()['size'])
+        self.gui_roi = self.roi.saveState()['size']
         self.cross.maxBounds=QtCore.QRectF(0, 0, self.roi.saveState()['size'][0]-1,self.roi.saveState()['size'][1]-1)
         self.cross.setPos((self.roi.saveState()['size'][0]/2,self.roi.saveState()['size'][1]/2))
         self.roi.setPos((self.roi_p1, self.roi_p2))

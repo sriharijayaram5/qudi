@@ -26,6 +26,7 @@ from core.connector import Connector
 from core.configoption import ConfigOption
 from core.util.mutex import Mutex
 from logic.generic_logic import GenericLogic
+from core.statusvariable import StatusVar
 from qtpy import QtCore
 import matplotlib.pyplot as plt
 import matplotlib as mpl
@@ -46,6 +47,9 @@ class CameraLogic(GenericLogic):
     _max_fps = ConfigOption('default_exposure', 20)
     _fps = _max_fps
 
+    _exposure = StatusVar('exp_time', 50)
+    abs_roi = StatusVar('abs_roi', (0,1200,0,1200))
+    
     # signals
     sigUpdateDisplay = QtCore.Signal()
     sigAcquisitionFinished = QtCore.Signal()
@@ -55,7 +59,6 @@ class CameraLogic(GenericLogic):
 
     enabled = False
 
-    _exposure = 1.
     _gain = 1.
     _last_image = None
 
@@ -72,12 +75,14 @@ class CameraLogic(GenericLogic):
 
         self.enabled = False
 
-        self.get_exposure()
+        self.set_exposure(self._exposure)
         self.get_gain()
 
         self.timer = QtCore.QTimer()
         self.timer.setSingleShot(True)
         self.timer.timeout.connect(self.loop)
+        self._hardware.cam.roi  = tuple(self.abs_roi)
+        
 
         self.prev_roi = (0, 0)
 
@@ -120,6 +125,7 @@ class CameraLogic(GenericLogic):
             self.prev_roi = (0, 0)
         self._hardware.cam.roi = tuple(int(el)
                                        for el in (x1, x2 + x1, y1, y2 + y1))
+        self.abs_roi = tuple(self._hardware.cam.roi)
 
     def set_exposure(self, time):
         """ Set exposure of hardware """
