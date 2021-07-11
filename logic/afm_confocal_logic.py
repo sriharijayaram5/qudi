@@ -2360,7 +2360,7 @@ class AFMConfocalLogic(GenericLogic):
             #     self._obj_scan_array[arr_name]['data'][line_num] = self._counter.get_measurement()[::-1] / integration_time
 
             counts = self._counter.get_measurement('counts') 
-            int_time = self._counter.get_available_measurment('int_time')
+            int_time = self._counter.get_available_measurement('int_time')
 
             if int_time is None:
                 int_time = integration_time
@@ -2535,7 +2535,7 @@ class AFMConfocalLogic(GenericLogic):
             self._spm.scan_line()
 
             counts = self._counter.get_measurement('counts') 
-            int_time = self._counter.get_available_measurment('int_time')
+            int_time = self._counter.get_available_measurement('int_time')
 
             if int_time is None:
                 int_time = integration_time
@@ -2676,7 +2676,7 @@ class AFMConfocalLogic(GenericLogic):
         self._spm.scan_line()
 
         counts = self._counter.get_measurement('counts') 
-        int_time = self._counter.get_available_measurment('int_time')
+        int_time = self._counter.get_available_measurement('int_time')
 
         if int_time is None:
             int_time = integration_time

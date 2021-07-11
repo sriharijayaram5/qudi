@@ -298,6 +298,11 @@ class MicrowaveQ(Base, SlowCounterInterface, RecorderInterface):
     _curr_frame_int = None
     _curr_frame_int_arr = []
 
+    # monitor variables
+    _monitor_frame = []
+    _monitor_frame_int = None
+    _monitor_frame_int_arr = []
+
     # variables for ESR measurement
     _esr_counter = 0
     _esr_count_frequency = 100 # in Hz
@@ -329,10 +334,15 @@ class MicrowaveQ(Base, SlowCounterInterface, RecorderInterface):
 
         self.__measurements = 0
 
+        if not self.is_ip_address_reachable(self.ip_address):
+            self.log.error(f"Cannot find MicrowaveQ at ip_address={self.ip_address}")
+            return
+
         # try:
         self._dev = self.connect_mq(ip_address= self.ip_address,
                                   port=self.port,
                                   streamCb=self.streamCb,
+                                  monitorCb=self.monitorCb, 
                                   clock_freq_fpga=self._CLK_FREQ_FPGA)
 
         self.unlock_mq(self.unlock_key)
@@ -415,7 +425,7 @@ class MicrowaveQ(Base, SlowCounterInterface, RecorderInterface):
     def moveToThread(self, thread):
         super().moveToThread(thread)
 
-    def connect_mq(self, ip_address=None, port=None, streamCb=None, clock_freq_fpga=None):
+    def connect_mq(self, ip_address=None, port=None, streamCb=None, monitorCb=None, clock_freq_fpga=None):
         """ Establish a connection to microwaveQ. """
         # handle legacy calls
         if ip_address is None:      ip_address = self.ip_address
@@ -434,11 +444,12 @@ class MicrowaveQ(Base, SlowCounterInterface, RecorderInterface):
             cs = self._mq_state.get_state()
             self.log.error(f'MicrowaveQ {RecorderState.LOCKED} state change not allowed, curr_state={cs}')
 
-        if not self.is_ip_address_reachable(ip_address):
-            self.log.error(f"Cannot find MicrowaveQ at ip_address={ip_address}")
-
         try:
-            dev = microwaveQ.MicrowaveQ(ip_address, port, streamCb,clock_freq_fpga)
+            dev = microwaveQ.MicrowaveQ(ip=ip_address, 
+                                        local_port=port, 
+                                        streamCb0=streamCb,
+                                        streamCb1=monitorCb,
+                                        cu_clk_freq=clock_freq_fpga)
         except Exception as e:
             self.log.error(f'Cannot establish connection to MicrowaveQ due to {str(e)}.')
 
@@ -753,6 +764,30 @@ class MicrowaveQ(Base, SlowCounterInterface, RecorderInterface):
 
         self.meas_method(frame_int)
 
+
+    def monitorCb(self, frame):
+        """ The monitor Callback function, which gets called by the FPGA upon the
+            arrival of new data for the monitor stream.
+            This only recieves continous feed back with reporting based on interval
+
+        @param bytes frame: The received data are a byte array containing the
+                            results. This function will be called unsolicitedly
+                            by the device, whenever there is new data available.
+        """
+
+        if self.skip_data:
+            return
+
+        frame_int = self._decode_frame(frame)
+
+        if self._DEBUG_MODE:
+            self._monitor_frame.append(frame)  # just to keep track of the latest frame
+            self._monitor_frame_int = frame_int
+            self._monitor_frame_int_arr.append(frame_int)
+
+        #self.meas_method(frame_int)  #TODO: this needs to be completed
+
+
     def _meas_method_dummy(self, frame_int):
         pass
 
@@ -970,11 +1005,14 @@ class MicrowaveQ(Base, SlowCounterInterface, RecorderInterface):
 
         base_freq = freq_list[0]
         ncoWords = [freq - base_freq for freq in freq_list]
+        ncoGains = [self._dev.get_gain_for_freq_power(freq, power)[0] for freq in freq_list]
 
         self._dev.configureISO(frequency=base_freq,
                                pulseLengths=pulse_lengths,
                                ncoWords=ncoWords,
-                               laserCooldownLength=laserCooldownLength)
+                               ncoGains=ncoGains,
+                               laserCooldownLength=laserCooldownLength,
+                               accumulationMode=0)
 
         self._dev.set_freq_power(base_freq, power)
         self._dev.resultFilter.set(0)
@@ -989,7 +1027,9 @@ class MicrowaveQ(Base, SlowCounterInterface, RecorderInterface):
 
     def stop_measurement(self):
 
-        self._dev.ctrl.stop()
+        if hasattr(self,'_dev'):
+            self._dev.ctrl.stop()
+
         self.meas_cond.wakeAll()
         self.skip_data = True
 
@@ -1587,60 +1627,65 @@ class MicrowaveQ(Base, SlowCounterInterface, RecorderInterface):
         rm = self._RECORDER_MEAS_CONSTRAINTS
 
         # Dummy method
-        rm.meas_modes = [MicrowaveQMeasurementMode.DUMMY]
-        rm.meas_formats = {MicrowaveQMeasurementMode.DUMMY : ()}
-        rm.meas_method = {MicrowaveQMeasurementMode.DUMMY : None}
+        mmode = MicrowaveQMeasurementMode.DUMMY
+        rm.meas_modes = [mmode]
+        rm.meas_formats = {mmode : ()}
+        rm.meas_method = {mmode : None}
 
         # Counter method
-        rm.meas_modes.append(MicrowaveQMeasurementMode.COUNTER)
-        rm.meas_formats[MicrowaveQMeasurementMode.COUNTER] = \
+        mmode = MicrowaveQMeasurementMode.COUNTER
+        rm.meas_modes.append(mmode)
+        rm.meas_formats[mmode] = \
             [('count_num', '<i4'),
              ('counts', '<i4')]
-        rm.meas_method[MicrowaveQMeasurementMode.COUNTER] = self._meas_method_SlowCounting
+        rm.meas_method[mmode] = self._meas_method_SlowCounting
 
         # Line methods
         # Pixelclock
-        rm.meas_modes.append(MicrowaveQMeasurementMode.PIXELCLOCK)
+        mmode = MicrowaveQMeasurementMode.PIXELCLOCK
+        rm.meas_modes.append(mmode)
 
         #HACK: current work around to handle legacy FPGA codes
         rec_type = 'int_time' if self._FPGA_version >= 13 else 'time_rec'
 
-        rm.meas_formats[MicrowaveQMeasurementMode.PIXELCLOCK] = \
+        rm.meas_formats[mmode] = \
             [('count_num', '<i4'),  
-             (),                    # place holder
-             (),                    # place holder
-             (),                    # place holder
+             ('counts', '<i4'),
+             ('blank2', '<i4'),                    # place holder
+             ('blank3', '<i4'),                    # place holder
              (rec_type, '<f8')]
-        rm.meas_method[MicrowaveQMeasurementMode.PIXELCLOCK] = self._meas_method_PixelClock
+        rm.meas_method[mmode] = self._meas_method_PixelClock
 
         # Pixelclock single iso-B
-        rm.meas_modes.append(MicrowaveQMeasurementMode.PIXELCLOCK_SINGLE_ISO_B)
-        rm.meas_formats[MicrowaveQMeasurementMode.PIXELCLOCK_SINGLE_ISO_B] = \
+        mmode = MicrowaveQMeasurementMode.PIXELCLOCK_SINGLE_ISO_B
+        rm.meas_modes.append(mmode)
+        rm.meas_formats[mmode] = \
             [('count_num', '<i4'),  
-             (),                    # place holder
-             (),                    # place holder
-             (),                    # place holder
+             ('counts', '<i4'),                    # place holder
+             ('blank2', '<i4'),                    # place holder
+             ('blank3', '<i4'),                    # place holder
              ('time_rec', '<f8')]
-        rm.meas_method[MicrowaveQMeasurementMode.PIXELCLOCK_SINGLE_ISO_B] = self._meas_method_PixelClock
-
+        rm.meas_method[mmode] = self._meas_method_PixelClock
 
         # n iso-B
-        rm.meas_modes.append(MicrowaveQMeasurementMode.PIXELCLOCK_N_ISO_B)
-        rm.meas_formats[MicrowaveQMeasurementMode.PIXELCLOCK_N_ISO_B] = \
+        mmode = MicrowaveQMeasurementMode.PIXELCLOCK_N_ISO_B
+        rm.meas_modes.append(mmode)
+        rm.meas_formats[mmode] = \
             [('count_num', '<i4'),
              ('counts', '<i4'),
              ('counts2', '<i4'),
              ('counts_diff', '<i4'),
              ('time_rec', '<f8')]
-        rm.meas_method[MicrowaveQMeasurementMode.PIXELCLOCK_N_ISO_B] = self._meas_method_n_iso_b
+        rm.meas_method[mmode] = self._meas_method_n_iso_b
 
         # esr 
-        rm.meas_modes.append(MicrowaveQMeasurementMode.ESR)
-        rm.meas_formats[MicrowaveQMeasurementMode.ESR] = \
+        mmode = MicrowaveQMeasurementMode.ESR
+        rm.meas_modes.append(mmode)
+        rm.meas_formats[mmode] = \
             [('time_rec', '<f8'),
              ('count_num', '<i4'),
              ('data', np.dtype('<i4',(2,))) ]   # this is defined at the time of use
-        rm.meas_method[MicrowaveQMeasurementMode.ESR] = self._meas_method_esr
+        rm.meas_method[mmode] = self._meas_method_esr
 
         # pulsed esr
         # (methods to be defined)
@@ -1835,7 +1880,7 @@ class MicrowaveQ(Base, SlowCounterInterface, RecorderInterface):
 
             self._curr_frame = []
             self._meas_res = np.zeros((num_meas),
-              dtype= meas_cons.meas_formats[mode])
+              dtype= meas_cons.meas_formats[meas_type])
 
             self._mq_state.set_state(RecorderState.ARMED)
 
