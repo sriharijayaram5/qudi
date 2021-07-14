@@ -452,10 +452,10 @@ class MicrowaveQ(Base, SlowCounterInterface, RecorderInterface):
                                         streamCb0=streamCb,
                                         streamCb1=monitorCb,
                                         cu_clk_freq=clock_freq_fpga)
+            return dev
         except Exception as e:
             self.log.error(f'Cannot establish connection to MicrowaveQ due to {str(e)}.')
-
-        return dev
+            return None
 
 
     def unlock_mq(self, unlock_key=None):
@@ -1096,17 +1096,24 @@ class MicrowaveQ(Base, SlowCounterInterface, RecorderInterface):
     def _prepare_pulsed_mode(self, 
                              freq_list,                    # frequencies to be used
                              power,                        # baseline reference power
-                             sequence_cmds,                # sequence command list of dictionaries  
-                             meas_len = 1,                 # number of measurements returned from streamCb 
+                             primary_seqCmds,              # primary sequence block 
+                             n_reps=1,                     # number of repititions of primary block
+                             pre_seqCmds=[],               # optional pre seqCmds
+                             post_seqCmds=[],              # optional post seqCmds
                              sequence_offset=0,            # write offset for sequences 
-                             update_sequence_size=True):   # update of length of sequence to given sequence
+                             update_sequence_size=True,    # update of length of sequence to given sequence
+                             accumulationMode=True):       # use accumulationMode 
         """ Prepare general pulsed mode
 
         @param list freq_list: list of frequencies used in pulse generation (referred to by index)
-        @param power: base value of power for initial sequence (will be overwritten with gain values)
-        @param list of dict: sequence_cmds: list of dictionary items which define the sequence 
+        @param float power: base value of power for initial sequence 
+        @param list of dict: primary_seqCmds: primary block of repetitive sequences 
+        @param int n_reps:  multiplier to build full sequence block
+        @param list of dict: pre_seqCmds: seqCmd(s) prepend to the expanded block
+        @param list of dict: post_seqCmds: seqCmd(s) prepend to the expanded block
         @param int sequence_offset : location to start writing sequence (overwrite existing, default=0)
-        @param int update_sequence : flag for automatically configuring sequence length register in DMA read module_size
+        @param bool update_sequence : flag for automatically configuring sequence length register in DMA read module_size
+        @param boo accumulationMode : flag to accumulate counts, this is default for pulsing 
 
         sequence_cmds example:
             [ {'RF_EN': 0,                 # RF_EN           -> 0 or 1 : Microwave off/on 
@@ -1123,42 +1130,174 @@ class MicrowaveQ(Base, SlowCounterInterface, RecorderInterface):
             ]
         """
         updateSeqSizeReg = 1 if update_sequence_size else 0 
+        accumulationMode = 1 if accumulationMode else 0 
 
-        # number of measurements is counted from 0
-        self._dev.ctrl.measurementLength.set(len(meas_len)-1)
         self._dev._setFrequencies(freq_list)
         self._dev.set_freq_power(np.mean(freq_list), power)
 
+        # pre_seqCmds 
+        if pre_seqCmds:
+            #use only lists
+            if isinstance(pre_seqCmds,dict): 
+                pre_seqCmds = list(pre_seqCmds.values())
+
+            self._validate_sequence_commands(pre_seqCmds,freq_list,location='pre')
+
+            # pre_seqCmds cannot contain count events, otherwise return size is wrong
+            if self._determine_count_events(pre_seqCmds):
+                self.log.error("Invalid 'pre_seqCmds' given, as it contained 'CU_EN'=1 events")
+
+        # post_seqCmds 
+        if post_seqCmds:
+            # use only lists
+            if isinstance(post_seqCmds,dict): 
+                post_seqCmds = list(post_seqCmds.values())
+
+            self._validate_sequence_commands(post_seqCmds,freq_list, location='post')
+
+            # post_seqCmds cannot contain count events, otherwise return size is wrong
+            if self._determine_count_events(post_seqCmds):
+                self.log.error("Invalid 'post_seqCmds' given, as it contained 'CU_EN'=1 events")
+
+        # primary_seqCmds
+        if isinstance(primary_seqCmds,dict): 
+            # use only lists
+            primary_seqCmds = list(primary_seqCmds.values())
+
+        self._validate_sequence_commands(primary_seqCmds,freq_list,location='primary')
+
+        # determine number of count events in the primary block
+        # number of measurements is counted from 0
+        meas_len = self._determine_count_events(primary_seqCmds)
+        self._dev.ctrl.measurementLength.set(len(meas_len)-1)
+
+        # build entire block
+        full_seqCmds = pre_seqCmds + primary_seqCmds * n_reps + post_seqCmds
+        self._validate_sequence_commands(full_seqCmds,freq_list,location='full')
+
+        # make sure there is an even number of sequence commands, otherwise strang results
+        if len(full_seqCmds) % 2:
+            self.log.error( "Invalid sequence full_seqCmds:",
+                           f" must contain an even number of instruction sets, got len={len(full_seqCmds)}")
+
         # assign sequences to registers
         self._dev.setGenSeqCmds(
-            genSeqCmds = sequence_cmds,          # sequence commands 
+            genSeqCmds = full_seqCmds,           # sequence commands 
             offset = sequence_offset,            # default value = 0
             updateSeqSizeReg = updateSeqSizeReg) # default value = 1
+
+        # for pulsed measurements, accumulation is necessary otherwise values will underflow
+        self._dev.ctrl.accumulationMode.set(accumulationMode)
 
         # loading sequence through DMA read to fpga
         # (this is required each time the sequence is started)
         self._dev.ddr4Ctrl.loadSeq() 
 
+        # make sure we get the same number back as written
+        len_given = sequence_offset + len(full_seqCmds)
+        len_written = 2 * self._dev.ddr4Ctrl.size.get() 
+        if len_given != len_written:
+            self.log.error("Invalid sequence full_seqCmds:",
+                           " did not get expected number of loaded commands, ",
+                          f" specified len={len_given}, written len={len_written}")
+
         mm = self.get_measurement_methods()
         self.meas_method = mm.meas_method[MicrowaveQMeasurementMode.GENERAL_PULSED] 
 
 
-    def _validate_sequence_commands(self, freq_list, sequence_cmds):
-        """ Validates the sequence commands as given, checks against key errors and invalid sequences 
-        Reports warnings during configuration
-
-        @param list freq_list: list of RF frequencies to be applied
-        @param list of dict:   sequence commands 
-
-        return bool: valid = True, invalid = False
+    @staticmethod
+    def _determine_count_events(seqCmds):
+        """ Given a primary sequence command block, determine number of 
+            seperate count events caused by a rising or falling edge of the 'CU_EN'
+        
+        @param list of dict: primary_seqCmds: sequence command events
         """
-        # make sure frequencies are possible
-        # with ncoWord based setups, 
-        freq_n = len(freq_list)
-        ok = True 
-        # to be completed
+        cu_count = 0
+        current, previous = 0, 0
+        for cmd in seqCmds:
+            current = cmd.get('CU_EN') 
+            if current is None: current = cmd.get('cu_en')
+            if current is not None:
+                if (current == 1) and (previous == 0):
+                    cu_count += 1 
+                    
+                previous = current 
 
-        return ok
+        return cu_count
+
+
+    def _validate_sequence_commands(self, seqCmds, freq_list,location='primary'):
+        """Determine validity of a primary sequence block 
+        @param list of dict: seqCmds_primary : list of dictionaries with sequence commands
+                                            sequence measurement list size is determined from 
+                                            number of rising and falling edges of 'CU_EN'
+        @param list: freq_list: a simple reference for sequences of frequencies, to check against size
+
+        Note: this modifies names to be capitalized
+        """
+        valid_commands = {'RF_EN':int, 'LS_EN':int, 'CU_EN':int, 
+                        'RF_RECONFIG_EN':int, 'GPOS':int, 'RF_FREQ_SEL':int,
+                        'RF_GAIN':float, 'RF_PHASE':float, 'DURATION':float}
+            
+        # use only list formats
+        if isinstance(seqCmds, dict):
+            seqCmds = list(seqCmds.values())   # assume orderedDict
+        
+        # only deal with upper case command names
+        seqCmds = [{k.upper(): v for k,v in cmd.items()} for cmd in seqCmds]
+        
+        # look for bad command names
+        error_i, error_limit = 0, 10
+        for i, cmd in enumerate(seqCmds):
+            for k,v in cmd.items():
+                if k not in valid_commands.keys():
+                    self.log.warning(f'Invalid sequence {location}_command[{i}]: command {k} is not valid')
+                    error_i += 1
+                    
+                if not isinstance(v,valid_commands[k]):
+                    self.log.warning(f'Invalid sequence {location}_command[{i}]: {k} = {v},',
+                                     f' value was not type={type(valid_commands[k])}')
+                    error_i += 1
+                    
+            if error_i > error_limit: break  # too many errors, stop reporting
+        
+        # no point to continue if there's errors
+        if error_i:
+            self.log.error("Invalid sequence commands found, correct to continue")
+            return False
+        
+        # check number of RF configurations engagements
+        n_freq = len(freq_list)
+        for i, cmd in enumerate(seqCmds):
+            # referred to frequency indicies. This cannot exceed the freq_list len
+            freq_i = cmd.get('RF_FREQ_SEL',0)
+            if (freq_i < 0) or (freq_i > n_freq -1):
+                self.log.error(f"Invalid sequence {location}_command[{i}]: ",
+                               f"RF_FREQ_SEL = {freq_i} out of freq_list bounds")
+                return False
+            
+        # check that frequency references are preceeded by a reconfigure
+        # check that a frequency has been configured before use
+        config_freq = None
+        for i, cmd in enumerate(seqCmds):
+            # make sure that a frequency index has been specified if there was a reconfigure
+            if (cmd.get('RF_RECONFIG_EN') == 1) and (cmd.get('RF_FREQ_SEL',None) is None):
+                self.log.error(f"Invalid sequence {location}_command[{i}]: ",
+                                "'RF_RECONFIG_EN' was specified, but missing 'RF_FREQ_SEL'")
+                return False
+            
+            if cmd.get('RF_RECONFIG_EN') == 1:
+                config_freq = cmd['RF_FREQ_SEL']  
+            else:
+                curr_freq = cmd.get('RF_FREQ_SEL')
+                if (curr_freq is not None) and (curr_freq != config_freq):
+                    self.log.error(f"Invalid sequence {location}_command[{i}]: 'RF_FREQ_SEL' = {curr_freq}",
+                                   f" differs from config_freq_index={config_freq}, apply 'RF_RECONFIG_EN' first")
+                    return False
+        
+        # otherwise it was ok
+        return True
+
 
 # ==============================================================================
 #                  ODMR Interface methods
