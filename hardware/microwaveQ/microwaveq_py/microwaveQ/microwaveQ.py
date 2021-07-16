@@ -247,7 +247,7 @@ class MicrowaveQ(dev.Device):
 #           High level function wrapper of the microwaveQ object
 # ==============================================================================
 
-    def configureCW(self, frequency, countingWindowLength):
+    def configureCW(self, frequency, countingWindowLength, accumulationMode=0):
         """Configure CW measurement
 
         Keyword arguments:
@@ -258,12 +258,13 @@ class MicrowaveQ(dev.Device):
                          f'counting window length {countingWindowLength}')
         self.ctrl.pulseLength.write([0xffffffff])
         self.ctrl.measurementLength.set(0)
+        self.ctrl.accumulationMode.set(accumulationMode)
         self.setFrequency(frequency)
         self.ctrl._setCountingWindowLength(countingWindowLength)
         self.ctrl._setCountingDelay(0)
         self.ctrl.countingMode.set('CW')
 
-    def configureCW_PIX(self, frequency):
+    def configureCW_PIX(self, frequency, accumulationMode=0):
         """Configure CW measurement
 
         Keyword arguments:
@@ -273,10 +274,11 @@ class MicrowaveQ(dev.Device):
 
         self.ctrl.pulseLength.write([0xffffffff])
         self.ctrl.measurementLength.set(0)
+        self.ctrl.accumulationMode.set(accumulationMode)
         self.setFrequency(frequency)
         self.ctrl.countingMode.set('CW_PIX')
 
-    def configureCW_ESR(self, frequencies, countingWindowLength, countingDelay=0):
+    def configureCW_ESR(self, frequencies, countingWindowLength, countingDelay=0, accumulationMode=0):
         """Configure CW ESR measurement
 
         @param list/np.array frequencies: a list of frequencies in Hz 
@@ -301,6 +303,7 @@ class MicrowaveQ(dev.Device):
         self.ctrl.pulseLength.write([0xffffffff])
         # number of measurements is counted from 0
         self.ctrl.measurementLength.set(len(frequencies)-1)
+        self.ctrl.accumulationMode.set(accumulationMode)
         # calculate and download reconfiguration commands
         self._setFrequencies(frequencies)
         # counting length
@@ -309,7 +312,8 @@ class MicrowaveQ(dev.Device):
         self.ctrl._setCountingDelay(countingDelay)
         self.ctrl.countingMode.set('CW_ESR')
 
-    def configureRABI(self, frequency, countingWindowLength, laserExcitationLength, rfLaserDelayLength, pulseLengths, laserCooldownLength=0):
+    def configureRABI(self, frequency, countingWindowLength, laserExcitationLength, 
+                      rfLaserDelayLength, pulseLengths, laserCooldownLength=0, accumulationMode=1):
         """Configure RABI measurement
         Keyword arguments:
             frequency             -- frequency in Hz
@@ -322,6 +326,7 @@ class MicrowaveQ(dev.Device):
         self.logger.info(f"Configuring RABI: frequency {frequency}, countingWindowLength {countingWindowLength}, laserExcitationLength {laserExcitationLength}, rfLaserDelayLength {rfLaserDelayLength}, pulseLengths {pulseLengths}")
 
         self.ctrl.measurementLength.set(len(pulseLengths)-1)
+        self.ctrl.accumulationMode.set(accumulationMode)
         self.setFrequency(frequency)
         self.ctrl._setRfLaserDelayLength(rfLaserDelayLength)
         self.ctrl._setLaserExcitationLength(laserExcitationLength)
@@ -330,7 +335,7 @@ class MicrowaveQ(dev.Device):
         self.ctrl._setLaserCooldownLength(laserCooldownLength)
         self.ctrl.countingMode.set('RABI')
 
-    def configureISO(self, frequency, pulseLengths, ncoWords, ncoGains, laserCooldownLength=1e-6, accumulationMode=1):
+    def configureISO(self, frequency, pulseLengths, ncoWords, ncoGains, laserCooldownLength=1e-6, accumulationMode=0):
         """Configure ISO measurement
         Keyword arguments:
             frequency             -- frequency in Hz
@@ -344,19 +349,19 @@ class MicrowaveQ(dev.Device):
             self.logger.info(f"Configuring ISO: frequency {frequency}, pulseLengths {pulseLengths}, ncoWords {ncoWords}")
 
             self.ctrl.measurementLength.set(len(pulseLengths)-1)
+            self.ctrl.accumulationMode.set(accumulationMode)
             self.setFrequency(frequency)
             self.ctrl._setPulseLength(pulseLengths)
             self.ctrl._setNcoWord(ncoWords)
             self.ctrl._setNcoGain(ncoGains)
             self.ctrl._setLaserCooldownLength(laserCooldownLength)
             self.ctrl.countingMode.set('ISO')
-            self.ctrl.accumulationMode.set(accumulationMode)
         else:
             self.logger.error("Parameters pulseLengths and frequencies size mismatch.")
             return
 
     def configureTrackISO(self, RFfrequency, cutOffFreq, frequencies, ncoGains, pulseLengths, deltaFreq, nDelta,  
-                          laserCooldownLength=1e-6, trackingMode=0, accumulationMode=1):
+                          laserCooldownLength=1e-6, trackingMode=0, accumulationMode=0):
         """Configure ISO Tracking measurement
         Keyword arguments:
             RFfrequency           -- Main RF frequency in Hz,
@@ -401,7 +406,8 @@ class MicrowaveQ(dev.Device):
             self.logger.error("Wrong number of pulseLengths/frequencies")
             return
 
-    def configurePULSED_ESR(self, frequencies, countingWindowLength, laserExcitationLength, rfLaserDelayLength, pulseLength, laserCooldownLength=0):
+    def configurePULSED_ESR(self, frequencies, countingWindowLength, laserExcitationLength, 
+                            rfLaserDelayLength, pulseLength, laserCooldownLength=0, accumulationMode=1):
         """Configure RABI measurement
         Keyword arguments:
             frequencies           -- list of frequencies in Hz
@@ -415,6 +421,7 @@ class MicrowaveQ(dev.Device):
         self.logger.info(f"Configuring RABI: frequencies {frequencies}, countingWindowLength {countingWindowLength}, laserExcitationLength {laserExcitationLength}, rfLaserDelayLength {rfLaserDelayLength}, pulseLength {pulseLength}")
 
         self.ctrl.measurementLength.set(len(frequencies)-1)
+        self.ctrl.accumulationMode.set(accumulationMode)
         self._setFrequencies(frequencies)
         self.ctrl._setRfLaserDelayLength(rfLaserDelayLength)
         self.ctrl._setLaserExcitationLength(laserExcitationLength)
@@ -475,7 +482,8 @@ class MicrowaveQ(dev.Device):
             regs[0+i*4] = regs[0+i*4] | genSeqCmds[i]['RF_FREQ_SEL'] << 16
             regs[1+i*4] = value
             regs[2+i*4] = 0
-            regs[3+i*4] = self.com.convSecToCuCyc(genSeqCmds[i]['DURATION'])
+            regs[3+i*4] = self.com.convSecToCuCyc(genSeqCmds[i]['DURATION']) \
+                          if genSeqCmds[i].get('DURATION') else genSeqCmds[i]['DURATION_CC'] 
 
         [hex(regs[i]) for i in range(len(regs))]
         [self.write(baseAddr | i*4,regs[i]) for i in range(len(regs))]

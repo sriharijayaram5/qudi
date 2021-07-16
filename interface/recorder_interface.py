@@ -52,16 +52,23 @@ class RecorderConstraints:
     def __init__(self):
         # maximum numer of possible detectors for slow counter
         self.max_detectors = 0
+
         # frequencies in Hz
         self.min_count_frequency = 5e-5
         self.max_count_frequency = 5e5
 
         # add MicrowaveQMode enums to this list in instances
         self.recorder_modes = []
+
         # here all the parameters associated to the recorder mode are stored.
         self.recorder_mode_params = {}
+
+        # here default values are specified 
+        self.recorder_mode_params_defaults = {}
+
         # set allowable states, to be populated by allowable states of a mode
         self.recorder_mode_states = {}
+
         # set method for measurement type
         self.recorder_mode_measurements = {}
 
@@ -71,7 +78,6 @@ class RecorderInterface(metaclass=InterfaceMetaclass):
 
     _modtype = 'RecorderInterface'
     _modclass = 'interface'
-
 
     @abc.abstractmethod
     def configure_recorder(self, mode, params):
