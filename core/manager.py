@@ -386,9 +386,7 @@ class Manager(QtCore.QObject):
                                     if '__init__.py' in files:
                                         logger.warning(
                                             'Warning: Extension {0} contains '
-                                            '__init__.py. Expect unexpected '
-                                            'behaviour. Hope you know what '
-                                            'you are doing.'.format(path))
+                                            '__init__.py. Invalid operation may result'.format(path))
                                         break
                                 # add directory to search path
                                 logger.debug('Adding extension path: {0}'

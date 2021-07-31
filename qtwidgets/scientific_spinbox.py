@@ -627,7 +627,7 @@ class ScienDSpinBox(QtWidgets.QAbstractSpinBox):
         text = self.__prefix + text + self.__suffix
         self.lineEdit().setText(text)
         self.__cached_value = None  # clear cached value
-        self.lineEdit().setCursorPosition(0)  # Display the most significant part of the number
+        #self.lineEdit().setCursorPosition(0)  # Display the most significant part of the number
 
     def keyPressEvent(self, event):
         """
