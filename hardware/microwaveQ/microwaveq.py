@@ -893,10 +893,16 @@ class MicrowaveQ(Base, SlowCounterInterface, RecorderInterface):
     def _meas_method_n_iso_b(self,frame_int):
         """ Process the received data for dual_iso_b and store to array"""
 
-        counts_diff = frame_int[2] - frame_int[1]
+        # for dual iso-b, there are n_freq_splits * 2 + 1 items in frame_int
+        # frame_int[1:] contains the f1 and f2 frequency measurements in even/odd index pairs
+        counts = frame_int[1:]
+        counts1 = sum(counts[0::2])
+        counts2 = sum(counts[1::2]) 
+
+        counts_diff = counts2 - counts1 
         self._meas_res[self._counted_pulses] = (frame_int[0],  # 'count_num'
-                                                frame_int[1],  # 'counts' 
-                                                frame_int[2],  # 'counts2'
+                                                counts1,  # 'counts' 
+                                                counts2,  # 'counts2'
                                                 counts_diff,   # 'counts_diff' 
                                                 time.time())   # 'time_rec'
 
@@ -1040,11 +1046,15 @@ class MicrowaveQ(Base, SlowCounterInterface, RecorderInterface):
 
         return 0
 
-    def _prepare_pixelclock_n_iso_b(self, freq_list, pulse_lengths, power, laserCooldownLength=10e-6):
+    def _prepare_pixelclock_n_iso_b(self, freq_list, pulse_lengths, power, 
+                                    n_freq_splits=1, laserCooldownLength=10e-6):
         """ Setup the device for n-frequency output. 
 
         @param list(float) freq_list: a list of frequencies to apply 
-        @param float power: the physical power of the device in dBm
+        @param list(float) pulse_lengths: list of pulse lengths to use 
+        @param (float) power: the physical power of the device in dBm; 
+                              this is re-applied as NCO gains to achieve a uniform power across all frequencies
+        @param (int) n_sub_splits = number of sub splits of each frequency to be alternated in list
         @param pulse_margin_frac: fraction of pulse margin to leave as dead time
 
         """
@@ -1057,6 +1067,10 @@ class MicrowaveQ(Base, SlowCounterInterface, RecorderInterface):
 
         self._iso_b_freq_list = freq_list if isinstance(freq_list, list) else [freq_list]
         self._iso_b_power = power
+
+        # split list into stacked alternating frequencies in order to avoid topology bias
+        freq_list = freq_list * n_freq_splits 
+        pulse_lengths = [ pl / n_freq_splits for pl in pulse_lengths] * n_freq_splits
 
         base_freq = freq_list[0]
         ncoWords = [freq - base_freq for freq in freq_list]
@@ -1841,7 +1855,8 @@ class MicrowaveQ(Base, SlowCounterInterface, RecorderInterface):
                                                                          'num_meas': 100}
 
             # configure defaults for mode
-            rc.recorder_mode_params_defaults[MicrowaveQMode.PIXELCLOCK_N_ISO_B] = {'mw_laser_cooldown_time': 10e-6 }
+            rc.recorder_mode_params_defaults[MicrowaveQMode.PIXELCLOCK_N_ISO_B] = {'mw_n_freq_splits': 1, 
+                                                                                   'mw_laser_cooldown_time': 10e-6 }
 
             rc.recorder_mode_measurements[MicrowaveQMode.PIXELCLOCK_N_ISO_B] = MicrowaveQMeasurementMode.PIXELCLOCK_N_ISO_B
 
@@ -2095,6 +2110,8 @@ class MicrowaveQ(Base, SlowCounterInterface, RecorderInterface):
             ret_val = self._prepare_pixelclock_n_iso_b(freq_list=params['mw_frequency_list'],
                                                        pulse_lengths=params['mw_pulse_lengths'],
                                                        power=params['mw_power'],
+                                                       n_freq_splits=params.get('mw_n_freq_splits',
+                                                                    rc_defaults['mw_n_freq_splits']),
                                                        laserCooldownLength=params.get('mw_laser_cooldown_time',
                                                                           rc_defaults['mw_laser_cooldown_time']))
         

@@ -286,6 +286,9 @@ class AFMConfocalLogic(GenericLogic):
     # deactivated.
     # _count_length = StatusVar('count_length', 300)
 
+    # for debugging purposes on the main thread, set to False
+    _USE_THREADED = True
+
     _stop_request = False
     _stop_request_all = False
     _health_check = HealthChecker() 
@@ -448,6 +451,7 @@ class AFMConfocalLogic(GenericLogic):
     # iso-b settings
     _sg_iso_b_operation = False    # indicate whether iso-b is on
     _sg_iso_b_single_mode = StatusVar(default=True)  # default mode is single iso-B 
+    _sg_n_iso_b_n_freq_splits = StatusVar(default=10)
     _sg_n_iso_b_pulse_margin = StatusVar(default=0.005)  # fraction of integration time for pause 
     _sg_n_iso_b_laser_cooldown_length = StatusVar(default=10e-6) # laser cool down time (s)
 
@@ -768,6 +772,7 @@ class AFMConfocalLogic(GenericLogic):
 
         sd['iso_b_operation'] = self._sg_iso_b_operation
         sd['iso_b_single_mode'] = self._sg_iso_b_single_mode
+        sd['n_iso_b_n_freq_splits'] = self._sg_n_iso_b_n_freq_splits
         sd['n_iso_b_pulse_margin'] = self._sg_n_iso_b_pulse_margin
 
         if setting_list is None:
@@ -1000,8 +1005,10 @@ class AFMConfocalLogic(GenericLogic):
                         params={'mw_frequency_list': freq_list,
                                 'mw_pulse_lengths': pulse_lengths,
                                 'mw_power': self._iso_b_power,
+                                'mw_n_freq_splits': self._sg_n_iso_b_n_freq_splits,
                                 'mw_laser_cooldown_time': self._sg_n_iso_b_laser_cooldown_length,
                                 'num_meas': coord0_num })
+                    self.log.info(f'Used "mw_n_freq_splits={self._sg_n_iso_b_n_freq_splits}')
                     
                     # add counts2 parameter
                     curr_scan_params.insert(1, 'counts2')      # fluorescence of freq2 parameter
@@ -1312,18 +1319,26 @@ class AFMConfocalLogic(GenericLogic):
                             plane='XY', meas_params=['counts', 'Phase', 'Height(Dac)', 'Height(Sen)'],
                             continue_meas=False):
 
-        if self.check_thread_active():
-            self.log.error("A measurement is currently running, stop it first!")
-            return
+        if self._USE_THREADED:
+            if self.check_thread_active():
+                self.log.error("A measurement is currently running, stop it first!")
+                return
 
-        self._worker_thread = WorkerThread(target=self.scan_area_qafm_bw_fw_by_line,
-                                            args=(coord0_start, coord0_stop, coord0_num,
-                                                  coord1_start, coord1_stop, coord1_num,
-                                                  integration_time, plane,
-                                                  meas_params, continue_meas),
-                                            name='qafm_fw_bw_line')
+            self._worker_thread = WorkerThread(target=self.scan_area_qafm_bw_fw_by_line,
+                                               args=(coord0_start, coord0_stop, coord0_num,
+                                                     coord1_start, coord1_stop, coord1_num,
+                                                     integration_time, plane,
+                                                     meas_params, continue_meas),
+                                               name='qafm_fw_bw_line')
 
-        self.threadpool.start(self._worker_thread)
+            self.threadpool.start(self._worker_thread)
+
+        else:
+            # intended only for debugging purposes on main thread
+            self.scan_area_qafm_bw_fw_by_line(coord0_start, coord0_stop, coord0_num,
+                                              coord1_start, coord1_stop, coord1_num,
+                                              integration_time, plane,
+                                              meas_params, continue_meas)
 
 
 # ==============================================================================
@@ -2362,7 +2377,7 @@ class AFMConfocalLogic(GenericLogic):
             counts = self._counter.get_measurement('counts') 
             int_time = self._counter.get_available_measurement('int_time')
 
-            if int_time is None:
+            if int_time is None or np.any(np.isclose(int_time,0,atol=1e-12)):
                 int_time = integration_time
 
             self._obj_scan_array[arr_name]['data'][line_num] = counts / int_time 
@@ -2404,17 +2419,25 @@ class AFMConfocalLogic(GenericLogic):
                                      integration_time=None, plane='X2Y2',
                                      continue_meas=False):
 
-        if self.check_thread_active():
-            self.log.error("A measurement is currently running, stop it first!")
-            return
+        if self._USE_THREADED:
+            if self.check_thread_active():
+                self.log.error("A measurement is currently running, stop it first!")
+                return
 
-        self._worker_thread = WorkerThread(target=self.scan_area_obj_by_line,
-                                           args=(coord0_start, coord0_stop, coord0_num,
-                                                 coord1_start, coord1_stop, coord1_num,
-                                                 integration_time,
-                                                 plane, continue_meas),
-                                           name='obj_scan')
-        self.threadpool.start(self._worker_thread)
+            self._worker_thread = WorkerThread(target=self.scan_area_obj_by_line,
+                                               args=(coord0_start, coord0_stop, coord0_num,
+                                                     coord1_start, coord1_stop, coord1_num,
+                                                     integration_time,
+                                                     plane, continue_meas),
+                                               name='obj_scan')
+            self.threadpool.start(self._worker_thread)
+
+        else:
+            # for debugging purposes on the main thread
+            self.scan_area_obj_by_line(coord0_start, coord0_stop, coord0_num,
+                                       coord1_start, coord1_stop, coord1_num,
+                                       integration_time, plane, continue_meas)
+
 
 # ==============================================================================
 # Optimizer scan an area by point
