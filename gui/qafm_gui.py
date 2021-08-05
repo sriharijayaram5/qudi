@@ -215,6 +215,7 @@ class ProteusQGUI(GUIBase):
 
     # save here the period Optimizer value.
     _periodic_opti_time = StatusVar('periodic_opti_time', default=100)
+    _periodic_opti_autorun = StatusVar('periodic_opti_autorun', default=False)
 
     # here are the checked meas params stored, a list of strings
     _stat_var_meas_params = StatusVar('stat_var_meas_params', default=[])
@@ -604,17 +605,17 @@ class ProteusQGUI(GUIBase):
         self._mw.action_open_optimizer_request.triggered.connect(self.show_optimizer_request_groupBox)
 
         self._mw.optimizer_request_period_SpinBox.valueChanged.connect(self.update_max_optimizer_request)
+        self._mw.optimizer_request_autorun_CheckBox.stateChanged.connect(self.update_optimizer_request_autorun)
+        self._mw.optimizer_request_Toggle.stateChanged.connect(self.periodic_optimize_request_pressed)
 
         self._request_timer = QtCore.QTimer()
         self._request_timer.timeout.connect(self.update_progress_bar)
         self._request_timer.setSingleShot(False)
         self._request_timer_interval = 1 # in s, will essentially fire every second
 
-        self._mw.optimizer_request_Toggle.pressed.connect(self.periodic_optimize_request_pressed)
-        #DGC self._or.stop_optimizer_request_PushButton.pressed.connect(self.stop_optimize_request_pressed)
-
         #DGC self._or.time_optimizer_request_SpinBox.setValue(self._periodic_opti_time)
         self._mw.optimizer_request_period_SpinBox.setValue(self._periodic_opti_time)
+        self._mw.optimizer_request_autorun_CheckBox.setChecked(self._periodic_opti_autorun)
 
         # optimizer request is initially not shown
         self.enable_optimizer_request(False)   
@@ -656,6 +657,9 @@ class ProteusQGUI(GUIBase):
         #DGC self._or.progress_Bar.setValue(val)
         self._periodic_opti_time = val
 
+    def update_optimizer_request_autorun(self,val):
+        self._periodic_opti_autorun = bool(val) 
+
     def start_timer(self):
         """ Start the timer, if timer is running, it will be restarted. """
         self._request_timer.start(self._request_timer_interval * 1000) # in ms
@@ -682,16 +686,15 @@ class ProteusQGUI(GUIBase):
             #DGC self._or.progress_Bar.setValue(curr_val - self._request_timer_interval)
             self._mw.optimizer_request_progress_Bar.setValue(curr_val - self._request_timer_interval)
 
-    def periodic_optimize_request_pressed(self):
+    def periodic_optimize_request_pressed(self, state):
         """ Periodic optimizer toggle switch state changed"""
         #DGC self._or.progress_Bar.setValue(self._or.progress_Bar.maximum())
         self._mw.optimizer_request_progress_Bar.setValue(
             self._mw.optimizer_request_progress_Bar.maximum())
 
         # was off, now turned on: event when toggle is moved to 'on' position
-        # note: this is the state before the switch is moved..should be '.wasChecked()'
-        #       therefore the question is to the prior state
-        if not self._mw.optimizer_request_Toggle.isChecked():
+        # state = 2; engaged
+        if state:
             self.perform_period_action()
             self._mw.optimizer_request_period_SpinBox.setEnabled(False)
             self._mw.optimizer_request_period_Label.setEnabled(False)
@@ -926,6 +929,7 @@ class ProteusQGUI(GUIBase):
 
         #DGC self._or.time_optimizer_request_SpinBox.setValue(self._periodic_opti_time)
         self._mw.optimizer_request_period_SpinBox.setValue(self._periodic_opti_time)
+        self._mw.optimizer_request_autorun_CheckBox.setChecked(self._periodic_opti_autorun)
 
         # Handle the Quantitative measurement values
         self._qm.afm_int_time_DoubleSpinBox.setValue(self._qm_afm_int_time)
@@ -977,6 +981,7 @@ class ProteusQGUI(GUIBase):
 
         #DGC self._periodic_opti_time = self._or.time_optimizer_request_SpinBox.value()
         self._periodic_opti_time = self._mw.optimizer_request_period_SpinBox.value()
+        self._periodic_opti_autorun = self._mw.optimizer_request_autorun_CheckBox.isChecked()
 
         self._qm_afm_int_time = self._qm.afm_int_time_DoubleSpinBox.value()
         self._qm_idle_move_time = self._qm.idle_move_time_QDoubleSpinBox.value()
