@@ -451,8 +451,8 @@ class AFMConfocalLogic(GenericLogic):
     # iso-b settings
     _sg_iso_b_operation = False    # indicate whether iso-b is on
     _sg_iso_b_single_mode = StatusVar(default=True)  # default mode is single iso-B 
-    _sg_n_iso_b_n_freq_splits = StatusVar(default=10)
     _sg_n_iso_b_pulse_margin = StatusVar(default=0.005)  # fraction of integration time for pause 
+    _sg_n_iso_b_n_freq_splits = StatusVar(default=10)    # number of frequency sub splits to use
     _sg_n_iso_b_laser_cooldown_length = StatusVar(default=10e-6) # laser cool down time (s)
 
     # target positions of the optimizer
@@ -772,8 +772,8 @@ class AFMConfocalLogic(GenericLogic):
 
         sd['iso_b_operation'] = self._sg_iso_b_operation
         sd['iso_b_single_mode'] = self._sg_iso_b_single_mode
-        sd['n_iso_b_n_freq_splits'] = self._sg_n_iso_b_n_freq_splits
         sd['n_iso_b_pulse_margin'] = self._sg_n_iso_b_pulse_margin
+        sd['n_iso_b_n_freq_splits'] = self._sg_n_iso_b_n_freq_splits
 
         if setting_list is None:
             return sd
