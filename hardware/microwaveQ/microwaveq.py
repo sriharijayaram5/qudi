@@ -2241,7 +2241,7 @@ class MicrowaveQ(Base, SlowCounterInterface, RecorderInterface):
         return True 
 
 
-    def get_available_measurement(self, meas_key=None):
+    def get_available_measurements(self, meas_keys=None):
         """ get available measurement
         returns the measurement array in integer format (non-blocking, does not change state)
 
@@ -2256,12 +2256,19 @@ class MicrowaveQ(Base, SlowCounterInterface, RecorderInterface):
             meas_method_type == MicrowaveQMeasurementMode.PIXELCLOCK_SINGLE_ISO_B or \
             meas_method_type == MicrowaveQMeasurementMode.PIXELCLOCK_N_ISO_B:
 
-            if meas_key is None: meas_key = 'counts'
+            if meas_keys is None: 
+                meas_keys = ['counts']
+            elif not isinstance(meas_keys,(list, tuple)):
+                meas_keys = [meas_keys]
 
-            if meas_key in self._meas_res.dtype.names: 
-                return self._meas_res[meas_key]
-            else:
-                return None
+            res = []
+            for meas_key in meas_keys:
+                if meas_key in self._meas_res.dtype.names: 
+                    res.append(self._meas_res[meas_key])
+                else:
+                    res.append(None)
+            
+            return res
            
         # ESR methods
         elif meas_method_type == MicrowaveQMeasurementMode.ESR:
@@ -2276,8 +2283,8 @@ class MicrowaveQ(Base, SlowCounterInterface, RecorderInterface):
             return 0
 
 
-    def get_measurement(self, meas_key=None):
-        """ get measurement
+    def get_measurements(self, meas_keys=None):
+        """ get measurements
         returns the measurement array in integer format, (blocking, changes state)
 
         @return int_array: array of measurement as tuple elements, format depends upon 
@@ -2293,7 +2300,7 @@ class MicrowaveQ(Base, SlowCounterInterface, RecorderInterface):
         self._mq_state.set_state(RecorderState.IDLE)
         self.skip_data = True
 
-        return self.get_available_measurement(meas_key=meas_key)
+        return self.get_available_measurements(meas_keys=meas_keys)
 
 
     #FIXME: this might be a redundant method and can be replaced by get_recorder_limits

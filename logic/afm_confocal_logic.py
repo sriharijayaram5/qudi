@@ -941,13 +941,12 @@ class AFMConfocalLogic(GenericLogic):
         pulse_margin_frac = self._sg_n_iso_b_pulse_margin
 
         # determine iso_b_mode
-        iso_b_mode = None
+        scan_mode = 'pixel'
         if self._sg_iso_b_operation:
             if self._iso_b_single_mode:
-                iso_b_mode = 'single'
+                scan_mode = 'single iso-b'
             else:
-                iso_b_mode = 'dual'
-        
+                scan_mode = 'dual iso-b'
 
         # time in which the stage is just moving without measuring
         time_idle_move = self._sg_idle_move_scan_sample
@@ -983,48 +982,51 @@ class AFMConfocalLogic(GenericLogic):
             curr_scan_params.insert(0, 'counts')  # fluorescence of freq1 parameter
             spm_start_idx = 1 # start index of the temporary scan for the spm parameters
             
-            if iso_b_mode is not None: 
-                if 'single' in iso_b_mode:
-                    ret_val_mq = self._counter.configure_recorder(
-                        mode=MicrowaveQMode.PIXELCLOCK_SINGLE_ISO_B,
-                        params={'mw_frequency':self._freq1_iso_b_frequency,
-                                'mw_power': self._iso_b_power, 
-                                'num_meas': coord0_num })
-
-                    self.log.info(f'Prepared pixelclock single iso b, val {ret_val_mq}')
-                else:
-                    # dual iso-b
-                    #FIXME : something needs to be solved here.  Where is the integration time for the SPM set?
-                    freq_list=[self._freq1_iso_b_frequency, self._freq2_iso_b_frequency] 
-                    pulse_length = integration_time * (1 - pulse_margin_frac) / len(freq_list)
-                    pulse_lengths=[pulse_length]*len(freq_list)
-                    freq1_pulse_time, freq2_pulse_time = pulse_lengths
-
-                    ret_val_mq = self._counter.configure_recorder(
-                        mode=MicrowaveQMode.PIXELCLOCK_N_ISO_B,
-                        params={'mw_frequency_list': freq_list,
-                                'mw_pulse_lengths': pulse_lengths,
-                                'mw_power': self._iso_b_power,
-                                'mw_n_freq_splits': self._sg_n_iso_b_n_freq_splits,
-                                'mw_laser_cooldown_time': self._sg_n_iso_b_laser_cooldown_length,
-                                'num_meas': coord0_num })
-                    self.log.info(f'Used "mw_n_freq_splits={self._sg_n_iso_b_n_freq_splits}')
-                    
-                    # add counts2 parameter
-                    curr_scan_params.insert(1, 'counts2')      # fluorescence of freq2 parameter
-                    curr_scan_params.insert(2, 'counts_diff')  # difference in 'counts2' - 'counts' 
-                    spm_start_idx = 3 # start index of the temporary scan for the spm parameters
-                    #curr_scan_params.insert(3, 'b_field')  # insert the magnetic field parameter   # FIXME
-                    #spm_start_idx = 4 # start index of the temporary scan for the spm parameters
-
-                    self.log.info(f'Prepared pixelclock dual iso b, val {ret_val_mq}')
-
-            else:
+            if scan_mode == 'pixel':
                 ret_val_mq = self._counter.configure_recorder(mode=MicrowaveQMode.PIXELCLOCK, 
                                                               params={'mw_frequency': self._freq1_iso_b_frequency,
                                                                       'num_meas': coord0_num})
 
                 self.log.info(f'Prepared pixelclock, val {ret_val_mq}')
+
+            elif scan_mode == 'single iso-b':
+                ret_val_mq = self._counter.configure_recorder(
+                    mode=MicrowaveQMode.PIXELCLOCK_SINGLE_ISO_B,
+                    params={'mw_frequency':self._freq1_iso_b_frequency,
+                            'mw_power': self._iso_b_power, 
+                            'num_meas': coord0_num })
+
+                self.log.info(f'Prepared pixelclock single iso b, val {ret_val_mq}')
+
+            elif scan_mode == 'dual iso-b':
+                # dual iso-b
+                freq_list=[self._freq1_iso_b_frequency, self._freq2_iso_b_frequency] 
+                pulse_length = integration_time * (1 - pulse_margin_frac) / len(freq_list)
+                pulse_lengths=[pulse_length]*len(freq_list)
+                freq1_pulse_time, freq2_pulse_time = pulse_lengths
+
+                ret_val_mq = self._counter.configure_recorder(
+                    mode=MicrowaveQMode.PIXELCLOCK_N_ISO_B,
+                    params={'mw_frequency_list': freq_list,
+                            'mw_pulse_lengths': pulse_lengths,
+                            'mw_power': self._iso_b_power,
+                            'mw_n_freq_splits': self._sg_n_iso_b_n_freq_splits,
+                            'mw_laser_cooldown_time': self._sg_n_iso_b_laser_cooldown_length,
+                            'num_meas': coord0_num })
+
+                self.log.info(f'Used "mw_n_freq_splits={self._sg_n_iso_b_n_freq_splits}')
+                    
+                # add counts2 parameter
+                curr_scan_params.insert(1, 'counts2')      # fluorescence of freq2 parameter
+                curr_scan_params.insert(2, 'counts_diff')  # difference in 'counts2' - 'counts' 
+                spm_start_idx = 3 # start index of the temporary scan for the spm parameters
+                #curr_scan_params.insert(3, 'b_field')  # insert the magnetic field parameter   # FIXME
+                #spm_start_idx = 4 # start index of the temporary scan for the spm parameters
+
+                self.log.info(f'Prepared pixelclock dual iso b, val {ret_val_mq}')
+            
+            else:
+                self.log.error('AFM_logic error; inconsitent modality')
 
 
             if ret_val_mq < 0:
@@ -1103,7 +1105,6 @@ class AFMConfocalLogic(GenericLogic):
 
             if 'counts' in meas_params:
                 self._counter.start_recorder(arm=True)
-                #DGC self._counter.arm_device(coord0_num)
 
             self._spm.setup_scan_line(corr0_start=scan_coords[0],
                                       corr0_stop=scan_coords[1],
@@ -1127,12 +1128,15 @@ class AFMConfocalLogic(GenericLogic):
                 self._spm.get_scanned_line(reshape=True)
 
             # Optical signal (from MicrowaveQ)
-            if 'counts' in meas_params:
-                # utilize integration time measurement if available 
-                counts = self._counter.get_measurement('counts') 
-                int_time = self._counter.get_available_measurement('int_time') 
+            # The same variables are requested from 'pixel', 'single iso-b', and 'dual iso-b'
+            # if they don't exist, then missing value is returned as None
+            counts, int_time, counts2, counts_diff = \
+                self._counter.get_measurements(['counts', 'int_time', 'counts2', 'counts_diff']) 
 
-                if int_time is None: 
+            if  'counts' in meas_params:
+                # utilize integration time measurement if available 
+
+                if int_time is None or np.any(np.isclose(int_time,0,atol=1e-12)):
                     int_time = freq1_pulse_time
 
                 i = meas_params.index('counts')
@@ -1141,11 +1145,10 @@ class AFMConfocalLogic(GenericLogic):
             if 'counts2' in meas_params:
                 # integration times for iso-B measurements are exact, not dependent upon pixel clock pulse
                 i = meas_params.index('counts2')
-                self._qafm_scan_line[i] = self._counter.get_measurement('counts2')/freq2_pulse_time
+                self._qafm_scan_line[i] = counts2 / freq2_pulse_time
 
                 i = meas_params.index('counts_diff')
-                self._qafm_scan_line[i] = self._counter.get_measurement('counts_diff')/ \
-                    (freq1_pulse_time + freq2_pulse_time) / 2
+                self._qafm_scan_line[i] = counts_diff / (freq1_pulse_time + freq2_pulse_time) / 2
 
                 # FIXME: currently, this method will not work based on only 2 points
                 #        Issues:
@@ -1157,8 +1160,8 @@ class AFMConfocalLogic(GenericLogic):
                 #i = meas_params.index('b_field')
                 #self._qafm_scan_line[i] = self.calc_mag_field_single_res(
                 #        self.calc_eps_shift_dual_iso_b(
-                #            counts1=self._counter.get_measurement('counts'),
-                #            counts2=self._counter.get_measurement('counts2'),
+                #            counts1=self._counter.get_measurements('counts'),
+                #            counts2=self._counter.get_measurements('counts2'),
                 #            freq1=self._freq1_iso_b_frequency,
                 #            freq2=self._freq2_iso_b_frequency,
                 #            sigma=self._fwhm_iso_b_frequency / 2) 
@@ -1266,27 +1269,35 @@ class AFMConfocalLogic(GenericLogic):
                 if 'counts' in meas_params:
                     self._spm.set_ext_trigger(True)
 
-                if iso_b_mode is not None:
-                    if 'single' in iso_b_mode:
-                        # single iso-b
-                        self._counter.configure_recorder(
-                            mode=MicrowaveQMode.PIXELCLOCK_SINGLE_ISO_B,
-                            params={'mw_frequency_list': [self._freq1_iso_b_frequency],
-                                    'mw_power': self._iso_b_power,
-                                    'num_meas': coord0_num })
-                    else:
-                        # dual iso-b
-                        self._counter.configure_recorder(
-                            mode=MicrowaveQMode.PIXELCLOCK_N_ISO_B,
-                            params={'mw_frequency_list': freq_list,
-                                    'mw_pulse_lengths': pulse_lengths,
-                                    'mw_power': self._iso_b_power,
-                                    'mw_laser_cooldown_time': laser_cooldown_length,
-                                    'num_meas': coord0_num })
+                # pixel clock
+                if scan_mode == 'pixel':
+                    self._counter.configure_recorder(
+                        mode=MicrowaveQMode.PIXELCLOCK, 
+                        params={'mw_frequency': self._freq1_iso_b_frequency,
+                                'num_meas': coord0_num})
+
+                # single iso-b
+                elif scan_mode == 'single iso-b':
+                    self._counter.configure_recorder(
+                        mode=MicrowaveQMode.PIXELCLOCK_SINGLE_ISO_B,
+                        params={'mw_frequency':self._freq1_iso_b_frequency,
+                                'mw_power': self._iso_b_power, 
+                                'num_meas': coord0_num })
+
+                # dual iso-b
+                elif scan_mode == 'dual iso-b':
+                    self._counter.configure_recorder(
+                        mode=MicrowaveQMode.PIXELCLOCK_N_ISO_B,
+                        params={'mw_frequency_list': freq_list,
+                                'mw_pulse_lengths': pulse_lengths,
+                                'mw_power': self._iso_b_power,
+                                'mw_n_freq_splits': self._sg_n_iso_b_n_freq_splits,
+                                'mw_laser_cooldown_time': self._sg_n_iso_b_laser_cooldown_length,
+                                'num_meas': coord0_num })
+
+                # incosistend mode found
                 else:
-                    self._counter.configure_recorder(mode=MicrowaveQMode.PIXELCLOCK,
-                                                     params={'mw_frequency': self._freq1_iso_b_frequency,
-                                                             'num_meas': coord0_num})
+                    self.log.error('AFM_logic error; inconsitent modality')
 
                 self.log.debug('optimizer finished.')
 
@@ -1621,9 +1632,8 @@ class AFMConfocalLogic(GenericLogic):
                 self._scan_point[2:] = self._spm.scan_point()  
                 
                 # obtain ESR measurement
-                #DGC self._counter.start_esr(num_esr_runs)
                 self._counter.start_recorder()
-                esr_meas = self._counter.get_measurement()[:, 2:]
+                esr_meas = self._counter.get_measurements()[:, 2:]
 
                 esr_meas_mean = esr_meas.mean(axis=0)
                 esr_meas_std = esr_meas.std(axis=0)
@@ -2015,9 +2025,8 @@ class AFMConfocalLogic(GenericLogic):
                 self._scan_point[2:] = self._debug 
                 
                 # obtain ESR measurement
-                #DGC self._counter.start_esr(num_esr_runs)
                 self._counter.start_recorder()
-                esr_meas = self._counter.get_measurement()[:, 2:]
+                esr_meas = self._counter.get_measurements()[:, 2:]
 
                 esr_meas_mean = esr_meas.mean(axis=0)
                 esr_meas_std = esr_meas.std(axis=0)
@@ -2374,8 +2383,7 @@ class AFMConfocalLogic(GenericLogic):
             # else:
             #     self._obj_scan_array[arr_name]['data'][line_num] = self._counter.get_measurement()[::-1] / integration_time
 
-            counts = self._counter.get_measurement('counts') 
-            int_time = self._counter.get_available_measurement('int_time')
+            counts, int_time = self._counter.get_measurements(['counts', 'int_time']) 
 
             if int_time is None or np.any(np.isclose(int_time,0,atol=1e-12)):
                 int_time = integration_time
@@ -2554,13 +2562,11 @@ class AFMConfocalLogic(GenericLogic):
                                       time_back=time_idle_move)
 
             self._counter.start_recorder(arm=True)
-            #DGC self._counter.arm_device(coord0_num)
             self._spm.scan_line()
 
-            counts = self._counter.get_measurement('counts') 
-            int_time = self._counter.get_available_measurement('int_time')
+            counts, int_time = self._counter.get_measurements(['counts', 'int_time']) 
 
-            if int_time is None:
+            if int_time is None or np.any(np.isclose(int_time,0,atol=1e-12)):
                 int_time = integration_time
 
             self._opti_scan_array[opti_name]['data'][line_num] = counts / int_time
@@ -2695,13 +2701,11 @@ class AFMConfocalLogic(GenericLogic):
                                   time_back=time_idle_move)
 
         self._counter.start_recorder(arm=True)
-        #DGC self._counter.arm_device(res)  
         self._spm.scan_line()
 
-        counts = self._counter.get_measurement('counts') 
-        int_time = self._counter.get_available_measurement('int_time')
+        counts, int_time = self._counter.get_measurements(['counts', 'int_time']) 
 
-        if int_time is None:
+        if int_time is None or np.any(np.isclose(int_time,0,atol=1e-12)):
             int_time = integration_time
 
         self._opti_scan_array[opti_name]['data'] = counts / int_time 
