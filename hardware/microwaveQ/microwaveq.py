@@ -861,6 +861,8 @@ class MicrowaveQ(Base, SlowCounterInterface, RecorderInterface):
 
     def _meas_method_PixelClock(self, frame_int):
         """ Process the received pixelclock data and store to array. """
+        if self._mq_state.get_state() == RecorderState.ARMED:
+            self._mq_state.set_state(RecorderState.BUSY)
 
         if self._FPGA_version >= 13:
             # pixel clock header for FPGA v13+
@@ -892,6 +894,8 @@ class MicrowaveQ(Base, SlowCounterInterface, RecorderInterface):
 
     def _meas_method_n_iso_b(self,frame_int):
         """ Process the received data for dual_iso_b and store to array"""
+        if self._mq_state.get_state() == RecorderState.ARMED:
+            self._mq_state.set_state(RecorderState.BUSY)
 
         # for dual iso-b, there are n_freq_splits * 2 + 1 items in frame_int
         # frame_int[1:] contains the f1 and f2 frequency measurements in even/odd index pairs
@@ -937,12 +941,17 @@ class MicrowaveQ(Base, SlowCounterInterface, RecorderInterface):
 
     def _meas_method_pulsed(self,frame_int):
         """ Process the received pulse data"""
-        self._meas_pulsed_res[self._pulsed_counter][0] = time.time() 
-        self._meas_pulsed_res[self._pulsed_counter][1:] = frame_int
+        self._meas_pulsed_res[self._pulsed_counter] = frame_int[-(self._meas_length_pulse+1):]
 
-        self._current_pulsed_meas.append(self._meas_pulsed_res[self._pulsed_counter][2:])
+        # method for indeterminate size arrays
+        #if self._meas_pulsed_res is None:
+        #    self._meas_pulsed_res = np.array([ frame_int[:self._meas_length_pulse+1 ]],'<i4') 
+        #else:
+        #    self._meas_pulsed_res = np.append(self._meas_pulsed_res, [ frame_int[:self._meas_length_pulse+1 ]], axis=0)
 
-        if self._pulsed_counter > (len(self._meas_pulsed_res) - 2):
+        self._current_pulsed_meas.append(frame_int[-self._meas_length_pulse:])
+
+        if self._pulsed_counter > (self._meas_pulsed_res.shape[0] - 2):
             self.meas_cond.wakeAll()
             self._mq_state.set_state(RecorderState.IDLE_UNACK)
             self.skip_data = True
@@ -1129,7 +1138,8 @@ class MicrowaveQ(Base, SlowCounterInterface, RecorderInterface):
                              post_seqCmds=[],              # optional post seqCmds
                              sequence_offset=0,            # write offset for sequences 
                              update_sequence_size=True,    # update of length of sequence to given sequence
-                             accumulationMode=True):       # use accumulationMode 
+                             accumulationMode=True,        # use accumulationMode 
+                             overrideMeasLength=None):     # forces measurement width return other than determined from seqCmds
         """ Prepare general pulsed mode
 
         @param list freq_list: list of frequencies used in pulse generation (referred to by index)
@@ -1140,7 +1150,8 @@ class MicrowaveQ(Base, SlowCounterInterface, RecorderInterface):
         @param list of dict: post_seqCmds: seqCmd(s) prepend to the expanded block
         @param int sequence_offset : location to start writing sequence (overwrite existing, default=0)
         @param bool update_sequence : flag for automatically configuring sequence length register in DMA read module_size
-        @param boo accumulationMode : flag to accumulate counts, this is default for pulsing 
+        @param bool accumulationMode : flag to accumulate counts, this is default for pulsing 
+        @param int overrideMeasLength : if not None, will specify the length of a measurement returned in frame_int 
 
         sequence_cmds example:
             [ {'RF_EN': 0,                 # RF_EN           -> 0 or 1 : Microwave off/on 
@@ -1195,8 +1206,12 @@ class MicrowaveQ(Base, SlowCounterInterface, RecorderInterface):
 
         # determine number of count events in the primary block
         # number of measurements is counted from 0
-        meas_len = self._determine_count_events(primary_seqCmds)
-        self._meas_pulsed_line = np.zeros(meas_len+2)   # include record time, meas_num
+        if overrideMeasLength is None:
+            meas_len = self._determine_count_events(primary_seqCmds)
+        else:
+            meas_len = overrideMeasLength   # only do this if you're sure on your return size
+
+        self._meas_length_pulse = meas_len 
         self._dev.ctrl.measurementLength.set(meas_len-1)
 
         # build entire block
@@ -1320,8 +1335,9 @@ class MicrowaveQ(Base, SlowCounterInterface, RecorderInterface):
             else:
                 curr_freq = cmd.get('RF_FREQ_SEL')
                 if (curr_freq is not None) and (curr_freq != config_freq):
-                    self.log.error(f"Invalid sequence {location}_command[{i}]: 'RF_FREQ_SEL' = {curr_freq}",
-                                   f" differs from config_freq_index={config_freq}, apply 'RF_RECONFIG_EN' first")
+                    err_str = f"Invalid sequence {location}_command[{i}]: 'RF_FREQ_SEL' = {curr_freq}" + \
+                              f" differs from config_freq_index={config_freq}, apply 'RF_RECONFIG_EN' first"
+                    self.log.error(err_str)
                     return False
         
         # otherwise it was ok
@@ -1888,7 +1904,8 @@ class MicrowaveQ(Base, SlowCounterInterface, RecorderInterface):
                                                                                'pulsed_post_seqCmds': [],
                                                                                'pulsed_sequence_offset': 0,
                                                                                'pulsed_update_sequence_size': True,
-                                                                               'pulsed_accumulationMode': True
+                                                                               'pulsed_accumulationMode': True,
+                                                                               'pulsed_override_meas_len': None
                                                                               }
 
             rc.recorder_mode_measurements[MicrowaveQMode.GENERAL_PULSED] = MicrowaveQMeasurementMode.GENERAL_PULSED
@@ -2129,7 +2146,9 @@ class MicrowaveQ(Base, SlowCounterInterface, RecorderInterface):
                                                 update_sequence_size=params.get('pulsed_update_sequence_size',
                                                                     rc_defaults['pulsed_update_sequence_size']),
                                                 accumulationMode=params.get('pulsed_accumulationMode',
-                                                                 rc_defaults['pulsed_accumulationMode']))
+                                                                 rc_defaults['pulsed_accumulationMode']),
+                                                overrideMeasLength=params.get('pulsed_override_meas_len',
+                                                                  rc_defaults['pulsed_override_meas_len']))
 
         elif mode == MicrowaveQMode.COUNTER:
             ret_val = self._prepare_counter(counting_window=1/params['count_frequency'])
@@ -2212,7 +2231,13 @@ class MicrowaveQ(Base, SlowCounterInterface, RecorderInterface):
                 self._current_esr_meas = []
 
             elif mode == MicrowaveQMode.GENERAL_PULSED:
-                self._meas_pulsed_res = np.zeros((num_meas, len(self._meas_pulsed_line)))
+                #self._meas_pulsed_res = None    # method for indeterminate size arrays
+
+                self._meas_pulsed_res = np.zeros((num_meas, self._meas_length_pulse + 1),  #include frame_num
+                                                  dtype='<i4')
+                self._total_pulses = num_meas 
+
+                self._dev.ctrl.measurementLength.set(self._meas_length_pulse - 1)
                 self._pulsed_counter = 0
                 self._current_pulsed_meas = []
 
@@ -2222,7 +2247,8 @@ class MicrowaveQ(Base, SlowCounterInterface, RecorderInterface):
             self._mq_state.set_state(RecorderState.BUSY)
 
         else:
-            self.log.error(f'MicrowaveQ: method {mode}, movement_type={meas_type.movement} not implemented yet')
+            self.log.error(f'MicrowaveQ: method {mode}, movement_type={meas_type.movement}'
+                            ' not implemented yet')
             return False 
 
         self.skip_data = False
@@ -2241,9 +2267,37 @@ class MicrowaveQ(Base, SlowCounterInterface, RecorderInterface):
         return True 
 
 
+    def get_measurements(self, meas_keys=None):
+        """ get measurements
+        returns the measurement array in integer format, (blocking, changes state)
+
+        @param (list): meas_keys:  list of measurement keys to be returned;
+                                   keys which do not exist in measurment object are returned as None;
+                                   If None is passed, only 'counts' is returned 
+
+        @return int_array: array of measurement as tuple elements, format depends upon 
+                           current mode setting
+        """
+        # block until measurement is done
+        if self._mq_state.get_state() == RecorderState.BUSY or \
+            self._mq_state.get_state() == RecorderState.ARMED:
+                with self.threadlock:
+                    self.meas_cond.wait(self.threadlock)
+
+        # released
+        self._mq_state.set_state(RecorderState.IDLE)
+        self.skip_data = True
+
+        return self.get_available_measurements(meas_keys=meas_keys)
+
+
     def get_available_measurements(self, meas_keys=None):
         """ get available measurement
         returns the measurement array in integer format (non-blocking, does not change state)
+
+        @param (list): meas_keys:  list of measurement keys to be returned;
+                                   keys which do not exist in measurment object are returned as None;
+                                   If None is passed, only 'counts' is returned 
 
         @return int_array: array of measurement as tuple elements, format depends upon 
                            current mode setting
@@ -2281,26 +2335,6 @@ class MicrowaveQ(Base, SlowCounterInterface, RecorderInterface):
         else:
             self.log.error(f'MicrowaveQ error: measurement method {meas_method_type} not implemented yet')
             return 0
-
-
-    def get_measurements(self, meas_keys=None):
-        """ get measurements
-        returns the measurement array in integer format, (blocking, changes state)
-
-        @return int_array: array of measurement as tuple elements, format depends upon 
-                           current mode setting
-        """
-        # block until measurement is done
-        if self._mq_state.get_state() == RecorderState.BUSY or \
-            self._mq_state.get_state() == RecorderState.ARMED:
-                with self.threadlock:
-                    self.meas_cond.wait(self.threadlock)
-
-        # released
-        self._mq_state.set_state(RecorderState.IDLE)
-        self.skip_data = True
-
-        return self.get_available_measurements(meas_keys=meas_keys)
 
 
     #FIXME: this might be a redundant method and can be replaced by get_recorder_limits
