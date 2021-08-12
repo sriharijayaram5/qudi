@@ -38,7 +38,7 @@
        </widget>
       </item>
       <item row="0" column="1">
-       <widget class="QDoubleSpinBox" name="optimizer_period_DoubleSpinBox">
+       <widget class="ScienSpinBox" name="optimizer_period_DoubleSpinBox">
         <property name="suffix">
          <string>s</string>
         </property>

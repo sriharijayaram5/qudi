@@ -110,20 +110,6 @@ class QuantitativeMeasurementWindow(QtWidgets.QWidget):
         return super().closeEvent(a0)
 
 
-#DGC
-#class PeriodicOptimizerRequest(QtWidgets.QDialog):
-#    """ Create a periodic request Dialog Window. """
-#
-#    def __init__(self):
-#        # Get the path to the *.ui file
-#        this_dir = os.path.dirname(__file__)
-#        ui_file = os.path.join(this_dir, 'ui_optimizer_request.ui')
-#
-#        # Load it
-#        super(PeriodicOptimizerRequest, self).__init__()
-#        uic.loadUi(ui_file, self)   
-
-
 class CustomCheckBox(QtWidgets.QCheckBox):
 
     # with the current state and the name of the box
@@ -359,7 +345,6 @@ class ProteusQGUI(GUIBase):
         self._mw.close()
         self._qm.close()
         self._sd.close()
-        #DGC self._or.close()
         self._ab.close()
         self._is.close()
 
@@ -601,9 +586,6 @@ class ProteusQGUI(GUIBase):
 
     def initOptimizerRequestUI(self):
         """ Initiate the Optimizer request Dialog."""
-        #DGC self._or = PeriodicOptimizerRequest()
-
-        #DGC self._mw.action_open_optimizer_request.triggered.connect(self.show_optimizer_request_window)
         self._mw.action_open_optimizer_request.triggered.connect(self.show_optimizer_request_groupBox)
 
         self._mw.optimizer_request_period_SpinBox.valueChanged.connect(self.update_max_optimizer_request)
@@ -615,19 +597,12 @@ class ProteusQGUI(GUIBase):
         self._request_timer.setSingleShot(False)
         self._request_timer_interval = 1 # in s, will essentially fire every second
 
-        #DGC self._or.time_optimizer_request_SpinBox.setValue(self._periodic_opti_time)
         self._mw.optimizer_request_period_SpinBox.setValue(self._periodic_opti_time)
         self._mw.optimizer_request_autorun_CheckBox.setChecked(self._periodic_opti_autorun)
 
         # optimizer request is initially not shown
         self.enable_optimizer_request(False)   
         
-
-    #DGC
-    #def show_optimizer_request_window(self):
-    #    """ Show and open the settings window. """
-    #    self._or.show()
-    #    self._or.raise_()
 
     def show_optimizer_request_groupBox(self):
         """ Hide or show the Periodic optimizer group box. """
@@ -655,8 +630,6 @@ class ProteusQGUI(GUIBase):
 
         self._mw.optimizer_request_progress_Bar.setMaximum(val)
         self._mw.optimizer_request_progress_Bar.setValue(val)
-        #DGC self._or.progress_Bar.setMaximum(val)
-        #DGC self._or.progress_Bar.setValue(val)
         self._periodic_opti_time = val
 
     def update_optimizer_request_autorun(self,val):
@@ -673,7 +646,6 @@ class ProteusQGUI(GUIBase):
     def update_progress_bar(self):
         """ This function will be called periodically. """
         
-        #DGC curr_val = self._or.progress_Bar.value()
         curr_val = self._mw.optimizer_request_progress_Bar.value()
 
         # make it just a bit larger than 0, assume _request_timer_interval will 
@@ -681,23 +653,20 @@ class ProteusQGUI(GUIBase):
         if curr_val - self._request_timer_interval < 0.1:
 
             self.perform_period_action()
-            #DGC self._or.progress_Bar.setValue(self._or.progress_Bar.maximum())
             self._mw.optimizer_request_progress_Bar.setValue(
                 self._mw.optimizer_request_progress_Bar.maximum())
         else:
-            #DGC self._or.progress_Bar.setValue(curr_val - self._request_timer_interval)
             self._mw.optimizer_request_progress_Bar.setValue(curr_val - self._request_timer_interval)
 
     def periodic_optimize_request_pressed(self, state):
         """ Periodic optimizer toggle switch state changed"""
-        #DGC self._or.progress_Bar.setValue(self._or.progress_Bar.maximum())
         self._mw.optimizer_request_progress_Bar.setValue(
             self._mw.optimizer_request_progress_Bar.maximum())
 
         # was off, now turned on: event when toggle is moved to 'on' position
         # state = 2; engaged
         if state:
-            self.perform_period_action()
+            #self.perform_period_action()
             self._mw.optimizer_request_period_SpinBox.setEnabled(False)
             self._mw.optimizer_request_period_Label.setEnabled(False)
             self._mw.optimizer_request_autorun_CheckBox.setEnabled(False)
@@ -933,7 +902,6 @@ class ProteusQGUI(GUIBase):
             if entry in self._checkbox_container:
                 self._checkbox_container[entry].setChecked(True)
 
-        #DGC self._or.time_optimizer_request_SpinBox.setValue(self._periodic_opti_time)
         self._mw.optimizer_request_period_SpinBox.setValue(self._periodic_opti_time)
         self._mw.optimizer_request_autorun_CheckBox.setChecked(self._periodic_opti_autorun)
 
@@ -985,7 +953,6 @@ class ProteusQGUI(GUIBase):
             if self._checkbox_container[entry].isChecked():
                 self._stat_var_meas_params.append(entry)
 
-        #DGC self._periodic_opti_time = self._or.time_optimizer_request_SpinBox.value()
         self._periodic_opti_time = self._mw.optimizer_request_period_SpinBox.value()
         self._periodic_opti_autorun = self._mw.optimizer_request_autorun_CheckBox.isChecked()
 
