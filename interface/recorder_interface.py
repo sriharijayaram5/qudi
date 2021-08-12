@@ -104,19 +104,25 @@ class RecorderInterface(metaclass=InterfaceMetaclass):
         pass
 
     @abc.abstractmethod
-    def get_available_measurement(self):
-        """ get measurement, non-blocking, non-state changing
-        returns the measurement array in integer format
+    def get_available_measurements(self, meas_keys=None):
+        """ get measurements, non-blocking, non-state changing
+        returns the measurement arrays in integer format
 
+        @param (list): meas_keys: a list of keys in the measurement array; 
+                                 if meas_keys = None, the default 'counts' is returned
+                                 if meas_keys is not None, but not available, None is returned for the element
         @return int_array: array of measurement as tuple elements
         """
         pass
 
     @abc.abstractmethod
-    def get_measurement(self):
-        """ get measurement
-        returns the measurement array in integer format, blocking, state changing
+    def get_measurements(self, meas_keys=None):
+        """ get measurements
+        returns the measurement arrays in integer format, blocking, state changing
 
+        @param (list): meas_keys: a list of keys in the measurement array; 
+                                 if meas_keys = None, the default 'counts' is returned
+                                 if meas_keys is not None, but not available, None is returned for the element
         @return int_array: array of measurement as tuple elements
         """
         pass
