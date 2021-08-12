@@ -20,7 +20,6 @@ top-level directory of this distribution and at <https://github.com/Ulm-IQO/qudi
 """
 
 
-#from scipy.sparse import coo
 #from hardware.microwaveQ.microwaveq import MicrowaveQ
 from hardware.microwaveQ.microwaveq import MicrowaveQMode
 from core.module import Connector, StatusVar, ConfigOption
@@ -359,6 +358,7 @@ class AFMConfocalLogic(GenericLogic):
     # Qualitative Scan (Quenching Mode)
     sigQAFMScanInitialized = QtCore.Signal()
     sigQAFMLineScanFinished = QtCore.Signal()
+    sigQAFMScanStarted = QtCore.Signal()
     sigQAFMScanFinished = QtCore.Signal()
     
     #FIXME: Check whether this is really required.
@@ -394,6 +394,7 @@ class AFMConfocalLogic(GenericLogic):
 
     # Quantitative Scan (Full B Scan)
     sigQuantiLineFinished = QtCore.Signal()
+    sigQuantiScanStarted = QtCore.Signal()
     sigQuantiScanFinished = QtCore.Signal()
 
     # Single IsoB Parameter
@@ -933,6 +934,7 @@ class AFMConfocalLogic(GenericLogic):
             integration_time = self._sg_int_time_sample_scan
 
         self.module_state.lock()
+        self.sigQAFMScanStarted.emit()
 
         # set up the spm device:
         reverse_meas = False
@@ -1495,6 +1497,7 @@ class AFMConfocalLogic(GenericLogic):
         # return
         
         #self.module_state.lock()
+        self.sigQuantiScanStarted.emit()
         plane = 'XY'
 
         # set up the spm device:
@@ -1565,7 +1568,6 @@ class AFMConfocalLogic(GenericLogic):
             return self._qafm_scan_array
 
         start_time_afm_scan = datetime.datetime.now()
-        opti_counter = datetime.datetime.now()
         self._curr_scan_params = curr_scan_params
 
         # save the measurement parameter
@@ -1735,7 +1737,7 @@ class AFMConfocalLogic(GenericLogic):
                 break
 
             # perform optimization always after line finishes
-            if (datetime.datetime.now() - opti_counter).total_seconds() > self._optimize_period:
+            if self.get_optimize_request():
 
                 self.log.info('Enter optimization.')
                 self.sigHealthCheckStartSkip.emit()
@@ -1761,7 +1763,6 @@ class AFMConfocalLogic(GenericLogic):
 
 
                 time.sleep(2)
-                opti_counter = datetime.datetime.now()
                 self.sigHealthCheckStopSkip.emit()
 
         stop_time_afm_scan = datetime.datetime.now()
@@ -1878,6 +1879,7 @@ class AFMConfocalLogic(GenericLogic):
         # return
 
         # self.module_state.lock()
+        self.sigQuantiScanStarted.emit()
         plane = 'XY'
 
         # set up the spm device:
@@ -1946,7 +1948,6 @@ class AFMConfocalLogic(GenericLogic):
             return self._qafm_scan_array
 
         start_time_afm_scan = datetime.datetime.now()
-        opti_counter = datetime.datetime.now()
         self._curr_scan_params = curr_scan_params
 
         # save the measurement parameter
@@ -2121,7 +2122,7 @@ class AFMConfocalLogic(GenericLogic):
                 break
 
             # perform optimization always after line finishes
-            if (datetime.datetime.now() - opti_counter).total_seconds() > self._optimize_period:
+            if self.get_optimize_request():
 
                 self.log.info('Enter optimization.')
                 self.sigHealthCheckStartSkip.emit()
@@ -2145,7 +2146,6 @@ class AFMConfocalLogic(GenericLogic):
                             'count_frequency': esr_count_freq,
                             'num_meas': num_esr_runs } )
                 time.sleep(2)
-                opti_counter = datetime.datetime.now()
                 self.sigHealthCheckStopSkip.emit()
 
             self.log.info('Pass optimization.')

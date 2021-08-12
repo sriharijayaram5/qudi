@@ -234,9 +234,14 @@ class ProteusQGUI(GUIBase):
 
         self._qafm_logic.sigQAFMScanInitialized.connect(self.adjust_qafm_image)
         self._qafm_logic.sigQAFMLineScanFinished.connect(self._update_qafm_data)
+        self._qafm_logic.sigQAFMScanStarted.connect(self.periodic_optimzer_autorun_start)
         self._qafm_logic.sigQAFMScanFinished.connect(self.enable_scan_actions)
         self._qafm_logic.sigQAFMScanFinished.connect(self.autosave_qafm_measurement)
+        self._qafm_logic.sigQAFMScanFinished.connect(self.periodic_optimzer_autorun_stop)
         self._qafm_logic.sigNewAFMPos.connect(self.update_afm_pos)
+
+        self._qafm_logic.sigQuantiScanStarted.connect(self.periodic_optimzer_autorun_start)
+        self._qafm_logic.sigQuantiScanFinished.connect(self.periodic_optimzer_autorun_stop)
 
         self._qafm_logic.sigObjScanInitialized.connect(self.adjust_obj_image)
         self._qafm_logic.sigObjLineScanFinished.connect(self._update_obj_data)
@@ -362,6 +367,8 @@ class ProteusQGUI(GUIBase):
 
     def openQuantiMeas(self):
         self._mw.action_Quantitative_Measure.setChecked(True)
+        self.enable_optimizer_request(True)
+        self.set_optimizer_period(self._qm_optimizer_period)
         self._qm.show()
         self._qm.raise_()
 
@@ -597,7 +604,7 @@ class ProteusQGUI(GUIBase):
         self._request_timer.setSingleShot(False)
         self._request_timer_interval = 1 # in s, will essentially fire every second
 
-        self._mw.optimizer_request_period_SpinBox.setValue(self._periodic_opti_time)
+        self.set_optimizer_period(self._periodic_opti_time)
         self._mw.optimizer_request_autorun_CheckBox.setChecked(self._periodic_opti_autorun)
 
         # optimizer request is initially not shown
@@ -620,6 +627,12 @@ class ProteusQGUI(GUIBase):
             self._mw.groupBox_periodic_optimizer.setVisible(state)
             self._mw.action_open_optimizer_request.setChecked(state)
 
+    def set_optimizer_period(self, period):
+        self._periodic_opti_time = period 
+        self._mw.optimizer_request_period_SpinBox.setValue(period)
+
+    def get_optimizer_period(self):
+        return self._periodic_opti_time
 
     def update_max_optimizer_request(self, val):
         """ Update the  Progress bar. 
@@ -630,7 +643,7 @@ class ProteusQGUI(GUIBase):
 
         self._mw.optimizer_request_progress_Bar.setMaximum(val)
         self._mw.optimizer_request_progress_Bar.setValue(val)
-        self._periodic_opti_time = val
+        self.set_optimizer_period(val)
 
     def update_optimizer_request_autorun(self,val):
         self._periodic_opti_autorun = bool(val) 
@@ -658,6 +671,17 @@ class ProteusQGUI(GUIBase):
         else:
             self._mw.optimizer_request_progress_Bar.setValue(curr_val - self._request_timer_interval)
 
+    def periodic_optimzer_autorun_start(self):
+        """autostart optimizer request, to be called by a signal """
+        if self._mw.groupBox_periodic_optimizer.isEnabled() and \
+           self._periodic_opti_autorun and not self._mw.optimizer_request_Toggle.isChecked():
+            self._mw.optimizer_request_Toggle.setCheckState(QtCore.Qt.Checked)
+
+    def periodic_optimzer_autorun_stop(self):
+        """autostop optimizer request, to be called by a signal """
+        if self._mw.groupBox_periodic_optimizer.isEnabled() and self._periodic_opti_autorun:
+            self._mw.optimizer_request_Toggle.setCheckState(QtCore.Qt.Unchecked)
+
     def periodic_optimize_request_pressed(self, state):
         """ Periodic optimizer toggle switch state changed"""
         self._mw.optimizer_request_progress_Bar.setValue(
@@ -682,8 +706,8 @@ class ProteusQGUI(GUIBase):
 
     def perform_period_action(self):
         """ Just a wrapper method which is called to perform periodic action."""
-        #self.start_optimize_clicked()
-        self.log.info('Boom!')
+        self.start_optimize_clicked()
+        #self.log.info('Boom!')
 
     #               End Methods for the Optimizer Request
     # ==========================================================================
@@ -902,7 +926,7 @@ class ProteusQGUI(GUIBase):
             if entry in self._checkbox_container:
                 self._checkbox_container[entry].setChecked(True)
 
-        self._mw.optimizer_request_period_SpinBox.setValue(self._periodic_opti_time)
+        self.set_optimizer_period(self._periodic_opti_time)
         self._mw.optimizer_request_autorun_CheckBox.setChecked(self._periodic_opti_autorun)
 
         # Handle the Quantitative measurement values
@@ -2284,6 +2308,9 @@ class ProteusQGUI(GUIBase):
         esr_runs = self._qm.esr_runs_SpinBox.value()
         single_res = self._qm.esr_single_res_RadioButton.isChecked() 
         optimize_period = self._qm.optimizer_period_DoubleSpinBox.value()
+
+        # update from quanti settings to periodic optimizer
+        self.set_optimizer_period(optimize_period)  
 
         if fw_scan:
             self._qafm_logic.start_scan_area_quanti_qafm_fw_by_point(
