@@ -28,6 +28,8 @@ from core.util import units
 from core.util.mutex import Mutex
 from scipy.linalg import lstsq
 from math import log10, floor
+from scipy.stats import norm
+from collections import deque
 import threading
 import numpy as np
 import os
@@ -315,6 +317,10 @@ class AFMConfocalLogic(GenericLogic):
 
     _curr_scan_params = []
 
+    # pixel clock margin timing results (specified integration vs actual pixel clock time)
+    _pixel_clock_tdiff = {}
+    _pixel_clock_tdiff_data = {}
+
     # prepare measurement lines for the general measurement modes
     _obj_scan_line = np.zeros(10)   # scan line array for objective scanner
     _afm_scan_line = np.zeros(10)   # scan line array for objective scanner
@@ -410,9 +416,7 @@ class AFMConfocalLogic(GenericLogic):
 
     # make a dummy worker thread:
     _worker_thread = WorkerThread(print)
-
     _optimizer_thread = WorkerThread(print)
-
 
     # NV parameters:
     ZFS = 2.87e9    # Zero-field-splitting
@@ -452,6 +456,8 @@ class AFMConfocalLogic(GenericLogic):
     # iso-b settings
     _sg_iso_b_operation = False    # indicate whether iso-b is on
     _sg_iso_b_single_mode = StatusVar(default=True)  # default mode is single iso-B 
+    _sg_iso_b_single_mode = StatusVar(default=True)  # default mode is single iso-B 
+    _sg_iso_b_autocalibrate_margin = StatusVar(default=True)  # default is autocalibrate
     _sg_n_iso_b_pulse_margin = StatusVar(default=0.005)  # fraction of integration time for pause 
     _sg_n_iso_b_n_freq_splits = StatusVar(default=10)    # number of frequency sub splits to use
     _sg_n_iso_b_laser_cooldown_length = StatusVar(default=10e-6) # laser cool down time (s)
@@ -773,6 +779,7 @@ class AFMConfocalLogic(GenericLogic):
 
         sd['iso_b_operation'] = self._sg_iso_b_operation
         sd['iso_b_single_mode'] = self._sg_iso_b_single_mode
+        sd['iso_b_autocalibrate_margin'] = self._sg_iso_b_autocalibrate_margin
         sd['n_iso_b_pulse_margin'] = self._sg_n_iso_b_pulse_margin
         sd['n_iso_b_n_freq_splits'] = self._sg_n_iso_b_n_freq_splits
 
@@ -1093,6 +1100,7 @@ class AFMConfocalLogic(GenericLogic):
             self._qafm_scan_array[entry]['params']['Measurement parameter list'] = str(curr_scan_params)
             self._qafm_scan_array[entry]['params']['Measurement start'] = start_time_afm_scan.isoformat()
 
+        pixel_clock_tdiff = deque(maxlen=2500) 
         for line_num, scan_coords in enumerate(scan_arr):
 
             # for a continue measurement event, skip the first measurements
@@ -1140,6 +1148,8 @@ class AFMConfocalLogic(GenericLogic):
 
                 if int_time is None or np.any(np.isclose(int_time,0,atol=1e-12)):
                     int_time = freq1_pulse_time
+                else:
+                    pixel_clock_tdiff.extendleft((int_time - integration_time).tolist())
 
                 i = meas_params.index('counts')
                 self._qafm_scan_line[i] = counts/int_time
@@ -1240,6 +1250,29 @@ class AFMConfocalLogic(GenericLogic):
                 reverse_meas = True
 
             self.log.info(f'Line number {line_num} completed.')
+
+            # determine pixel clock margin to use
+            if pixel_clock_tdiff:
+                int_time_ms = int(integration_time * 1000)
+                tdiff = np.array(pixel_clock_tdiff)
+
+                # obtain the min time difference for the short pulses
+                # where there is less than 0.01% chance of being lower (short pulse)
+                if tdiff.min() < 0.0:
+                    sym_tdiff = tdiff[ tdiff < -tdiff.min()]
+                    mu, sigma = norm.fit(sym_tdiff)
+                    minlim = min(norm.cdf(sym_tdiff.min(),mu,sigma)*0.8,  # if min was extremly rare
+                                 norm.ppf(0.0001,mu,sigma))               # otherwise the 0.01% chance
+                else:
+                    minlim = tdiff.min() 
+                    
+                self._pixel_clock_tdiff[int_time_ms] = { 'n'     : tdiff.shape[0],
+                                                         'mean'  : tdiff.mean(),
+                                                         'stdev' : tdiff.std(),
+                                                         'min'   : tdiff.min(),
+                                                         'max'   : tdiff.max(),
+                                                         'minlim': minlim }
+                self._pixel_clock_tdiff_data[int_time_ms] = pixel_clock_tdiff
 
             # enable the break only if next scan goes into forward movement
             if self._stop_request and not reverse_meas:

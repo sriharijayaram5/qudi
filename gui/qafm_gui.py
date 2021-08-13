@@ -427,16 +427,24 @@ class ProteusQGUI(GUIBase):
 
         self._sd.iso_b_operation_CheckBox.stateChanged.connect(self._mw.dockWidget_isob.setVisible)
         self._sd.iso_b_operation_CheckBox.stateChanged.connect(self._mw.dockWidget_isob.setEnabled)
+        self._sd.iso_b_operation_CheckBox.stateChanged.connect(self._sd.iso_b_autocalibrate_CheckBox.setEnabled)
         self._sd.iso_b_operation_CheckBox.stateChanged.connect(self._sd.n_iso_b_pulse_margin_Label.setEnabled)
         self._sd.iso_b_operation_CheckBox.stateChanged.connect(self._sd.n_iso_b_pulse_margin_DoubleSpinBox.setEnabled)
         self._sd.iso_b_operation_CheckBox.stateChanged.connect(self._sd.n_iso_b_n_freq_splits_Label.setEnabled)
         self._sd.iso_b_operation_CheckBox.stateChanged.connect(self._sd.n_iso_b_n_freq_splits_SpinBox.setEnabled)
 
+        self._sd.iso_b_autocalibrate_CheckBox.stateChanged.connect(lambda x: self._sd.n_iso_b_pulse_margin_Label.setEnabled(not x))
+        self._sd.iso_b_autocalibrate_CheckBox.stateChanged.connect(lambda x: self._sd.n_iso_b_pulse_margin_DoubleSpinBox.setEnabled(not x))
+
         # trigger update of dual iso-b plot visibility 
         self._sd.iso_b_operation_CheckBox.stateChanged.connect(self._enable_dual_iso_b_plots) 
 
         # toggle twice to initiate a state change and come back to the initial one.
-        self._sd.iso_b_operation_CheckBox.toggle()
+        self._sd.iso_b_operation_CheckBox.toggle()   # toggle main iso-b
+
+        self._sd.iso_b_autocalibrate_CheckBox.toggle()  # toggle autocalibrate (otherwise it's not active)
+        self._sd.iso_b_autocalibrate_CheckBox.toggle()
+
         self._sd.iso_b_operation_CheckBox.toggle()
 
         # write the configuration to the settings window of the GUI.
@@ -825,6 +833,7 @@ class ProteusQGUI(GUIBase):
         sd['idle_move_scan_obj'] = self._sd.idle_move_scan_obj_DoubleSpinBox.value()
         sd['int_time_sample_scan'] = self._sd.int_time_sample_scan_DoubleSpinBox.value()
         sd['int_time_obj_scan'] = self._sd.int_time_obj_scan_DoubleSpinBox.value()
+        sd['iso_b_autocalibrate_margin'] = self._sd.iso_b_autocalibrate_CheckBox.isChecked()
         sd['n_iso_b_pulse_margin'] = self._sd.n_iso_b_pulse_margin_DoubleSpinBox.value()
         sd['n_iso_b_n_freq_splits'] = self._sd.n_iso_b_n_freq_splits_SpinBox.value()
 
@@ -878,6 +887,7 @@ class ProteusQGUI(GUIBase):
         self._sd.optimizer_period_DoubleSpinBox.setValue(sd['optimizer_period'])    
 
         self._sd.iso_b_operation_CheckBox.setChecked(sd['iso_b_operation'])
+        self._sd.iso_b_autocalibrate_CheckBox.setChecked(sd['iso_b_autocalibrate_margin'])
         self._sd.n_iso_b_pulse_margin_DoubleSpinBox.setValue(sd['n_iso_b_pulse_margin'])
         self._sd.n_iso_b_n_freq_splits_SpinBox.setValue(sd['n_iso_b_n_freq_splits'])
 
