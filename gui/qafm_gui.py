@@ -507,11 +507,11 @@ class ProteusQGUI(GUIBase):
         """ Retrieves information from qafm_logic, regarding the hardware conditions
             In the case this is called with dummy instances, the null report is returned
         """
+        status = "#Hardware Status:\n\n"
         try: 
             # MicrowaveQ hardware
             query = ['unlocked_features','fpga_version',]
             status_dict = self._qafm_logic.get_hardware_status(query)
-            status = "#Hardware Status:\n\n"
             status += "## MicrowaveQ  \n"
             for refname, refres in status_dict.items():
                 status += f"### {refname}  \n"
@@ -521,7 +521,12 @@ class ProteusQGUI(GUIBase):
                     status += str(refres)
                 status += "\n\n"      
             status += "---  \n"
+        
+        except:
+            # Dummy MQ used
+            status += "## MicrowaveQ  \n- Dummy MicrowaveQ in use"
 
+        try:
             # SPM hardware
             query = ['spm_library_version','spm_server_version','spm_client_version']
             status_dict = self._qafm_logic.get_hardware_status(query)
@@ -534,11 +539,24 @@ class ProteusQGUI(GUIBase):
                     status += str(refres)
                 status += "\n\n"      
             status += "---  \n"
-            status_html = markdown.markdown(status) 
 
         except:
-            status_html = markdown.markdown("##Hardware Status:\n- Dummy hardware in use")
-            
+            status += "## SPM  \n- Dummy SPM in use"
+
+        try:
+            # Pixel clock timing
+            query = ['spm_pixelclock_timing']
+            status += "## SPM Pixel Clock Timing \n"
+            timing_dict = self._qafm_logic.get_hardware_status(query)
+            if timing_dict:
+                for time_ms, time_res in timing_dict.items():
+                    status += f"### int_time = {time_ms}ms  \n"
+                    status += "\n".join([f" - {k} : {v}" for k,v in time_res.items()])
+
+        except:
+            status += "## SPM pixel clock timing  \n- Results not available"
+
+        status_html = markdown.markdown(status) 
         self._ab.hardware_status_Label.setText(status_html)
 
 
