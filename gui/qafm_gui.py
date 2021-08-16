@@ -543,17 +543,24 @@ class ProteusQGUI(GUIBase):
         except:
             status += "## SPM  \n- Dummy SPM in use"
 
-        try:
-            # Pixel clock timing
-            query = ['spm_pixelclock_timing']
-            status += "## SPM Pixel Clock Timing \n"
-            timing_dict = self._qafm_logic.get_hardware_status(query)
-            if timing_dict:
-                for time_ms, time_res in timing_dict.items():
-                    status += f"### int_time = {time_ms}ms  \n"
-                    status += "\n".join([f" - {k} : {v}" for k,v in time_res.items()])
+        # Pixel clock timing
+        query = ['spm_pixelclock_timing']
+        timing_dict = self._qafm_logic.get_hardware_status(query)
 
-        except:
+        if timing_dict['spm_pixelclock_timing']:
+            status += "## SPM Pixel Clock Timing \n"
+            res = timing_dict['spm_pixelclock_timing']
+            times = sorted(list(res.keys()))
+            headers = [ k for k in res[times[0]]]
+            status += "Pixel clock integration timing  \n\n"
+            status += " - int_time: " + "  ".join([f'{t}' for t in times]) + "\n"
+            status += f" - {'n':>10s}: " + "  ".join([f"{res[t]['n']}" for t in times]) + "\n"
+            headers.remove('n')
+            for h in headers:
+                status += f" - {h:>10s}: " + "  ".join([f'{res[t][h]:1.5e}' for t in times]) + "\n"
+
+            status += "\n\n"
+        else:
             status += "## SPM pixel clock timing  \n- Results not available"
 
         status_html = markdown.markdown(status) 

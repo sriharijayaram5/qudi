@@ -826,10 +826,11 @@ class AFMConfocalLogic(GenericLogic):
                     if this is a 'counter_dummy', then 'None' is returned
         """
         if request is None:
-            request = ['available_features','unlocked_features',
+            request = ['available_features', 'unlocked_features',
                        'fpga_version','dac_alarms',
-                       'spm_library_version',
-                       'spm_server_version','spm_client_version','spm_is_server_compatible' ]
+                       'spm_library_version', 'spm_server_version',
+                       'spm_client_version','spm_is_server_compatible',
+                       'spm_pixelclock_timing']
 
         status = dict()
         if 'available_features' in request:
