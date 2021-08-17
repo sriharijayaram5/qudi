@@ -1,4 +1,6 @@
 
+from markdown import extensions
+from math import log10, floor
 import numpy as np
 import pyqtgraph as pg
 import os
@@ -24,7 +26,6 @@ Implementation Steps/TODOs:
 - add default saveview as a file, which should be saved in the gui.
 - check the colorbar implementation for smaller values => 32bit problem, quite hard...
 """
-
 
 class SettingsDialog(QtWidgets.QDialog):
     """ Create the SettingsDialog window, based on the corresponding *.ui file."""
@@ -524,7 +525,7 @@ class ProteusQGUI(GUIBase):
         
         except:
             # Dummy MQ used
-            status += "## MicrowaveQ  \n- Dummy MicrowaveQ in use"
+            status += "## MicrowaveQ  \n - Dummy MicrowaveQ in use"
 
         try:
             # SPM hardware
@@ -541,7 +542,7 @@ class ProteusQGUI(GUIBase):
             status += "---  \n"
 
         except:
-            status += "## SPM  \n- Dummy SPM in use"
+            status += "## SPM  \n - Dummy SPM in use  \n\n---  \n"
 
         # Pixel clock timing
         query = ['spm_pixelclock_timing']
@@ -552,18 +553,21 @@ class ProteusQGUI(GUIBase):
             res = timing_dict['spm_pixelclock_timing']
             times = sorted(list(res.keys()))
             headers = [ k for k in res[times[0]]]
-            status += "Pixel clock integration timing  \n\n"
-            status += " - int_time: " + "  ".join([f'{t}' for t in times]) + "\n"
-            status += f" - {'n':>10s}: " + "  ".join([f"{res[t]['n']}" for t in times]) + "\n"
+            status += "Pixel clock integration timing  \n\n <br/>"
+            status += " meas | " + " | ".join([str(i) for i in range(1,len(times)+1)]) + "\n"
+            status += "--|-- " * len(times) + "\n"
+            status += " int_time(s) | " + " | ".join([f'{t/1000:1.5e}' for t in times]) + "\n"
+            status += f" {'n':>10s} | " + " | ".join([f"{res[t]['n']}" for t in times]) + "\n"
             headers.remove('n')
+            
             for h in headers:
-                status += f" - {h:>10s}: " + "  ".join([f'{res[t][h]:1.5e}' for t in times]) + "\n"
+                status += f" {h:>10s}(s) | " + " | ".join([f'{res[t][h]:1.5e}' for t in times]) + "\n"
 
             status += "\n\n"
         else:
-            status += "## SPM pixel clock timing  \n- Results not available"
+            status += "## SPM pixel clock timing  \n- Results not available  \n"
 
-        status_html = markdown.markdown(status) 
+        status_html = markdown.markdown(status, extensions=['tables']) 
         self._ab.hardware_status_Label.setText(status_html)
 
 
