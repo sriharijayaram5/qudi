@@ -146,7 +146,7 @@ class ProteusQGUI(GUIBase):
     _modtype = 'gui'
 
     _LabQversion = 'x.x'      #dynmically assigned
-    __version__ = '0.2.4'
+    __version__ = '0.2.5'
 
     ## declare connectors
     qafmlogic = Connector(interface='AFMConfocalLogic') # interface='AFMConfocalLogic'
@@ -456,7 +456,7 @@ class ProteusQGUI(GUIBase):
 
     # ==========================================================================
     #               Start Methods for the AboutDialog 
-    
+
     def initAboutUI(self):
         """ Initialize the LabQ About dialog box """
         self._ab = AboutDialog()
@@ -525,7 +525,7 @@ class ProteusQGUI(GUIBase):
         
         except:
             # Dummy MQ used
-            status += "## MicrowaveQ  \n - Dummy MicrowaveQ in use"
+            status += "## MicrowaveQ  \n - Dummy MicrowaveQ in use  \n\n---  \n"
 
         try:
             # SPM hardware
