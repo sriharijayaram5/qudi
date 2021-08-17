@@ -321,6 +321,7 @@ class MicrowaveQ(Base, SlowCounterInterface, RecorderInterface):
     # settings for iso-B mode
     _iso_b_freq_list = [500e6] # in MHz
     _iso_b_power = -30.0 # physical power for iso b mode.
+    _iso_b_pulse_config_time = 12e-6   # time required to configure a pulse
 
 
     def on_activate(self):

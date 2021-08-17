@@ -1020,10 +1020,16 @@ class AFMConfocalLogic(GenericLogic):
                     else:
                         int_time_ms = int(integration_time * 1000)
                         tdiff = self._pixel_clock_tdiff.get(int_time_ms, None)
-                        min_margin = tdiff['min_margin'] if tdiff is not None \
-                                     else  min([td['min_margin'] for td in self._pixel_clock_tdiff.values()])
+                        min_margin = tdiff['margin_2sd'] if tdiff is not None \
+                                     else  min([td['margin_2sd'] for td in self._pixel_clock_tdiff.values()])
 
-                        pulse_margin_frac = abs(min_margin) / integration_time  # min_margin is negative
+                        # time consumed in pulse is: pixel clock margin, laser cooldown, 
+                        # and the number of frequency configurations made (=n_freq*n_splits)
+                        t_consume = abs(min_margin) + \
+                                    self._sg_n_iso_b_laser_cooldown_length + \
+                                    2 * self._sg_n_iso_b_n_freq_splits * self._counter._iso_b_pulse_config_time
+
+                        pulse_margin_frac = t_consume / integration_time  
                         self.log.info(f'Autocalibrated pulse margin used = {pulse_margin_frac}')
 
                 freq_list=[self._freq1_iso_b_frequency, self._freq2_iso_b_frequency] 
@@ -1278,17 +1284,19 @@ class AFMConfocalLogic(GenericLogic):
                 if tdiff.min() < 0.0:
                     sym_tdiff = tdiff[ tdiff < -tdiff.min()]
                     mu, sigma = norm.fit(sym_tdiff)
-                    min_margin = min(norm.cdf(sym_tdiff.min(),mu,sigma)*0.8,  # if min was extremly rare
-                                 norm.ppf(0.0001,mu,sigma))               # otherwise the 0.01% chance
+                    margin_01p = norm.ppf(0.0001,mu,sigma)  # the 0.01% chance
                 else:
-                    min_margin = tdiff.min() 
+                    margin_01p = tdiff.min() 
                     
+                margin_2sd = margin_01p - 2*tdiff.std()     # extra safety margin
+
                 self._pixel_clock_tdiff[int_time_ms] = { 'n'         : tdiff.shape[0],
                                                          'mean'      : tdiff.mean(),
                                                          'stdev'     : tdiff.std(),
                                                          'min'       : tdiff.min(),
                                                          'max'       : tdiff.max(),
-                                                         'min_margin': min_margin }
+                                                         'margin_01p': margin_01p,
+                                                         'margin_2sd': margin_2sd }
                 self._pixel_clock_tdiff_data[int_time_ms] = pixel_clock_tdiff
 
             # enable the break only if next scan goes into forward movement
