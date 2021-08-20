@@ -1478,27 +1478,21 @@ class MicrowaveQ(Base, SlowCounterInterface, RecorderInterface):
         mode, _ = self.get_current_device_mode()
         
         # allow to run this method in the unconfigured mode, it is more a 
-        if (mode == MicrowaveQMode.CW_MW) or (mode == MicrowaveQMode.ESR) or (mode == MicrowaveQMode.UNCONFIGURED):
+        self._dev.rfpulse.setGain(0.0)
+        self._dev.ctrl.stop()
+        self.trf_off()
+        self._dev.rfpulse.stopRF()
+        #self.vco_off()
+        self.stop_measurement()
 
-            self._dev.rfpulse.setGain(0.0)
-            self._dev.ctrl.stop()
-            self.trf_off()
-            self._dev.rfpulse.stopRF()
-            #self.vco_off()
-            self.stop_measurement()
-
-            # allow the state transition only in the proper state.
+        # allow the state transition only in the proper state.
+        if self._dev.ctrl.isBusy():
+            self.log.warning(f'Attempted to stop MicrowaveQ, but it still reports "busy"')
+            return -1
+        else:
             if self._mq_state.is_legal_transition(RecorderState.IDLE):
                 self._mq_state.set_state(RecorderState.IDLE)
-            
             return 0
-        else:
-            self.log.warning(f'MicrowaveQ cannot be stopped from the '
-                             f'MicrowaveInterface method since the currently '
-                             f'configured mode "{MicrowaveQMode.name(mode)}" is not "ESR" or "CW_MW". '
-                             f'Stop the microwaveQ in its proper measurement '
-                             f'mode.')
-            return -1
 
 
     def get_status(self):
