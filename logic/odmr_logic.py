@@ -48,6 +48,9 @@ class ODMRLogic(GenericLogic):
     savelogic = Connector(interface='SaveLogic')
     #taskrunner = Connector(interface='TaskRunner')
 
+    _threaded = True
+    #_threaded = False    # for debugging
+
     # config option
     mw_scanmode = ConfigOption(
                     name='scanmode',
@@ -106,6 +109,21 @@ class ODMRLogic(GenericLogic):
         self.mw_step = limits.list_step_in_range(self.mw_step)
         self._odmr_counter.oversampling = self._oversampling
         self._odmr_counter.lock_in_active = self._lock_in_active
+
+        if np.isnan(self.mw_step):
+            self.log.warning('ODMR: invalid mw_step value found, resetting to min')
+            self.mw_step = limits.list_minstep
+
+        if (not np.isnan(self.mw_start)) or (not np.isnan(self.mw_stop)): 
+            if abs(self.mw_stop - self.mw_start) < limits.list_minstep:
+                self.log.warning(f'ODMR: mw_start={self.mw_start} and mw_stop={self.mw_stop}'
+                                  ' frequencies are equal, resetting to valid range') 
+                self.mw_stop = self.mw_start + self.mw_step 
+        else:
+            self.log.warning('ODMR: invalid mw_start and mw_stop frequencies found. Resetting to mid-range' )
+            mw_mid = 0.5 * (limits.min_frequency + limits.max_frequency)
+            self.mw_start = mw_mid 
+            self.mw_stop  = mw_mid + self.mw_step   # this is not really a good step, but it's legal
 
         # Set the trigger polarity (RISING/FALLING) of the mw-source input trigger
         # theoretically this can be changed, but the current counting scheme will not support that

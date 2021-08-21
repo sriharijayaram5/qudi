@@ -492,7 +492,7 @@
         <string>Hz</string>
        </property>
        <property name="decimals">
-        <number>4</number>
+        <number>3</number>
        </property>
        <property name="maximum">
         <double>1000000000.000000000000000</double>
@@ -524,7 +524,7 @@
         <string>Hz</string>
        </property>
        <property name="decimals">
-        <number>4</number>
+        <number>3</number>
        </property>
        <property name="minimum">
         <double>0.000000000000000</double>
@@ -562,7 +562,7 @@
         <string>Hz</string>
        </property>
        <property name="decimals">
-        <number>4</number>
+        <number>3</number>
        </property>
        <property name="minimum">
         <double>0.000000000000000</double>
