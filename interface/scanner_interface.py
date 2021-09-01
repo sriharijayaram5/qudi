@@ -221,8 +221,12 @@ class ScannerInterface(metaclass=InterfaceMetaclass):
         pass
 
 
-    #Objective scanner Movement functions
+    #Objective scanner Axis/Movement functions
     #==============================
+
+    @abc.abstractmethod
+    def get_objective_scan_range(self, axes=['X','Y','Z']):
+        pass
 
     @abc.abstractmethod
     def get_objective_pos(self):
@@ -243,8 +247,12 @@ class ScannerInterface(metaclass=InterfaceMetaclass):
         pass
 
 
-    # Probe scanner Movement functions
+    # Probe scanner Axis/Movement functions
     # ==============================
+
+    @abc.abstractmethod
+    def get_probe_scan_range(self, axes=['X','Y','Z']):
+        pass
 
     @abc.abstractmethod
     def get_probe_pos(self):
