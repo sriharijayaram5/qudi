@@ -489,14 +489,11 @@ class GPUFit:
         contrast_data = a/b   
         self.imgs = contrast_data.squeeze()
         self.x = x
-        self.log.info(f'Data shape: {self.imgs.shape}')
-        self.log.info(f'X shape: {self.x.shape}')
     
     def parameter_map(self, n, i):
         a = self.pm[:,:,1].argsort()
         pi = np.take_along_axis(self.pm[:,:,i], a, axis=1)
-        
-        pmap = np.interp(pi[:,n], np.arange(self.x.shape[0]),np.linspace(self.x.min(),self.x.max(),self.x.shape[0]))
+        pmap = pi[:,n]
         return pmap.reshape((self.imgs.shape[1], self.imgs.shape[2]))
     
     def fit(self, params, tolerance, max_number_iterations, model_id):
@@ -521,7 +518,7 @@ class GPUFit:
         self.parameters, states, chi_squares, number_iterations, execution_time = \
             gf.fit(data=data, weights=None, model_id=self.model_id, initial_parameters=initial_parameters, 
             tolerance=tolerance, max_number_iterations=max_number_iterations, parameters_to_fit=None,
-            estimator_id=estimator_id, user_info=None)
+            estimator_id=estimator_id, user_info=self.x)
 
         converged = states == 0
         self.summary = []

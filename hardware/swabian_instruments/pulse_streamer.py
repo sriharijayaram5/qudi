@@ -61,6 +61,8 @@ class PulseStreamer(Base, PulserInterface, ODMRCounterInterface):
     __current_waveform = StatusVar(name='current_waveform', default={})
     __current_waveform_name = StatusVar(name='current_waveform_name', default='')
     __sample_rate = StatusVar(name='sample_rate', default=1e9)
+    aom_low = StatusVar(name='aom_low', default=0.9)
+    aom_high = StatusVar(name='aom_high', default=-0.9)
 
 
     def __init__(self, config, **kwargs):
@@ -230,12 +232,16 @@ class PulseStreamer(Base, PulserInterface, ODMRCounterInterface):
         return constraints
 
     
-    def pulser_on(self, trigger=False, laser=False, n=-1, rearm=False, final=ps.OutputState([], 0, 0)):
+    def pulser_on(self, trigger=False, laser=False, n=-1, rearm=False, final=ps.OutputState([], 0, 0), pulsed=False):
         """ Switches the pulsing device on.
 
         @return int: error code (0:OK, -1:error)
         """
         if self._seq:
+            if pulsed:
+                self._seq.setAnalog([0], [(self._seq.getDuration(), self.aom_high)])
+            else:
+                self._seq.setAnalog([0], [(self._seq.getDuration(), self.aom_low)])
             if trigger:
                 self.pulse_streamer.setTrigger(start=ps.TriggerStart.HARDWARE_RISING)
             else:
@@ -247,7 +253,7 @@ class PulseStreamer(Base, PulserInterface, ODMRCounterInterface):
             self.__current_status = 1
             return 0
         elif laser:
-            self.pulse_streamer.constant(self._laser_mw_on_state)
+            self.pulse_streamer.constant(ps.OutputState([self._laser_channel], self.aom_low, 0))
         else:
             self.log.error('no sequence/pulse pattern prepared for the pulse streamer')
             self.pulser_off()

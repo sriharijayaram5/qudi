@@ -883,9 +883,10 @@ class ODMRGui(GUIBase):
  
     def do_gpu_fit(self):
         fit_function = self._gpufitw.fit_methods_comboBox.currentText()
+        fit_freq = 0 if not self._gpufitw.start_fit.isChecked() else self._gpufitw.frequency_spinBox.value()
         self.sigDoGPUFit.emit(
             fit_function,
-            self._gpufitw.frequency_spinBox.value(),
+            fit_freq,
             self._gpufitw.tolerance_dial.value(),
             self._gpufitw.max_iterations_spinBox.value(),
             self.gpu_fit_param_widget.get_params())

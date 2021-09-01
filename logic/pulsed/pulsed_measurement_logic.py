@@ -480,10 +480,10 @@ class PulsedMeasurementLogic(GenericLogic):
     def pulse_generator_constraints(self):
         return self.pulsegenerator().get_constraints()
 
-    def pulse_generator_on(self):
+    def pulse_generator_on(self, trigger=True, n=1, aom_high=False):
         """Switching on the pulse generator. """
         # self.pulsegenerator().pulse_streamer.setTrigger(start=ps.TriggerStart.HARDWARE_RISING)
-        err = self.pulsegenerator().pulser_on(trigger=True, laser=False, n=1, rearm=False)
+        err = self.pulsegenerator().pulser_on(trigger=trigger, laser=False, n=n, rearm=False, pulsed=aom_high)
         if err < 0:
             self.log.error('Failed to turn on pulse generator output.')
             self.sigPulserRunningUpdated.emit(False)
