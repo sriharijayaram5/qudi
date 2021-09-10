@@ -57,8 +57,8 @@ class ScannerMode(Enum):
         return { v:k for k,v in dict(vars(cls)).items() if isinstance(v,int)}.get(val, None)
 
 class ScanStyle(Enum):
-    LINE_SCAN = 0
-    POINT_SCAN = 1
+    LINE = 0
+    POINT = 1
 
 
 class ScannerConstraints:
@@ -125,7 +125,7 @@ class ScannerInterface(metaclass=InterfaceMetaclass):
     # Configure methods
     # =========================
     @abc.abstractmethod
-    def configure_scanner(self, mode, params):
+    def configure_scanner(self, mode, params, scan_style=ScanStyle.LINE):
         """ Configures the scanner device for current measurement. 
 
         @param ScannerMode mode: mode of scanner

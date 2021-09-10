@@ -425,28 +425,6 @@ class RemoteSPMLibrary(Base):
         return names, units
     
 
-    def setup_scan_common(self, plane, line_points, scan_style, sigs_buffers):
-
-        plane_id = plane.encode('UTF-8')
-        plane_id_p = c_char_p(plane_id)
-        line_points_c = c_int(line_points)
-        sigsCnt = c_int(len(sigs_buffers))
-
-        self._lib.SetupScanCommon.argtypes = [c_char_p,
-                                             c_int,
-                                             TScanMode,
-                                             c_int,
-                                             POINTER((c_char * self.MAX_SIG_NAME_LEN) * sigsCnt.value)]
-
-        ret_val = self._lib.SetupScanCommon(plane_id_p, 
-                                            line_points_c, 
-                                            scan_style, 
-                                            sigsCnt, 
-                                            byref(sigs_buffers))
-
-        return ret_val
-
-
     def _load_library(self, path=''):
         """ Helper to load the spm library. 
         
