@@ -19,9 +19,11 @@ Copyright (c) the Qudi Developers. See the COPYRIGHT.txt file at the
 top-level directory of this distribution and at <https://github.com/Ulm-IQO/qudi/>
 """
 
+from locale import CODESET
 import os
 import copy
 import threading
+from time import time
 import numpy as np
 from deprecation import deprecated
 from qtpy import QtCore
@@ -29,7 +31,7 @@ from qtpy import QtCore
 from core.module import Base, ConfigOption
 from hardware.spm.remote_spm import TScanMode, RemoteSPMLibrary
 
-from interface.scanner_interface import ScannerInterface, ScannerMode, ScannerStyle, \
+from interface.scanner_interface import ScannerInterface, ScannerMode, ScanStyle, \
                                         ScannerState, ScannerConstraints, ScannerMeasurements  
 
 class SmartSPM(Base, ScannerInterface):
@@ -61,6 +63,15 @@ class SmartSPM(Base, ScannerInterface):
     #_test_line_scan = []
     #_test_array_scan = []
 
+    # configuration 
+    _SCANNER_CONSTRAINTS = ScannerConstraints()
+    _SCANNER_MEASUREMENTS = ScannerMeasurements()
+    
+    _spm_state = ScannerState.DISCONNECTED
+    _spm_curr_mode = ScannerMode.UNCONFIGURED
+    _spm_curr_sstyle = ScanStyle.POINT_SCAN
+    _spm_curr_params = {}
+
     _afm_scan_line = np.zeros(0) # scan line array for afm scanner
     _afm_scan_array = np.zeros((9*2, 10, 10)) # Parameters for forward scan dir:
                                               # 0:Height(Dac), 1:Height(Sen), 
@@ -72,63 +83,8 @@ class SmartSPM(Base, ScannerInterface):
     _line_counter = 0
  
     # AFM measurement parameter
-    MEAS_PARAMS = {}
-    MEAS_PARAMS['Height(Dac)'] = {'measured_units' : 'nm',
-                                  'scale_fac': 1e-9,    # multiplication factor to obtain SI units   
-                                  'si_units': 'm', 
-                                  'nice_name': 'Height (from DAC)'}
-    MEAS_PARAMS['Height(Sen)'] = {'measured_units' : 'nm', 
-                                  'scale_fac': 1e-9,    # multiplication factor to obtain SI units   
-                                  'si_units': 'm', 
-                                  'nice_name': 'Height (from Sensor)'}
-    MEAS_PARAMS['Iprobe'] = {'measured_units' : 'pA', 
-                             'scale_fac': 1e-12,    # multiplication factor to obtain SI units   
-                             'si_units': 'A', 
-                             'nice_name': 'Probe Current'}
-    MEAS_PARAMS['Mag'] = {'measured_units' : 'arb. u.', 
-                          'scale_fac': 1,    # important: use integer representation, easier to compare if scale needs to be applied
-                          'si_units': 'arb. u.', 
-                          'nice_name': 'Tuning Fork Magnitude'}
-    MEAS_PARAMS['Phase'] = {'measured_units' : 'deg.', 
-                            'scale_fac': 1,    # multiplication factor to obtain SI units   
-                            'si_units': 'deg.', 
-                            'nice_name': 'Tuning Fork Phase'}
-    MEAS_PARAMS['Freq'] = {'measured_units' : 'Hz', 
-                           'scale_fac': 1,    # multiplication factor to obtain SI units   
-                           'si_units': 'Hz', 
-                           'nice_name': 'Frequency Shift'}
-    MEAS_PARAMS['Nf'] = {'measured_units' : 'arb. u.',
-                         'scale_fac': 1,    # multiplication factor to obtain SI units    
-                         'si_units': 'arb. u.', 
-                         'nice_name': 'Normal Force'}
-    MEAS_PARAMS['Lf'] = {'measured_units' : 'arb. u.', 
-                         'scale_fac': 1,    # multiplication factor to obtain SI units   
-                         'si_units': 'arb. u.', 
-                         'nice_name': 'Lateral Force'}
-    MEAS_PARAMS['Ex1'] = {'measured_units' : 'arb. u.', 
-                          'scale_fac': 1,    # multiplication factor to obtain SI units  
-                          'si_units': 'arb. u.', 
-                          'nice_name': 'External Sensor'}
-
     _curr_meas_params = []    # store here the current selection from MEAS_PARAMS
-
-    SENS_PARAMS_AFM = ['SenX', 'SenY', 'SenZ']   # AFM sensor parameter
-    SENS_PARAMS_OBJ = ['SenX2', 'SenY2', 'SenZ2']   # Objective sensor parameter
-    
-     
-    SAMPLE_AXIS = ['X', 'x', 'Y', 'y', 'Z', 'z', 'X1', 'x1', 'Y1', 'y1',
-                       'Z1', 'z1']
-    OBJECTIVE_AXIS = ['X2', 'x2', 'Y2', 'y2', 'Z2', 'z2']
-    VALID_AXIS =  SAMPLE_AXIS + OBJECTIVE_AXIS
-
-    PLANE_LIST = ['XY', 'YZ', 'XZ', 'X2Y2', 'Y2Z2', 'X2Z2']
     _curr_plan = 'XY'   # store here the current plane
-
-    # maximal range of the AFM scanner , x, y, z
-    AFM_SCANNER_RANGE = [[0, 100e-6], [0, 100e-6], [0, 12e-6]]
-    OBJECTIVE_SCANNER_RANGE = [[0, 30e-6], [0, 30e-6], [0, 10e-6]]
-
-    _curr_meas_mode = TScanMode.LINE_SCAN
 
     # Line index counter for line scans
     _line_index_ctr = 0
@@ -179,6 +135,14 @@ class SmartSPM(Base, ScannerInterface):
         self._spm_dll_ver = self.get_library_version()
         self._dev = RemoteSPMLibrary(self._libpath) 
         self._dev.connect_spm()
+        if self._dev.is_connected():
+            self.set_current_device_state(ScannerState.UNCONFIGURED)
+        else:
+            self.log.error("Failed to connect to SPM")
+            return
+
+        self._create_scanner_contraints()
+        self._create_scanner_measurements()
 
 
     def on_deactivate(self):
@@ -207,6 +171,123 @@ class SmartSPM(Base, ScannerInterface):
     # ==========================================================================
     #                       Scanner interface methods 
     # ==========================================================================
+
+    def _create_scanner_contraints(self):
+
+        sc = self._SCANNER_CONSTRAINTS
+
+        sc.max_detectors = 1
+
+        # current modes, as implemented.  Enable others when available
+        sc.scanner_modes = [ ScannerMode.OBJECTIVE_XY, 
+                             ScannerMode.OBJECTIVE_XZ,
+                             ScannerMode.OBJECTIVE_YZ,
+                             ScannerMode.PROBE_CONTACT,
+                             ScannerMode.PROBE_CONSTANT_HEIGHT ]  
+
+        sc.scanner_mode_states = { ScannerMode.OBJECTIVE_XY: [  ScannerState.IDLE,
+                                                                ScannerState.OBJECTIVE_MOVING,
+                                                                ScannerState.OBJECTIVE_SCANNING],
+
+                                   ScannerMode.OBJECTIVE_XZ: [  ScannerState.IDLE,
+                                                                ScannerState.OBJECTIVE_MOVING,
+                                                                ScannerState.OBJECTIVE_SCANNING],
+
+                                   ScannerMode.OBJECTIVE_YZ: [  ScannerState.IDLE,
+                                                                ScannerState.OBJECTIVE_MOVING,
+                                                                ScannerState.OBJECTIVE_SCANNING],
+
+                                   ScannerMode.PROBE_CONTACT: [ ScannerState.IDLE,
+                                                                ScannerState.PROBE_MOVING,
+                                                                ScannerState.PROBE_SCANNING,
+                                                                ScannerState.PROBE_LIFTED],
+
+                                   ScannerMode.PROBE_CONSTANT_HEIGHT: [
+                                                                ScannerState.IDLE,
+                                                                ScannerState.PROBE_MOVING,
+                                                                ScannerState.PROBE_SCANNING_LIFTED,
+                                                                ScannerState.PROBE_LIFTED],
+                                    
+                                   ScannerMode.PROBE_DUAL_PASS: [ ],   # not yet implemented
+                                   ScannerMode.PROBE_Z_SWEEP  : [ ]    # not yet implemented
+                                }
+
+        sc.scanner_styles = [ScanStyle.POINT_SCAN, ScanStyle.LINE_SCAN] 
+
+        sc.scanner_mode_params = {}           # to be defined
+        sc.scanner_mode_params_defaults = {}  # to be defined
+        
+    def _create_scanner_measurements(self):
+        sm = self._SCANNER_MEASUREMENTS 
+
+        sm.scanner_measurements = { 
+            'Height(Dac)' : {'measured_units' : 'nm',
+                             'scale_fac': 1e-9,    # multiplication factor to obtain SI units   
+                             'si_units': 'm', 
+                             'nice_name': 'Height (from DAC)'},
+     
+            'Height(Sen)' : {'measured_units' : 'nm', 
+                             'scale_fac': 1e-9,    
+                             'si_units': 'm', 
+                             'nice_name': 'Height (from Sensor)'},
+
+            'Iprobe' :      {'measured_units' : 'pA', 
+                             'scale_fac': 1e-12,   
+                             'si_units': 'A', 
+                             'nice_name': 'Probe Current'},
+ 
+            'Mag' :         {'measured_units' : 'arb. u.', 
+                             'scale_fac': 1,    # important: use integer representation, easier to compare if scale needs to be applied
+                             'si_units': 'arb. u.', 
+                             'nice_name': 'Tuning Fork Magnitude'},
+
+            'Phase' :       {'measured_units' : 'deg.', 
+                             'scale_fac': 1,    
+                             'si_units': 'deg.', 
+                             'nice_name': 'Tuning Fork Phase'},
+
+            'Freq' :        {'measured_units' : 'Hz', 
+                             'scale_fac': 1,    
+                             'si_units': 'Hz', 
+                             'nice_name': 'Frequency Shift'},
+
+            'Nf' :          {'measured_units' : 'arb. u.',
+                             'scale_fac': 1,    
+                             'si_units': 'arb. u.', 
+                             'nice_name': 'Normal Force'},
+
+            'Lf' :          {'measured_units' : 'arb. u.', 
+                             'scale_fac': 1,    
+                             'si_units': 'arb. u.', 
+                             'nice_name': 'Lateral Force'},
+
+            'Ex1' :         {'measured_units' : 'arb. u.', 
+                             'scale_fac': 1,    
+                             'si_units': 'arb. u.', 
+                             'nice_name': 'External Sensor'}
+        }
+
+        sm.scanner_axes = { 'SAMPLE_AXES':     ['X', 'Y', 'Z', 'x', 'y', 'z',
+                                                'X1', 'Y1', 'Z1', 'x1', 'y1', 'z1'],
+                            
+                            'OBJECTIVE_AXES' : ['X2', 'Y2', 'Z2', 'x2', 'y2', 'z2'],
+
+                            'VALID_AXES'     : [ *sm.scanner_axes['SAMPLE_AXES'], 
+                                                 *sm.scanner_axes['OBJECTIVE_AXES']],
+        }
+
+        sm.scanner_planes = ['XY', 'YZ', 'XZ', 'X2Y2', 'Y2Z2', 'X2Z2']
+
+        sm.scanner_sensors = {  # name of sensor parameters 
+                                'SENS_PARAMS_SAMPLE'    : ['SenX', 'SenY', 'SenZ'],   # AFM sensor parameter
+                                'SENS_PARAMS_OBJECTIVE' : ['SenX2', 'SenY2', 'SenZ2'],
+
+                                # maximal range of the AFM scanner , x, y, z
+                                'SAMPLE_SCANNER_RANGE' :    [[0, 100e-6], [0, 100e-6], [0, 12e-6]],
+                                'OBJECTIVE_SCANNER_RANGE' : [[0, 30e-6], [0, 30e-6], [0, 10e-6]]
+                             }
+ 
+
     def configure_scanner(self, mode, params):
         """ Configures the scanner device for current measurement. 
 
@@ -217,52 +298,261 @@ class SmartSPM(Base, ScannerInterface):
 
         @return int: error code (0:OK, -1:error)
         """
-        pass
+        dev_state = self.get_current_device_state()
+        curr_mode, curr_params, curr_sstyle = self.get_current_device_config()
+        std_config = {
+            ScannerMode.OBJECTIVE_XY:  { 'plane'       : 'X2Y2', 
+                                         'meas_params' : [],
+                                         'scan_mode'   : TScanMode.LINE_SCAN },
+
+            ScannerMode.OBJECTIVE_XZ:  { 'plane'       : 'X2Z2', 
+                                         'meas_params' : [],
+                                         'scan_mode'   : TScanMode.LINE_SCAN },
+
+            ScannerMode.OBJECTIVE_YZ:  { 'plane'       : 'Y2Z2', 
+                                         'meas_params' : [],
+                                         'scan_mode'   : TScanMode.LINE_SCAN },
+
+            ScannerMode.PROBE_CONTACT: { 'plane'       : 'XY', 
+                                         'scan_mode'   : TScanMode.LINE_SCAN },
+
+            # other configurations to be defined as they are implemented
+        }
+
+        if (dev_state != ScannerState.UNCONFIGURED) or (dev_state != ScannerState.IDLE):
+            self.log.error(f'SmartSPM cannot be configured in the '
+                           f'requested mode "{ScannerMode.name(mode)}", since the device '
+                           f'state is in "{dev_state}". Stop ongoing '
+                           f'measurements and make sure that the device is '
+                           f'connected to be able to configure if '
+                           f'properly.')
+            return -1
+
+        limits = self.get_scanner_constraints()
+
+        if mode not in limits.scanner_modes:
+            mode_name = ScannerMode.name(mode) if ScannerMode.name(mode) is not None else mode
+            self.log.error(f'Requested mode "{mode_name}" not available for SPM. '
+                            'Check that mode is defined via the ScannerMode Enum type. ' 
+                            'Configuration stopped.')
+            return -1            
+        
+        sc_defaults = limits.scanner_mode_params_defaults[mode]
+        is_ok = self._check_params_for_mode(mode, params)
+        if not is_ok: 
+            self.log.error(f'Parameters are not correct for mode "{ScannerMode.name(mode)}". '
+                           f'Configuration stopped.')
+            return -1
+
+        ret_val = 0
+
+        # the associated error message for a -1 return value should come from 
+        # the method which was called (with a reason, why configuration could 
+        # not happen).
+
+        # after all the checks are successful, delegate the call to the 
+        # appropriate preparation function.
+        if mode == ScannerMode.UNCONFIGURED:
+            # nothing to do, mode is unconfigured
+            pass
+
+        elif mode == ScannerMode.OBJECTIVE_XY:
+            self._dev.setup_spm(**std_config[ScannerMode.OBJECTIVE_XY])
+
+        elif mode == ScannerMode.OBJECTIVE_XZ:
+            self._dev.setup_spm(**std_config[ScannerMode.OBJECTIVE_XZ])
+
+        elif mode == ScannerMode.OBJECTIVE_YZ:
+            self._dev.setup_spm(**std_config[ScannerMode.OBJECTIVE_YZ])
+
+        """
+        mode:
+            OBJECTIVE_XY 
+        params:
+            line_points
+            meas_params
+        scan_style:
+            LINE_SCAN or POINT_SCAN
+
+        mode:
+            OBJECTIVE_XZ 
+        params:
+            line_points
+            meas_params
+        scan_style:
+            LINE_SCAN or POINT_SCAN
+
+        mode:
+            OBJECTIVE_YZ 
+        params:
+            line_points
+            meas_params
+        scan_style:
+            LINE_SCAN or POINT_SCAN
+                
+        mode:
+            PROBE_CONTACT 
+        params:
+            line_points
+            meas_params
+        scan_style:
+            LINE_SCAN or POINT_SCAN
+
+        mode: 
+            PROBE_CONSTANT_HEIGHT
+        params:
+            line_points
+            meas_params
+            lift_height
+        scan_style:
+            LINE_SCAN or POINT_SCAN
+
+        mode: 
+            PROBE_DUAL_PASS
+        params:
+            line_points
+            meas_params_pass1
+            meas_params_pass2
+            lift_height
+        scan_style:
+            LINE_SCAN or POINT_SCAN
+
+        mode: 
+            PROBE_Z_SWEEP
+        params:
+            line_points
+            meas_params
+        scan_style:
+            LINE_SCAN or POINT_SCAN 
+        """
+
 
     def get_current_configuration(self):
         """ Returns the current scanner configuration
 
         @return tuple: (mode, scan_style)
         """
-        pass
+        return self._spm_curr_mode, self._spm_curr_sstyle 
 
-    def configure_scan_line(self, 
-                            corr0_start, corr0_stop, 
-                            corr1_start, corr1_stop, # not used in case of z sweep
-                            time_forward, time_back):
-        # will configure a line depending on the selected mode
-        # (required configure_scan_device be done before the scan)
-        # allocate the array where data will be saved to
-        pass
+    def configure_line(self, 
+                       corr0_start, corr0_stop, 
+                       corr1_start, corr1_stop, # not used in case of z sweep
+                       time_forward, time_back):
+        """ Setup the scan line parameters
         
-    def scan_line(self): 
-        # (required configure_scan_line to be called prior)
-        # will execute a scan line depending on the selected mode
-        pass
+        @param float coord0_start: start point for coordinate 0 in m
+        @param float coord0_stop: stop point for coordinate 0 in m
+        @param float coord1_start: start point for coordinate 1 in m
+        @param float coord1_stop: stop point for coordinate 1 in m
+        @param float time_forward: time for forward movement during linescan in s
+                                   For line-scan mode time_forward is equal to 
+                                   the time-interval between starting of the 
+                                   first scanned point and ending of the last 
+                                   scan point. 
+                                   For point-scan tforw is the sum of all 
+                                   time-intervals between scan points.
+        @param float time_back: sets the time-interval for back (idle) movement 
+                                in s when the back displacement is abs equal to 
+                                the forward displacement, it also defines the 
+                                time interval when move to first scan point.
+        
+        @return bool: status variable with: 
+                        False (=0) call failed
+                        True (=1) call successful
+
+        This is a general function, a line is scanned in a previously configured
+        plane. It is possible to set zero scan area, then some reasonable 
+        values for time_forward and time_back will be chosen automatically.
+        """               
+        if self._spm_curr_sstyle != ScanStyle.LINE_SCAN:
+            self.log.error('Request to configure line of "LINE_SCAN", but method not configured')
+
+        return self._dev.setup_scan_line(corr0_start = corr0_start, corr0_stop = corr0_stop,
+                                         corr1_start = corr1_start, corr1_stop = corr1_stop,
+                                         time_forward = time_forward, time_back = time_back)
+
+        
+    def scan_line(self,int_time = 0.05): 
+        """Execute a scan line measurement. 
+
+        @param float int_time: integration time in s while staying on one point.
+                               this setting is only valid for point-scan mode 
+                               and will be ignored for a line-scan mode.  
+        
+        Every scan procedure starts with setup_spm method. Then
+        setup_scan_line follows (first time and then next time current 
+        scan line was completed)
+
+        @return int: status variable with: 0 = call failed, 1 = call successful
+        """
+        if self._spm_curr_sstyle != ScanStyle.LINE_SCAN:
+            self.log.error('Request to perform "LINE_SCAN", but method not configured')
+
+        return self._dev.scan_line(int_time=int_time)
+        
+
+    def scan_point(self, num_params=None):
+        """ After setting up the scanner perform a scan of a point. 
+
+        @param int num_params: set the expected parameters per point, minimum is 0
+
+        @return list: Measured signals of the previous point. 
+
+        First number tells the size of the array, second variable is the pointer
+        to the reference array. It is converted directly to a python list array.
+
+        Explanation of the Point scan procedure:
+            The function ExecScanPoint moves to the next point of the scan line 
+            and return data measured for previous point of the line. For the 1st
+            point of the scan line, the ExecScanPoint returns just size = 0.
+            For the last point of the line need to call ExecScanPoint two times:
+                to receive the data from previous point 
+                and then from last point
+            So, when next ExecScanPoint return control, you can start to get 
+            data from some other external device, while SPM accumulating signals
+            in given scan-point.
+            After scan line ends, need to call next SetupScanLine
+        """
+        if self._spm_curr_sstyle != ScanStyle.POINT_SCAN:
+            self.log.error('Request to perform "POINT_SCAN", but method not configured')
+
+        self._dev.scan_point(num_params=num_params) 
+
 
     def get_measurement(self):
         # (required configure_scan_line to be called prior)
         # => blocking method, either with timeout or stoppable via stop measurement
         pass
 
-    def scan_point(self):
-        # (blocking method, required configure_scan_line to be called prior)
-        pass
+
+    def finish_scan(self):
+        """ Finish scan at current state
+        Requests a finish of the measurement program
+        Allows completion of the current measuremen
+        """
+        self._dev.finish_scan()
+        self.set_current_device_state(ScannerState.UNCONFIGURED)
     
+
     def stop_measurement(self):
-        # => hardcore stop mechanism
-        # => if PROBE_CONSTANT_HEIGHT: land_probe
-        # => if PROBE_DUAL_PASS: land_probe
-        # => if PROBE_Z_SWEEP: BreakProbeSweepZ
+        """ Immediately terminate the measurment
+        Hardcore stop mechanism, which proposes the following actions:
+        - if PROBE_CONSTANT_HEIGHT: land_probe
+        - if PROBE_DUAL_PASS: land_probe
+        - if PROBE_Z_SWEEP: BreakProbeSweepZ
+        """
 
         # - land probe after each scan! land_probe(fast=False)
         # => configuration will be set to UNCONFIGURED
-        pass
+        self._dev.stop_measurement() 
+        self.set_current_device_state(ScannerState.UNCONFIGURED)
+
 
     def calibrate_constant_height(self, calib_points, safety_lift):
         # array with (x,y) points, safety_lift, ) 
         # => return calibration points array of (x,y,z)
         pass
+
 
     def get_constant_height_calibration(self):
         # => return calibration points array of (x,y,z)
@@ -275,125 +565,124 @@ class SmartSPM(Base, ScannerInterface):
         pass
 
     def get_current_device_state(self):
-        pass
+        """ Get the current device state 
+
+        @return: ScannerState.(state) 
+                 returns the state of the device, as allowed for the mode  
+        """      
+        return self._spm_state
+
+    def set_current_device_state(self, state):
+        """ Sets the current device state 
+
+        @return: True (success) or False (failure)
+                 (currently, there is no policing of the state for the mode)
+        """      
+        self._spm_state = state 
+        return True 
+
 
     def get_current_device_config(self):     
         #=> internally: _set_current_device_config()
-        pass
+        mode = self._spm_curr_mode 
+        params = self._spm_curr_params
+        style = self._spm_curr_sstyle
+
+        return mode, params, style
+
+    def get_device_meta_info(self, query=None):
+        # returns info on the scanner hardware/software
+        dev_info = {'SERVER_VERSION':       self._dev.server_interface_version(),
+                    'CLIENT_VERSION':       self._dev.client_interface_version(),
+                    'IS_SERVER_COMPATIBLE': self._dev.is_server_compatible(),
+                    'LIBRARY_VERSION':      self.get_library_version()
+                   } 
+
+        if query is not None and dev_info.get(query):
+            return dev_info[query] 
+        else: 
+            return dev_info
+
+    def get_scanner_constraints(self):
+        return copy.copy(self._SCANNER_CONSTRAINTS)
 
     def get_available_scan_modes(self):
-        pass
-
-    def get_parameter_for_modes(self):
-        pass
+        sc = self._SCANNER_CONSTRAINTS
+        return copy.copy(sc.scanner_modes)
 
     def get_available_scan_style(self):
-        pass
+        sc = self._SCANNER_CONSTRAINTS 
+        return copy.copy(sc.scanner_styles)
+
+    def get_available_scan_measurements(self):
+        sm = self._SCANNER_MEASUREMENTS
+        return copy.copy(sm)
+
+    def get_parameters_for_mode(self, mode):
+        sc = self._SCANNER_CONSTRAINTS
+        return sc.scanner_mode_params.get(mode, None) 
+
+    def get_meas_params(self):
+        """ Obtain a dict with the available measurement parameters. """
+        sm = self.get_available_scan_measurements()
+        return sm.scanner_measurements
+
+    def _check_params_for_mode(self, mode, params):
+        """ Make sure that all the parameters are present for the current mode.
+        
+        @param ScannerMode mode: mode of scanner, as available from 
+                                  ScannerMode types
+        @param dict params: specific settings as required for the given 
+                            measurement mode 
+
+        return bool:
+                True: Everything is fine
+                False: parameters are missing. Missing parameters will be 
+                       indicated in the error log/message.
+
+        This method assumes that the passed mode is in the available options,
+        no need to double check if mode is present it available modes.
+        """
+        is_ok = True
+        limits = self.get_scanner_constraints()
+        allowed_modes = limits.scanner_modes
+        required_params = limits.scanner_mode_params
+        optional_params = limits.scanner_mode_params_defaults
+
+        if mode not in allowed_modes:
+            is_ok = False
+            return is_ok
+
+        # check that the required parameters are supplied
+        fulfilled = set() 
+        for entry in required_params:
+            if params.get(entry, None) is None:
+                self.log.warning(f'Parameter "{entry}" not specified for mode '
+                                 f'"{ScannerMode.name(mode)}". Correct this!')
+                is_ok = False
+            else:
+                fulfilled.update(entry)
+
+        if not is_ok:
+            return is_ok
+
+        # check that optional parameters have been spelled correctly
+        # here, the parameters which have already been processed are skipped
+        remaining = set(params.keys()) - fulfilled
+        for entry in remaining:
+            if optional_params.get(entry, None):
+                self.log.warning(f'Supplied optional parameter "{entry}" is not a known definition '
+                                 f'for "{ScannerMode.name(mode)}". Correct this!')
+                is_ok = False                                 
+
+        return is_ok
+
 
 
     #Objective scanner Axis/Movement functions
     #==============================
 
-    def get_objective_scan_range(self, axes=['X','Y','Z']):
-        pass
-
-    def get_objective_pos(self):
-        pass
-
-    def get_objective_target_pos(self):
-        pass
-
-    def set_objective_pos_abs(self, vel=None, time=None):
-        # if velocity is given, time will be ignored
-        pass
-
-    def set_objective_pos_rel(self, vel=None, time=None):  
-        # if velocity is given, time will be ignored
-        pass
-
-
-    # Probe scanner Axis/Movement functions
-    # ==============================
-
-    def get_probe_scan_range(self, axes=['X','Y','Z']):
-        pass
-
-    def get_probe_pos(self):
-        pass
-
-    def get_probe_target_pos(self):
-        pass
-
-    def set_probe_pos_abs(self, vel=None, time=None):
-        #if velocity is given, time will be ignored
-        pass
-    
-    def set_probe_pos_rel(self, vel=None, time=None):
-        # if velocity is given, time will be ignored
-        pass
-
-
-    # Probe lifting functions
-    # ========================
-
-    def lift_probe(self, rel_value):
-        pass
-
-    def get_lifted_value(self):
-        # return absolute lifted value
-        pass
-
-    def is_probe_landed(self): 
-        # return True/False
-        pass
-
-    def land_probe(self, fast=False):
-        pass
-           
-    # ==========================================================================
-    #                       SPM control methods
-    # ==========================================================================
-    # axisId: X, Y, Z (or X1, Y1, Z1); X2, Y2, Z2; or lowercase; units: um
-
-    
-    #TODO: Combine the methods in a general get_axis_range function for sample 
-    #      and objective scanner. Check whether it makes sense.
-
-    # It is more a safety measure to split the request for position and axis 
-    # range between the objective and sample scanner.
-    
-
-    def get_sample_scanner_range(self, axis_label_list=['X1', 'Y1', 'Z1']):
-        """ Get the sample scanner range for the provided axis label list. 
-
-        @param list axis_label_list: the axis label string list, entries either 
-                                     capitalized or lower case, possible values: 
-                                        ['X', 'x', 'Y', 'y', 'Z', 'z'] 
-                                     or postfixed with a '1':
-                                        ['X1', 'x1', 'Y1', 'y1', 'Z1', 'z1'] 
-
-        @return dict: sample scanner range dict with requested entries in m 
-                      (SI units).
-        """
-
-        sc_range = {} # sample scanner range
-
-        for axis_label in axis_label_list:
-
-            axis_label = axis_label.upper()
-
-            if axis_label in self.SAMPLE_AXIS:
-                ret_val = self._dev.get_axis_range(axis_label)  # value in um
-                if ret_val == 0:
-                    self.log.error(f'Error in retrieving the {axis_label} axis range from Sample Scanner.')
-                
-                sc_range[axis_label] = ret_val * 1e-6 
-            else:
-                self.log.warning(f'Invalid label "{axis_label}" for Sample Scanner range request. Request skipped.')
-        
-        return sc_range
-
-    def get_object_scanner_range(self, axis_label_list=['X2', 'Y2', 'Z2']):
+    def get_objective_scan_range(self, axis_label_list=['X2', 'Y2', 'Z2']):
         """ Get the objective scanner range for the provided axis label list. 
 
         @param list axis_label_list: the axis label string list, entries either 
@@ -403,14 +692,15 @@ class SmartSPM(Base, ScannerInterface):
         @return dict: objective scanner range dict with requested entries in m 
                       (SI units).
         """
+        sm = self.get_available_scan_measurements()
+        axes = sm.scanner_axes['OBJECTIVE_AXES']
 
         sc_range = {} # objective scanner range
 
         for axis_label in axis_label_list:
-
             axis_label = axis_label.upper() 
 
-            if axis_label in self.OBJECTIVE_AXIS:
+            if axis_label in axes:
                 ret_val = self._dev.get_axis_range(axis_label)  # value in um
                 if ret_val == 0:
                     self.log.error(f'Error in retrieving the {axis_label} axis range from Objective Scanner.')
@@ -421,38 +711,7 @@ class SmartSPM(Base, ScannerInterface):
         return sc_range
 
 
-    def get_sample_scanner_pos(self, axis_label_list=['X1', 'Y1', 'Z1']):
-        """ Get the sample scanner position. 
-
-        @param list axis_label_list: axis label string list, entries either 
-                                     capitalized or lower case, possible values: 
-                                        ['X', 'x', 'Y', 'y', 'Z', 'z'] 
-                                     or postfixed with a '1':
-                                        ['X1', 'x1', 'Y1', 'y1', 'Z1', 'z1'] 
-
-        @return dict: sample scanner position dict in m (SI units). Normal 
-                      output [0 .. AxisRange], though may fall outside this 
-                      interval. Error: output <= -1000
-        """
-
-        sc_pos = {} # sample scanner pos
-
-        for axis_label in axis_label_list:
-
-            axis_label = axis_label.upper() 
-
-            if axis_label in self.SAMPLE_AXIS:
-                ret_val = self._dev.get_axis_position(axis_label)
-                if ret_val <= -1000:
-                    self.log.error(f'Error in retrieving the {axis_label} axis position from Sample Scanner.')
-                sc_pos[axis_label] = ret_val * 1e-6
-            else:
-                self.log.warning(f'Not valid label "{axis_label}" for Sample Scanner position request. Request skipped.')
-        
-        return sc_pos
-        
-
-    def get_objective_scanner_pos(self, axis_label_list=['X2', 'Y2', 'Z2']):
+    def get_objective_pos(self, axis_label_list=['X2', 'Y2', 'Z2']):
         """ Get the objective scanner position. 
 
         @param str axis_label_list: the axis label, either capitalized or lower 
@@ -463,15 +722,15 @@ class SmartSPM(Base, ScannerInterface):
                        this interval. Error: output <= -1000
                        sample scanner position in m (SI units).
         """
+        sm = self.get_available_scan_measurements()
+        axes = sm.scanner_axes['OBJECTIVE_AXES']
 
         sc_pos = {} # objective scanner pos
 
         for axis_label in axis_label_list:
-
             axis_label = axis_label.upper() 
 
-            if axis_label in self.OBJECTIVE_AXIS:
-                #ret_val = self._lib.AxisPosition(axis_label.encode()) # value in um
+            if axis_label in axes:
                 ret_val = self._dev.get_axis_position(axis_label)
                 if ret_val <= -1000:
                     self.log.error(f'Error in retrieving the {axis_label} axis position from Objective Scanner.')
@@ -482,62 +741,37 @@ class SmartSPM(Base, ScannerInterface):
         return sc_pos
 
 
-    def set_sample_scanner_pos(self, axis_label_dict, move_time=0.1):
-        """ Set the sample scanner position.
+    def get_objective_target_pos(self, axis_label_list=['X2', 'Y2', 'Z2']):
+        """ Get the objective scanner position. 
 
-        @param dict axis_label_dict: the axis label dict, entries either 
-                                     capitalized or lower case, possible keys:
-                                        ['X', 'x', 'Y', 'y', 'Z', 'z']
-                                     or postfixed with a '1':
-                                        ['X1', 'x1', 'Y1', 'y1', 'Z1', 'z1'] 
-                                    Values are the desired position for the 
-                                    sample scanner in m. E.g an passed value may
-                                    look like
+        @param str axis_label_list: the axis label, either capitalized or lower 
+                                    case, possible values: 
+                                        ['X2', 'x2', 'Y2', 'y2', 'Z2', 'z2'] 
 
-                                        axis_label_dict = {'X':10e-6, 'Y':5e-6}
-
-                                    to set the sample scanner to the absolute 
-                                    position x=10um and y=5um.
-
-        @param float move_time: optional, time how fast the scanner is moving 
-                                to desired position. Value must be within 
-                                [0, 20] seconds.
-        
-        @return float: the actual position set to the axis, or -1 if call failed.
+        @return float: normal output [0 .. AxisRange], though may fall outside 
+                       this interval. Error: output <= -1000
+                       sample scanner position in m (SI units).
         """
+        sm = self.get_available_scan_measurements()
+        axes = sm.scanner_axes['OBJECTIVE_AXES']
 
-        valid_axis = {}
+        sc_pos = {} # objective scanner pos
 
-        for axis_label in axis_label_dict:
-
+        for axis_label in axis_label_list:
             axis_label = axis_label.upper() 
-            pos_val = axis_label_dict[axis_label]
 
-            if axis_label in self.SAMPLE_AXIS:
-                if axis_label in ['X', 'X1']:
-                   ret = self._check_spm_scan_params(x_afm_start=pos_val)
-                elif axis_label in ['Y', 'Y1']:
-                   ret = self._check_spm_scan_params(y_afm_start=pos_val)
-                else:
-                   ret = self._check_spm_scan_params(z_afm_start=pos_val)
+            if axis_label in axes:
+                ret_val = self._dev.obtain_axis_setpoint(axis_label)
+                if ret_val <= -1000:
+                    self.log.error(f'Error in retrieving the {axis_label} axis target position from Objective Scanner.')
+                sc_pos[axis_label] = ret_val * 1e-6
             else:
-                self.log.warning(f'The passed axis label "{axis_label}" is not valid for the sample scanner! Skip call.')
-                return -1
-
-            if ret:
-                self.log.error(f'Cannot set sample scanner position of axis "{axis_label}" to {pos_val*1e6:.2f}um.')
-            else:
-                valid_axis[axis_label] = pos_val
-
-        if len(valid_axis) == 0:
-            return valid_axis
-
-        self._dev.set_scanner_axes(valid_axis, move_time)
-
-        return self.get_sample_scanner_pos(list(valid_axis))
+                self.log.warning(f'Not valid label "{axis_label}" for Objective Scanner position request. Request skipped.')
+        
+        return sc_pos
 
 
-    def set_objective_scanner_pos(self, axis_label_dict, move_time=0.1):
+    def set_objective_pos_abs(self, axis_label_dict, move_time=0.1):
         """ Set the objective scanner position.
 
         @param dict axis_label_dict: the axis label dict, entries either 
@@ -551,6 +785,8 @@ class SmartSPM(Base, ScannerInterface):
         
         @return float: the actual position set to the axis, or -1 if call failed.
         """
+        sm = self.get_available_scan_measurements()
+        axis_list = sm.scanner_axes['OBJECTIVE_AXES']
 
         valid_axis = {}
 
@@ -559,7 +795,7 @@ class SmartSPM(Base, ScannerInterface):
             axis_label = axis_label.upper() 
             pos_val = axis_label_dict[axis_label]
 
-            if axis_label in self.OBJECTIVE_AXIS:
+            if axis_label in axis_list:
                 if axis_label == 'X2':
                    ret = self._check_spm_scan_params(x_obj_start=pos_val)
                 elif axis_label == 'Y2':
@@ -580,7 +816,504 @@ class SmartSPM(Base, ScannerInterface):
 
         self._dev.set_scanner_axes(valid_axis, move_time)
 
-        return self.get_objective_scanner_pos(list(valid_axis))
+        return self.get_objective_pos(list(valid_axis))
+
+   
+    def set_objective_pos_rel(self, axis_rel_dict, move_time=0.1):
+        """ Set the objective scanner position, relative to current position.
+
+        @param dict axis_rel_dict:  the axis label dict, entries either 
+                                capitalized or lower case, possible keys:
+                                     ['X2', 'x2', 'Y2', 'y2', 'Z2', 'z2']
+                                Values are the desired position for the 
+                                sample scanner in m. E.g an passed value may
+                                look like
+
+                                   axis_label_dict = {'X2':10e-6, 'Y2':5e-6, 'Z2':10e-6}
+
+                                to set the objectvie scanner to the relative  
+                                position x=+10um, y=+5um, z=+2um
+                                this is translated to absolute coordinates via
+                                x_new_abs[i] = x_curr_abs[i] + x_rel[i]
+                                (where x is a generic axis)
+
+        @param float move_time: optional, time how fast the scanner is moving 
+                                to desired position. Value must be within 
+                                [0, 20] seconds.
+        
+        @return float: the actual position set to the axis, or -1 if call failed.
+        """
+        axis_labels = list(axis_rel_dict.keys())
+        curr_axis_pos_abs = self.get_objective_pos(axis_labels)
+        
+        new_axis_pos_abs = { l: curr_axis_pos_abs[l] + axis_rel_dict[l] for l in curr_axis_pos_abs.keys() } 
+
+        return self.set_objective_pos_abs(new_axis_pos_abs, move_time=move_time)
+
+
+    # Probe scanner Axis/Movement functions
+    # ==============================
+
+    def get_sample_scan_range(self, axis_label_list=['X1', 'Y1', 'Z1']):
+        """ Get the sample scanner range for the provided axis label list. 
+
+        @param list axis_label_list: the axis label string list, entries either 
+                                     capitalized or lower case, possible values: 
+                                        ['X', 'x', 'Y', 'y', 'Z', 'z'] 
+                                     or postfixed with a '1':
+                                        ['X1', 'x1', 'Y1', 'y1', 'Z1', 'z1'] 
+
+        @return dict: sample scanner range dict with requested entries in m 
+                      (SI units).
+        """
+        sm = self.get_available_scan_measurements()
+        axes = sm.scanner_axes['SAMPLE_AXES']
+
+        sc_range = {} # sample scanner range
+
+        for axis_label in axis_label_list:
+            axis_label = axis_label.upper()
+
+            if axis_label in axes:
+                ret_val = self._dev.get_axis_range(axis_label)  # value in um
+                if ret_val == 0:
+                    self.log.error(f'Error in retrieving the {axis_label} axis range from Sample Scanner.')
+                
+                sc_range[axis_label] = ret_val * 1e-6 
+            else:
+                self.log.warning(f'Invalid label "{axis_label}" for Sample Scanner range request. Request skipped.')
+        
+        return sc_range
+
+
+    def get_sample_pos(self, axis_label_list=['X1', 'Y1', 'Z1']):
+        """ Get the sample scanner position. 
+
+        @param list axis_label_list: axis label string list, entries either 
+                                     capitalized or lower case, possible values: 
+                                        ['X', 'x', 'Y', 'y', 'Z', 'z'] 
+                                     or postfixed with a '1':
+                                        ['X1', 'x1', 'Y1', 'y1', 'Z1', 'z1'] 
+
+        @return dict: sample scanner position dict in m (SI units). Normal 
+                      output [0 .. AxisRange], though may fall outside this 
+                      interval. Error: output <= -1000
+        """
+        sm = self.get_available_scan_measurements()
+        axes = sm.scanner_axes['SAMPLE_AXES']
+
+        sc_pos = {} # sample scanner pos
+
+        for axis_label in axis_label_list:
+            axis_label = axis_label.upper() 
+
+            if axis_label in axes:
+                ret_val = self._dev.get_axis_position(axis_label)
+                if ret_val <= -1000:
+                    self.log.error(f'Error in retrieving the {axis_label} axis position from Sample Scanner.')
+                sc_pos[axis_label] = ret_val * 1e-6
+            else:
+                self.log.warning(f'Not valid label "{axis_label}" for Sample Scanner position request. Request skipped.')
+        
+        return sc_pos
+
+
+    def get_sample_target_pos(self, axis_label_list=['X1', 'Y1', 'Z1']):
+        """ Get the set point of the axes locations (this is where it will move to) 
+
+        @param list axis_label_list: axis label string list, entries either 
+                                     capitalized or lower case, possible values: 
+                                        ['X', 'x', 'Y', 'y', 'Z', 'z'] 
+                                     or postfixed with a '1':
+                                        ['X1', 'x1', 'Y1', 'y1', 'Z1', 'z1'] 
+
+        @return dict: sample scanner position dict in m (SI units). Normal 
+                      output [0 .. AxisRange], though may fall outside this 
+                      interval. Error: output <= -1000
+        """
+        sm = self.get_available_scan_measurements()
+        axes = sm.scanner_axes['SAMPLE_AXES']
+
+        sc_pos = {} # sample scanner pos
+
+        for axis_label in axis_label_list:
+            axis_label = axis_label.upper() 
+
+            if axis_label in axes:
+                ret_val = self._dev.obtain_axis_setpoint(axis_label)
+                if ret_val <= -1000:
+                    self.log.error(f'Error in retrieving the {axis_label} axis target position from Sample Scanner.')
+                sc_pos[axis_label] = ret_val * 1e-6
+            else:
+                self.log.warning(f'Not valid label "{axis_label}" for Sample Scanner position request. Request skipped.')
+        
+        return sc_pos
+
+
+    def set_sample_pos_abs(self, axis_dict, move_time=0.1):
+        """ Set the sample scanner position.
+
+        @param dict axis_dict: the axis label dict, entries either 
+                                     capitalized or lower case, possible keys:
+                                        ['X', 'x', 'Y', 'y', 'Z', 'z']
+                                     or postfixed with a '1':
+                                        ['X1', 'x1', 'Y1', 'y1', 'Z1', 'z1'] 
+                                    Values are the desired position for the 
+                                    sample scanner in m. E.g an passed value may
+                                    look like
+
+                                        axis_label_dict = {'X':10e-6, 'Y':5e-6}
+
+                                    to set the sample scanner to the absolute 
+                                    position x=10um and y=5um.
+
+        @param float move_time: optional, time how fast the scanner is moving 
+                                to desired position. Value must be within 
+                                [0, 20] seconds.
+        
+        @return float: the actual position set to the axis, or -1 if call failed.
+        """
+        sm = self.get_available_scan_measurements()
+        axis_list = sm.scanner_axes['SAMPLE_AXES']
+
+        valid_axes = {}
+
+        for axis_label in axis_dict:
+            axis_label = axis_label.upper() 
+            pos_val = axis_dict[axis_label]
+
+            if axis_label in axis_list:
+                if axis_label in ['X', 'X1']:
+                   ret = self._check_spm_scan_params(x_afm_start=pos_val)
+                elif axis_label in ['Y', 'Y1']:
+                   ret = self._check_spm_scan_params(y_afm_start=pos_val)
+                else:
+                   ret = self._check_spm_scan_params(z_afm_start=pos_val)
+            else:
+                self.log.warning(f'The passed axis label "{axis_label}" is not valid for the sample scanner! Skip call.')
+                return -1
+
+            if ret:
+                self.log.error(f'Cannot set sample scanner position of axis "{axis_label}" to {pos_val*1e6:.2f}um.')
+            else:
+                valid_axes[axis_label] = pos_val
+
+        if len(valid_axes) == 0:
+            return valid_axes
+
+        self._dev.set_scanner_axes(valid_axes, move_time)
+
+        return self.get_sample_pos(list(valid_axes))
+
+   
+    def set_sample_pos_rel(self, axis_rel_dict, move_time=0.1):
+        """ Set the sample scanner position, relative to current position.
+
+        @param dict axis_rel_dict:  the axis label dict, entries either 
+                                capitalized or lower case, possible keys:
+                                     ['X', 'x', 'Y', 'y', 'Z', 'z']
+                                or postfixed with a '1':
+                                   ['X1', 'x1', 'Y1', 'y1', 'Z1', 'z1'] 
+                                Values are the desired position for the 
+                                sample scanner in m. E.g an passed value may
+                                look like
+
+                                   axis_label_dict = {'X':10e-6, 'Y':5e-6}
+
+                                to set the sample scanner to the relative  
+                                    position x=+10um and y=+5um.
+                                this is translated to absolute coordinates via
+                                x_new_abs[i] = x_curr_abs[i] + x_rel[i]
+                                (where x is a generic axis)
+
+        @param float move_time: optional, time how fast the scanner is moving 
+                                to desired position. Value must be within 
+                                [0, 20] seconds.
+        
+        @return float: the actual position set to the axis, or -1 if call failed.
+        """
+        axis_labels = list(axis_rel_dict.keys())
+        curr_axis_pos_abs = self.get_sample_pos(axis_labels)
+        
+        new_axis_pos_abs = { l: curr_axis_pos_abs[l] + axis_rel_dict[l] for l in curr_axis_pos_abs.keys() } 
+
+        return self.set_sample_pos_abs(new_axis_pos_abs, move_time=move_time)
+
+
+
+    # Probe lifting functions
+    # ========================
+
+    def lift_probe(self, rel_value):
+        pass
+
+    def get_lifted_value(self):
+        # return absolute lifted value
+        pass
+
+    def is_probe_landed(self): 
+        # return True/False
+        pass
+
+    def land_probe(self, fast=False):
+        """ Land the probe on the surface.
+        @param bool: fast: if fast=True, use higher velocity to land (see below)
+
+        @return bool: Function returns true if the probe was first lifted, i.e.
+                      Z-feedback input is SenZ
+
+        fast=True:
+            Z-feedback input is switched to previous (Mag, Nf, etc.), the same is 
+            for other parameters: gain, setpoint land may be too slow if starting 
+            from big lifts, say from 1 micron; then it will be possible to rework 
+            the function or implement some new.
+
+        fast=False:
+            Landing with constant and always reasonable value for Z-move rate unlike
+            in the case of self.probe_land(). The method is useful when start 
+            landing from big tip-sample gaps, say, more than 1 micron. When call the
+            function after ProbeLift, it switches the Z-feedback input same as 
+            self.probe_land().
+            Otherwise it does not switch Z-feedback input, does not set setpoint and
+            feedback gain.
+
+        """
+        if fast:
+            return self._dev.probe_land() 
+        else:
+            return self._dev.probe_land_soft()
+           
+    # ==========================================================================
+    #                       SPM control methods
+    # ==========================================================================
+    # axisId: X, Y, Z (or X1, Y1, Z1); X2, Y2, Z2; or lowercase; units: um
+
+    
+    #TODO: Combine the methods in a general get_axis_range function for sample 
+    #      and objective scanner. Check whether it makes sense.
+
+    # It is more a safety measure to split the request for position and axis 
+    # range between the objective and sample scanner.
+    
+
+#    def get_sample_scanner_range(self, axis_label_list=['X1', 'Y1', 'Z1']):
+#        """ Get the sample scanner range for the provided axis label list. 
+#
+#        @param list axis_label_list: the axis label string list, entries either 
+#                                    capitalized or lower case, possible values: 
+#                                        ['X', 'x', 'Y', 'y', 'Z', 'z'] 
+#                                     or postfixed with a '1':
+#                                        ['X1', 'x1', 'Y1', 'y1', 'Z1', 'z1'] 
+#
+#        @return dict: sample scanner range dict with requested entries in m 
+#                      (SI units).
+#        """
+#
+#        sc_range = {} # sample scanner range
+#
+#        for axis_label in axis_label_list:
+#
+#           axis_label = axis_label.upper()
+#
+#            if axis_label in self.SAMPLE_AXIS:
+#                ret_val = self._dev.get_axis_range(axis_label)  # value in um
+#                if ret_val == 0:
+#                    self.log.error(f'Error in retrieving the {axis_label} axis range from Sample Scanner.')
+#                
+#                sc_range[axis_label] = ret_val * 1e-6 
+#            else:
+#                self.log.warning(f'Invalid label "{axis_label}" for Sample Scanner range request. Request skipped.')
+#        
+#        return sc_range
+
+#    def get_object_scanner_range(self, axis_label_list=['X2', 'Y2', 'Z2']):
+#        """ Get the objective scanner range for the provided axis label list. 
+#
+#        @param list axis_label_list: the axis label string list, entries either 
+#                                     capitalized or lower case, possible values: 
+#                                        ['X2', 'x2', 'Y2', 'y2', 'Z2', 'z2'] 
+#
+#        @return dict: objective scanner range dict with requested entries in m 
+#                      (SI units).
+#        """
+#
+#        sc_range = {} # objective scanner range
+#
+#        for axis_label in axis_label_list:
+#
+#            axis_label = axis_label.upper() 
+#
+#            if axis_label in self.OBJECTIVE_AXIS:
+#                ret_val = self._dev.get_axis_range(axis_label)  # value in um
+#                if ret_val == 0:
+#                    self.log.error(f'Error in retrieving the {axis_label} axis range from Objective Scanner.')
+#                sc_range[axis_label] = ret_val * 1e-6 
+#            else:
+#                self.log.warning(f'Invalid label "{axis_label}" for Objective Scanner range request. Request skipped.')
+#        
+#        return sc_range
+
+
+#    def get_sample_scanner_pos(self, axis_label_list=['X1', 'Y1', 'Z1']):
+#        """ Get the sample scanner position. 
+#
+#        @param list axis_label_list: axis label string list, entries either 
+#                                     capitalized or lower case, possible values: 
+#                                        ['X', 'x', 'Y', 'y', 'Z', 'z'] 
+#                                     or postfixed with a '1':
+#                                        ['X1', 'x1', 'Y1', 'y1', 'Z1', 'z1'] 
+#
+#        @return dict: sample scanner position dict in m (SI units). Normal 
+#                      output [0 .. AxisRange], though may fall outside this 
+#                      interval. Error: output <= -1000
+#        """
+#
+#        sc_pos = {} # sample scanner pos
+#
+#        for axis_label in axis_label_list:
+#
+#            axis_label = axis_label.upper() 
+#
+#            if axis_label in self.SAMPLE_AXIS:
+#                ret_val = self._dev.get_axis_position(axis_label)
+#                if ret_val <= -1000:
+#                    self.log.error(f'Error in retrieving the {axis_label} axis position from Sample Scanner.')
+#                sc_pos[axis_label] = ret_val * 1e-6
+#            else:
+#                self.log.warning(f'Not valid label "{axis_label}" for Sample Scanner position request. Request skipped.')
+#        
+#        return sc_pos
+        
+
+#    def get_objective_scanner_pos(self, axis_label_list=['X2', 'Y2', 'Z2']):
+#        """ Get the objective scanner position. 
+#
+#        @param str axis_label_list: the axis label, either capitalized or lower 
+#                                    case, possible values: 
+#                                        ['X2', 'x2', 'Y2', 'y2', 'Z2', 'z2'] 
+#
+#        @return float: normal output [0 .. AxisRange], though may fall outside 
+#                       this interval. Error: output <= -1000
+#                       sample scanner position in m (SI units).
+#        """
+#
+#        sc_pos = {} # objective scanner pos
+#
+#        for axis_label in axis_label_list:
+#
+#            axis_label = axis_label.upper() 
+#
+#            if axis_label in self.OBJECTIVE_AXIS:
+#                #ret_val = self._lib.AxisPosition(axis_label.encode()) # value in um
+#                ret_val = self._dev.get_axis_position(axis_label)
+#                if ret_val <= -1000:
+#                    self.log.error(f'Error in retrieving the {axis_label} axis position from Objective Scanner.')
+#                sc_pos[axis_label] = ret_val * 1e-6
+#            else:
+#                self.log.warning(f'Not valid label "{axis_label}" for Objective Scanner position request. Request skipped.')
+#        
+#        return sc_pos
+
+
+#    def set_sample_scanner_pos(self, axis_label_dict, move_time=0.1):
+#        """ Set the sample scanner position.
+#
+#        @param dict axis_label_dict: the axis label dict, entries either 
+#                                     capitalized or lower case, possible keys:
+#                                        ['X', 'x', 'Y', 'y', 'Z', 'z']
+#                                     or postfixed with a '1':
+#                                        ['X1', 'x1', 'Y1', 'y1', 'Z1', 'z1'] 
+#                                    Values are the desired position for the 
+#                                    sample scanner in m. E.g an passed value may
+#                                    look like
+#
+#                                        axis_label_dict = {'X':10e-6, 'Y':5e-6}
+#
+#                                    to set the sample scanner to the absolute 
+#                                    position x=10um and y=5um.
+#
+#        @param float move_time: optional, time how fast the scanner is moving 
+#                                to desired position. Value must be within 
+#                                [0, 20] seconds.
+#        
+#        @return float: the actual position set to the axis, or -1 if call failed.
+#        """
+#
+#        valid_axis = {}
+#
+#        for axis_label in axis_label_dict:
+#
+#            axis_label = axis_label.upper() 
+#            pos_val = axis_label_dict[axis_label]
+#
+#            if axis_label in self.SAMPLE_AXIS:
+#                if axis_label in ['X', 'X1']:
+#                   ret = self._check_spm_scan_params(x_afm_start=pos_val)
+#                elif axis_label in ['Y', 'Y1']:
+#                   ret = self._check_spm_scan_params(y_afm_start=pos_val)
+#                else:
+#                   ret = self._check_spm_scan_params(z_afm_start=pos_val)
+#            else:
+#                self.log.warning(f'The passed axis label "{axis_label}" is not valid for the sample scanner! Skip call.')
+#                return -1
+#
+#            if ret:
+#                self.log.error(f'Cannot set sample scanner position of axis "{axis_label}" to {pos_val*1e6:.2f}um.')
+#            else:
+#                valid_axis[axis_label] = pos_val
+#
+#        if len(valid_axis) == 0:
+#            return valid_axis
+#
+#        self._dev.set_scanner_axes(valid_axis, move_time)
+#
+#        return self.get_sample_scanner_pos(list(valid_axis))
+
+
+#    def set_objective_scanner_pos(self, axis_label_dict, move_time=0.1):
+#        """ Set the objective scanner position.
+#
+#        @param dict axis_label_dict: the axis label dict, entries either 
+#                                     capitalized or lower case, possible values:
+#                                        ['X2', 'x2', 'Y2', 'y2', 'Z2', 'z2']
+#                                    keys are the desired position for the objective
+#                                    scanner in m.
+#        @param float move_time: optional, time how fast the scanner is moving 
+#                                 to desired position. Value must be within 
+#                                 [0, 20] seconds.
+#        
+#        @return float: the actual position set to the axis, or -1 if call failed.
+#        """
+#
+#        valid_axis = {}
+#
+#        for axis_label in axis_label_dict:
+#
+#            axis_label = axis_label.upper() 
+#            pos_val = axis_label_dict[axis_label]
+#
+#            if axis_label in self.OBJECTIVE_AXIS:
+#                if axis_label == 'X2':
+#                   ret = self._check_spm_scan_params(x_obj_start=pos_val)
+#                elif axis_label == 'Y2':
+#                   ret = self._check_spm_scan_params(y_obj_start=pos_val)
+#                else:
+#                   ret = self._check_spm_scan_params(z_obj_start=pos_val)
+#            else:
+#                self.log.warning(f'The passed axis label "{axis_label}" is not valid for the objective scanner! Skip call.')
+#                return -1
+#
+#            if ret:
+#                self.log.error(f'Cannot set objective scanner position of axis "{axis_label}" to {pos_val*1e6:.2f}um.')
+#            else:
+#                valid_axis[axis_label] = axis_label_dict[axis_label]
+#
+#        if len(valid_axis) == 0:
+#            return valid_axis
+#
+#        self._dev.set_scanner_axes(valid_axis, move_time)
+#
+#        return self.get_objective_scanner_pos(list(valid_axis))
 
 
     @deprecated('Current function is no longer in use')
@@ -596,13 +1329,9 @@ class SmartSPM(Base, ScannerInterface):
         return np.zeros((num_meas_params*2, num_rows, num_columns))
 
 
-    def get_meas_params(self):
-        """ Obtain a dict with the available measurement parameters. """
-        return copy.copy(self.MEAS_PARAMS)
-
-
     #TODO: think about to move this checking routine to logic level and not hardware level
-    def _check_spm_scan_params(self, x_afm_start=None, x_afm_stop=None,  
+    def _check_spm_scan_params(self, 
+                              x_afm_start=None, x_afm_stop=None,  
                               y_afm_start=None, y_afm_stop=None,
                               z_afm_start=None, z_afm_stop=None, 
                               x_obj_start=None, x_obj_stop=None,
@@ -629,85 +1358,88 @@ class SmartSPM(Base, ScannerInterface):
         """
         ret = False
         tol = 0.1e-6 # give a tolerance of 0.1um, since this would be still fine with the scanner.
+        sm = self.get_available_scan_measurements()
+        sample_range = sm.scanner_measurements['SAMPLE_SCANNER_RANGE']
+        objective_range = sm.scanner_measurements['OBJECTIVE_SCANNER_RANGE']
 
         if x_afm_start is not None:
-            res = x_afm_start < (self.AFM_SCANNER_RANGE[0][0]-tol) or  x_afm_start > (self.AFM_SCANNER_RANGE[0][1]+tol)
+            res = x_afm_start < (sample_range[0][0]-tol) or  x_afm_start > (sample_range[0][1]+tol)
             ret = ret | res
             if res:
                 self.log.error(f'Invalid scan settings for x_start of AFM parameter!\n'
-                               f'x_start has to be within [{self.AFM_SCANNER_RANGE[0][0]*1e6},{self.AFM_SCANNER_RANGE[0][1]*1e6}]um '
+                               f'x_start has to be within [{sample_range[0][0]*1e6},{sample_range[0][1]*1e6}]um '
                                f'but it was set to "{x_afm_start*1e6}"um.')
 
         if x_afm_stop is not None:
-            res = x_afm_stop < (self.AFM_SCANNER_RANGE[0][0]-tol) or  x_afm_stop > (self.AFM_SCANNER_RANGE[0][1]+tol)
+            res = x_afm_stop < (sample_range[0][0]-tol) or  x_afm_stop > (sample_range[0][1]+tol)
             ret = ret | res
             if res:
                 self.log.error(f'Invalid scan settings for x_stop of AFM parameter!\n'
-                               f'x_stop has to be within [{self.AFM_SCANNER_RANGE[0][0]*1e6},{self.AFM_SCANNER_RANGE[0][1]*1e6}]um '
+                               f'x_stop has to be within [{sample_range[0][0]*1e6},{sample_range[0][1]*1e6}]um '
                                f'but it was set to "{x_afm_stop*1e6}"um.')
 
         if y_afm_start is not None:
-            res = y_afm_start < (self.AFM_SCANNER_RANGE[1][0]-tol) or  y_afm_start > (self.AFM_SCANNER_RANGE[1][1]+tol)
+            res = y_afm_start < (sample_range[1][0]-tol) or  y_afm_start > (sample_range[1][1]+tol)
             ret = ret | res
             if res:
                 self.log.error(f'Invalid scan settings for y_start of AFM parameter!\n'
-                               f'y_start has to be within [{self.AFM_SCANNER_RANGE[1][0]*1e6},{self.AFM_SCANNER_RANGE[1][1]*1e6}]um '
+                               f'y_start has to be within [{sample_range[1][0]*1e6},{sample_range[1][1]*1e6}]um '
                                f'but it was set to "{y_afm_start*1e6}"um.')
         
         if y_afm_stop is not None:
-            res = y_afm_stop < (self.AFM_SCANNER_RANGE[1][0]-tol) or  y_afm_stop > (self.AFM_SCANNER_RANGE[1][1]+tol)
+            res = y_afm_stop < (sample_range[1][0]-tol) or  y_afm_stop > (sample_range[1][1]+tol)
             ret = ret | res
             if res:
                 self.log.error(f'Invalid scan settings for y_stop of AFM parameter!\n'
-                               f'y_stop has to be within [{self.AFM_SCANNER_RANGE[1][0]*1e6},{self.AFM_SCANNER_RANGE[1][1]*1e6}]um '
+                               f'y_stop has to be within [{sample_range[1][0]*1e6},{sample_range[1][1]*1e6}]um '
                                f'but it was set to "{y_afm_stop*1e6}"um.')
 
         if x_obj_start is not None:
-            res = x_obj_start < (self.OBJECTIVE_SCANNER_RANGE[0][0]-tol) or  x_obj_start > (self.OBJECTIVE_SCANNER_RANGE[0][1]+tol)
+            res = x_obj_start < (objective_range[0][0]-tol) or  x_obj_start > (objective_range[0][1]+tol)
             ret = ret | res
             if res:
                 self.log.error(f'Invalid scan settings for x_start of Objective parameter!\n'
-                               f'x_start has to be within [{self.OBJECTIVE_SCANNER_RANGE[0][0]*1e6},{self.OBJECTIVE_SCANNER_RANGE[0][1]*1e6}]um '
+                               f'x_start has to be within [{objective_range[0][0]*1e6},{objective_range[0][1]*1e6}]um '
                                f'but it was set to "{x_obj_start*1e6}"um.')
 
         if x_obj_stop is not None:
-            res = x_obj_stop < (self.OBJECTIVE_SCANNER_RANGE[0][0]-tol) or  x_obj_stop > (self.OBJECTIVE_SCANNER_RANGE[0][1]+tol)
+            res = x_obj_stop < (objective_range[0][0]-tol) or  x_obj_stop > (objective_range[0][1]+tol)
             ret = ret | res
             if res:
                 self.log.error(f'Invalid scan settings for x_stop of Objective parameter!\n'
-                               f'x_stop has to be within [{self.OBJECTIVE_SCANNER_RANGE[0][0]*1e6},{self.OBJECTIVE_SCANNER_RANGE[0][1]*1e6}]um '
+                               f'x_stop has to be within [{objective_range[0][0]*1e6},{objective_range[0][1]*1e6}]um '
                                f'but it was set to "{x_obj_stop*1e6}"um.')
 
         if y_obj_start is not None:
-            res = y_obj_start < (self.OBJECTIVE_SCANNER_RANGE[1][0]-tol) or  y_obj_start > (self.OBJECTIVE_SCANNER_RANGE[1][1]+tol)
+            res = y_obj_start < (objective_range[1][0]-tol) or  y_obj_start > (objective_range[1][1]+tol)
             ret = ret | res
             if res:
                 self.log.error(f'Invalid scan settings for y_start of Objective parameter!\n'
-                               f'y_start has to be within [{self.OBJECTIVE_SCANNER_RANGE[1][0]*1e6},{self.OBJECTIVE_SCANNER_RANGE[1][1]*1e6}]um '
+                               f'y_start has to be within [{objective_range[1][0]*1e6},{objective_range[1][1]*1e6}]um '
                                f'but it was set to "{y_obj_start*1e6}"um.')
 
         if y_obj_stop is not None:
-            res = y_obj_stop < (self.OBJECTIVE_SCANNER_RANGE[1][0]-tol) or  y_obj_stop > (self.OBJECTIVE_SCANNER_RANGE[1][1]+tol)
+            res = y_obj_stop < (objective_range[1][0]-tol) or  y_obj_stop > (objective_range[1][1]+tol)
             ret = ret | res
             if res:
                 self.log.error(f'Invalid scan settings for y_stop of Objective parameter!\n'
-                               f'y_stop has to be within [{self.OBJECTIVE_SCANNER_RANGE[1][0]*1e6},{self.OBJECTIVE_SCANNER_RANGE[1][1]*1e6}]um '
+                               f'y_stop has to be within [{objective_range[1][0]*1e6},{objective_range[1][1]*1e6}]um '
                                f'but it was set to "{y_obj_stop*1e6}"um.')
 
         if z_obj_start is not None:
-            res = z_obj_start < (self.OBJECTIVE_SCANNER_RANGE[2][0]-tol) or  z_obj_start > (self.OBJECTIVE_SCANNER_RANGE[2][1]+tol)
+            res = z_obj_start < (objective_range[2][0]-tol) or  z_obj_start > (objective_range[2][1]+tol)
             ret = ret | res
             if res:
                 self.log.error(f'Invalid scan settings for z_start of Objective parameter!\n'
-                               f'z_start has to be within [{self.OBJECTIVE_SCANNER_RANGE[2][0]*1e6},{self.OBJECTIVE_SCANNER_RANGE[2][1]*1e6}]um '
+                               f'z_start has to be within [{objective_range[2][0]*1e6},{objective_range[2][1]*1e6}]um '
                                f'but it was set to "{z_obj_start*1e6}"um.')
 
         if z_obj_stop is not None:
-            res = z_obj_stop < (self.OBJECTIVE_SCANNER_RANGE[2][0]-tol) or  z_obj_stop > (self.OBJECTIVE_SCANNER_RANGE[2][1]+tol)
+            res = z_obj_stop < (objective_range[2][0]-tol) or  z_obj_stop > (objective_range[2][1]+tol)
             ret = ret | res
             if res:
                 self.log.error(f'Invalid scan settings for z_stop of Objective parameter!\n'
-                               f'z_stop has to be within [{self.OBJECTIVE_SCANNER_RANGE[2][0]*1e6},{self.OBJECTIVE_SCANNER_RANGE[2][1]*1e6}]um '
+                               f'z_stop has to be within [{objective_range[2][0]*1e6},{objective_range[2][1]*1e6}]um '
                                f'but it was set to "{z_obj_stop*1e6}"um.')
         return ret
 
@@ -732,59 +1464,7 @@ class SmartSPM(Base, ScannerInterface):
                                                   z_obj_start=coord1_start, z_obj_stop=coord1_stop)           
 
         return ret_val
-
            
-    def create_scan_leftright(self, x_start, x_stop, y_start, y_stop, res_y):
-        """ Create a scan line array for measurements from left to right.
-        
-        This is only a 'forward measurement', meaning from left to right. It is 
-        assumed that a line scan is performed and fast axis is the x axis.
-        
-        @return list: with entries having the form [x_start, x_stop, y_start, y_stop]
-        """
-        
-        arr = []
-        
-        y = np.linspace(y_start, y_stop, res_y)
-        
-        for index, y_val in enumerate(y):
-            
-            scan_line = []
-            scan_line.extend((x_start, x_stop))
-            scan_line.extend((y_val, y_val))
-                
-            arr.append(scan_line)
-        return arr     
-    
-    def create_scan_leftright2(self, x_start, x_stop, y_start, y_stop, res_y):
-        """ Create a scan line array for measurements from left to right and back.
-        
-        This is only a forward and backward measurement, meaning from left to 
-        right, and then from right to left. It is assumed that a line scan is 
-        performed and fast axis is the x axis.
-        
-        @return list: with entries having the form [x_start, x_stop, y_start, y_stop]
-        """
-        arr = []
-        
-        y = np.linspace(y_start, y_stop, res_y)
-
-        for index, y_val in enumerate(y):
-            
-            # one scan line forward
-            scan_line = []
-            scan_line.extend((x_start, x_stop))
-            scan_line.extend((y_val, y_val))
-            arr.append(scan_line)
-            
-            # another scan line back
-            scan_line = []
-            scan_line.extend((x_stop, x_start))
-            scan_line.extend((y_val, y_val))
-            arr.append(scan_line)
-            
-        return arr 
-
 
     @deprecated('Current function no longer in use')
     def scan_afm_line_by_point(self):
@@ -795,123 +1475,6 @@ class SmartSPM(Base, ScannerInterface):
     def scan_obj_line_by_point(self):
         pass
 
-    @deprecated('Current function no longer in use')
-    def scan_area_by_line(self, x_start, x_stop, y_start, y_stop, res_x, res_y, 
-                          time_forward=1, time_back=1, meas_params=['Height(Dac)']):
-        """ Measurement method for a scan by line. An XY area is scanned.
-        
-        @param float x_start: start coordinate in um
-        @param float x_stop: start coordinate in um
-        @param float y_start: start coordinate in um
-        @param float y_stop: start coordinate in um
-        @param int res_x: number of points in x direction
-        @param int res_y: number of points in y direction
-        @param float time_forward: time forward during the scan
-        @param float time_back: time backward after the scan
-        @param list meas_params: list of possible strings of the measurement 
-                                 parameter. Have a look at MEAS_PARAMS to see 
-                                 the available parameters.
-
-        @return 2D_array: measurement results in a two dimensional list. 
-        """
-        
-        reverse_meas = False
-        self._stop_request = False
-        self._meas_array_scan = []
-        self._scan_counter = 0
-        self._line_counter = 0
-
-        # check input values
-        ret_val = self._check_spm_scan_params(x_afm_start=x_start, x_afm_stop=x_stop,
-                                              y_afm_start=y_start, y_afm_stop=y_stop)
-        if ret_val:
-            return self._meas_array_scan
-        
-        scan_arr = self.create_scan_leftright2(x_start, x_stop, y_start, y_stop, res_y)
-        
-        ret_val, _, _ = self._dev.setup_spm(plane='XY', 
-                                       line_points=res_x, 
-                                       meas_params=meas_params)
-
-        if ret_val < 1:
-            return self._meas_array_scan
-
-        for scan_coords in scan_arr:
-
-            self._dev.setup_scan_line(corr0_start=scan_coords[0], corr0_stop=scan_coords[1], 
-                                 corr1_start=scan_coords[2], corr1_stop=scan_coords[3], 
-                                 time_forward=time_forward, time_back=time_back)
-            self.scan_line()
-
-            # this method will wait until the line was measured.
-            scan_line = self._dev.get_scanned_line(reshape=False)
-
-            if reverse_meas:
-                self._meas_array_scan.append(list(reversed(scan_line)))
-                reverse_meas = False
-            else:
-                self._meas_array_scan.append(scan_line)
-                reverse_meas = True
-                
-            self._scan_counter += 1
-            #self.send_log_message('Line complete.')
-
-            if self._stop_request:
-                break
-
-        self.log.info('Scan finished. Yeehaa!')
-        print('Scan finished. Yeehaa!')
-        self._dev.finish_scan()
-        
-        return self._meas_array_scan
-
-
-    @deprecated('Current function no longer in use')
-    def start_measure_line(self, coord0_start=48*1e-6, coord0_stop=53*1e-6, 
-                           coord1_start=47*1e-6, coord1_stop=52*1e-6, 
-                           res_x=40, res_y=40, time_forward=1.5, time_back=1.5,
-                           meas_params=['Phase', 'Height(Dac)', 'Height(Sen)']):
-
-        self.meas_thread = threading.Thread(target=self.scan_area_by_line, 
-                                            args=(coord0_start, coord0_stop, 
-                                                  coord1_start, coord1_stop, 
-                                                  res_x, res_y, 
-                                                  time_forward, time_back,
-                                                  meas_params), 
-                                            name='meas_thread')
-
-        if self.check_meas_run():
-            self.log.error("A measurement is currently running, stop it first!")
-        else:
-            self.meas_thread.start()
-
-
-    @deprecated('Current function is no longer in use')
-    def create_scan_snake(self, x_start, x_stop, y_start, y_stop, res_y):
-        """ Create a snake like movement within the scan."""
-        # it is assumed that a line scan is performed and fast axis is the x axis.
-        
-        arr = []
-        
-        y = np.linspace(y_start, y_stop, res_y)
-        
-        reverse = False
-        for index, y_val in enumerate(y):
-            
-            scan_line = []
-            
-            if reverse:
-                scan_line.extend((x_stop, x_start))
-                reverse = False
-            else:
-                scan_line.extend((x_start, x_stop))
-                reverse = True
-                
-            scan_line.extend((y_val, y_val))
-                
-            arr.append(scan_line)
-        return arr
- 
 
     @deprecated('Current function is no longer used')
     def check_meas_run(self):

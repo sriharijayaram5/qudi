@@ -21,6 +21,7 @@ top-level directory of this distribution and at <https://github.com/Ulm-IQO/qudi
 
 
 #from hardware.microwaveQ.microwaveq import MicrowaveQ
+from hardware.spm.spm_new import SmartSPM  # for debugging only
 from hardware.microwaveQ.microwaveq import MicrowaveQMode
 from core.module import Connector, StatusVar, ConfigOption
 from logic.generic_logic import GenericLogic
@@ -495,7 +496,8 @@ class AFMConfocalLogic(GenericLogic):
         """ Initialization performed during activation of the module. """
 
         # Connect to hardware and save logic
-        self._spm = self.spm_device()
+        #self._spm = self.spm_device()
+        self._spm = SmartSPM()                    # temporarily get language server's help
         self._save_logic = self.savelogic()
         self._counter = self.counter_device()   # temporarily disable
         #self._counter = MicrowaveQ()             # temporarily get language server's help
@@ -833,6 +835,8 @@ class AFMConfocalLogic(GenericLogic):
                        'spm_pixelclock_timing']
 
         status = dict()
+        spm_status = self._spm.get_device_meta_info()
+
         if 'available_features' in request:
             status['available_features'] = self._counter._dev.get_available_features()
 
@@ -846,16 +850,16 @@ class AFMConfocalLogic(GenericLogic):
             status['dac_alarms'] = self._counter._dev.get_DAC_alarms()
 
         if 'spm_library_version' in request:
-            status['spm_library_version'] = self._spm.get_library_version()
+            status['spm_library_version'] = spm_status['LIBRARY_VERSION'] 
 
         if 'spm_server_version' in request:
-            status['spm_server_version'] = self._spm.server_interface_version()
+            status['spm_server_version'] = spm_status['SERVER_VERSION'] 
 
         if 'spm_client_version' in request:
-            status['spm_client_version'] = self._spm.client_interface_version()
+            status['spm_client_version'] = spm_status['CLIENT_VERSION'] 
     
         if 'spm_is_server_compatible' in request:
-            status['spm_is_server_compatible'] = self._spm.is_server_compatible()
+            status['spm_is_server_compatible'] = spm_status['IS_SERVER_COMPATIBLE'] 
 
         if 'spm_pixelclock_timing' in request:
             status['spm_pixelclock_timing'] = self._pixel_clock_tdiff 
@@ -907,7 +911,86 @@ class AFMConfocalLogic(GenericLogic):
                self._freq2_iso_b_frequency, \
                self._fwhm_iso_b_frequency, \
                self._iso_b_power
-  
+            
+# ==============================================================================
+#           Scan helper functions
+# ==============================================================================
+
+    def create_scan_leftright(self, x_start, x_stop, y_start, y_stop, res_y):
+        """ Create a scan line array for measurements from left to right.
+        
+        This is only a 'forward measurement', meaning from left to right. It is 
+        assumed that a line scan is performed and fast axis is the x axis.
+        
+        @return list: with entries having the form [x_start, x_stop, y_start, y_stop]
+        """
+        y = np.linspace(y_start, y_stop, res_y)
+        
+        arr = []
+        for y_val in y:
+            scan_line = []
+            scan_line.extend((x_start, x_stop))
+            scan_line.extend((y_val, y_val))
+            arr.append(scan_line)
+
+        return arr     
+
+
+    def create_scan_leftright2(self, x_start, x_stop, y_start, y_stop, res_y):
+        """ Create a scan line array for measurements from left to right and back.
+        
+        This is only a forward and backward measurement, meaning from left to 
+        right, and then from right to left. It is assumed that a line scan is 
+        performed and fast axis is the x axis.
+        
+        @return list: with entries having the form [x_start, x_stop, y_start, y_stop]
+        """
+        y = np.linspace(y_start, y_stop, res_y)
+
+        arr = []
+        for y_val in y:
+            # one scan line forward
+            scan_line = []
+            scan_line.extend((x_start, x_stop))
+            scan_line.extend((y_val, y_val))
+            arr.append(scan_line)
+            
+            # another scan line back
+            scan_line = []
+            scan_line.extend((x_stop, x_start))
+            scan_line.extend((y_val, y_val))
+            arr.append(scan_line)
+            
+        return arr  
+
+
+    @deprecated('Current function is no longer in use')
+    def create_scan_snake(self, x_start, x_stop, y_start, y_stop, res_y):
+        """ Create a snake like movement within the scan."""
+        # it is assumed that a line scan is performed and fast axis is the x axis.
+        y = np.linspace(y_start, y_stop, res_y)
+        
+        reverse = False
+        arr = []
+        for y_val in y:
+            scan_line = []
+            if reverse:
+                scan_line.extend((x_stop, x_start))
+                reverse = False
+
+            else:
+                scan_line.extend((x_start, x_stop))
+                reverse = True
+                
+            scan_line.extend((y_val, y_val))
+            arr.append(scan_line)
+
+        return arr
+
+
+# ==============================================================================
+#           QAFM area scan functions
+# ==============================================================================
 
     #FIXME: Think about transferring the normalization of the 'Height(Dac)' and 
     #       'Height(Sen)' parameter to the hardware level.
@@ -965,7 +1048,7 @@ class AFMConfocalLogic(GenericLogic):
         time_idle_move = self._sg_idle_move_scan_sample
 
         scan_speed_per_line = integration_time * coord0_num
-        scan_arr = self._spm.create_scan_leftright2(coord0_start, coord0_stop,
+        scan_arr = self.create_scan_leftright2(coord0_start, coord0_stop,
                                                     coord1_start, coord1_stop,
                                                     coord1_num)
 
@@ -1583,7 +1666,7 @@ class AFMConfocalLogic(GenericLogic):
 
         # scan_speed_per_line = 0.01  # in seconds
         scan_speed_per_line = int_time_afm
-        scan_arr = self._spm.create_scan_leftright2(coord0_start, coord0_stop,
+        scan_arr = self.create_scan_leftright2(coord0_start, coord0_stop,
                                                     coord1_start, coord1_stop, coord1_num)
 
         ret_val, _, curr_scan_params = self._spm.setup_spm(plane=plane,
@@ -1966,8 +2049,8 @@ class AFMConfocalLogic(GenericLogic):
         # scan_speed_per_line = 0.01  # in seconds
         scan_speed_per_line = int_time_afm
 
-        scan_arr = self._spm.create_scan_leftright(coord0_start, coord0_stop,
-                                                   coord1_start, coord1_stop, coord1_num)
+        scan_arr = self.create_scan_leftright(coord0_start, coord0_stop,
+                                              coord1_start, coord1_stop, coord1_num)
         # scan_arr = self._spm.create_scan_snake(coord0_start, coord0_stop,
         #                                        coord1_start, coord1_stop, coord1_num)
 
@@ -2349,9 +2432,9 @@ class AFMConfocalLogic(GenericLogic):
         #                                        coord1_start, coord1_stop,
         #                                        coord1_num)
 
-        scan_arr = self._spm.create_scan_leftright(coord0_start, coord0_stop,
-                                                   coord1_start, coord1_stop,
-                                                   coord1_num)
+        scan_arr = self.create_scan_leftright(coord0_start, coord0_stop,
+                                              coord1_start, coord1_stop,
+                                              coord1_num)
 
 
         # FIXME: check whether the number of parameters are required and whether they are set correctly.
@@ -2531,8 +2614,6 @@ class AFMConfocalLogic(GenericLogic):
         @return 2D_array: measurement results in a two dimensional list.
         """
 
-
-
         meas_params = []
         # FIXME: implement general optimizer for all the planes
         plane = 'X2Y2'
@@ -2562,9 +2643,9 @@ class AFMConfocalLogic(GenericLogic):
             return self._opti_scan_array
 
 
-        scan_arr = self._spm.create_scan_leftright(coord0_start, coord0_stop,
-                                                   coord1_start, coord1_stop,
-                                                   coord1_num)
+        scan_arr = self.create_scan_leftright(coord0_start, coord0_stop,
+                                              coord1_start, coord1_stop,
+                                              coord1_num)
 
         #TODO: implement the scan line mode
         ret_val, _, curr_scan_params = self._spm.setup_spm(plane=plane,
@@ -3234,7 +3315,7 @@ class AFMConfocalLogic(GenericLogic):
         #self._spm.finish_scan()
 
     def stop_immediate(self):
-        self._spm.stop_measure()
+        self._spm.stop_measurement()
         self._counter.stop_measurement()
         self._health_check.stop_timer()
         self.sigQAFMScanFinished.emit()
@@ -3369,6 +3450,96 @@ class AFMConfocalLogic(GenericLogic):
 #        Perform a scan just in one direction
 # ==============================================================================
 
+    @deprecated('Current function no longer in use; currently it will not work')
+    def scan_area_by_line(self, x_start, x_stop, y_start, y_stop, res_x, res_y, 
+                          time_forward=1, time_back=1, meas_params=['Height(Dac)']):
+        """ Measurement method for a scan by line. An XY area is scanned.
+        
+        @param float x_start: start coordinate in um
+        @param float x_stop: start coordinate in um
+        @param float y_start: start coordinate in um
+        @param float y_stop: start coordinate in um
+        @param int res_x: number of points in x direction
+        @param int res_y: number of points in y direction
+        @param float time_forward: time forward during the scan
+        @param float time_back: time backward after the scan
+        @param list meas_params: list of possible strings of the measurement 
+                                 parameter. Have a look at MEAS_PARAMS to see 
+                                 the available parameters.
+
+        @return 2D_array: measurement results in a two dimensional list. 
+        """
+        
+        reverse_meas = False
+        self._stop_request = False
+        self._meas_array_scan = []
+        self._scan_counter = 0
+        self._line_counter = 0
+
+        # check input values
+        ret_val = self._spm._check_spm_scan_params(x_afm_start=x_start, x_afm_stop=x_stop,
+                                              y_afm_start=y_start, y_afm_stop=y_stop)
+        if ret_val:
+            return self._meas_array_scan
+        
+        scan_arr = self.create_scan_leftright2(x_start, x_stop, y_start, y_stop, res_y)
+        
+        ret_val, _, _ = self._dev.setup_spm(plane='XY', 
+                                       line_points=res_x, 
+                                       meas_params=meas_params)
+
+        if ret_val < 1:
+            return self._meas_array_scan
+
+        for scan_coords in scan_arr:
+
+            self._spm._dev.setup_scan_line(corr0_start=scan_coords[0], corr0_stop=scan_coords[1], 
+                                 corr1_start=scan_coords[2], corr1_stop=scan_coords[3], 
+                                 time_forward=time_forward, time_back=time_back)
+            self.scan_line()
+
+            # this method will wait until the line was measured.
+            scan_line = self._spm._dev.get_scanned_line(reshape=False)
+
+            if reverse_meas:
+                self._meas_array_scan.append(list(reversed(scan_line)))
+                reverse_meas = False
+            else:
+                self._meas_array_scan.append(scan_line)
+                reverse_meas = True
+                
+            self._scan_counter += 1
+            #self.send_log_message('Line complete.')
+
+            if self._stop_request:
+                break
+
+        self.log.info('Scan finished. Yeehaa!')
+        print('Scan finished. Yeehaa!')
+        self._spm._dev.finish_scan()
+        
+        return self._meas_array_scan
+
+
+    @deprecated('Current function no longer in use')
+    def start_measure_line(self, coord0_start=48*1e-6, coord0_stop=53*1e-6, 
+                           coord1_start=47*1e-6, coord1_stop=52*1e-6, 
+                           res_x=40, res_y=40, time_forward=1.5, time_back=1.5,
+                           meas_params=['Phase', 'Height(Dac)', 'Height(Sen)']):
+
+        self.meas_thread = threading.Thread(target=self.scan_area_by_line, 
+                                            args=(coord0_start, coord0_stop, 
+                                                  coord1_start, coord1_stop, 
+                                                  res_x, res_y, 
+                                                  time_forward, time_back,
+                                                  meas_params), 
+                                            name='meas_thread')
+
+        if self._spm.check_meas_run():
+            self.log.error("A measurement is currently running, stop it first!")
+        else:
+            self.meas_thread.start()
+
     @deprecated("This method seems not to be used")
     def scan_by_point_single_line(self, coord0_start, coord0_stop, 
                                   coord1_start, coord1_stop, 
@@ -3404,8 +3575,8 @@ class AFMConfocalLogic(GenericLogic):
         self._stop_request = False
         #scan_speed_per_line = 0.01  # in seconds
         scan_speed_per_line = integration_time
-        scan_arr = self._spm.create_scan_leftright(coord0_start, coord0_stop, 
-                                                    coord1_start, coord1_stop, res_y)
+        scan_arr = self.create_scan_leftright(coord0_start, coord0_stop, 
+                                              coord1_start, coord1_stop, res_y)
 
         ret_val, _, curr_scan_params = self._spm.setup_spm(plane=plane,
                                                            line_points=res_x, 
@@ -3421,10 +3592,7 @@ class AFMConfocalLogic(GenericLogic):
         if ret_val < 1:
             return (self._apd_array_scan, self._meas_array_scan)
 
-
-
         self._scan_counter = 0
-
         for line_num, scan_coords in enumerate(scan_arr):
             
             # AFM signal
@@ -3460,7 +3628,6 @@ class AFMConfocalLogic(GenericLogic):
 
             self._meas_array_scan[line_num] = self._meas_line_scan
             self._apd_array_scan[line_num] = self._apd_line_scan
-
 
             if self._stop_request:
                 break
@@ -3540,7 +3707,7 @@ class AFMConfocalLogic(GenericLogic):
         self._stop_request = False
         #scan_speed_per_line = 0.01  # in seconds
         scan_speed_per_line = integration_time
-        scan_arr = self._spm.create_scan_snake(coord0_start, coord0_stop, 
+        scan_arr = self.create_scan_snake(coord0_start, coord0_stop, 
                                                coord1_start, coord1_stop, res_y)
 
         ret_val, _, curr_scan_params = self._spm.setup_spm(plane=plane,

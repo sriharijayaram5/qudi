@@ -25,22 +25,17 @@ from enum import Enum, EnumMeta
 from posixpath import abspath
 from core.util.interfaces import InterfaceMetaclass
 
-class ScannerMode(EnumMeta):
-    # Specific scanner modes are to be defined by specific implemenation
-    # starting methods
-    UNCONFIGURED = 0
-    DUMMY        = 1
-
 
 class ScannerState(Enum):
     DISCONNECTED          = 0 
-    IDLE                  = 1 
-    OBJECTIVE_MOVING      = 2
-    OBJECTIVE_SCANNING    = 3
-    PROBE_MOVING          = 4
-    PROBE_SCANNING        = 5
-    PROBE_LIFTED          = 6
-    PROBE_SCANNING_LIFTED = 7
+    UNCONFIGURED          = 1
+    IDLE                  = 2 
+    OBJECTIVE_MOVING      = 3
+    OBJECTIVE_SCANNING    = 4
+    PROBE_MOVING          = 5
+    PROBE_SCANNING        = 6
+    PROBE_LIFTED          = 7
+    PROBE_SCANNING_LIFTED = 8
 
     @classmethod
     def name(cls,val):
@@ -48,6 +43,7 @@ class ScannerState(Enum):
 
 
 class ScannerMode(Enum):
+    UNCONFIGURED          = 0
     OBJECTIVE_XY          = 1
     OBJECTIVE_XZ          = 2
     OBJECTIVE_YZ          = 3
@@ -75,8 +71,11 @@ class ScannerConstraints:
         self.min_count_frequency = 5e-5
         self.max_count_frequency = 5e5
 
-        # add CountingMode enums to this list in instances
+        # add available scanner modes
         self.scanner_modes = []
+
+        # add available scan styles 
+        self.scanner_styles = []
 
         # add scanner mode parameters
         self.scanner_mode_params = {}
@@ -113,6 +112,9 @@ class ScannerMeasurements:
         self.scanner_planes =  [ # 'X2', 'x2', 'Y2', 'y2', 'Z2', 'z2'
                                ]
 
+        self.scanner_sensors = { # 'SENS_PARAMS_AFM' : ['SenX', 'SenY', 'SenZ'],   # AFM sensor parameter
+                                 # 'SENS_PARAMS_OBJ' : ['SenX2', 'SenY2', 'SenZ2'] 
+                               }
 
 class ScannerInterface(metaclass=InterfaceMetaclass):
     """ Define the controls for a Scanner device."""
@@ -144,11 +146,12 @@ class ScannerInterface(metaclass=InterfaceMetaclass):
         pass
 
     @abc.abstractmethod
-    def configure_scan_line(self, 
-                            corr0_start, corr0_stop, 
-                            corr1_start, corr1_stop, # not used in case of z sweep
-                            time_forward, time_back):
+    def configure_line(self, 
+                       corr0_start, corr0_stop, 
+                       corr1_start, corr1_stop, # not used in case of z sweep
+                       time_forward, time_back):
         # will configure a line depending on the selected mode
+        # this method is used to configure a scan_point() or scan_line() operation
         # (required configure_scan_device be done before the scan)
         # allocate the array where data will be saved to
         pass
@@ -168,6 +171,12 @@ class ScannerInterface(metaclass=InterfaceMetaclass):
     @abc.abstractmethod
     def scan_point(self):
         # (blocking method, required configure_scan_line to be called prior)
+        pass
+
+    @abs.abstractmethod
+    def finish_scan(self):
+        # requests a finish of the measurement program
+        # allows completion of the current measurement
         pass
     
     @abc.abstractmethod
@@ -197,27 +206,39 @@ class ScannerInterface(metaclass=InterfaceMetaclass):
     # =========================
     @abc.abstractmethod
     def reset_device(self):
+        # performs device reset, if applicable
         pass
 
     @abc.abstractmethod
     def get_current_device_state(self):
+        # gets device state, based on available states of ScannerState Enum 
         pass
 
     @abc.abstractmethod
     def get_current_device_config(self):     
-        #=> internally: _set_current_device_config()
+        # returns current configuration, from ScannerConfig and ScannerMode Enum
+        # internally: _set_current_device_config()
         pass
+
+    @abc.abstractmethod
+    def get_device_meta_info(self, query=None):
+        # returns info on the scanner hardware/software
+        pass 
 
     @abc.abstractmethod
     def get_available_scan_modes(self):
         pass
 
     @abc.abstractmethod
-    def get_parameter_for_modes(self):
+    def get_available_scan_style(self):
         pass
 
     @abc.abstractmethod
-    def get_available_scan_style(self):
+    def get_available_scan_measurements(self):
+        return 
+
+    @abc.abstractmethod
+    def get_parameters_for_mode(self):
         pass
 
 
@@ -251,24 +272,24 @@ class ScannerInterface(metaclass=InterfaceMetaclass):
     # ==============================
 
     @abc.abstractmethod
-    def get_probe_scan_range(self, axes=['X','Y','Z']):
+    def get_sample_scan_range(self, axes=['X','Y','Z']):
         pass
 
     @abc.abstractmethod
-    def get_probe_pos(self):
+    def get_sample_pos(self):
         pass
 
     @abc.abstractmethod
-    def get_probe_target_pos(self):
+    def get_sample_target_pos(self):
         pass
 
     @abc.abstractmethod
-    def set_probe_pos_abs(self, vel=None, time=None):
+    def set_sample_pos_abs(self, vel=None, time=None):
         #if velocity is given, time will be ignored
         pass
     
     @abc.abstractmethod
-    def set_probe_pos_rel(self, vel=None, time=None):
+    def set_sample_pos_rel(self, vel=None, time=None):
         # if velocity is given, time will be ignored
         pass
 

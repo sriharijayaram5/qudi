@@ -86,6 +86,8 @@ class RemoteSPMLibrary(Base):
     _meas_line_scan = []
     _meas_array_scan = []
 
+    _curr_scan_style = TScanMode.LINE_SCAN
+
     # waiting condition flag
     _wait_cond = QtCore.QWaitCondition()
 
@@ -357,10 +359,10 @@ class RemoteSPMLibrary(Base):
         return ret
 
 
-    def obtain_axis_setpoint(self, axes):
+    def obtain_axis_setpoint(self, axis):
         """ Obtain the future/next value in the callback for the selected axes.
 
-        @param str axes: The name of one of the possible axes, valid values are
+        @param str axis: The name of one of the possible axes, valid values are
                          within the list:
                             ['X', 'x', 'Y', 'y', 'Z', 'z', 'X1', 'x1', 'Y1', 'y1',
                              'Z1', 'z1', 'X2', 'x2', 'Y2', 'y2', 'Z2', 'z2']
@@ -372,11 +374,11 @@ class RemoteSPMLibrary(Base):
 
         """
 
-        axes = axes.upper() # convert to uppercase
+        axis = axis.upper() # convert to uppercase
 
         ret = 0
-        if axes in self.VALID_AXIS:
-            ret = self._lib.AxisSetpoint(axes.encode())
+        if axis in self.VALID_AXIS:
+            ret = self._lib.AxisSetpoint(axis.encode())
 
         return ret
 
@@ -423,7 +425,7 @@ class RemoteSPMLibrary(Base):
         return names, units
     
 
-    def setup_scan_common(self, plane, line_points, scan_mode, sigs_buffers):
+    def setup_scan_common(self, plane, line_points, scan_style, sigs_buffers):
 
         plane_id = plane.encode('UTF-8')
         plane_id_p = c_char_p(plane_id)
@@ -438,7 +440,7 @@ class RemoteSPMLibrary(Base):
 
         ret_val = self._lib.SetupScanCommon(plane_id_p, 
                                             line_points_c, 
-                                            scan_mode, 
+                                            scan_style, 
                                             sigsCnt, 
                                             byref(sigs_buffers))
 
@@ -879,7 +881,7 @@ class RemoteSPMLibrary(Base):
 
     
     def setup_spm(self, plane='XY', line_points=100, meas_params=[],
-                  scan_mode=TScanMode.LINE_SCAN):
+                  scan_style=TScanMode.LINE_SCAN):
         """ Setting up all required parameters to perform a scan.
         
         @param str plane: The selected plane, possible options:
@@ -891,7 +893,7 @@ class RemoteSPMLibrary(Base):
                                  MEAS_PARAMS to see the available parameters. 
                                  If nothing is passed, an empty string array 
                                  will be created.
-        @param TScanMode scan_mode: The enum selection of the current scan mode.
+        @param TScanMode scan_style: The enum selection of the current scan mode.
                                     Possibilities are (<=> equivalent to number)
                                         TScanMode.LINE_SCAN  <=> 0
                                         TScanMode.POINT_SCAN <=> 1
@@ -914,9 +916,9 @@ class RemoteSPMLibrary(Base):
         sigsCnt = c_int(len(sigs_buffers))
 
         if plane not in self.PLANE_LIST:
-            self.log.error(f'The passed plane "{plane}" is not a suitable '
-                           f'parameter. Please choose one from: '
-                           f'{self.PLANE_LIST}.')
+            self.log.error(f'The passed plane "{plane}" is not a suitable ' +
+                           f'parameter. Please choose one from: ' + 
+                           f'{self.PLANE_LIST}.') 
             self._curr_plane = ''
             return (-1, self._curr_plane,  self._curr_meas_params)
 
@@ -928,25 +930,26 @@ class RemoteSPMLibrary(Base):
         line_points_c = c_int(line_points)
 
         
-        if not isinstance(scan_mode, TScanMode) and not isinstance(scan_mode, int):
-            scan_mode = TScanMode.LINE_SCAN
-            self.log.error(f'ScanMode for method setup_spm is not valid. Setting to default value {scan_mode.name}.')
+        if not isinstance(scan_style, TScanMode) and not isinstance(scan_style, int):
+            scan_style = TScanMode.LINE_SCAN
+            self.log.error(f'ScanMode for method setup_spm is not valid. Setting to default value {scan_style.name}.')
 
-        elif isinstance(scan_mode, int):
+        elif isinstance(scan_style, int):
 
-            scan_mode_temp = None
+            scan_style_temp = None
             for entry in TScanMode:
-                if entry.value == scan_mode:
-                    scan_mode_temp = entry  # set the proper scan mode
+                if entry.value == scan_style:
+                    scan_style_temp = entry  # set the proper scan mode
 
-            if scan_mode_temp is None:
-                scan_mode_temp = TScanMode.LINE_SCAN
-                self.log.warning(f'Passed number "{scan_mode}" for ScanMode is unknown for method setup_spm. Setting to default value: {scan_mode_temp.name} with number {scan_mode_temp.value}')
-                scan_mode_temp = TScanMode._meas_line_scan # default value
+            if scan_style_temp is None:
+                scan_style_temp = TScanMode.LINE_SCAN
+                self.log.warning(f'Passed number "{scan_style}" for ScanMode is unknown for method setup_spm.' + 
+                                 f'Setting to default value: {scan_style_temp.name} with number {scan_style_temp.value}')
+                scan_style_temp = TScanMode._meas_line_scan # default value
 
-            scan_mode = scan_mode_temp
+            scan_style = scan_style_temp
 
-        self._curr_meas_mode = scan_mode # set current measurement mode
+        self._curr_scan_style = scan_style # set current measurement mode
 
         self._lib.SetupScanCommon.argtypes = [c_char_p,
                                              c_int,
@@ -956,7 +959,7 @@ class RemoteSPMLibrary(Base):
 
         ret_val = self._lib.SetupScanCommon(plane_id_p, 
                                             line_points_c, 
-                                            scan_mode, 
+                                            scan_style, 
                                             sigsCnt, 
                                             byref(sigs_buffers))
 
@@ -967,8 +970,8 @@ class RemoteSPMLibrary(Base):
         self._stop_request = False
 
         if ret_val == 0:
-            self.log.error(f'Library call "SetupScanCommon", with parameters '
-                           f'"{plane}", "{line_points}", '
+            self.log.error(f'Library call "SetupScanCommon", with parameters ' +
+                           f'"{plane}", "{line_points}", ' + 
                            f'"{self._curr_meas_params}" failed.')
 
         return (ret_val, self._curr_plane,  copy.copy(self._curr_meas_params))
@@ -1126,7 +1129,7 @@ class RemoteSPMLibrary(Base):
         else:
             return self._meas_line_scan
 
-    def stop_measure(self):
+    def stop_measurement(self):
         self._stop_request = True
         self._wait_cond.wakeAll()
         #self.finish_scan()
