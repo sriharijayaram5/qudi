@@ -19,7 +19,6 @@ Copyright (c) the Qudi Developers. See the COPYRIGHT.txt file at the
 top-level directory of this distribution and at <https://github.com/Ulm-IQO/qudi/>
 """
 
-from locale import CODESET
 import os
 import copy
 import threading
@@ -69,7 +68,7 @@ class SmartSPM(Base, ScannerInterface):
     
     _spm_state = ScannerState.DISCONNECTED
     _spm_curr_mode = ScannerMode.UNCONFIGURED
-    _spm_curr_sstyle = ScanStyle.POINT_SCAN
+    _spm_curr_sstyle = ScanStyle.POINT
     _spm_curr_params = {}
 
     _afm_scan_line = np.zeros(0) # scan line array for afm scanner

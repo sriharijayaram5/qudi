@@ -173,7 +173,7 @@ class ScannerInterface(metaclass=InterfaceMetaclass):
         # (blocking method, required configure_scan_line to be called prior)
         pass
 
-    @abs.abstractmethod
+    @abc.abstractmethod
     def finish_scan(self):
         # requests a finish of the measurement program
         # allows completion of the current measurement

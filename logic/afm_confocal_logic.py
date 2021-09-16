@@ -20,8 +20,8 @@ top-level directory of this distribution and at <https://github.com/Ulm-IQO/qudi
 """
 
 
-#from hardware.microwaveQ.microwaveq import MicrowaveQ
-from hardware.spm.spm_new import SmartSPM  # for debugging only
+#from hardware.microwaveQ.microwaveq import MicrowaveQ    # for debugging only
+#from hardware.spm.spm_new import SmartSPM                # for debugging only
 from hardware.microwaveQ.microwaveq import MicrowaveQMode
 from core.module import Connector, StatusVar, ConfigOption
 from logic.generic_logic import GenericLogic
@@ -496,8 +496,8 @@ class AFMConfocalLogic(GenericLogic):
         """ Initialization performed during activation of the module. """
 
         # Connect to hardware and save logic
-        #self._spm = self.spm_device()
-        self._spm = SmartSPM()                    # temporarily get language server's help
+        self._spm = self.spm_device()
+        #self._spm = SmartSPM()                    # temporarily get language server's help
         self._save_logic = self.savelogic()
         self._counter = self.counter_device()   # temporarily disable
         #self._counter = MicrowaveQ()             # temporarily get language server's help
