@@ -4925,6 +4925,9 @@ class AFMConfocalLogic(GenericLogic):
         self.increase_save_counter()
         # prepare the full raw data in an OrderedDict:
 
+        parameters.update(data_z['params'])
+        nice_name = data_z['nice_name']
+        unit = data_z['si_units']
         signal_name = data_z['nice_name']
         units_signal = data_z['si_units']
 
