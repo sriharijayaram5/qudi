@@ -202,6 +202,7 @@ class SmartSPM(Base):
                                         # connection error occurred.
 
     _libpath = ConfigOption('libpath', default='spm-library')   # default is the relative path
+    _clientdll = ConfigOption('clientdll', default='remote_spm.dll')  # default aist-nt 
 
     def __init__(self, config, **kwargs):
         """ Create CounterLogic object with connectors.
@@ -247,7 +248,7 @@ class SmartSPM(Base):
         if not os.path.isabs(self._libpath):   
             self._libpath = os.path.join(os.path.dirname(__file__), self._libpath)
 
-        self._load_library(self._libpath)
+        self._load_library(self._libpath, self._clientdll)
 
         self._spm_dll_ver = self.get_library_version()
         
@@ -303,7 +304,7 @@ class SmartSPM(Base):
         self.disconnect_spm()
         self._unload_library()
         
-    def _load_library(self, path=''):
+    def _load_library(self, path='', libname='remote_spm.dll'):
         """ Helper to load the spm library. 
         
         @params str path: absolute path to the folder, where library is situated.
@@ -314,7 +315,6 @@ class SmartSPM(Base):
             path = os.path.join(this_dir, 'spm-library') # default location of
                                                          # the library
 
-        libname = 'remote_spm.dll'
         curr_path = os.path.abspath(os.curdir) # get the current absolute path
         
         #FIXME: Find out why the call CDLL cannot handle absolute paths and 
