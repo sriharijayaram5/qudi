@@ -96,9 +96,9 @@ class RemoteSPMLibrary(Base):
     sigLineRestarted = QtCore.Signal()    # signal will be emitted if loss of 
                                           # connection error occurred.
 
-    def __init__(self, libpath, **kwargs):
+    def __init__(self,config, **kwargs):
 
-        super().__init__(**kwargs)
+        super().__init__(config=config, **kwargs)
 
         # locking mechanism for thread safety. Use it like
         #   self.threadlock.lock() # to lock the current thread
@@ -107,15 +107,17 @@ class RemoteSPMLibrary(Base):
         #   self.threadlock.trylock()   # to try to lock it.
         self.threadlock = Mutex()
 
+
+    def connect_spm(self, libpath, libname): 
         if not os.path.isabs(libpath):   
             self._libpath = os.path.join(os.path.dirname(__file__), libpath)
         else:
             self._libpath = libpath
+        
+        self._clientdll = libname
 
-        self._load_library(self._libpath)
+        self._load_library(self._libpath, self._clientdll)
 
-
-    def connect_spm(self): 
         self._connect_spm()
 
         # prepare test callback
@@ -425,7 +427,7 @@ class RemoteSPMLibrary(Base):
         return names, units
     
 
-    def _load_library(self, path=''):
+    def _load_library(self, path='', libname='remote_spm.dll'):
         """ Helper to load the spm library. 
         
         @params str path: absolute path to the folder, where library is situated.
@@ -436,7 +438,6 @@ class RemoteSPMLibrary(Base):
             path = os.path.join(this_dir, 'spm-library') # default location of
                                                          # the library
 
-        libname = 'remote_spm.dll'
         curr_path = os.path.abspath(os.curdir) # get the current absolute path
         
         #FIXME: Find out why the call CDLL cannot handle absolute paths and 

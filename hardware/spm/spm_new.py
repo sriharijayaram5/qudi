@@ -51,6 +51,7 @@ class SmartSPM(Base, ScannerInterface):
     _modtype = 'hardware'
 
     _threaded = True
+    #_threaded = False # debug only 
     _version_comp = 'aist-nt_v3.5.150'   # indicates the compatibility of the version.
     __version__ = '0.6.2'
     _spm_dll_ver = '0.0.0'
@@ -97,6 +98,7 @@ class SmartSPM(Base, ScannerInterface):
     sigLineFinished = QtCore.Signal(int, int, object)
 
     _libpath = ConfigOption('libpath', default='spm-library')   # default is the relative path
+    _clientdll = ConfigOption('clientdll', default='remote_spm.dll')  # default aist-nt
 
     def __init__(self, config, **kwargs):
         """ Create CounterLogic object with connectors.
@@ -105,6 +107,8 @@ class SmartSPM(Base, ScannerInterface):
         @param dict kwargs: optional parameters
         """
         super().__init__(config=config, **kwargs)
+
+        self._dev = RemoteSPMLibrary(config, **kwargs) 
 
         # checking for the right configuration
         for key in config.keys():
@@ -131,9 +135,13 @@ class SmartSPM(Base, ScannerInterface):
     def on_activate(self):
         """ Prepare and activate the spm module. """
 
+        if not os.path.isabs(self._libpath):   
+            self._libpath = os.path.join(os.path.dirname(__file__), self._libpath)
+
         self._spm_dll_ver = self.get_library_version()
-        self._dev = RemoteSPMLibrary(self._libpath) 
-        self._dev.connect_spm()
+
+        self._dev.connect_spm(libpath=self._libpath, libname=self._clientdll)
+
         if self._dev.is_connected():
             self.set_current_device_state(ScannerState.UNCONFIGURED)
         else:
@@ -493,7 +501,9 @@ class SmartSPM(Base, ScannerInterface):
         
 
     def scan_point(self, num_params=None):
-        """ After setting up the scanner perform a scan of a point. 
+        """ Obtain measurments from a point
+        (blocking method, required configure_scan_line to be called prior)
+        Performed after setting up the scanner perform a scan of a point. 
 
         @param int num_params: set the expected parameters per point, minimum is 0
 
@@ -521,15 +531,32 @@ class SmartSPM(Base, ScannerInterface):
 
 
     def get_measurement(self):
+        """ Obtains gathered measurements from scanner
+            Returns a scanned line after it is completely scanned. Wait until
+            this is the case.
+
+        @param bool reshape: return in a reshaped structure, i.e every signal is
+                             in its separate row.
+
+        @return ndarray: with dimension either
+                reshape=True : 2D array[num_of_signals, pixel_per_line]
+                reshape=False:  1D array[num_of_signals * pixel_per_line]
+
         # (required configure_scan_line to be called prior)
         # => blocking method, either with timeout or stoppable via stop measurement
+        """    
         pass
 
 
     def finish_scan(self):
-        """ Finish scan at current state
-        Requests a finish of the measurement program
-        Allows completion of the current measuremen
+        """ Request completion of the current scan line 
+        It is correct (but not abs necessary) to end each scan 
+        process by this method. There is no problem for 'Point' scan, 
+        performed with 'scan_point', to stop it at any moment. But
+        'Line' scan will stop after a line was finished, otherwise 
+        your software may hang until scan line is complete.
+
+        @return int: status variable with: 0 = call failed, 1 = call successfull
         """
         self._dev.finish_scan()
         self.set_current_device_state(ScannerState.UNCONFIGURED)
@@ -550,19 +577,44 @@ class SmartSPM(Base, ScannerInterface):
 
 
     def calibrate_constant_height(self, calib_points, safety_lift):
-        # array with (x,y) points, safety_lift, ) 
-        # => return calibration points array of (x,y,z)
+        """ Calibrate constant height
+
+        Performs a lift-move-land height mode calibration for the sample
+        at the defined calib_points locations.  During the move, the
+        probe is lifted to a safe height for travel ('safety_lift')
+        
+        @param: array calib_points: sample coordinates X & Y of where 
+                to obtain the height; e.g. [ [x0, y0], [x1, y1], ... [xn, yn]]
+        @param: float safety_lift: height (m) to lift the probe during traversal
+                (+ values up...increasing the distance between probe & sample)
+        
+        @return: array calibrate_points: returns measured heights with the 
+                 the original coordinates:  [[x0, y0, z0], [x1, y1, z1], ... [xn, yn, zn]] 
+        """    
+        
         pass
 
 
     def get_constant_height_calibration(self):
-        # => return calibration points array of (x,y,z)
+        """ Returns the calibration points, as gathered by the calibrate_constant_height() mode
+
+        @return: array calibrate_points: returns measured heights with the 
+                 the original coordinates:  [[x0, y0, z0], [x1, y1, z1], ... [xn, yn, zn]] 
+        """
         pass
 
 
     # Device specific functions
     # =========================
     def reset_device(self):
+        """ Resets the device back to the initial state
+
+        @params: None
+
+        @return bool: status variable with: 
+                        False (=0) call failed
+                        True (=1) call successful
+        """
         pass
 
 
@@ -578,6 +630,9 @@ class SmartSPM(Base, ScannerInterface):
     def set_current_device_state(self, state):
         """ Sets the current device state 
 
+        @return: ScannerState: current device state
+        """          """ Sets the current device state 
+
         @return: True (success) or False (failure)
                  (currently, there is no policing of the state for the mode)
         """      
@@ -586,7 +641,10 @@ class SmartSPM(Base, ScannerInterface):
 
 
     def get_current_device_config(self):     
-        #=> internally: _set_current_device_config()
+        """ Gets the current device state 
+
+        @return: ScannerState: current device state
+        """  
         mode = self._spm_curr_mode 
         params = self._spm_curr_params
         style = self._spm_curr_sstyle
@@ -595,7 +653,21 @@ class SmartSPM(Base, ScannerInterface):
 
 
     def get_device_meta_info(self, query=None):
-        # returns info on the scanner hardware/software
+        """ Gets the device meta info
+        This is specific to the device, as needed by the implemenation.  
+        The information is returned as a dictionary with the relevant values
+        e.g.: {'SERVER_VERSION':       self._dev.server_interface_version(),
+               'CLIENT_VERSION':       self._dev.client_interface_version(),
+               'IS_SERVER_COMPATIBLE': self._dev.is_server_compatible(),
+               'LIBRARY_VERSION':      self.get_library_version() 
+               } 
+
+        @param: str query(optional):  retrieve a specific key from the dictionary,
+                otherwise, the entire dictionary is returned
+
+        @return: value or dict:  if 'query is supplied, then specific setting is return
+                otherwise, the entire dictionary is returned
+        """      
         dev_info = {'SERVER_VERSION':       self._dev.server_interface_version(),
                     'CLIENT_VERSION':       self._dev.client_interface_version(),
                     'IS_SERVER_COMPATIBLE': self._dev.is_server_compatible(),
@@ -609,32 +681,63 @@ class SmartSPM(Base, ScannerInterface):
 
 
     def get_scanner_constraints(self):
+        """ Returns the current scanner contraints
+
+        @return dict: scanner contraints as defined for the device
+        """
         return copy.copy(self._SCANNER_CONSTRAINTS)
 
 
     def get_available_scan_modes(self):
+        """ Gets the available scan modes for the device 
+
+        @return: list: available scan modes of the device, as [ScannerMode ...] 
+        """      
         sc = self._SCANNER_CONSTRAINTS
         return copy.copy(sc.scanner_modes)
 
 
     def get_available_scan_style(self):
+        """ Gets the available scan styles for the device 
+        Currently, this is only 2 modes: [ScanStyle.LINE, ScanStyle.POINT]
+
+        @return: list: available scan styles of the device, as [ScanStyle ...] 
+        """
         sc = self._SCANNER_CONSTRAINTS 
         return copy.copy(sc.scanner_styles)
+        
 
+    def get_available_measurement_methods(self):
+        """  Gets the available measurement modes of the device
+        obtains the dictionary of aviable measurement methods
+        This is device specific, but is an implemenation of the 
+        ScannerMeasurements class
 
-    def get_available_scan_measurements(self):
+        @return: scanner_measurements class implementation 
+        """
         sm = self._SCANNER_MEASUREMENTS
         return copy.copy(sm)
 
 
     def get_parameters_for_mode(self, mode):
+        """ Gets the parameters required for the mode
+        Returns the scanner_constraints.scanner_mode_params for given mode
+
+        @param: ScannerMode mode: mode to obtain parameters for (required parameters)
+        
+        @return: parameters for mode, from scanner_constraints
+        """
         sc = self._SCANNER_CONSTRAINTS
         return sc.scanner_mode_params.get(mode, None) 
 
 
-    def get_meas_params(self):
-        """ Obtain a dict with the available measurement parameters. """
-        sm = self.get_available_scan_measurements()
+    def get_scanner_measurements(self):
+        """ Gets the parameters defined unders ScannerMeasurements definition
+        This returns the implemenation of the ScannerMeasurements class
+
+        @return ScannerMeasurements instance 
+        """
+        sm = self.get_available_measurements_methods()
         return sm.scanner_measurements
 
 
@@ -723,6 +826,7 @@ class SmartSPM(Base, ScannerInterface):
 
     def get_objective_pos(self, axis_label_list=['X2', 'Y2', 'Z2']):
         """ Get the objective scanner position. 
+        Returns the current position of the scanner objective
 
         @param str axis_label_list: the axis label, either capitalized or lower 
                                     case, possible values: 
@@ -752,7 +856,8 @@ class SmartSPM(Base, ScannerInterface):
 
 
     def get_objective_target_pos(self, axis_label_list=['X2', 'Y2', 'Z2']):
-        """ Get the objective scanner position. 
+        """ Get the objective scanner target position. 
+        Returns the potential position of the scanner objective (understood to be the next point)
 
         @param str axis_label_list: the axis label, either capitalized or lower 
                                     case, possible values: 
@@ -782,7 +887,7 @@ class SmartSPM(Base, ScannerInterface):
 
 
     def set_objective_pos_abs(self, axis_label_dict, move_time=0.1):
-        """ Set the objective scanner position.
+        """ Set the objective scanner position in physical coordinates (absolute).
 
         @param dict axis_label_dict: the axis label dict, entries either 
                                      capitalized or lower case, possible values:
@@ -839,7 +944,7 @@ class SmartSPM(Base, ScannerInterface):
                                 sample scanner in m. E.g an passed value may
                                 look like
 
-                                   axis_label_dict = {'X2':10e-6, 'Y2':5e-6, 'Z2':10e-6}
+                                    axis_rel_dict = {'X2':1.5e-6, 'Y2':-0.5e-6, 'Z2':10e-6}
 
                                 to set the objectvie scanner to the relative  
                                 position x=+10um, y=+5um, z=+2um
@@ -1054,17 +1159,34 @@ class SmartSPM(Base, ScannerInterface):
     # Probe lifting functions
     # ========================
 
-    def lift_probe(self, rel_value):
+    def lift_probe(self, rel_z):
+        """ Lift the probe on the surface.
+        @param float rel_z: lifts the probe by rel_z distance (m) (adds to previous lifts)  
+
+        @return bool: Function returns True if method succesful, False if not
+        """
         pass
 
 
     def get_lifted_value(self):
-        # return absolute lifted value
+        """ Gets the absolute lift from the sample (sample land, z=0)
+
+        Note, this is not the same as the absolute Z position of the sample + lift
+        Since the sample height is always assumed to be 0 (no Z dimension).  
+        In reality, the sample has some thickness and the only way to measure Z 
+        is to make a distance relative to this surface
+
+        @return float: absolute lifted distance from sample (m)
+        """
         pass
 
 
     def is_probe_landed(self): 
-        # return True/False
+        """ Returns state of probe, if it is currently landed or lifted
+
+        @return bool: True = probe is currently landed 
+                      False = probe is in lifted mode
+        """
         pass
 
 
