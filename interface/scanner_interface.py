@@ -223,7 +223,7 @@ class ScannerInterface(metaclass=InterfaceMetaclass):
         pass
 
     @abc.abstractmethod
-    def get_measurement(self):
+    def get_measurements(self, reshape=True):
         """ Obtains gathered measurements from scanner
             Returns a scanned line after it is completely scanned. Wait until
             this is the case.

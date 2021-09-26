@@ -175,6 +175,17 @@ class SmartSPM(Base, ScannerInterface):
             self.log.warning('Could not obtain the library version of the SPM DLL file.')
             return '0.0.0'
 
+    def check_interface_version(self, pause=None):
+        """ Determines interface version from hardware interface 
+
+        @param: int pause:  time to wait before posing hardware questions
+                            (to avoid startup interference)
+
+        @return: bool isCompatible:  a boolean flag indicating if the SPM client 
+                            and server are compatible
+        """
+        return self._dev.check_interface_version(pause=pause)
+
     # ==========================================================================
     #                       Scanner interface methods 
     # ==========================================================================
@@ -221,8 +232,25 @@ class SmartSPM(Base, ScannerInterface):
 
         sc.scanner_styles = [ScanStyle.POINT, ScanStyle.LINE] 
 
-        sc.scanner_mode_params = {}           # to be defined
-        sc.scanner_mode_params_defaults = {}  # to be defined
+        sc.scanner_mode_params = { ScannerMode.OBJECTIVE_XY:          { 'line_points': 100},
+                                   ScannerMode.OBJECTIVE_XZ:          { 'line_points': 100},
+                                   ScannerMode.OBJECTIVE_YZ:          { 'line_points': 100},
+                                   ScannerMode.PROBE_CONTACT:         { 'line_points': 100},
+                                   ScannerMode.PROBE_CONSTANT_HEIGHT: {},   # to be defined when implemented
+                                   ScannerMode.PROBE_DUAL_PASS:       {},   # to be defined when implemented
+                                   ScannerMode.PROBE_Z_SWEEP:         {}    # to be defined when implemented
+                                 }       
+
+        sc.scanner_mode_params_defaults = {
+                                   ScannerMode.OBJECTIVE_XY:          { 'meas_params': []},
+                                   ScannerMode.OBJECTIVE_XZ:          { 'meas_params': []},
+                                   ScannerMode.OBJECTIVE_YZ:          { 'meas_params': []},
+                                   ScannerMode.PROBE_CONTACT:         {},
+                                   ScannerMode.PROBE_CONSTANT_HEIGHT: {},   # to be defined when implemented
+                                   ScannerMode.PROBE_DUAL_PASS:       {},   # to be defined when implemented
+                                   ScannerMode.PROBE_Z_SWEEP:         {}    # to be defined when implemented
+
+                                }  # to be defined
 
         
     def _create_scanner_measurements(self):
@@ -315,7 +343,7 @@ class SmartSPM(Base, ScannerInterface):
         @return int: error code (0:OK, -1:error)
         """
         dev_state = self.get_current_device_state()
-        curr_mode, curr_params, curr_sstyle = self.get_current_device_config()
+        #curr_mode, curr_params, curr_sstyle = self.get_current_device_config()
 
         # note that here, all methods configure the SPM for "TscanMode.LINE_SCAN"
         # since all measurements are gathered in a line format
@@ -323,15 +351,12 @@ class SmartSPM(Base, ScannerInterface):
         # if a trigger signal will be produced for the recorder device 
         std_config = {
             ScannerMode.OBJECTIVE_XY:  { 'plane'       : 'X2Y2', 
-                                         'meas_params' : [],
                                          'scan_mode'   : TScanMode.LINE_SCAN },
 
             ScannerMode.OBJECTIVE_XZ:  { 'plane'       : 'X2Z2', 
-                                         'meas_params' : [],
                                          'scan_mode'   : TScanMode.LINE_SCAN },
 
             ScannerMode.OBJECTIVE_YZ:  { 'plane'       : 'Y2Z2', 
-                                         'meas_params' : [],
                                          'scan_mode'   : TScanMode.LINE_SCAN },
 
             ScannerMode.PROBE_CONTACT: { 'plane'       : 'XY', 
@@ -363,6 +388,7 @@ class SmartSPM(Base, ScannerInterface):
             return -1
         
         sc_defaults = limits.scanner_mode_params_defaults[mode]
+        params = { **params, **{k:sc_defaults[k] for k in sc_defaults.keys() - params.keys()}}
         is_ok = self._check_params_for_mode(mode, params)
         if not is_ok: 
             self.log.error(f'Parameters are not correct for mode "{ScannerMode.name(mode)}". '
@@ -384,7 +410,7 @@ class SmartSPM(Base, ScannerInterface):
             # Objective scanning returns no parameters
             ret_val, curr_plane, curr_meas_params = \
                 self._dev.setup_spm(**std_config[ScannerMode.OBJECTIVE_XY],
-                                    line_points = params['line_points'])
+                                    line_points= params['line_points'])
 
         elif mode == ScannerMode.OBJECTIVE_XZ:
             # Objective scanning returns no parameters
@@ -480,6 +506,26 @@ class SmartSPM(Base, ScannerInterface):
                                          corr1_start = corr1_start, corr1_stop = corr1_stop,
                                          time_forward = time_forward, time_back = time_back)
 
+
+    def set_ext_trigger(self, trigger_state=True):
+        """ Set up an external trigger after performing a line or point scan.
+           (this is a pass through to the dev specific operation)
+
+        @param bool trigger_state: declare whether enable (=True) or disable 
+                                  (=False) triggering.
+
+        This method has to be called once, after setup_spm, otherwise triggering
+        will be disabled.
+
+        Note: Point trigger is executed at the end of the measurement of each 
+              scan-point, both for line- and for point-scan.
+              Exception: When use ExecScanPoint function, point trigger is not 
+                         performed. 
+              One extra trigger is performed at the beginning of the measurement
+              of first point of the line.
+        """    
+        return self._dev.set_ext_trigger(trigger_state)
+
         
     def scan_line(self,int_time = 0.05): 
         """Execute a scan line measurement. 
@@ -530,7 +576,7 @@ class SmartSPM(Base, ScannerInterface):
         self._dev.scan_point(num_params=num_params) 
 
 
-    def get_measurement(self):
+    def get_measurements(self, reshape=True):
         """ Obtains gathered measurements from scanner
             Returns a scanned line after it is completely scanned. Wait until
             this is the case.
@@ -545,7 +591,7 @@ class SmartSPM(Base, ScannerInterface):
         # (required configure_scan_line to be called prior)
         # => blocking method, either with timeout or stoppable via stop measurement
         """    
-        pass
+        return self._dev.get_scanned_line(reshape=reshape)
 
 
     def finish_scan(self):
@@ -708,7 +754,7 @@ class SmartSPM(Base, ScannerInterface):
         
 
     def get_available_measurement_methods(self):
-        """  Gets the available measurement modes of the device
+        """  Gets the available measurement methods of the device
         obtains the dictionary of aviable measurement methods
         This is device specific, but is an implemenation of the 
         ScannerMeasurements class
@@ -717,6 +763,18 @@ class SmartSPM(Base, ScannerInterface):
         """
         sm = self._SCANNER_MEASUREMENTS
         return copy.copy(sm)
+
+    
+    def get_available_measurement_params(self):
+        """  Gets the available measurement parameters (names) 
+        obtains the dictionary of aviable measurement params 
+        This is device specific, but is an implemenation of the 
+        ScannerMeasurements class
+
+        @return: scanner_measurements class implementation 
+        """
+        sm = self._SCANNER_MEASUREMENTS
+        return copy.copy(sm.scanner_measurements)
 
 
     def get_parameters_for_mode(self, mode):

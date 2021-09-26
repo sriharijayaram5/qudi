@@ -22,6 +22,7 @@ top-level directory of this distribution and at <https://github.com/Ulm-IQO/qudi
 
 #from hardware.microwaveQ.microwaveq import MicrowaveQ    # for debugging only
 #from hardware.spm.spm_new import SmartSPM                # for debugging only
+from interface.scanner_interface import ScanStyle, ScannerMode
 from hardware.microwaveQ.microwaveq import MicrowaveQMode
 from core.module import Connector, StatusVar, ConfigOption
 from logic.generic_logic import GenericLogic
@@ -598,7 +599,7 @@ class AFMConfocalLogic(GenericLogic):
                                               'si_units': 'G',
                                               'nice_name': 'Magnetic field '},
                             }
-        meas_params_units.update(self._spm.get_meas_params())
+        meas_params_units.update(self.get_afm_meas_params())
 
         meas_params = list(meas_params_units)
 
@@ -727,7 +728,7 @@ class AFMConfocalLogic(GenericLogic):
         return self._opti_scan_array
 
     def get_afm_meas_params(self):
-        return self._spm.get_meas_params()
+        return self._spm.get_available_measurement_params()
 
 
     def get_curr_scan_params(self):
@@ -1052,12 +1053,13 @@ class AFMConfocalLogic(GenericLogic):
                                                     coord1_start, coord1_stop,
                                                     coord1_num)
 
-        ret_val, _, curr_scan_params = self._spm.setup_spm(plane=plane,
-                                                           line_points=coord0_num,
-                                                           meas_params=meas_params,
-                                                           scan_mode=0)  # line scan
-        spm_start_idx = 0
+        ret_val, _, curr_scan_params = \
+            self._spm.configure_scanner(mode=ScannerMode.PROBE_CONTACT,
+                                        params= {'line_points': coord0_num,
+                                                 'meas_params': meas_params},
+                                        scan_style=ScanStyle.LINE) 
 
+        spm_start_idx = 0
 
         #FIXME: check whether bugs can occur if you do not reset the following values.
         if not continue_meas:
@@ -1222,12 +1224,12 @@ class AFMConfocalLogic(GenericLogic):
             if 'counts' in meas_params:
                 self._counter.start_recorder(arm=True)
 
-            self._spm.setup_scan_line(corr0_start=scan_coords[0],
-                                      corr0_stop=scan_coords[1],
-                                      corr1_start=scan_coords[2],
-                                      corr1_stop=scan_coords[3],
-                                      time_forward=scan_speed_per_line,
-                                      time_back=time_idle_move)
+            self._spm.configure_line(corr0_start=scan_coords[0],
+                                     corr0_stop=scan_coords[1],
+                                     corr1_start=scan_coords[2],
+                                     corr1_stop=scan_coords[3],
+                                     time_forward=scan_speed_per_line,
+                                     time_back=time_idle_move)
 
             self._spm.scan_line()  # start the scan line
 
@@ -1238,10 +1240,10 @@ class AFMConfocalLogic(GenericLogic):
             # AFM signal (from SPM)
             if  set(curr_scan_params) - {'counts', 'counts2', 'counts_diff'}:
                 # i.e. afm parameters are set
-                self._qafm_scan_line[spm_start_idx:] = self._spm.get_scanned_line(reshape=True)
+                self._qafm_scan_line[spm_start_idx:] = self._spm.get_measurements(reshape=True)
             else:
                 # perform just the scan without using the data.
-                self._spm.get_scanned_line(reshape=True)
+                self._spm.get_measurements(reshape=True)
 
             # Optical signal (from MicrowaveQ)
             # The same variables are requested from 'pixel', 'single iso-b', and 'dual iso-b'
@@ -1405,10 +1407,11 @@ class AFMConfocalLogic(GenericLogic):
                 self.log.debug('optimizer started.')
 
                 self.default_optimize()
-                _, _, _ = self._spm.setup_spm(plane=plane,
-                                              line_points=coord0_num,
-                                              meas_params=meas_params,
-                                              scan_mode=0)  # line scan
+                _, _, _ = self._spm.configure_scanner(mode=ScannerMode.PROBE_CONTACT,
+                                                      params= {'line_points': coord0_num,
+                                                               'meas_params': meas_params},
+                                                      scan_style=ScanStyle.LINE) 
+
                 if 'counts' in meas_params:
                     self._spm.set_ext_trigger(True)
 
@@ -1669,9 +1672,11 @@ class AFMConfocalLogic(GenericLogic):
         scan_arr = self.create_scan_leftright2(coord0_start, coord0_stop,
                                                     coord1_start, coord1_stop, coord1_num)
 
-        ret_val, _, curr_scan_params = self._spm.setup_spm(plane=plane,
-                                                           line_points=coord0_num,
-                                                           meas_params=meas_params)
+        ret_val, _, curr_scan_params = \
+            self._spm.configure_scanner(mode=ScannerMode.PROBE_CONTACT,
+                                        params= {'line_points': coord0_num,
+                                                 'meas_params': meas_params},
+                                        scan_style=ScanStyle.LINE) 
 
         curr_scan_params.insert(0, 'b_field')  # insert the magnetic field (place holder) 
         curr_scan_params.insert(0, 'counts')  # insert the fluorescence parameter
@@ -1747,12 +1752,12 @@ class AFMConfocalLogic(GenericLogic):
 
             num_params = len(curr_scan_params)
 
-            self._spm.setup_scan_line(corr0_start=scan_coords[0],
-                                      corr0_stop=scan_coords[1],
-                                      corr1_start=scan_coords[2],
-                                      corr1_stop=scan_coords[3],
-                                      time_forward=scan_speed_per_line,
-                                      time_back=idle_move_time)
+            self._spm.configure_line(corr0_start=scan_coords[0],
+                                     corr0_stop=scan_coords[1],
+                                     corr1_start=scan_coords[2],
+                                     corr1_stop=scan_coords[3],
+                                     time_forward=scan_speed_per_line,
+                                     time_back=idle_move_time)
 
             # -1 otherwise it would be more than coord0_num points, since first one is counted too.
             x_step = (scan_coords[1] - scan_coords[0]) / (coord0_num - 1)
@@ -1892,16 +1897,17 @@ class AFMConfocalLogic(GenericLogic):
                 self._spm.finish_scan()
 
                 self.default_optimize()
-                _, _, _ = self._spm.setup_spm(plane=plane,
-                                              line_points=coord0_num,
-                                              meas_params=meas_params)
+                _, _, _ = self._spm.configure_scanner(mode=ScannerMode.PROBE_CONTACT,
+                                                      params= {'line_points': coord0_num,
+                                                               'meas_params': meas_params},
+                                                      scan_style=ScanStyle.LINE) 
+ 
                 self._counter.configure_recorder(
                     mode=MicrowaveQMode.ESR,
                     params={'mw_frequency_list': freq_list,
                             'mw_power': mw_power,
                             'count_frequency': esr_count_freq,
                             'num_meas': num_esr_runs } )
-
 
                 time.sleep(2)
                 self.sigHealthCheckStopSkip.emit()
@@ -1957,18 +1963,18 @@ class AFMConfocalLogic(GenericLogic):
         self.sigHealthCheckStartSkip.emit()
 
         self._worker_thread = WorkerThread(target=self.scan_area_quanti_qafm_fw_bw_by_point,
-                                            args=(coord0_start, coord0_stop,
-                                              coord0_num, coord1_start, coord1_stop,
-                                              coord1_num, int_time_afm,
-                                              idle_move_time, freq_start,
-                                              freq_stop, freq_points,
-                                              esr_count_freq,
-                                              mw_power, num_esr_runs,
-                                              optimize_period,
-                                              meas_params,
-                                              single_res,
-                                              continue_meas),
-                                            name='quanti_thread')
+                                           args=(coord0_start, coord0_stop,
+                                                 coord0_num, coord1_start, coord1_stop,
+                                                 coord1_num, int_time_afm,
+                                                 idle_move_time, freq_start,
+                                                 freq_stop, freq_points,
+                                                 esr_count_freq,
+                                                 mw_power, num_esr_runs,
+                                                 optimize_period,
+                                                 meas_params,
+                                                 single_res,
+                                                 continue_meas),
+                                           name='quanti_thread')
         self.threadpool.start(self._worker_thread)
 
 
@@ -2054,9 +2060,11 @@ class AFMConfocalLogic(GenericLogic):
         # scan_arr = self._spm.create_scan_snake(coord0_start, coord0_stop,
         #                                        coord1_start, coord1_stop, coord1_num)
 
-        ret_val, _, curr_scan_params = self._spm.setup_spm(plane=plane,
-                                                           line_points=coord0_num,
-                                                           meas_params=meas_params)
+        ret_val, _, curr_scan_params = \
+            self._spm.configure_scanner(mode=ScannerMode.PROBE_CONTACT,
+                                        params= {'line_points': coord0_num,
+                                                 'meas_params': meas_params},
+                                        scan_style=ScanStyle.LINE) 
 
         curr_scan_params.insert(0, 'b_field')  # insert the fluorescence parameter
         curr_scan_params.insert(0, 'counts')  # insert the fluorescence parameter
@@ -2137,12 +2145,12 @@ class AFMConfocalLogic(GenericLogic):
             self.set_afm_pos({'x': scan_coords[0], 'y': scan_coords[2]})
             time.sleep(1)
 
-            self._spm.setup_scan_line(corr0_start=scan_coords[0],
-                                      corr0_stop=scan_coords[1],
-                                      corr1_start=scan_coords[2],
-                                      corr1_stop=scan_coords[3],
-                                      time_forward=scan_speed_per_line,
-                                      time_back=idle_move_time)
+            self._spm.configure_line(corr0_start=scan_coords[0],
+                                     corr0_stop=scan_coords[1],
+                                     corr1_start=scan_coords[2],
+                                     corr1_stop=scan_coords[3],
+                                     time_forward=scan_speed_per_line,
+                                     time_back=idle_move_time)
 
             # -1 otherwise it would be more than coord0_num points, since first one is counted too.
             x_step = (scan_coords[1] - scan_coords[0]) / (coord0_num - 1)
@@ -2277,9 +2285,11 @@ class AFMConfocalLogic(GenericLogic):
                 time.sleep(1)
 
                 self.default_optimize()
-                _, _, _ = self._spm.setup_spm(plane=plane,
-                                              line_points=coord0_num,
-                                              meas_params=meas_params)
+                _, _, _ = self._spm.configure_scanner(mode=ScannerMode.PROBE_CONTACT,
+                                                      params= {'line_points': coord0_num,
+                                                               'meas_params': meas_params},
+                                                      scan_style=ScanStyle.LINE) 
+
                 self._counter.configure_recorder(
                     mode=MicrowaveQMode.ESR,
                     params={'mw_frequency_list': freq_list,
@@ -2398,12 +2408,15 @@ class AFMConfocalLogic(GenericLogic):
 
         if plane == 'X2Y2':
             arr_name = 'obj_xy'
+            scanner_mode = ScannerMode.OBJECTIVE_XY
             mapping = {'coord0': 0, 'coord1': 1, 'fixed': 2}
         elif plane == 'X2Z2':
             arr_name = 'obj_xz'
+            scanner_mode = ScannerMode.OBJECTIVE_XZ
             mapping = {'coord0': 0, 'fixed': 1, 'coord1': 2, }
         elif plane == 'Y2Z2':
             arr_name = 'obj_yz'
+            scanner_mode = ScannerMode.OBJECTIVE_YZ
             mapping = {'fixed': 0, 'coord0': 1, 'coord1': 2}
 
         # set up the spm device:
@@ -2439,10 +2452,11 @@ class AFMConfocalLogic(GenericLogic):
 
         # FIXME: check whether the number of parameters are required and whether they are set correctly.
         # self._spm._params_per_point = len(names_buffers)
-        ret_val, _, curr_scan_params = self._spm.setup_spm(plane=plane,
-                                                           line_points=coord0_num,
-                                                           meas_params=[],
-                                                           scan_mode=0) # line scan
+        ret_val, _, curr_scan_params = \
+            self._spm.configure_scanner(mode=scanner_mode,
+                                        params= {'line_points': coord0_num },
+                                        scan_style=ScanStyle.LINE) 
+
 
         curr_scan_params.insert(0, 'counts')  # insert the fluorescence parameter
 
@@ -2507,12 +2521,12 @@ class AFMConfocalLogic(GenericLogic):
             # optical signal only
             self._obj_scan_line = np.zeros(num_params * coord0_num)
 
-            self._spm.setup_scan_line(corr0_start=scan_coords[0],
-                                      corr0_stop=scan_coords[1],
-                                      corr1_start=scan_coords[2],
-                                      corr1_stop=scan_coords[3],
-                                      time_forward=scan_speed_per_line,
-                                      time_back=time_idle_move)
+            self._spm.configure_line(corr0_start=scan_coords[0],
+                                     corr0_stop=scan_coords[1],
+                                     corr1_start=scan_coords[2],
+                                     corr1_stop=scan_coords[3],
+                                     time_forward=scan_speed_per_line,
+                                     time_back=time_idle_move)
 
             self._counter.start_recorder(arm=True)
             self._spm.scan_line()
@@ -2614,7 +2628,6 @@ class AFMConfocalLogic(GenericLogic):
         @return 2D_array: measurement results in a two dimensional list.
         """
 
-        meas_params = []
         # FIXME: implement general optimizer for all the planes
         plane = 'X2Y2'
 
@@ -2648,10 +2661,9 @@ class AFMConfocalLogic(GenericLogic):
                                               coord1_num)
 
         #TODO: implement the scan line mode
-        ret_val, _, curr_scan_params = self._spm.setup_spm(plane=plane,
-                                                           line_points=coord0_num,
-                                                           meas_params=meas_params,
-                                                           scan_mode=0) # line scan
+        ret_val, _, _ = self._spm.configure_scanner(mode=ScannerMode.OBJECTIVE_XY,
+                                                    params= {'line_points': coord0_num },
+                                                    scan_style=ScanStyle.LINE) 
         self._spm.set_ext_trigger(True)
 
         self._opti_scan_array = self.initialize_opti_xy_scan_array(coord0_start,
@@ -2693,12 +2705,12 @@ class AFMConfocalLogic(GenericLogic):
             # APD signal
             self._opti_scan_line = np.zeros(coord0_num)
 
-            self._spm.setup_scan_line(corr0_start=scan_coords[0],
-                                      corr0_stop=scan_coords[1],
-                                      corr1_start=scan_coords[2],
-                                      corr1_stop=scan_coords[3],
-                                      time_forward=scan_speed_per_line,
-                                      time_back=time_idle_move)
+            self._spm.configure_line(corr0_start=scan_coords[0],
+                                     corr0_stop=scan_coords[1],
+                                     corr1_start=scan_coords[2],
+                                     corr1_stop=scan_coords[3],
+                                     time_forward=scan_speed_per_line,
+                                     time_back=time_idle_move)
 
             self._counter.start_recorder(arm=True)
             self._spm.scan_line()
@@ -2760,7 +2772,6 @@ class AFMConfocalLogic(GenericLogic):
         @return 2D_array: measurement results in a two dimensional list.
         """
 
-        meas_params = []
         plane = 'X2Z2'
 
         opti_name = 'opti_z'
@@ -2793,10 +2804,9 @@ class AFMConfocalLogic(GenericLogic):
 
         # FIXME: check whether the number of parameters are required and whether they are set correctly.
         # self._spm._params_per_point = len(names_buffers)
-        ret_val, _, curr_scan_params = self._spm.setup_spm(plane=plane,
-                                                           line_points=res,
-                                                           meas_params=meas_params,
-                                                           scan_mode=0) # line scan
+        ret_val, _, _ = self._spm.configure_scanner(mode=ScannerMode.OBJECTIVE_XZ,
+                                                    params= {'line_points': res },
+                                                    scan_style=ScanStyle.LINE) 
 
         self._spm.set_ext_trigger(True)
 
@@ -2832,12 +2842,12 @@ class AFMConfocalLogic(GenericLogic):
         # Optimizer Z signal
         self._opti_scan_array[opti_name]['data'] = np.zeros(res)
 
-        self._spm.setup_scan_line(corr0_start=scan_coords[0],
-                                  corr0_stop=scan_coords[1],
-                                  corr1_start=scan_coords[2],
-                                  corr1_stop=scan_coords[3],
-                                  time_forward=scan_speed_per_line,
-                                  time_back=time_idle_move)
+        self._spm.configure_line(corr0_start=scan_coords[0],
+                                 corr0_stop=scan_coords[1],
+                                 corr1_start=scan_coords[2],
+                                 corr1_stop=scan_coords[3],
+                                 time_forward=scan_speed_per_line,
+                                 time_back=time_idle_move)
 
         self._counter.start_recorder(arm=True)
         self._spm.scan_line()
@@ -3196,11 +3206,15 @@ class AFMConfocalLogic(GenericLogic):
 
         #FIXME: check whether the number of parameters are required and whether they are set correctly.
         # self._spm._params_per_point = len(names_buffers)
-        ret_val, _, curr_scan_params = self._spm.setup_spm(plane=plane,
-                                                           line_points=res, 
-                                                           meas_params=meas_params)
+        ret_val, _, curr_scan_params = \
+            self._spm.configure_scanner(mode=ScannerMode.PROBE_CONTACT,
+                                        params= {'line_points': res,
+                                                 'meas_params': meas_params},
+                                        scan_style=ScanStyle.LINE) 
+
         # AFM signal
         self._meas_array_scan = np.zeros(len(meas_params)*res)
+
         # APD signal
         self._apd_array_scan = np.zeros(res)
 
@@ -3209,8 +3223,6 @@ class AFMConfocalLogic(GenericLogic):
 
         if ret_val < 1:
             return self._apd_array_scan, self._meas_array_scan
-
-
 
         self._scan_counter = 0
 
@@ -3221,12 +3233,12 @@ class AFMConfocalLogic(GenericLogic):
             # APD signal
             self._apd_line_scan = np.zeros(res)
             
-            self._spm.setup_scan_line(corr0_start=scan_coords[0], 
-                                      corr0_stop=scan_coords[1], 
-                                      corr1_start=scan_coords[2], 
-                                      corr1_stop=scan_coords[3], 
-                                      time_forward=scan_speed_per_line, 
-                                      time_back=scan_speed_per_line)
+            self._spm.configure_line(corr0_start=scan_coords[0], 
+                                     corr0_stop=scan_coords[1], 
+                                     corr1_start=scan_coords[2], 
+                                     corr1_stop=scan_coords[3], 
+                                     time_forward=scan_speed_per_line, 
+                                     time_back=scan_speed_per_line)
             
             vals = self._spm.scan_point()  # these are points to throw away
 
@@ -3484,22 +3496,23 @@ class AFMConfocalLogic(GenericLogic):
         
         scan_arr = self.create_scan_leftright2(x_start, x_stop, y_start, y_stop, res_y)
         
-        ret_val, _, _ = self._dev.setup_spm(plane='XY', 
-                                       line_points=res_x, 
-                                       meas_params=meas_params)
+        ret_val, _, _ = self._spm.configure_scanner(mode=ScannerMode.PROBE_CONTACT,
+                                                    params= {'line_points': res_x,
+                                                             'meas_params': meas_params},
+                                                    scan_style=ScanStyle.LINE) 
 
         if ret_val < 1:
             return self._meas_array_scan
 
         for scan_coords in scan_arr:
 
-            self._spm._dev.setup_scan_line(corr0_start=scan_coords[0], corr0_stop=scan_coords[1], 
-                                 corr1_start=scan_coords[2], corr1_stop=scan_coords[3], 
-                                 time_forward=time_forward, time_back=time_back)
+            self._spm.configure_line(corr0_start=scan_coords[0], corr0_stop=scan_coords[1], 
+                                     corr1_start=scan_coords[2], corr1_stop=scan_coords[3], 
+                                     time_forward=time_forward, time_back=time_back)
             self.scan_line()
 
             # this method will wait until the line was measured.
-            scan_line = self._spm._dev.get_scanned_line(reshape=False)
+            scan_line = self._spm.get_measurements(reshape=False)
 
             if reverse_meas:
                 self._meas_array_scan.append(list(reversed(scan_line)))
@@ -3578,9 +3591,12 @@ class AFMConfocalLogic(GenericLogic):
         scan_arr = self.create_scan_leftright(coord0_start, coord0_stop, 
                                               coord1_start, coord1_stop, res_y)
 
-        ret_val, _, curr_scan_params = self._spm.setup_spm(plane=plane,
-                                                           line_points=res_x, 
-                                                           meas_params=meas_params)
+        ret_val, _, curr_scan_params = \
+            self._spm.configure_scanner(mode=ScannerMode.PROBE_CONTACT,
+                                        params= {'line_points': res_x,
+                                                 'meas_params': meas_params},
+                                        scan_style=ScanStyle.LINE) 
+
         # AFM signal
         self._meas_array_scan = np.zeros((res_y, len(curr_scan_params)*res_x))
         # APD signal
@@ -3600,12 +3616,12 @@ class AFMConfocalLogic(GenericLogic):
             # APD signal
             self._apd_line_scan = np.zeros(res_x)
             
-            self._spm.setup_scan_line(corr0_start=scan_coords[0], 
-                                      corr0_stop=scan_coords[1], 
-                                      corr1_start=scan_coords[2], 
-                                      corr1_stop=scan_coords[3], 
-                                      time_forward=scan_speed_per_line, 
-                                      time_back=scan_speed_per_line)
+            self._spm.configure_line(corr0_start=scan_coords[0], 
+                                     corr0_stop=scan_coords[1], 
+                                     corr1_start=scan_coords[2], 
+                                     corr1_stop=scan_coords[3], 
+                                     time_forward=scan_speed_per_line, 
+                                     time_back=scan_speed_per_line)
             
             vals = self._spm.scan_point()  # these are points to throw away
 
@@ -3710,9 +3726,12 @@ class AFMConfocalLogic(GenericLogic):
         scan_arr = self.create_scan_snake(coord0_start, coord0_stop, 
                                                coord1_start, coord1_stop, res_y)
 
-        ret_val, _, curr_scan_params = self._spm.setup_spm(plane=plane,
-                                                           line_points=res_x, 
-                                                           meas_params=meas_params)
+        ret_val, _, curr_scan_params = \
+            self._spm.configure_scanner(mode=ScannerMode.PROBE_CONTACT,
+                                        params= {'line_points': res_x,
+                                                 'meas_params': meas_params},
+                                        scan_style=ScanStyle.LINE) 
+
         # AFM signal
         self._meas_array_scan = np.zeros((res_y, len(curr_scan_params)*res_x))
         # APD signal
@@ -3734,12 +3753,12 @@ class AFMConfocalLogic(GenericLogic):
             # APD signal
             self._apd_line_scan = np.zeros(res_x)
             
-            self._spm.setup_scan_line(corr0_start=scan_coords[0], 
-                                      corr0_stop=scan_coords[1], 
-                                      corr1_start=scan_coords[2], 
-                                      corr1_stop=scan_coords[3], 
-                                      time_forward=scan_speed_per_line, 
-                                      time_back=scan_speed_per_line)
+            self._spm.configure_line(corr0_start=scan_coords[0], 
+                                     corr0_stop=scan_coords[1], 
+                                     corr1_start=scan_coords[2], 
+                                     corr1_stop=scan_coords[3], 
+                                     time_forward=scan_speed_per_line, 
+                                     time_back=scan_speed_per_line)
             
             vals = self._spm.scan_point()  # these are points to throw away
 
@@ -3998,7 +4017,7 @@ class AFMConfocalLogic(GenericLogic):
         for index, entry in enumerate(pos_list):
             target_pos_list[index] = entry.upper() + '2'
 
-        pos = self._spm.get_objective_scanner_pos(target_pos_list)
+        pos = self._spm.get_objective_pos(target_pos_list)
 
         for entry in pos:
             self._obj_pos[entry[0].lower()] = pos[entry]
@@ -4020,7 +4039,7 @@ class AFMConfocalLogic(GenericLogic):
         for index, entry in enumerate(pos_list):
             target_pos_list[index] = entry.upper() + '1'
 
-        pos = self._spm.get_sample_scanner_pos(target_pos_list)
+        pos = self._spm.get_sample_pos(target_pos_list)
 
         for entry in pos:
             self._afm_pos[entry[0].lower()] = pos[entry] # for now I drop the z position
@@ -4046,8 +4065,8 @@ class AFMConfocalLogic(GenericLogic):
         for entry in pos_dict:
             target_pos_dict[entry.upper() + '2'] = pos_dict[entry]
 
-        pos = self._spm.set_objective_scanner_pos(target_pos_dict, 
-                                                  move_time=move_time)
+        pos = self._spm.set_objective_pos_abs(target_pos_dict, 
+                                              move_time=move_time)
 
         for entry in pos:
             self._obj_pos[entry[0].lower()] = pos[entry]
@@ -4077,7 +4096,7 @@ class AFMConfocalLogic(GenericLogic):
         for entry in pos_dict:
             target_pos_dict[entry.upper()] = pos_dict[entry]
 
-        pos = self._spm.set_sample_scanner_pos(target_pos_dict, move_time=move_time)
+        pos = self._spm.set_sample_pos_abs(target_pos_dict, move_time=move_time)
 
         for entry in pos:
             self._afm_pos[entry[0].lower()] = pos[entry]
