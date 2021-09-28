@@ -291,6 +291,7 @@ class AFMConfocalLogic(GenericLogic):
 
     # for debugging purposes on the main thread, set to False
     _USE_THREADED = True
+    #_USE_THREADED = False    # debug
 
     _stop_request = False
     _stop_request_all = False
@@ -1049,14 +1050,15 @@ class AFMConfocalLogic(GenericLogic):
         time_idle_move = self._sg_idle_move_scan_sample
 
         scan_speed_per_line = integration_time * coord0_num
+
         scan_arr = self.create_scan_leftright2(coord0_start, coord0_stop,
-                                                    coord1_start, coord1_stop,
-                                                    coord1_num)
+                                               coord1_start, coord1_stop,
+                                               coord1_num)
 
         ret_val, _, curr_scan_params = \
             self._spm.configure_scanner(mode=ScannerMode.PROBE_CONTACT,
-                                        params= {'line_points': coord0_num,
-                                                 'meas_params': meas_params},
+                                        params={'line_points' : coord0_num,
+                                                'meas_params' : meas_params },
                                         scan_style=ScanStyle.LINE) 
 
         spm_start_idx = 0
@@ -1224,10 +1226,10 @@ class AFMConfocalLogic(GenericLogic):
             if 'counts' in meas_params:
                 self._counter.start_recorder(arm=True)
 
-            self._spm.configure_line(corr0_start=scan_coords[0],
-                                     corr0_stop=scan_coords[1],
-                                     corr1_start=scan_coords[2],
-                                     corr1_stop=scan_coords[3],
+            self._spm.configure_line(line_corr0_start=scan_coords[0],
+                                     line_corr0_stop=scan_coords[1],
+                                     line_corr1_start=scan_coords[2],
+                                     line_corr1_stop=scan_coords[3],
                                      time_forward=scan_speed_per_line,
                                      time_back=time_idle_move)
 
@@ -1676,7 +1678,7 @@ class AFMConfocalLogic(GenericLogic):
             self._spm.configure_scanner(mode=ScannerMode.PROBE_CONTACT,
                                         params= {'line_points': coord0_num,
                                                  'meas_params': meas_params},
-                                        scan_style=ScanStyle.LINE) 
+                                        scan_style=ScanStyle.POINT) 
 
         curr_scan_params.insert(0, 'b_field')  # insert the magnetic field (place holder) 
         curr_scan_params.insert(0, 'counts')  # insert the fluorescence parameter
@@ -1752,10 +1754,10 @@ class AFMConfocalLogic(GenericLogic):
 
             num_params = len(curr_scan_params)
 
-            self._spm.configure_line(corr0_start=scan_coords[0],
-                                     corr0_stop=scan_coords[1],
-                                     corr1_start=scan_coords[2],
-                                     corr1_stop=scan_coords[3],
+            self._spm.configure_line(line_corr0_start=scan_coords[0],
+                                     line_corr0_stop=scan_coords[1],
+                                     line_corr1_start=scan_coords[2],
+                                     line_corr1_stop=scan_coords[3],
                                      time_forward=scan_speed_per_line,
                                      time_back=idle_move_time)
 
@@ -1764,7 +1766,7 @@ class AFMConfocalLogic(GenericLogic):
 
             self._afm_pos = {'x': scan_coords[0], 'y': scan_coords[2]}
 
-            vals = self._spm.scan_point()  # these are points to throw away
+            self._spm.scan_point()  # these are points to throw away
             self.sigNewAFMPos.emit(self._afm_pos)
 
             # if len(vals) > 0:
@@ -1962,21 +1964,34 @@ class AFMConfocalLogic(GenericLogic):
         self._health_check.start_timer(arm=True)
         self.sigHealthCheckStartSkip.emit()
 
-        self._worker_thread = WorkerThread(target=self.scan_area_quanti_qafm_fw_bw_by_point,
-                                           args=(coord0_start, coord0_stop,
-                                                 coord0_num, coord1_start, coord1_stop,
-                                                 coord1_num, int_time_afm,
-                                                 idle_move_time, freq_start,
-                                                 freq_stop, freq_points,
-                                                 esr_count_freq,
-                                                 mw_power, num_esr_runs,
-                                                 optimize_period,
-                                                 meas_params,
-                                                 single_res,
-                                                 continue_meas),
-                                           name='quanti_thread')
-        self.threadpool.start(self._worker_thread)
+        if self._USE_THREADED:
+            self._worker_thread = WorkerThread(target=self.scan_area_quanti_qafm_fw_bw_by_point,
+                                               args=(coord0_start, coord0_stop,
+                                                     coord0_num, coord1_start, coord1_stop,
+                                                     coord1_num, int_time_afm,
+                                                     idle_move_time, freq_start,
+                                                     freq_stop, freq_points,
+                                                     esr_count_freq,
+                                                     mw_power, num_esr_runs,
+                                                     optimize_period,
+                                                     meas_params,
+                                                     single_res,
+                                                     continue_meas),
+                                               name='quanti_thread')
+            self.threadpool.start(self._worker_thread)
 
+        else:
+            self.scan_area_quanti_qafm_fw_bw_by_point(coord0_start, coord0_stop,
+                                                     coord0_num, coord1_start, coord1_stop,
+                                                     coord1_num, int_time_afm,
+                                                     idle_move_time, freq_start,
+                                                     freq_stop, freq_points,
+                                                     esr_count_freq,
+                                                     mw_power, num_esr_runs,
+                                                     optimize_period,
+                                                     meas_params,
+                                                     single_res,
+                                                     continue_meas)
 
     # ==============================================================================
     #           Quantitative Mode with ESR just forward movement
@@ -2044,7 +2059,7 @@ class AFMConfocalLogic(GenericLogic):
                     'mw_power': mw_power,
                     'count_frequency': esr_count_freq,
                     'num_meas': num_esr_runs } )
-
+    
         if ret_val < 0:
             self.sigQuantiScanFinished.emit()
             return self._qafm_scan_array
@@ -2064,7 +2079,7 @@ class AFMConfocalLogic(GenericLogic):
             self._spm.configure_scanner(mode=ScannerMode.PROBE_CONTACT,
                                         params= {'line_points': coord0_num,
                                                  'meas_params': meas_params},
-                                        scan_style=ScanStyle.LINE) 
+                                        scan_style=ScanStyle.POINT) 
 
         curr_scan_params.insert(0, 'b_field')  # insert the fluorescence parameter
         curr_scan_params.insert(0, 'counts')  # insert the fluorescence parameter
@@ -2079,14 +2094,10 @@ class AFMConfocalLogic(GenericLogic):
                                                                     coord1_start, coord1_stop, coord1_num)
             self._scan_counter = 0
 
-            self._esr_scan_array = self.initialize_esr_scan_array(freq_start, 
-                                                                  freq_stop, 
-                                                                  freq_points,
-                                                                  coord0_start, 
-                                                                  coord0_stop, 
+            self._esr_scan_array = self.initialize_esr_scan_array(freq_start, freq_stop, freq_points,
+                                                                  coord0_start, coord0_stop, 
                                                                   coord0_num,
-                                                                  coord1_start, 
-                                                                  coord1_stop, 
+                                                                  coord1_start, coord1_stop, 
                                                                   coord1_num)
 
         # check input values
@@ -2145,10 +2156,10 @@ class AFMConfocalLogic(GenericLogic):
             self.set_afm_pos({'x': scan_coords[0], 'y': scan_coords[2]})
             time.sleep(1)
 
-            self._spm.configure_line(corr0_start=scan_coords[0],
-                                     corr0_stop=scan_coords[1],
-                                     corr1_start=scan_coords[2],
-                                     corr1_stop=scan_coords[3],
+            self._spm.configure_line(line_corr0_start=scan_coords[0],
+                                     line_corr0_stop=scan_coords[1],
+                                     line_corr1_start=scan_coords[2],
+                                     line_corr1_stop=scan_coords[3],
                                      time_forward=scan_speed_per_line,
                                      time_back=idle_move_time)
 
@@ -2157,7 +2168,7 @@ class AFMConfocalLogic(GenericLogic):
 
             self._afm_pos = {'x': scan_coords[0], 'y': scan_coords[2]}
 
-            vals = self._spm.scan_point()  # these are points to throw away
+            self._spm.scan_point()  # these are points to throw away
             self.sigNewAFMPos.emit(self._afm_pos)
 
             # if len(vals) > 0:
@@ -2352,20 +2363,34 @@ class AFMConfocalLogic(GenericLogic):
         self._health_check.start_timer(arm=True)
         self.sigHealthCheckStartSkip.emit()
 
-        self._worker_thread = WorkerThread(target=self.scan_area_quanti_qafm_fw_by_point,
-                                            args=(coord0_start, coord0_stop,
-                                                  coord0_num, coord1_start, coord1_stop,
-                                                  coord1_num, int_time_afm,
-                                                  idle_move_time, freq_start,
-                                                  freq_stop, freq_points,
-                                                  esr_count_freq,
-                                                  mw_power, num_esr_runs,
-                                                  optimize_period,
-                                                  meas_params,
-                                                  single_res,
-                                                  continue_meas),
-                                            name='qanti_thread')
-        self.threadpool.start(self._worker_thread)
+        if self._USE_THREADED:
+            self._worker_thread = WorkerThread(target=self.scan_area_quanti_qafm_fw_by_point,
+                                               args=(coord0_start, coord0_stop,
+                                                     coord0_num, coord1_start, coord1_stop,
+                                                     coord1_num, int_time_afm,
+                                                     idle_move_time, freq_start,
+                                                     freq_stop, freq_points,
+                                                     esr_count_freq,
+                                                     mw_power, num_esr_runs,
+                                                     optimize_period,
+                                                     meas_params,
+                                                     single_res,
+                                                     continue_meas),
+                                               name='qanti_thread')
+            self.threadpool.start(self._worker_thread)
+
+        else:
+            self.scan_area_quanti_qafm_fw_by_point(coord0_start, coord0_stop,
+                                                   coord0_num, coord1_start, coord1_stop,
+                                                   coord1_num, int_time_afm,
+                                                   idle_move_time, freq_start,
+                                                   freq_stop, freq_points,
+                                                   esr_count_freq,
+                                                   mw_power, num_esr_runs,
+                                                   optimize_period,
+                                                   meas_params,
+                                                   single_res,
+                                                   continue_meas)
 
 # ==============================================================================
 #             forward and backward QAFM (optical + afm) scan
@@ -2521,10 +2546,10 @@ class AFMConfocalLogic(GenericLogic):
             # optical signal only
             self._obj_scan_line = np.zeros(num_params * coord0_num)
 
-            self._spm.configure_line(corr0_start=scan_coords[0],
-                                     corr0_stop=scan_coords[1],
-                                     corr1_start=scan_coords[2],
-                                     corr1_stop=scan_coords[3],
+            self._spm.configure_line(line_corr0_start=scan_coords[0],
+                                     line_corr0_stop=scan_coords[1],
+                                     line_corr1_start=scan_coords[2],
+                                     line_corr1_stop=scan_coords[3],
                                      time_forward=scan_speed_per_line,
                                      time_back=time_idle_move)
 
@@ -2705,10 +2730,10 @@ class AFMConfocalLogic(GenericLogic):
             # APD signal
             self._opti_scan_line = np.zeros(coord0_num)
 
-            self._spm.configure_line(corr0_start=scan_coords[0],
-                                     corr0_stop=scan_coords[1],
-                                     corr1_start=scan_coords[2],
-                                     corr1_stop=scan_coords[3],
+            self._spm.configure_line(line_corr0_start=scan_coords[0],
+                                     line_corr0_stop=scan_coords[1],
+                                     line_corr1_start=scan_coords[2],
+                                     line_corr1_stop=scan_coords[3],
                                      time_forward=scan_speed_per_line,
                                      time_back=time_idle_move)
 
@@ -2842,10 +2867,10 @@ class AFMConfocalLogic(GenericLogic):
         # Optimizer Z signal
         self._opti_scan_array[opti_name]['data'] = np.zeros(res)
 
-        self._spm.configure_line(corr0_start=scan_coords[0],
-                                 corr0_stop=scan_coords[1],
-                                 corr1_start=scan_coords[2],
-                                 corr1_stop=scan_coords[3],
+        self._spm.configure_line(line_corr0_start=scan_coords[0],
+                                 line_corr0_stop=scan_coords[1],
+                                 line_corr1_start=scan_coords[2],
+                                 line_corr1_stop=scan_coords[3],
                                  time_forward=scan_speed_per_line,
                                  time_back=time_idle_move)
 
@@ -3233,10 +3258,10 @@ class AFMConfocalLogic(GenericLogic):
             # APD signal
             self._apd_line_scan = np.zeros(res)
             
-            self._spm.configure_line(corr0_start=scan_coords[0], 
-                                     corr0_stop=scan_coords[1], 
-                                     corr1_start=scan_coords[2], 
-                                     corr1_stop=scan_coords[3], 
+            self._spm.configure_line(line_corr0_start=scan_coords[0], 
+                                     line_corr0_stop=scan_coords[1], 
+                                     line_corr1_start=scan_coords[2], 
+                                     line_corr1_stop=scan_coords[3], 
                                      time_forward=scan_speed_per_line, 
                                      time_back=scan_speed_per_line)
             
@@ -3506,9 +3531,12 @@ class AFMConfocalLogic(GenericLogic):
 
         for scan_coords in scan_arr:
 
-            self._spm.configure_line(corr0_start=scan_coords[0], corr0_stop=scan_coords[1], 
-                                     corr1_start=scan_coords[2], corr1_stop=scan_coords[3], 
-                                     time_forward=time_forward, time_back=time_back)
+            self._spm.configure_line(line_corr0_start=scan_coords[0], 
+                                     line_corr0_stop=scan_coords[1], 
+                                     line_corr1_start=scan_coords[2], 
+                                     line_corr1_stop=scan_coords[3], 
+                                     time_forward=time_forward, 
+                                     time_back=time_back)
             self.scan_line()
 
             # this method will wait until the line was measured.
@@ -3616,10 +3644,10 @@ class AFMConfocalLogic(GenericLogic):
             # APD signal
             self._apd_line_scan = np.zeros(res_x)
             
-            self._spm.configure_line(corr0_start=scan_coords[0], 
-                                     corr0_stop=scan_coords[1], 
-                                     corr1_start=scan_coords[2], 
-                                     corr1_stop=scan_coords[3], 
+            self._spm.configure_line(line_corr0_start=scan_coords[0], 
+                                     line_corr0_stop=scan_coords[1], 
+                                     line_corr1_start=scan_coords[2], 
+                                     line_corr1_stop=scan_coords[3], 
                                      time_forward=scan_speed_per_line, 
                                      time_back=scan_speed_per_line)
             
@@ -3753,10 +3781,10 @@ class AFMConfocalLogic(GenericLogic):
             # APD signal
             self._apd_line_scan = np.zeros(res_x)
             
-            self._spm.configure_line(corr0_start=scan_coords[0], 
-                                     corr0_stop=scan_coords[1], 
-                                     corr1_start=scan_coords[2], 
-                                     corr1_stop=scan_coords[3], 
+            self._spm.configure_line(line_corr0_start=scan_coords[0], 
+                                     line_corr0_stop=scan_coords[1], 
+                                     line_corr1_start=scan_coords[2], 
+                                     line_corr1_stop=scan_coords[3], 
                                      time_forward=scan_speed_per_line, 
                                      time_back=scan_speed_per_line)
             

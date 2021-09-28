@@ -392,12 +392,24 @@ class ScannerInterface(metaclass=InterfaceMetaclass):
         pass
 
     @abc.abstractmethod
-    def get_scanner_measurements(self):
+    def get_available_measurement_params(self):
         """ Gets the parameters defined unders ScannerMeasurements definition
         This returns the implemenation of the ScannerMeasurements class
 
         @return ScannerMeasurements instance  
         """
+        pass
+
+    @abc.abstractmethod
+    def get_available_measurement_axes(self,axes_name):
+        """  Gets the available measurement axis of the device
+        obtains the dictionary of aviable measurement axes given the name 
+        This is device specific, but usually contains the avaialbe axes of 
+        the sample scanner and objective scanner
+
+        @return: (list) scanner_axes
+        """
+        pass
 
     @abc.abstractmethod
     def get_available_measurement_methods(self):

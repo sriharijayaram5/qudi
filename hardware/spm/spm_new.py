@@ -151,6 +151,9 @@ class SmartSPM(Base, ScannerInterface):
         self._create_scanner_contraints()
         self._create_scanner_measurements()
 
+        self._dev.MEAS_PARAMS = self.get_available_measurement_params()
+        self._dev.PLANE_LIST = self.get_available_measurement_methods().scanner_planes
+
 
     def on_deactivate(self):
         """ Clean up and deactivate the spm module. """
@@ -232,10 +235,10 @@ class SmartSPM(Base, ScannerInterface):
 
         sc.scanner_styles = [ScanStyle.POINT, ScanStyle.LINE] 
 
-        sc.scanner_mode_params = { ScannerMode.OBJECTIVE_XY:          { 'line_points': 100},
-                                   ScannerMode.OBJECTIVE_XZ:          { 'line_points': 100},
-                                   ScannerMode.OBJECTIVE_YZ:          { 'line_points': 100},
-                                   ScannerMode.PROBE_CONTACT:         { 'line_points': 100},
+        sc.scanner_mode_params = { ScannerMode.OBJECTIVE_XY:          { 'line_points': 100 },
+                                   ScannerMode.OBJECTIVE_XZ:          { 'line_points': 100 },
+                                   ScannerMode.OBJECTIVE_YZ:          { 'line_points': 100 },
+                                   ScannerMode.PROBE_CONTACT:         { 'line_points': 100 },
                                    ScannerMode.PROBE_CONSTANT_HEIGHT: {},   # to be defined when implemented
                                    ScannerMode.PROBE_DUAL_PASS:       {},   # to be defined when implemented
                                    ScannerMode.PROBE_Z_SWEEP:         {}    # to be defined when implemented
@@ -308,8 +311,9 @@ class SmartSPM(Base, ScannerInterface):
                             
                             'OBJECTIVE_AXES' : ['X2', 'Y2', 'Z2', 'x2', 'y2', 'z2'],
 
-                            'VALID_AXES'     : [ *sm.scanner_axes['SAMPLE_AXES'], 
-                                                 *sm.scanner_axes['OBJECTIVE_AXES']],
+                            'VALID_AXES'     : ['X',  'Y',  'Z',  'x',  'y',  'z',
+                                                'X1', 'Y1', 'Z1', 'x1', 'y1', 'z1',
+                                                'X2', 'Y2', 'Z2', 'x2', 'y2', 'z2']
         }
 
         sm.scanner_planes = ['XY', 'YZ', 'XZ', 'X2Y2', 'Y2Z2', 'X2Z2']
@@ -351,21 +355,21 @@ class SmartSPM(Base, ScannerInterface):
         # if a trigger signal will be produced for the recorder device 
         std_config = {
             ScannerMode.OBJECTIVE_XY:  { 'plane'       : 'X2Y2', 
-                                         'scan_mode'   : TScanMode.LINE_SCAN },
+                                         'scan_style'  : TScanMode.LINE_SCAN },
 
             ScannerMode.OBJECTIVE_XZ:  { 'plane'       : 'X2Z2', 
-                                         'scan_mode'   : TScanMode.LINE_SCAN },
+                                         'scan_style'  : TScanMode.LINE_SCAN },
 
             ScannerMode.OBJECTIVE_YZ:  { 'plane'       : 'Y2Z2', 
-                                         'scan_mode'   : TScanMode.LINE_SCAN },
+                                         'scan_style'  : TScanMode.LINE_SCAN },
 
             ScannerMode.PROBE_CONTACT: { 'plane'       : 'XY', 
-                                         'scan_mode'   : TScanMode.LINE_SCAN },
+                                         'scan_style'  : TScanMode.LINE_SCAN },
 
             # other configurations to be defined as they are implemented
         }
 
-        if (dev_state != ScannerState.UNCONFIGURED) or (dev_state != ScannerState.IDLE):
+        if not ((dev_state == ScannerState.UNCONFIGURED) or (dev_state == ScannerState.IDLE)):
             self.log.error(f'SmartSPM cannot be configured in the '
                            f'requested mode "{ScannerMode.name(mode)}", since the device '
                            f'state is in "{dev_state}". Stop ongoing '
@@ -455,30 +459,25 @@ class SmartSPM(Base, ScannerInterface):
                             ' has not been implemented yet')
             return -1
 
-        ret_val |= self.check_spm_scan_params_by_plane(plane=curr_plane,
-                                                       coord0_start=params['coord0_start'], 
-                                                       coord0_stop= params['coord0_stop'],
-                                                       coord1_start=params['coord1_start'],
-                                                       coord1_stop= params['coord1_stop'])
-
         if scan_style == ScanStyle.LINE:
             self._dev.set_ext_trigger(True)
 
         self._spm_curr_sstyle = scan_style
+        self._curr_meas_params = curr_meas_params
 
-        return ret_val
+        return ret_val, curr_plane, curr_meas_params
 
 
     def configure_line(self, 
-                       corr0_start, corr0_stop, 
-                       corr1_start, corr1_stop, # not used in case of z sweep
+                       line_corr0_start, line_corr0_stop, 
+                       line_corr1_start, line_corr1_stop, # not used in case of z sweep
                        time_forward, time_back):
         """ Setup the scan line parameters
         
-        @param float coord0_start: start point for coordinate 0 in m
-        @param float coord0_stop: stop point for coordinate 0 in m
-        @param float coord1_start: start point for coordinate 1 in m
-        @param float coord1_stop: stop point for coordinate 1 in m
+        @param float line_coord0_start: start point for coordinate 0 in m
+        @param float line_coord0_stop: stop point for coordinate 0 in m
+        @param float line_coord1_start: start point for coordinate 1 in m
+        @param float line_coord1_stop: stop point for coordinate 1 in m
         @param float time_forward: time for forward movement during linescan in s
                                    For line-scan mode time_forward is equal to 
                                    the time-interval between starting of the 
@@ -499,12 +498,9 @@ class SmartSPM(Base, ScannerInterface):
         plane. It is possible to set zero scan area, then some reasonable 
         values for time_forward and time_back will be chosen automatically.
         """               
-        if self._spm_curr_sstyle != ScanStyle.LINE:
-            self.log.error('Request to configure line of "LINE", but method not configured')
-
-        return self._dev.setup_scan_line(corr0_start = corr0_start, corr0_stop = corr0_stop,
-                                         corr1_start = corr1_start, corr1_stop = corr1_stop,
-                                         time_forward = time_forward, time_back = time_back)
+        return self._dev.setup_scan_line(corr0_start=line_corr0_start, corr0_stop=line_corr0_stop,
+                                         corr1_start=line_corr1_start, corr1_stop=line_corr1_stop,
+                                         time_forward=time_forward, time_back=time_back)
 
 
     def set_ext_trigger(self, trigger_state=True):
@@ -541,7 +537,7 @@ class SmartSPM(Base, ScannerInterface):
         @return int: status variable with: 0 = call failed, 1 = call successful
         """
         if self._spm_curr_sstyle != ScanStyle.LINE:
-            self.log.error('Request to perform scan style="LINE", but method not configured')
+            self.log.error(f'Request to perform scan style="{self._spm_curr_sstyle}", but method not configured')
 
         return self._dev.scan_line(int_time=int_time)
         
@@ -570,10 +566,13 @@ class SmartSPM(Base, ScannerInterface):
             in given scan-point.
             After scan line ends, need to call next SetupScanLine
         """
-        if self._spm_curr_sstyle != ScanStyle.POINT:
-            self.log.error('Request to perform scan style="POINT", but method not configured')
+        if num_params is None:
+            num_params = len(self._curr_meas_params)
 
-        self._dev.scan_point(num_params=num_params) 
+        if self._spm_curr_sstyle != ScanStyle.POINT:
+            self.log.error(f'Request to perform scan style="{self._spm_curr_sstyle}", but method not configured')
+
+        return self._dev.scan_point(num_params=num_params) 
 
 
     def get_measurements(self, reshape=True):
@@ -764,6 +763,19 @@ class SmartSPM(Base, ScannerInterface):
         sm = self._SCANNER_MEASUREMENTS
         return copy.copy(sm)
 
+
+    def get_available_measurement_axes(self,axes_name):
+        """  Gets the available measurement axis of the device
+        obtains the dictionary of aviable measurement axes given the name 
+        This is device specific, but usually contains the avaialbe axes of 
+        the sample scanner and objective scanner
+
+        @return: (list) scanner_axes
+        """
+        axes = self._SCANNER_MEASUREMENTS.scanner_axes[axes_name]
+        return copy.copy(axes)
+
+
     
     def get_available_measurement_params(self):
         """  Gets the available measurement parameters (names) 
@@ -787,16 +799,6 @@ class SmartSPM(Base, ScannerInterface):
         """
         sc = self._SCANNER_CONSTRAINTS
         return sc.scanner_mode_params.get(mode, None) 
-
-
-    def get_scanner_measurements(self):
-        """ Gets the parameters defined unders ScannerMeasurements definition
-        This returns the implemenation of the ScannerMeasurements class
-
-        @return ScannerMeasurements instance 
-        """
-        sm = self.get_available_measurements_methods()
-        return sm.scanner_measurements
 
 
     def _check_params_for_mode(self, mode, params):
@@ -827,13 +829,13 @@ class SmartSPM(Base, ScannerInterface):
 
         # check that the required parameters are supplied
         fulfilled = set() 
-        for entry in required_params:
+        for entry in required_params[mode]:
             if params.get(entry, None) is None:
                 self.log.warning(f'Parameter "{entry}" not specified for mode '
                                  f'"{ScannerMode.name(mode)}". Correct this!')
                 is_ok = False
             else:
-                fulfilled.update(entry)
+                fulfilled.update({entry})
 
         if not is_ok:
             return is_ok
@@ -863,8 +865,7 @@ class SmartSPM(Base, ScannerInterface):
         @return dict: objective scanner range dict with requested entries in m 
                       (SI units).
         """
-        sm = self.get_available_scan_measurements()
-        axes = sm.scanner_axes['OBJECTIVE_AXES']
+        axes = self.get_available_measurement_axes('OBJECTIVE_AXES')
 
         sc_range = {} # objective scanner range
 
@@ -894,8 +895,7 @@ class SmartSPM(Base, ScannerInterface):
                        this interval. Error: output <= -1000
                        sample scanner position in m (SI units).
         """
-        sm = self.get_available_scan_measurements()
-        axes = sm.scanner_axes['OBJECTIVE_AXES']
+        axes = self.get_available_measurement_axes('OBJECTIVE_AXES')
 
         sc_pos = {} # objective scanner pos
 
@@ -925,8 +925,7 @@ class SmartSPM(Base, ScannerInterface):
                        this interval. Error: output <= -1000
                        sample scanner position in m (SI units).
         """
-        sm = self.get_available_scan_measurements()
-        axes = sm.scanner_axes['OBJECTIVE_AXES']
+        axes = self.get_available_measurement_axes('OBJECTIVE_AXES')
 
         sc_pos = {} # objective scanner pos
 
@@ -958,8 +957,7 @@ class SmartSPM(Base, ScannerInterface):
         
         @return float: the actual position set to the axis, or -1 if call failed.
         """
-        sm = self.get_available_scan_measurements()
-        axis_list = sm.scanner_axes['OBJECTIVE_AXES']
+        axis_list = self.get_available_measurement_axes('OBJECTIVE_AXES')
 
         valid_axis = {}
 
@@ -1039,8 +1037,7 @@ class SmartSPM(Base, ScannerInterface):
         @return dict: sample scanner range dict with requested entries in m 
                       (SI units).
         """
-        sm = self.get_available_scan_measurements()
-        axes = sm.scanner_axes['SAMPLE_AXES']
+        axes = self.get_available_measurement_axes('SAMPLE_AXES')
 
         sc_range = {} # sample scanner range
 
@@ -1072,8 +1069,7 @@ class SmartSPM(Base, ScannerInterface):
                       output [0 .. AxisRange], though may fall outside this 
                       interval. Error: output <= -1000
         """
-        sm = self.get_available_scan_measurements()
-        axes = sm.scanner_axes['SAMPLE_AXES']
+        axes = self.get_available_measurement_axes('SAMPLE_AXES')
 
         sc_pos = {} # sample scanner pos
 
@@ -1104,8 +1100,7 @@ class SmartSPM(Base, ScannerInterface):
                       output [0 .. AxisRange], though may fall outside this 
                       interval. Error: output <= -1000
         """
-        sm = self.get_available_scan_measurements()
-        axes = sm.scanner_axes['SAMPLE_AXES']
+        axes = self.get_available_measurement_axes('SAMPLE_AXES')
 
         sc_pos = {} # sample scanner pos
 
@@ -1146,8 +1141,7 @@ class SmartSPM(Base, ScannerInterface):
         
         @return float: the actual position set to the axis, or -1 if call failed.
         """
-        sm = self.get_available_scan_measurements()
-        axis_list = sm.scanner_axes['SAMPLE_AXES']
+        axis_list = self.get_available_measurement_axes('SAMPLE_AXES')
 
         valid_axes = {}
 
@@ -1306,9 +1300,9 @@ class SmartSPM(Base, ScannerInterface):
         """
         ret = False
         tol = 0.1e-6 # give a tolerance of 0.1um, since this would be still fine with the scanner.
-        sm = self.get_available_scan_measurements()
-        sample_range = sm.scanner_measurements['SAMPLE_SCANNER_RANGE']
-        objective_range = sm.scanner_measurements['OBJECTIVE_SCANNER_RANGE']
+        sm = self.get_available_measurement_methods()
+        sample_range = sm.scanner_sensors['SAMPLE_SCANNER_RANGE']
+        objective_range = sm.scanner_sensors['OBJECTIVE_SCANNER_RANGE']
 
         if x_afm_start is not None:
             res = x_afm_start < (sample_range[0][0]-tol) or  x_afm_start > (sample_range[0][1]+tol)
@@ -1421,7 +1415,7 @@ class SmartSPM(Base, ScannerInterface):
         @param int num_rows: number of columns, essentially the y resolution
         """
 
-        num_meas_params = len(self.get_available_meas_params())
+        num_meas_params = len(self.get_available_measurement_params())
 
         # times two due to forward and backward scan.
         return np.zeros((num_meas_params*2, num_rows, num_columns))

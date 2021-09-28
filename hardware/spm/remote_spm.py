@@ -71,6 +71,10 @@ class RemoteSPMLibrary(Base):
     MAX_AXIS_ID_LEN = 8   # max length for name of one axis
     MAX_SIG_NUM = 30      # Maximal numbers of readout signals from controller
 
+    # valid measurement parameters (defined by higher method)
+    MEAS_PARAMS = {}
+    PLANE_LIST = {}
+
     # current location as known
     _curr_afm_pos = [0, 0]  # just x and y
     _curr_objective_pos = [0, 0, 0]
@@ -275,7 +279,7 @@ class RemoteSPMLibrary(Base):
             (not any([ v in axislabel for v in ['1', '2']])):
             self.log.error("Invalid axis label supplied")
 
-        return self._lib.AxisPosition(axislabel)
+        return self._lib.AxisPosition(axislabel.encode())
 
 
     def set_axis_position(self, axislabel, pos, move_time):
