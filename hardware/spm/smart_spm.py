@@ -195,8 +195,12 @@ class SmartSPM(Base):
     # the current setting of the point trigger
     _ext_trigger_state = False
 
+    _line_points = 0      # number of points in line 
+    _line_time =   0.0    # time for line (='tforw' = pulse_length*_line_points)
+
     # Signals:
     # external signal: signature: (line number, number of _curr_meas_params, datalist)
+    sigPixelClockStarted = QtCore.Signal(int, float)  # number of pulses, line time 
     sigLineFinished = QtCore.Signal(int, int, object)
     sigLineRestarted = QtCore.Signal()    # signal will be emitted if loss of 
                                         # connection error occurred.
@@ -1322,8 +1326,8 @@ class SmartSPM(Base):
         plane_id = plane.encode('UTF-8')
         plane_id_p = c_char_p(plane_id)
         
+        self._line_points = line_points
         line_points_c = c_int(line_points)
-
         
         if not isinstance(scan_mode, TScanMode) and not isinstance(scan_mode, int):
             scan_mode = TScanMode.LINE_SCAN
@@ -1472,6 +1476,7 @@ class SmartSPM(Base):
 
         @return int: status variable with: 0 = call failed, 1 = call successful
         """
+        self.sigPixelClockStarted.emit(self._line_points, self._line_time / self._line_points)
 
         return self._lib.ExecScanLine(c_float(int_time))
 

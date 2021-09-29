@@ -48,7 +48,7 @@ from qtpy import QtCore
 
 class WorkerThread(QtCore.QRunnable):
     """ Create a simple Worker Thread class, with a similar usage to a python
-    Thread object. This Runnable Thread object is indented to be run from a
+    Thread object. This Runnable Thread object is intented to be run from a
     QThreadpool.
 
     @param obj_reference target: A reference to a method, which will be executed
@@ -502,7 +502,7 @@ class AFMConfocalLogic(GenericLogic):
         #self._spm = SmartSPM()                    # temporarily get language server's help
         self._save_logic = self.savelogic()
         self._counter = self.counter_device()   # temporarily disable
-        #self._counter = MicrowaveQ()             # temporarily get language server's help
+        #self._counter = MicrowaveQ()           # uncomment to get language server's help
         self._counterlogic = self.counter_logic()
         self._fitlogic = self.fitlogic()
 
