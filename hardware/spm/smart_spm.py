@@ -200,7 +200,9 @@ class SmartSPM(Base):
 
     # Signals:
     # external signal: signature: (line number, number of _curr_meas_params, datalist)
-    sigPixelClockStarted = QtCore.Signal(int, float)  # number of pulses, line time 
+    sigPixelClockSetup   = QtCore.Signal(str)         # plane of scan
+    sigPixelClockStarted = QtCore.Signal(int, float)  # number of pulses, line time
+    sigPixelClockStopped = QtCore.Signal()            # request to stop pixel clock was made
     sigLineFinished = QtCore.Signal(int, int, object)
     sigLineRestarted = QtCore.Signal()    # signal will be emitted if loss of 
                                         # connection error occurred.
@@ -1322,6 +1324,7 @@ class SmartSPM(Base):
             return (-1, self._curr_plane,  self._curr_meas_params)
 
         self._curr_plane = plane 
+        self.sigPixelClockSetup.emit(self._curr_plane)
 
         plane_id = plane.encode('UTF-8')
         plane_id_p = c_char_p(plane_id)
@@ -1451,6 +1454,7 @@ class SmartSPM(Base):
         """
 
         self._line_end_reached = False
+        self._line_time = time_forward
 
         # remember to convert to micrometer units, since the spm library uses
         # this.
@@ -1521,6 +1525,7 @@ class SmartSPM(Base):
 
         @return int: status variable with: 0 = call failed, 1 = call successfull
         """
+        self.sigPixelClockStopped.emit()
         return self._lib.FinitScan()
 
 
