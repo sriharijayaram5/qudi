@@ -149,6 +149,7 @@ class RemoteSPMLibrary(Base):
 
     def initialize(self):
         
+        self._line_counter = 0
         self._line_end_reached = False
         self.scan_forward = True
 
