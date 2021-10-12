@@ -349,6 +349,9 @@ class AFMConfocalLogic(GenericLogic):
     _iso_b_power = StatusVar(default=-30.0)
     _fwhm_iso_b_frequency = StatusVar(default=10e6)
 
+    # color scale/color map definition
+    _color_map = 'inferno'
+
     # acceptable object types for gwyddion
     _gwyobjecttypes = { 'imgobjects': ['qafm', 'obj', 'opti', 'afm'],
                         'graphobjects': ['esr']
@@ -817,10 +820,19 @@ class AFMConfocalLogic(GenericLogic):
                 setattr(self, attr_name, set_dict[entry])
 
         self.sigSettingsUpdated.emit()
+
+    def set_color_map(self, cmap_name):
+        """  Sets the color map to be used in the 'display_figures' routine
+            This information is set from the Gui definition of the color map
+
+        @param str cmap_name:  color map name (from Matplotlib) to be used for save figures
+        """
+        self._color_map = cmap_name
+
     
     def get_hardware_status(self,request=None):
         """ Access function for counter logic
-        @params: none
+        @params: list request (or None): specific request parameters to return
         @return dict:  hardware status as gathered from counter logic, 
                        specifically microwaveQ:
                        'available_features' : what is possible
@@ -4461,7 +4473,7 @@ class AFMConfocalLogic(GenericLogic):
 
         # Create image plot
         cfimage = ax.imshow(scaled_data,
-                            cmap=plt.get_cmap('inferno'), # reference the right place in qd
+                            cmap=plt.get_cmap(self._color_map), # reference the right place in qd
                             origin="lower",
                             vmin=draw_cb_range[0],
                             vmax=draw_cb_range[1],
@@ -4871,7 +4883,7 @@ class AFMConfocalLogic(GenericLogic):
                     #have only 1 axes making the creation of the image different than if there were more. 
                     if counter == 2:
                         
-                        cfimage = axs[counter_cols].imshow(scaled_data,cmap=plt.get_cmap('inferno'),
+                        cfimage = axs[counter_cols].imshow(scaled_data,cmap=plt.get_cmap(self._color_map),
                                                             origin='lower', vmin= draw_cb_range[0],
                                                             vmax=draw_cb_range[1],interpolation='none',
                                                             extent=image_dimension)
@@ -4891,7 +4903,7 @@ class AFMConfocalLogic(GenericLogic):
                     
                     else:
             
-                        cfimage = axs[counter_rows][counter_cols].imshow(scaled_data,cmap=plt.get_cmap('inferno'),
+                        cfimage = axs[counter_rows][counter_cols].imshow(scaled_data,cmap=plt.get_cmap(self._color_map),
                                                                         origin='lower', vmin= draw_cb_range[0],
                                                                         vmax=draw_cb_range[1],interpolation='none',
                                                                         extent=image_dimension)
@@ -5241,7 +5253,7 @@ class AFMConfocalLogic(GenericLogic):
 
         # Create image plot for xy
         cfimage = ax.imshow(scaled_data,
-                            cmap=plt.get_cmap('inferno'), # reference the right place in qd
+                            cmap=plt.get_cmap(self._color_map), # reference the right place in qd
                             origin="lower",
                             vmin=draw_cb_range[0],
                             vmax=draw_cb_range[1],
@@ -5279,7 +5291,7 @@ class AFMConfocalLogic(GenericLogic):
         scaled_data_y = figure_data_z['data']/scale_factor_y
 
         #Defining the same color map of the xy image for the points in the z plot
-        cmap = plt.get_cmap('inferno')
+        cmap = plt.get_cmap(self._color_map)
 
         #Creating the initial z plot so that the multicolor dots are connected
         cfimage2 = axz.plot(scaled_data_x,scaled_data_y,'k', markersize=2, alpha=0.2)
