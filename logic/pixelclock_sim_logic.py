@@ -197,7 +197,7 @@ class PixelClockSimulator(GenericLogic):
 
         self._syn_spm.sigPixelClockSetup.connect(self.setup_pixelclock)
 
-        self._syn_spm._lib.trigger()   # intial pulse activates external function
+        self._syn_spm._dev._lib.trigger()   # intial pulse activates external function
 
         self.log.info("PixelClockSimulator activated")
 
@@ -220,7 +220,7 @@ class PixelClockSimulator(GenericLogic):
         self._gpo(1)   # turn on
 
         if (self._plane == 'XY') or  (self._plane == 'X1Y1'):
-            self._syn_spm._lib.trigger()
+            self._syn_spm._dev._lib.trigger()
 
         sleep(self.PEAK_HOLD_TIME)
         self._gpo(0)   # turn off

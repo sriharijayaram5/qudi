@@ -93,7 +93,15 @@ class SmartSPM(Base, ScannerInterface):
     # the current setting of the point trigger
     _ext_trigger_state = False
 
+    # setup for line measurement simulations
+    _line_points = 0      # number of points in line 
+    _line_time =   0.0    # time for line (='tforw' = pulse_length*_line_points)    _line_points = 0
+
     # Signals:
+    sigPixelClockSetup   = QtCore.Signal(str)         # plane of scan
+    sigPixelClockStarted = QtCore.Signal(int, float)  # number of pulses, line time
+    sigPixelClockStopped = QtCore.Signal()            # request to stop pixel clock was made
+
     # external signal: signature: (line number, number of _curr_meas_params, datalist)
     sigLineFinished = QtCore.Signal(int, int, object)
 
@@ -462,8 +470,10 @@ class SmartSPM(Base, ScannerInterface):
         if scan_style == ScanStyle.LINE:
             self._dev.set_ext_trigger(True)
 
+        self._line_points = params['line_points']
         self._spm_curr_sstyle = scan_style
         self._curr_meas_params = curr_meas_params
+        self.sigPixelClockSetup.emit(curr_plane)
 
         return ret_val, curr_plane, curr_meas_params
 
@@ -498,6 +508,7 @@ class SmartSPM(Base, ScannerInterface):
         plane. It is possible to set zero scan area, then some reasonable 
         values for time_forward and time_back will be chosen automatically.
         """               
+        self._line_time = time_forward
         return self._dev.setup_scan_line(corr0_start=line_corr0_start, corr0_stop=line_corr0_stop,
                                          corr1_start=line_corr1_start, corr1_stop=line_corr1_stop,
                                          time_forward=time_forward, time_back=time_back)
@@ -538,6 +549,8 @@ class SmartSPM(Base, ScannerInterface):
         """
         if self._spm_curr_sstyle != ScanStyle.LINE:
             self.log.error(f'Request to perform scan style="{self._spm_curr_sstyle}", but method not configured')
+
+        self.sigPixelClockStarted.emit(self._line_points, self._line_time / self._line_points)
 
         return self._dev.scan_line(int_time=int_time)
         
@@ -604,6 +617,7 @@ class SmartSPM(Base, ScannerInterface):
         @return int: status variable with: 0 = call failed, 1 = call successfull
         """
         self._dev.finish_scan()
+        self.sigPixelClockStopped.emit()
         self.set_current_device_state(ScannerState.UNCONFIGURED)
     
 
