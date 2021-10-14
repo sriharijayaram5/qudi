@@ -41,7 +41,7 @@ class PeriodicTimer(object):
               start_delay = 0,          # time in seconds to wait before generating first signal
               connect_start = None,     # a signal which supplies 2 args: n_reps, pulse_length
               connect_stop = [],        # signals to trigger stop
-              startup_modifier = None,  # a function with takes the startup args & modifies them to new values (n_reps, pulse_len --> n_reps_new, pulse_len_new)
+              startup_modifier = None,  # a function which takes the startup args & modifies them to new values (n_reps, pulse_len --> n_reps_new, pulse_len_new)
               start_action = None,      # a function which performs a first action on startup 
               stop_action = None,       # a function to set the end state
               log = None
@@ -119,18 +119,22 @@ class PeriodicTimer(object):
 
 class PixelClockSimulator(GenericLogic):
     """ A synthetic hardware device to create pixel clock pulses.
-    This is designed to operate with the Qnami MicrowaveQ and 'synth_spm.dll'
-    - mq_master:  The MicrowaveQ device which is being tested, which is the main counter device 
+      This is designed to operate with the Qnami MicrowaveQ and 'synth_spm.dll'
+      (some references here are not generic but address the bespoke interface elements of 'synth_spm.dll')
+
+    - mq_device:  The MicrowaveQ device which is being tested, which is the main counter device 
                   of the currently operating ProteusQ LabQ instance
-    - mq_slave:   The second MicrowaveQ unit, which is being used to produce simulated pixel
-                  clock pulses.  Requests to the mq_slave are to produce a number of pixel clock
-                  pulses with a given pulse length.  The mq_slave will produce an on/off signal 
-                  equivalent to 0.5 the given pulse length (half on, half off)
-                 
-                  Example for 20 ms pulse, rising edge every 20ms
-             5v	   ______      ______      ______
-                   |     |     |     |     |     |
-             0v	 __|     |_____|     |_____|     |_____
+
+    - pxl_switch: A device which implements the SwitchInterface
+                  This can be a second MicrowaveQ unit, which is being used to produce simulated pixel
+                  clock pulses.  Requests to the pxl_switch are to produce a number of pixel clock
+                  pulses with a given pulse length.  The pxl_switch will produce a 
+                  rising edge at every pulse length, shut off after the PEAK_HOLD_TIME 
+                  
+                  Example for 20 ms pulse, rising edge every 20ms, off after the PEAK_HOLD_TIME
+             5v	   ___         ___         ___
+                   |  |        |  |        |  |
+             0v	 __|  |__._____|  |__._____|  |____._
                  ______________________________________
                    0s   .01   .02   .03    .04   .05
 
@@ -145,11 +149,10 @@ class PixelClockSimulator(GenericLogic):
         start_delay: 0.5
         slave_gpo: 1
         connect:
-            syn_spm:   'spm'
-            mq_master: 'mq'
-            mq_slave:  'mq2'
+            syn_spm:    'spm'
+            mq_device:  'mq'
+            pxlclk_switch: 'mq2'
     """
-
     __version__ = '0.1.0'
 
     _modclass = 'PixelClockSimulator'
@@ -159,32 +162,26 @@ class PixelClockSimulator(GenericLogic):
     PEAK_HOLD_TIME = 0.005
 
     # declare connectors
-    syn_spm = Connector(interface='CustomScanner')          # hardware example
-    mq_master = Connector(interface='SlowCounterInterface')
-    mq_slave = Connector(interface='SlowCounterInterface')
+    syn_spm    = Connector(interface='CustomScanner')          # hardware example
+    mq_device  = Connector(interface='SlowCounterInterface')
+    pxlclk_switch = Connector(interface='SwitchInterface')
 
     _start_delay = ConfigOption('start_delay',default=0.01)
-    _slave_gpo   = ConfigOption('slave_gpo', default=1)
+    _switch_num  = ConfigOption('switch_num', default=1)
     _t_offset    = ConfigOption('t_offset', default=0.0)
 
     def on_activate(self):
+
         # attach hardware
-        self._syn_spm = self.syn_spm()
-        self._mq_master = self.mq_master()
-        self._mq_slave  = self.mq_slave()
+        self._syn_spm    = self.syn_spm()
+        self._mq_device  = self.mq_device()
+        self._pxlclk_switch = self.pxlclk_switch()
 
-        self._gpo = { 1: self._mq_slave._dev.gpio.output0.set,
-                      2: self._mq_slave._dev.gpio.output1.set,
-                      3: self._mq_slave._dev.gpio.output2.set,
-                      4: self._mq_slave._dev.gpio.output3.set}.get(self._slave_gpo,None)
+        if self._pxlclk_switch.getSwitchState(self._switch_num) is None:
+            self.log.error(f"Could not use the switch definition as specified; switch_num={self._switch_num}")
 
-        if self._gpo is None:
-            self.log.error(f"Could not use the mq_slave GPO as specified: {self._slave_gpo}")
-
+        # setup up timer
         modifier = lambda n,t: (n, self._t_offset + t)     # n_reps, interval+offset
-        #modifier = lambda n,t: (n*2, (self._t_offset + t)/2)     # split pulses in 2 
-        #modifier = lambda n,t: (n*2, t/2)     # split pulses in 2 
-        #modifier = lambda n,t: (n*2, 0)     # split pulses in 2 
         self.PixelClockTimer = PeriodicTimer()
         self.PixelClockTimer.setup(op_function=self.pulse_action,
                                    connect_start=self._syn_spm.sigPixelClockStarted,
@@ -195,8 +192,8 @@ class PixelClockSimulator(GenericLogic):
                                    stop_action=self.pulse_stop,
                                    log=self.log)
 
+        # this is not generic!
         self._syn_spm.sigPixelClockSetup.connect(self.setup_pixelclock)
-
         self._syn_spm._dev._lib.trigger()   # intial pulse activates external function
 
         self.log.info("PixelClockSimulator activated")
@@ -210,27 +207,17 @@ class PixelClockSimulator(GenericLogic):
         self._plane = plane.upper()
 
     def pulse_action(self,i):
-        # on even pulses, 
-        #if not i % 2:
-        #    self._gpo(1)   # turn on
-        #    self._syn_spm._lib.trigger()
-        #else:
-        #    self._gpo(0)   # turn off 
-
-        self._gpo(1)   # turn on
+        self._pxlclk_switch.switchOn(self._switch_num)  # turn on, rising edge
 
         if (self._plane == 'XY') or  (self._plane == 'X1Y1'):
-            self._syn_spm._dev._lib.trigger()
+            self._syn_spm._dev._lib.trigger()   # not generic!
 
         sleep(self.PEAK_HOLD_TIME)
-        self._gpo(0)   # turn off
-
+        self._pxlclk_switch.switchOff(self._switch_num) # turn off, falling edge
 
     def pulse_stop(self):
-        self._gpo(0)
+        self._pxlclk_switch.switchOff(self._switch_num)
 
     def startup_action(self):
         self.pulse_action(0)
-        #sleep(0.02)
-        #self.pulse_action(1)
 

@@ -36,6 +36,7 @@ from interface.slow_counter_interface import SlowCounterInterface, SlowCounterCo
 from interface.recorder_interface import RecorderInterface, RecorderConstraints, RecorderState, RecorderMode
 from interface.microwave_interface import MicrowaveInterface, MicrowaveLimits, MicrowaveMode, TriggerEdge
 from interface.odmr_counter_interface import ODMRCounterInterface
+from interface.switch_interface import SwitchInterface
 
 from .microwaveq_py.microwaveQ import microwaveQ
 
@@ -105,14 +106,14 @@ class MicrowaveQMode(RecorderMode):
 
 
 class MicrowaveQMeasurementMode(namedtuple('MicrowaveQMeasurementMode', 'value name movement'), Enum):
-    DUMMY = -1, 'DUMMY', 'null'
-    COUNTER = 0, 'COUNTER', 'null'
-    PIXELCLOCK = 1, 'PIXELCLOCK', 'line' 
+    DUMMY                   = -1, 'DUMMY', 'null'
+    COUNTER                 = 0, 'COUNTER', 'null'
+    PIXELCLOCK              = 1, 'PIXELCLOCK', 'line' 
     PIXELCLOCK_SINGLE_ISO_B = 2, 'PIXELCLOCK_SINGLE_ISO_B', 'line'
-    PIXELCLOCK_N_ISO_B = 3, 'PIXELCLOCK_N_ISO_B', 'line'
-    ESR = 4, 'ESR', 'point'
-    PULSED_ESR = 5, 'PULSED_ESR', 'point'
-    GENERAL_PULSED = 6, 'GENERAL_PULSED', 'point'
+    PIXELCLOCK_N_ISO_B      = 3, 'PIXELCLOCK_N_ISO_B', 'line'
+    ESR                     = 4, 'ESR', 'point'
+    PULSED_ESR              = 5, 'PULSED_ESR', 'point'
+    GENERAL_PULSED          = 6, 'GENERAL_PULSED', 'point'
 
     def __str__(self):
         return self.name
@@ -146,7 +147,7 @@ class MicrowaveQStateMachine:
         return status 
 
     def get_allowed_transitions(self):
-        return self._allowed_trasitions
+        return self._allowed_transitions
 
     def is_legal_transition(self, requested_state, curr_state=None):
         """ Checks for a legal transition of state
@@ -213,7 +214,7 @@ class MicrowaveQStateMachine:
 
 
 
-class MicrowaveQ(Base, SlowCounterInterface, RecorderInterface):
+class MicrowaveQ(Base, SlowCounterInterface, RecorderInterface, SwitchInterface):
     """ Hardware module implementation for the microwaveQ device.
 
     Example config for copy-paste:
@@ -231,10 +232,11 @@ class MicrowaveQ(Base, SlowCounterInterface, RecorderInterface):
             - MicrowaveInterface
             - ODMRCounterInterface
             - SlowCounterInterface
+            - SwitchInterface
         For the main purpose of the microwaveQ device, the interface 
         RecorderInterface contains the major methods. The other 3 remaining 
         interfaces have been implemented to use this device with different
-        logic module.
+        logic module. The SwitchInterface is to allow use with the GPIO ports
         The main state machinery is use from the RecorderInterface, i.e. 
         whenever calling from a different interface than the RecorderInterface
         make sure to either recycle the methods from the RecorderInterface and
@@ -1281,8 +1283,8 @@ class MicrowaveQ(Base, SlowCounterInterface, RecorderInterface):
         Note: this modifies names to be capitalized
         """
         valid_commands = {'RF_EN':int, 'LS_EN':int, 'CU_EN':int, 
-                        'RF_RECONFIG_EN':int, 'GPOS':int, 'RF_FREQ_SEL':int,
-                        'RF_GAIN':float, 'RF_PHASE':float, 'DURATION':float}
+                          'RF_RECONFIG_EN':int, 'GPOS':int, 'RF_FREQ_SEL':int,
+                          'RF_GAIN':float, 'RF_PHASE':float, 'DURATION':float}
             
         # use only list formats
         if isinstance(seqCmds, dict):
@@ -2438,3 +2440,102 @@ class MicrowaveQ(Base, SlowCounterInterface, RecorderInterface):
         curr_mm = self.get_current_measurement_method()
         return curr_mm.name
 
+    # ==========================================================================
+    #                 SwitchInterface Implementation
+    # ==========================================================================
+    # 
+    # This interface allows the stand-alone use of the MicrowaveQ as a GPIO switch
+    # Here, only the GPO values are addressed
+
+    def getNumberOfSwitches(self):
+        """ Gives the number of switches connected to this hardware.
+
+          @return int: number of swiches on this hardware
+        """
+        # There are 4 GPO ports
+        return 4 
+
+
+    def getSwitchState(self, switchNumber):
+        """ Gives state of switch.
+
+          @param int switchNumber: number of switch
+          @return bool: True if on, False if off, None on error
+        """
+        if   switchNumber == 1: return self.gpo1
+        elif switchNumber == 2: return self.gpo2
+        elif switchNumber == 3: return self.gpo3
+        elif switchNumber == 4: return self.gpo4
+        else:
+            self.log.error(f"Invalid call to getSwitchState(): switchNumber={switchNumber} exceeds known bounds")
+            return None
+
+
+    def getCalibration(self, switchNumber, state):
+        """ Get calibration parameter for switch.
+
+          @param int switchNumber: number of switch for which to get calibration
+                                   parameter
+          @param str switchState: state ['On', 'Off'] for which to get
+                                  calibration parameter
+
+          @return str: calibration parameter fir switch and state.
+        """
+        return "none" 
+
+
+    def setCalibration(self, switchNumber, state, value):
+        """ Set calibration parameter for switch.
+
+          @param int switchNumber: number of switch for which to get calibration
+                                   parameter
+          @param str switchState: state ['On', 'Off'] for which to get
+                                  calibration parameter
+          @param int value: calibration parameter to be set.
+
+          @return bool: True if suceeds, False otherwise
+        """
+        return True 
+
+
+    def switchOn(self, switchNumber):
+        """ Switch on.
+
+          @param int switchNumber: number of switch to be switched
+          @return bool: True if suceeds, False otherwise
+        """
+        if   switchNumber == 1: self.gpo1 = True
+        elif switchNumber == 2: self.gpo2 = True
+        elif switchNumber == 3: self.gpo3 = True
+        elif switchNumber == 4: self.gpo4 = True
+        else:
+            self.log.error(f"Invalid call to switchOn(): switchNumber={switchNumber} exceeds known bounds")
+            return False 
+
+        return True
+
+
+    def switchOff(self, switchNumber):
+        """ Switch off.
+
+          @param int switchNumber: number of switch to be switched
+          @return bool: True if suceeds, False otherwise
+        """
+        if   switchNumber == 1: self.gpo1 = False
+        elif switchNumber == 2: self.gpo2 = False
+        elif switchNumber == 3: self.gpo3 = False
+        elif switchNumber == 4: self.gpo4 = False
+        else:
+            self.log.error(f"Invalid call to switchOff(): switchNumber={switchNumber} exceeds known bounds")
+            return False 
+
+        return True
+
+
+    def getSwitchTime(self, switchNumber):
+        """ Give switching time for switch.
+
+          @param int switchNumber: number of switch
+          @return float: time needed for switch state change
+        """
+        return 0.0001    # just a guess
