@@ -26,6 +26,7 @@ import time
 import copy
 
 from core.module import Base, ConfigOption
+from interface.scanner_interface import ScannerMeasurements
 
 
 
@@ -49,46 +50,7 @@ class ProteusQDummy(Base):
     _modclass = 'ProteusQDummy'
     _modtype = 'hardware'
 
-
-    # AFM measurement parameter
-    MEAS_PARAMS = {}
-    MEAS_PARAMS['Height(Dac)'] = {'measured_units' : 'nm',
-                                  'scale_fac': 1e-9,    # multiplication factor to obtain SI units   
-                                  'si_units': 'm', 
-                                  'nice_name': 'Height (from DAC)'}
-    MEAS_PARAMS['Height(Sen)'] = {'measured_units' : 'nm', 
-                                  'scale_fac': 1e-9,    # multiplication factor to obtain SI units   
-                                  'si_units': 'm', 
-                                  'nice_name': 'Height (from Sensor)'}
-    MEAS_PARAMS['Iprobe'] = {'measured_units' : 'pA', 
-                             'scale_fac': 1e-12,    # multiplication factor to obtain SI units   
-                             'si_units': 'A', 
-                             'nice_name': 'Probe Current'}
-    MEAS_PARAMS['Mag'] = {'measured_units' : 'arb. u.', 
-                          'scale_fac': 1,    # important: use integer representation, easier to compare if scale needs to be applied
-                          'si_units': 'arb. u.', 
-                          'nice_name': 'Tuning Fork Magnitude'}
-    MEAS_PARAMS['Phase'] = {'measured_units' : 'deg.', 
-                            'scale_fac': 1,    # multiplication factor to obtain SI units   
-                            'si_units': 'deg.', 
-                            'nice_name': 'Tuning Fork Phase'}
-    MEAS_PARAMS['Freq'] = {'measured_units' : 'Hz', 
-                           'scale_fac': 1,    # multiplication factor to obtain SI units   
-                           'si_units': 'Hz', 
-                           'nice_name': 'Frequency Shift'}
-    MEAS_PARAMS['Nf'] = {'measured_units' : 'arb. u.',
-                         'scale_fac': 1,    # multiplication factor to obtain SI units    
-                         'si_units': 'arb. u.', 
-                         'nice_name': 'Normal Force'}
-    MEAS_PARAMS['Lf'] = {'measured_units' : 'arb. u.', 
-                         'scale_fac': 1,    # multiplication factor to obtain SI units   
-                         'si_units': 'arb. u.', 
-                         'nice_name': 'Lateral Force'}
-    MEAS_PARAMS['Ex1'] = {'measured_units' : 'arb. u.', 
-                          'scale_fac': 1,    # multiplication factor to obtain SI units  
-                          'si_units': 'arb. u.', 
-                          'nice_name': 'External Sensor'}
-
+    _SCANNER_MEASUREMENTS = ScannerMeasurements()
 
     def on_activate(self):
         pass
@@ -96,15 +58,81 @@ class ProteusQDummy(Base):
     def on_deactivate(self):
         pass
 
-
-    def get_meas_params(self):
-        """ Obtain a dict with the available measurement parameters. """
-        return copy.copy(self.MEAS_PARAMS)
-
-
     # ----------------------
     #  Fake SPM methods
     # ----------------------
+    def _create_scanner_measurements(self):
+        sm = self._SCANNER_MEASUREMENTS 
+
+        sm.scanner_measurements = { 
+            'Height(Dac)' : {'measured_units' : 'nm',
+                             'scale_fac': 1e-9,    # multiplication factor to obtain SI units   
+                             'si_units': 'm', 
+                             'nice_name': 'Height (from DAC)'},
+     
+            'Height(Sen)' : {'measured_units' : 'nm', 
+                             'scale_fac': 1e-9,    
+                             'si_units': 'm', 
+                             'nice_name': 'Height (from Sensor)'},
+
+            'Iprobe' :      {'measured_units' : 'pA', 
+                             'scale_fac': 1e-12,   
+                             'si_units': 'A', 
+                             'nice_name': 'Probe Current'},
+ 
+            'Mag' :         {'measured_units' : 'arb. u.', 
+                             'scale_fac': 1,    # important: use integer representation, easier to compare if scale needs to be applied
+                             'si_units': 'arb. u.', 
+                             'nice_name': 'Tuning Fork Magnitude'},
+
+            'Phase' :       {'measured_units' : 'deg.', 
+                             'scale_fac': 1,    
+                             'si_units': 'deg.', 
+                             'nice_name': 'Tuning Fork Phase'},
+
+            'Freq' :        {'measured_units' : 'Hz', 
+                             'scale_fac': 1,    
+                             'si_units': 'Hz', 
+                             'nice_name': 'Frequency Shift'},
+
+            'Nf' :          {'measured_units' : 'arb. u.',
+                             'scale_fac': 1,    
+                             'si_units': 'arb. u.', 
+                             'nice_name': 'Normal Force'},
+
+            'Lf' :          {'measured_units' : 'arb. u.', 
+                             'scale_fac': 1,    
+                             'si_units': 'arb. u.', 
+                             'nice_name': 'Lateral Force'},
+
+            'Ex1' :         {'measured_units' : 'arb. u.', 
+                             'scale_fac': 1,    
+                             'si_units': 'arb. u.', 
+                             'nice_name': 'External Sensor'}
+        }
+
+        sm.scanner_axes = { 'SAMPLE_AXES':     ['X', 'Y', 'Z', 'x', 'y', 'z',
+                                                'X1', 'Y1', 'Z1', 'x1', 'y1', 'z1'],
+                            
+                            'OBJECTIVE_AXES' : ['X2', 'Y2', 'Z2', 'x2', 'y2', 'z2'],
+
+                            'VALID_AXES'     : ['X',  'Y',  'Z',  'x',  'y',  'z',
+                                                'X1', 'Y1', 'Z1', 'x1', 'y1', 'z1',
+                                                'X2', 'Y2', 'Z2', 'x2', 'y2', 'z2']
+        }
+
+        sm.scanner_planes = ['XY', 'YZ', 'XZ', 'X2Y2', 'Y2Z2', 'X2Z2']
+
+        sm.scanner_sensors = {  # name of sensor parameters 
+                                'SENS_PARAMS_SAMPLE'    : ['SenX', 'SenY', 'SenZ'],   # AFM sensor parameter
+                                'SENS_PARAMS_OBJECTIVE' : ['SenX2', 'SenY2', 'SenZ2'],
+
+                                # maximal range of the AFM scanner , x, y, z
+                                'SAMPLE_SCANNER_RANGE' :    [[0, 100e-6], [0, 100e-6], [0, 12e-6]],
+                                'OBJECTIVE_SCANNER_RANGE' : [[0, 30e-6], [0, 30e-6], [0, 10e-6]]
+                             }
+
+
     def get_sample_scanner_pos(self, axis_label_list=['X1', 'Y1', 'Z1']):
         """ Get the sample scanner position. 
 
@@ -139,6 +167,17 @@ class ProteusQDummy(Base):
         sc_pos = {'X1': 0.0, 'Y1': 0.0, 'Z1': 0.0}  # objective scanner pos
  
         return sc_pos
+
+    def get_available_measurement_params(self):
+        """  Gets the available measurement parameters (names) 
+        obtains the dictionary of aviable measurement params 
+        This is device specific, but is an implemenation of the 
+        ScannerMeasurements class
+
+        @return: scanner_measurements class implementation 
+        """
+        sm = self._SCANNER_MEASUREMENTS
+        return copy.copy(sm.scanner_measurements)
 
     # -----------------------
     # Fake MicrowaveQ methods
