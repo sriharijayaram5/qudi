@@ -96,24 +96,56 @@ class SPM_ASC500(Base, ScannerInterface):
         sc = self._SCANNER_CONSTRAINTS
 
         sc.max_detectors = 1
+        std_config = {
+            ScannerMode.OBJECTIVE_XY:  { 'plane'       : 'X2Y2', 
+                                         'scan_style'  : ScanStyle.AREA },
+
+            ScannerMode.OBJECTIVE_XZ:  { 'plane'       : 'X2Z2', 
+                                         'scan_style'  : ScanStyle.AREA },
+
+            ScannerMode.OBJECTIVE_YZ:  { 'plane'       : 'Y2Z2', 
+                                         'scan_style'  : ScanStyle.AREA },
+
+            ScannerMode.PROBE_CONTACT: { 'plane'       : 'X1Y1', 
+                                         'scan_style'  : ScanStyle.AREA }}
 
         # current modes, as implemented.  Enable others when available
-        sc.scanner_modes = [ ScannerMode.PROBE_CONTACT
+        sc.scanner_modes = [ ScannerMode.PROBE_CONTACT,
+                             ScannerMode.OBJECTIVE_XY,
+                              ScannerMode.OBJECTIVE_XZ,
+                               ScannerMode.OBJECTIVE_YZ
                              ]  
 
         sc.scanner_mode_states = { ScannerMode.PROBE_CONTACT: [ ScannerState.IDLE,
                                                                 ScannerState.PROBE_MOVING,
                                                                 ScannerState.PROBE_SCANNING,
-                                                                ScannerState.PROBE_LIFTED]
+                                                                ScannerState.PROBE_LIFTED],
+                                    ScannerMode.OBJECTIVE_XY: [  ScannerState.IDLE,
+                                                                ScannerState.OBJECTIVE_MOVING,
+                                                                ScannerState.OBJECTIVE_SCANNING],
+
+                                   ScannerMode.OBJECTIVE_XZ: [  ScannerState.IDLE,
+                                                                ScannerState.OBJECTIVE_MOVING,
+                                                                ScannerState.OBJECTIVE_SCANNING],
+
+                                   ScannerMode.OBJECTIVE_YZ: [  ScannerState.IDLE,
+                                                                ScannerState.OBJECTIVE_MOVING,
+                                                                ScannerState.OBJECTIVE_SCANNING]
                                 }
 
-        sc.scanner_styles = [ScanStyle.LINE] 
+        sc.scanner_styles = [ScanStyle.AREA] 
 
-        sc.scanner_mode_params = {ScannerMode.PROBE_CONTACT:         { 'line_points': 100 }
+        sc.scanner_mode_params = {ScannerMode.PROBE_CONTACT:         { 'line_points': 100 },
+                                    ScannerMode.OBJECTIVE_XY:          { 'line_points': 100 },
+                                   ScannerMode.OBJECTIVE_XZ:          { 'line_points': 100 },
+                                   ScannerMode.OBJECTIVE_YZ:          { 'line_points': 100 }
                                  }       
 
         sc.scanner_mode_params_defaults = {
-                                   ScannerMode.PROBE_CONTACT:         { 'meas_params': []}
+                                   ScannerMode.PROBE_CONTACT:         { 'meas_params': []},
+                                   ScannerMode.OBJECTIVE_XY:          { 'meas_params': []},
+                                   ScannerMode.OBJECTIVE_XZ:          { 'meas_params': []},
+                                   ScannerMode.OBJECTIVE_YZ:          { 'meas_params': []}
                                 }  # to be defined
         self._curr_scanner_constraints = sc
 
@@ -177,7 +209,7 @@ class SPM_ASC500(Base, ScannerInterface):
 
     # Configure methods
     # =========================
-    def configure_scanner(self, mode, params, scan_style=ScanStyle.LINE):
+    def configure_scanner(self, mode, params, scan_style=ScanStyle.AREA):
         """ Configures the scanner device for current measurement. 
 
         @param ScannerMode mode: mode of scanner
@@ -201,6 +233,106 @@ class SPM_ASC500(Base, ScannerInterface):
         @return int: error code (0:OK, -1:error)
         (self, xOffset, yOffset, pxSize, columns, lines, sampTime):
         """
+        dev_state = self.get_current_device_state()
+        #curr_mode, curr_params, curr_sstyle = self.get_current_device_config()
+
+        # note that here, all methods configure the SPM for "TscanMode.LINE_SCAN"
+        # since all measurements are gathered in a line format
+        # however, the movement is determined by the ScanStyle, which determines
+        # if a trigger signal will be produced for the recorder device 
+        std_config = {
+            ScannerMode.OBJECTIVE_XY:  { 'plane'       : 'X2Y2', 
+                                         'scan_style'  : ScanStyle.AREA },
+
+            ScannerMode.OBJECTIVE_XZ:  { 'plane'       : 'X2Z2', 
+                                         'scan_style'  : ScanStyle.AREA },
+
+            ScannerMode.OBJECTIVE_YZ:  { 'plane'       : 'Y2Z2', 
+                                         'scan_style'  : ScanStyle.AREA },
+
+            ScannerMode.PROBE_CONTACT: { 'plane'       : 'X1Y1', 
+                                         'scan_style'  : ScanStyle.AREA },
+
+            # other configurations to be defined as they are implemented
+        }
+
+        if not ((dev_state == ScannerState.UNCONFIGURED) or (dev_state == ScannerState.IDLE)):
+            self.log.error(f'SmartSPM cannot be configured in the '
+                           f'requested mode "{ScannerMode.name(mode)}", since the device '
+                           f'state is in "{dev_state}". Stop ongoing '
+                           f'measurements and make sure that the device is '
+                           f'connected to be able to configure if '
+                           f'properly.')
+            return -1
+
+        limits = self.get_scanner_constraints()
+
+        if mode not in limits.scanner_modes:
+            mode_name = ScannerMode.name(mode) if ScannerMode.name(mode) is not None else mode
+            self.log.error(f'Requested mode "{mode_name}" not available for SPM. '
+                            'Check that mode is defined via the ScannerMode Enum type. ' 
+                            'Configuration stopped.')
+            return -1            
+
+        if not isinstance(scan_style,ScanStyle):
+            self.log.error(f'ScanStyle="{scan_style} is not a know scan style')
+            return -1
+        
+        sc_defaults = limits.scanner_mode_params_defaults[mode]
+        params = { **params, **{k:sc_defaults[k] for k in sc_defaults.keys() - params.keys()}}
+        is_ok = self._check_params_for_mode(mode, params)
+        if not is_ok: 
+            self.log.error(f'Parameters are not correct for mode "{ScannerMode.name(mode)}". '
+                           f'Configuration stopped.')
+            return -1
+        
+        ret_val = 0
+
+        if mode == ScannerMode.UNCONFIGURED:
+            return -1   # nothing to do, mode is unconfigured, so we shouldn't continue
+
+        elif mode == ScannerMode.OBJECTIVE_XY:
+            # Objective scanning returns no parameters
+            ret_val, curr_plane, curr_meas_params = \
+                self._dev.setup_spm(**std_config[ScannerMode.OBJECTIVE_XY],
+                                    line_points= params['line_points'])
+
+        elif mode == ScannerMode.OBJECTIVE_XZ:
+            # Objective scanning returns no parameters
+            ret_val, curr_plane, curr_meas_params = \
+                self._dev.setup_spm(**std_config[ScannerMode.OBJECTIVE_XZ],
+                                    line_points = params['line_points'])
+
+        elif mode == ScannerMode.OBJECTIVE_YZ:
+            # Objective scanning returns no parameters
+            ret_val, curr_plane, curr_meas_params = \
+                self._dev.setup_spm(**std_config[ScannerMode.OBJECTIVE_YZ],
+                                    line_points = params['line_points'])
+
+        elif mode == ScannerMode.PROBE_CONTACT:
+            # Scanner library specific style is always "LINE_STYLE" 
+            # both line-wise and point-wise scans configure a line;
+            # For internal "line_style" scan definitions, the additional trigger signal 
+            # is activated
+            ret_val, curr_plane, curr_meas_params = \
+                self._dev.setup_spm(**std_config[ScannerMode.PROBE_CONTACT],
+                                    line_points = params['line_points'],
+                                    meas_params = params['meas_params'])
+
+        else:
+            self.log.error(f'Error configure_scanner(): mode = "{ScannerMode.name(mode)}"'
+                            ' has not been implemented yet')
+            return -1
+
+        if scan_style == ScanStyle.LINE:
+            self._dev.set_ext_trigger(True)
+
+        self._line_points = params['line_points']
+        self._spm_curr_sstyle = scan_style
+        self._curr_meas_params = curr_meas_params
+        self.sigPixelClockSetup.emit(curr_plane)
+
+        return ret_val, curr_plane, curr_meas_params
 
         # self._dev.scanner.resetScannerCoordSystem()
         # self._dev.scanner.setOutputsActive()

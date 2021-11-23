@@ -59,6 +59,7 @@ class ScannerMode(Enum):
 class ScanStyle(Enum):
     LINE = 0
     POINT = 1
+    AREA = 3
 
 
 class ScannerConstraints:
