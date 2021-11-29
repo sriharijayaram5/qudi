@@ -21,7 +21,8 @@ top-level directory of this distribution and at <https://github.com/Ulm-IQO/qudi
 import copy
 from core.module import Base
 from core.util.mutex import Mutex
-
+import numpy as np
+from scipy.interpolate import interp1d
 from hardware.spm.spm_library.ASC500_Python_Control.lib.asc500_device import Device
 
 from interface.scanner_interface import ScannerInterface, ScannerMode, ScanStyle, \
@@ -31,7 +32,7 @@ _binPath = 'C:\\qudi\\proteusq-modules\\hardware\\spm\\spm_library\\ASC500_Pytho
 _dllPath = 'C:\\qudi\\proteusq-modules\\hardware\\spm\\spm_library\\ASC500_Python_Control\\64bit_lib\\ASC500CL-LIB-WIN64-V2.7.13\\daisybase\\lib\\'
 
 class SPM_ASC500(Base, ScannerInterface):
-    """ Smart SPM wrapper for the communication with the ASC500 module.
+    """SPM wrapper for the communication with the ASC500 module.
 
     Example config for copy-paste:
 
@@ -98,16 +99,16 @@ class SPM_ASC500(Base, ScannerInterface):
         sc.max_detectors = 1
         std_config = {
             ScannerMode.OBJECTIVE_XY:  { 'plane'       : 'X2Y2', 
-                                         'scan_style'  : ScanStyle.AREA },
+                                         'scan_style'  : ScanStyle.LINE },
 
             ScannerMode.OBJECTIVE_XZ:  { 'plane'       : 'X2Z2', 
-                                         'scan_style'  : ScanStyle.AREA },
+                                         'scan_style'  : ScanStyle.LINE },
 
             ScannerMode.OBJECTIVE_YZ:  { 'plane'       : 'Y2Z2', 
-                                         'scan_style'  : ScanStyle.AREA },
+                                         'scan_style'  : ScanStyle.LINE },
 
-            ScannerMode.PROBE_CONTACT: { 'plane'       : 'X1Y1', 
-                                         'scan_style'  : ScanStyle.AREA }}
+            ScannerMode.PROBE_CONTACT: { 'plane'       : 'XY', 
+                                         'scan_style'  : ScanStyle.LINE }}
 
         # current modes, as implemented.  Enable others when available
         sc.scanner_modes = [ ScannerMode.PROBE_CONTACT,
@@ -133,23 +134,21 @@ class SPM_ASC500(Base, ScannerInterface):
                                                                 ScannerState.OBJECTIVE_SCANNING]
                                 }
 
-        sc.scanner_styles = [ScanStyle.AREA] 
+        sc.scanner_styles = [ScanStyle.LINE] 
 
         sc.scanner_mode_params = {ScannerMode.PROBE_CONTACT:         { 'line_points': 100 },
                                     ScannerMode.OBJECTIVE_XY:          { 'line_points': 100 },
-                                   ScannerMode.OBJECTIVE_XZ:          { 'line_points': 100 },
-                                   ScannerMode.OBJECTIVE_YZ:          { 'line_points': 100 }
+                                    ScannerMode.OBJECTIVE_XZ:          { 'line_points': 100 },
+                                    ScannerMode.OBJECTIVE_YZ:          { 'line_points': 100 }
                                  }       
 
         sc.scanner_mode_params_defaults = {
-                                   ScannerMode.PROBE_CONTACT:         { 'meas_params': []},
+                                   ScannerMode.PROBE_CONTACT:         { 'meas_params': ['Height(Dac)']},
                                    ScannerMode.OBJECTIVE_XY:          { 'meas_params': []},
                                    ScannerMode.OBJECTIVE_XZ:          { 'meas_params': []},
                                    ScannerMode.OBJECTIVE_YZ:          { 'meas_params': []}
                                 }  # to be defined
-        self._curr_scanner_constraints = sc
-
-
+        
     def _create_scanner_measurements(self):
         sm = self._SCANNER_MEASUREMENTS 
 
@@ -160,7 +159,7 @@ class SPM_ASC500(Base, ScannerInterface):
                              'nice_name': 'Height (from DAC)'},
 
             'Mag' :         {'measured_units' : '350*uv', 
-                             'scale_fac': 1/(1/305.2*1e6),    # important: use integer representation, easier to compare if scale needs to be applied
+                             'scale_fac': 1/(1/305.2*1e6),    
                              'si_units': 'v', 
                              'nice_name': 'Tuning Fork HF1 Amplitude'},
 
@@ -172,29 +171,43 @@ class SPM_ASC500(Base, ScannerInterface):
             'Freq' :        {'measured_units' : 'mHz', 
                              'scale_fac': 1/(1e3),    
                              'si_units': 'Hz', 
-                             'nice_name': 'Tuning Fork Frequency'}
+                             'nice_name': 'Tuning Fork Frequency'},
+            
+            'counts' :        {'measured_units' : 'arb.', 
+                             'scale_fac': 1,    
+                             'si_units': 'arb.', 
+                             'nice_name': 'Counts'}
         }
 
-        sm.scanner_axes = { 'SAMPLE_AXES':     ['X1', 'Y1', 'Z1'],
+        sm.scanner_axes = { 'SAMPLE_AXES':     ['X', 'Y', 'Z'],
                             
                             'OBJECTIVE AXES': ['X2', 'Y2', 'Z2'],
                            
 
-                            'VALID_AXES'     : ['X1', 'Y1', 'Z1', 'X2', 'Y2', 'Z2']
+                            'VALID_AXES'     : ['X', 'Y', 'Z', 'X2', 'Y2', 'Z2']
         }
 
-        sm.scanner_planes = ['X1Y1', 'X2Y2', 'X2Z2', 'Y2Z2']
+        sm.scanner_planes = ['XY', 'X2Y2', 'X2Z2', 'Y2Z2']
 
         sample_x_range, sample_y_range, sample_z_range = self._dev.limits.getXActualTravelLimit(), self._dev.limits.getYActualTravelLimit(), self._dev.limits.getZActualTravelLimit()
+        objective_x_range, objective_y_range, objective_z_range = self._unamplified_piezo_act_range()
 
         sm.scanner_sensors = {  # name of sensor parameters 
                                 'SENS_PARAMS_SAMPLE'    : ['SenX', 'SenY', 'SenZ'],   # AFM sensor parameters
 
                                 # maximal range of the AFM scanner , X, Y, Z
-                                'SAMPLE_SCANNER_RANGE' :    [[0, sample_x_range], [0, sample_y_range], [0, sample_z_range]]
-                             }
-        self._curr_scanner_measurements = sm
+                                'SAMPLE_SCANNER_RANGE' :    [[0, sample_x_range], [0, sample_y_range], [0, sample_z_range]],
 
+                                'OBJECTIVE_SCANNER_RANGE' :    [[0, objective_x_range], [0, objective_y_range], [0, objective_z_range]]
+                             }
+        
+    def _unamplified_piezo_act_range(self):
+        act_T = self._dev.base.getParameter(self._dev.base.getConst('ID_PIEZO_TEMP'),0)/1e3        
+        T_range = np.array([self._dev.base.getParameter(self._dev.base.getConst('ID_PIEZO_T_LIM'),0)/1e3, self._dev.base.getParameter(self._dev.base.getConst('ID_PIEZO_T_LIM'),1)/1e3])
+
+        v_interp = interp1d(T_range, np.array((5e-6, 1e-6)), kind='linear')
+        act_piezo_range = v_interp(act_T)
+        return act_piezo_range, act_piezo_range, act_piezo_range
 
     def check_interface_version(self, pause=None):
         """ Determines interface version from hardware interface 
@@ -209,7 +222,7 @@ class SPM_ASC500(Base, ScannerInterface):
 
     # Configure methods
     # =========================
-    def configure_scanner(self, mode, params, scan_style=ScanStyle.AREA):
+    def configure_scanner(self, mode, params, scan_style=ScanStyle.LINE):
         """ Configures the scanner device for current measurement. 
 
         @param ScannerMode mode: mode of scanner
@@ -242,22 +255,22 @@ class SPM_ASC500(Base, ScannerInterface):
         # if a trigger signal will be produced for the recorder device 
         std_config = {
             ScannerMode.OBJECTIVE_XY:  { 'plane'       : 'X2Y2', 
-                                         'scan_style'  : ScanStyle.AREA },
+                                         'scan_style'  : ScanStyle.LINE },
 
             ScannerMode.OBJECTIVE_XZ:  { 'plane'       : 'X2Z2', 
-                                         'scan_style'  : ScanStyle.AREA },
+                                         'scan_style'  : ScanStyle.LINE },
 
             ScannerMode.OBJECTIVE_YZ:  { 'plane'       : 'Y2Z2', 
-                                         'scan_style'  : ScanStyle.AREA },
+                                         'scan_style'  : ScanStyle.LINE },
 
-            ScannerMode.PROBE_CONTACT: { 'plane'       : 'X1Y1', 
-                                         'scan_style'  : ScanStyle.AREA },
+            ScannerMode.PROBE_CONTACT: { 'plane'       : 'XY', 
+                                         'scan_style'  : ScanStyle.LINE },
 
             # other configurations to be defined as they are implemented
         }
 
         if not ((dev_state == ScannerState.UNCONFIGURED) or (dev_state == ScannerState.IDLE)):
-            self.log.error(f'SmartSPM cannot be configured in the '
+            self.log.error(f'SPM cannot be configured in the '
                            f'requested mode "{ScannerMode.name(mode)}", since the device '
                            f'state is in "{dev_state}". Stop ongoing '
                            f'measurements and make sure that the device is '
@@ -280,13 +293,16 @@ class SPM_ASC500(Base, ScannerInterface):
         
         sc_defaults = limits.scanner_mode_params_defaults[mode]
         params = { **params, **{k:sc_defaults[k] for k in sc_defaults.keys() - params.keys()}}
-        is_ok = self._check_params_for_mode(mode, params)
-        if not is_ok: 
-            self.log.error(f'Parameters are not correct for mode "{ScannerMode.name(mode)}". '
-                           f'Configuration stopped.')
-            return -1
+        # is_ok = self._check_params_for_mode(mode, params)
+        # if not is_ok: 
+        #     self.log.error(f'Parameters are not correct for mode "{ScannerMode.name(mode)}". '
+        #                    f'Configuration stopped.')
+        #     return -1
         
-        ret_val = 0
+        ret_val = 1
+
+        self._dev.scanner.resetScannerCoordSystem()
+        self._dev.scanner.setOutputsActive()
 
         if mode == ScannerMode.UNCONFIGURED:
             return -1   # nothing to do, mode is unconfigured, so we shouldn't continue
@@ -314,36 +330,22 @@ class SPM_ASC500(Base, ScannerInterface):
             # both line-wise and point-wise scans configure a line;
             # For internal "line_style" scan definitions, the additional trigger signal 
             # is activated
-            ret_val, curr_plane, curr_meas_params = \
-                self._dev.setup_spm(**std_config[ScannerMode.PROBE_CONTACT],
-                                    line_points = params['line_points'],
-                                    meas_params = params['meas_params'])
+            self.line_points = params['line_points']
+            # (params['coord0_stop']-params['coord0_start'])/
+            self._spm_curr_state =  ScannerState.IDLE
+            self._chn_no = 1
+            self._dev.scanner.setDataEnable(1)
 
         else:
             self.log.error(f'Error configure_scanner(): mode = "{ScannerMode.name(mode)}"'
                             ' has not been implemented yet')
             return -1
 
-        if scan_style == ScanStyle.LINE:
-            self._dev.set_ext_trigger(True)
-
         self._line_points = params['line_points']
         self._spm_curr_sstyle = scan_style
-        self._curr_meas_params = curr_meas_params
-        self.sigPixelClockSetup.emit(curr_plane)
-
-        return ret_val, curr_plane, curr_meas_params
-
-        # self._dev.scanner.resetScannerCoordSystem()
-        # self._dev.scanner.setOutputsActive()
-        # self._dev.scanner.setDataEnable(1)
-        # self._dev.base.configureDataBuffering(0, frame_size)
-        param['scanSpeed'] = param['pxSize']/param['scanSpeed']
-        param['pxSize'] = int(param['pxSize']*1e2)
+        self._curr_meas_params = params['meas_params']
     
-        # self.scan_args = list(params.values())
-
-        self._spm_curr_state =  ScannerState.IDLE
+        return ret_val, 0, self._curr_meas_params
 
     def get_current_configuration(self):
         """ Returns the current scanner configuration
@@ -351,14 +353,14 @@ class SPM_ASC500(Base, ScannerInterface):
 
         @return tuple: (mode, scan_style)
         """
-        # if self._dev.scanner.getScannerState()==1:
-        #     return (ScannerMode.PROBE_SCANNING, ScanStyle.LINE)
-        # else:
-        #     return (ScannerMode.IDLE, ScanStyle.LINE)
+        if self._dev.scanner.getScannerState()==1:
+            return (ScannerMode.PROBE_SCANNING, ScanStyle.LINE)
+        else:
+            return (ScannerMode.IDLE, ScanStyle.LINE)
 
     def configure_line(self, 
-                       corr0_start, corr0_stop, 
-                       corr1_start, corr1_stop, # not used in case of Z sweep
+                       line_corr0_start, line_corr0_stop, 
+                       line_corr1_start, line_corr1_stop, # not used in case of Z sweep
                        time_forward, time_back):
         """ Setup the scan line parameters
         
@@ -386,9 +388,13 @@ class SPM_ASC500(Base, ScannerInterface):
         plane. It is possible to set zero scan area, then some reasonable 
         values for time_forward and time_back will be chosen automatically.
         """      
-        # xOffset, yOffset = corr0_start, corr1_start
-
-        # self._dev.configureScanner(*args)
+        px=int((abs(line_corr0_stop-line_corr0_start)/self.line_points)*1e11)
+        sT=time_forward/self.line_points
+        
+        self._dev.scanner.configureScanner(xOffset=line_corr0_start, yOffset=line_corr1_start, pxSize=px, columns=self.line_points, lines=1, sampTime=sT)
+        self._dev.base.configureDataBuffering(self._chn_no, self.line_points*2)
+    
+    def set_ext_trigger(self, trig=False):
         pass
         
     def scan_line(self,int_time = 0.05): 
@@ -404,7 +410,8 @@ class SPM_ASC500(Base, ScannerInterface):
 
         @return int: status variable with: 0 = call failed, 1 = call successful
         """
-        pass
+        self._dev.scanner.startScanner()
+        self._spm_curr_state =  ScannerState.PROBE_SCANNING
 
     def scan_point(self, num_params=None):
         """ Obtain measurments from a point
@@ -447,7 +454,23 @@ class SPM_ASC500(Base, ScannerInterface):
         # (required configure_scan_line to be called prior)
         # => blocking method, either with timeout or stoppable via stop measurement
         """
-        pass
+    
+        while True:
+            # Wait until buffer is full
+            if self._dev.base.waitForFullBuffer(self._chn_no) != 0:
+                    break
+        buffer = self._dev.base.getDataBuffer(self._chn_no, 0, self.line_points*2)
+        values = buffer[3][:]
+        meta = buffer[4]
+        phys_vals = []
+        unit = self._dev.base.getUnitVal(meta)
+        scaling = 1
+        if 'Milli' in unit:
+            scaling = 1e-3
+        for val in values:
+            phys_vals.append(self._dev.base.convValue2Phys(meta, val)*scaling)
+        phys_vals = np.asarray(phys_vals).reshape(2,self.line_points)
+        return phys_vals
 
     def finish_scan(self):
         """ Request completion of the current scan line 
@@ -459,7 +482,9 @@ class SPM_ASC500(Base, ScannerInterface):
 
         @return int: status variable with: 0 = call failed, 1 = call successfull
         """
-        pass
+        self._dev.scanner.sendScannerCommand(self._dev.base.getConst('SCANRUN_OFF'))
+        self._spm_curr_state =  ScannerState.IDLE
+        return 1
     
     def stop_measurement(self):
         """ Immediately terminate the measurment
@@ -471,7 +496,8 @@ class SPM_ASC500(Base, ScannerInterface):
 
         @return: None
         """    
-        self._dev.stopScanner()
+        self._dev.zcontrol.setPositionZ(0)
+        self._dev.scanner.closeScanner()
 
     def calibrate_constant_height(self, calib_points, safety_lift):
         """ Calibrate constant height
@@ -481,12 +507,12 @@ class SPM_ASC500(Base, ScannerInterface):
         probe is lifted to a safe height for travel ('safety_lift')
         
         @param: array calib_points: sample coordinates X & Y of where 
-                to obtain the height; e.g. [ [x0, y0], [x1, y1], ... [xn, yn]]
+                to obtain the height; e.g. [ [x0, y0], [X, Y], ... [xn, yn]]
         @param: float safety_lift: height (m) to lift the probe during traversal
                 (+ values up...increasing the distance between probe & sample)
         
         @return: array calibrate_points: returns measured heights with the 
-                 the original coordinates:  [[x0, y0, z0], [x1, y1, z1], ... [xn, yn, zn]] 
+                 the original coordinates:  [[x0, y0, z0], [X, Y, Z], ... [xn, yn, zn]] 
         """
         pass
 
@@ -494,7 +520,7 @@ class SPM_ASC500(Base, ScannerInterface):
         """ Returns the calibration points, as gathered by the calibrate_constant_height() mode
 
         @return: array calibrate_points: returns measured heights with the 
-                 the original coordinates:  [[x0, y0, z0], [x1, y1, z1], ... [xn, yn, zn]] 
+                 the original coordinates:  [[x0, y0, z0], [X, Y, Z], ... [xn, yn, zn]] 
         """
         pass
 
@@ -719,13 +745,13 @@ class SPM_ASC500(Base, ScannerInterface):
                                      capitalized or lower case, possible values: 
                                         ['X', 'X', 'Y', 'Y', 'Z', 'Z'] 
                                      or postfixed with a '1':
-                                        ['X1', 'x1', 'Y1', 'y1', 'Z1', 'z1'] 
+                                        ['X', 'X', 'Y', 'Y', 'Z', 'Z'] 
 
         @return dict: sample scanner range dict with requested entries in m 
                       (SI units).
         """
-        return {'X': self._dev.getParameter(self._dev.getConst('ID_PIEZO_ACTRG_X')*1e-12), 
-                'Y': self._dev.getParameter(self._dev.getConst('ID_PIEZO_ACTRG_Y')*1e-12), 
+        return {'X': self._dev.getParameter(self._dev.getConst('ID_PIEZO_ACTRG_X')*1e-11), 
+                'Y': self._dev.getParameter(self._dev.getConst('ID_PIEZO_ACTRG_Y')*1e-11), 
                 'Z': self._dev.getParameter(self._dev.getConst('ID_REG_ZABS_LIMM')*1e-12)}
 
     def get_sample_pos(self, axis_label_list=['X', 'Y', 'Z']):
@@ -735,7 +761,7 @@ class SPM_ASC500(Base, ScannerInterface):
                                      capitalized or lower case, possible values: 
                                         ['X', 'X', 'Y', 'Y', 'Z', 'Z'] 
                                      or postfixed with a '1':
-                                        ['X1', 'x1', 'Y1', 'y1', 'Z1', 'z1'] 
+                                        ['X', 'X', 'Y', 'Y', 'Z', 'Z'] 
 
         @return dict: sample scanner position dict in m (SI units). Normal 
                       output [0 .. AxisRange], though may fall outside this 
@@ -755,13 +781,14 @@ class SPM_ASC500(Base, ScannerInterface):
                                      capitalized or lower case, possible values: 
                                         ['X', 'X', 'Y', 'Y', 'Z', 'Z'] 
                                      or postfixed with a '1':
-                                        ['X1', 'x1', 'Y1', 'y1', 'Z1', 'z1'] 
+                                        ['X', 'X', 'Y', 'Y', 'Z', 'Z'] 
 
         @return dict: sample scanner position dict in m (SI units). Normal 
                       output [0 .. AxisRange], though may fall outside this 
                       interval. Error: output <= -1000
         """
-        return self.get_sample_pos()
+        pos_dict = {'X': self._dev.base.getConst('ID_POSI_TARGET_X')*1e-11, 'Y':self._dev.base.getConst('ID_POSI_TARGET_Y')*1e-11}
+        return pos_dict
 
     def set_sample_pos_abs(self, axis_dict, move_time=0.1):
         """ Set the sample scanner position.
@@ -770,7 +797,7 @@ class SPM_ASC500(Base, ScannerInterface):
                                      capitalized or lower case, possible keys:
                                         ['X', 'X', 'Y', 'Y', 'Z', 'Z']
                                      or postfixed with a '1':
-                                        ['X1', 'x1', 'Y1', 'y1', 'Z1', 'z1'] 
+                                        ['X', 'X', 'Y', 'Y', 'Z', 'Z'] 
                                     Values are the desired position for the 
                                     sample scanner in m. E.g an passed value may
                                     look like
@@ -787,7 +814,9 @@ class SPM_ASC500(Base, ScannerInterface):
         @return float: the actual position set to the axis, or -1 if call failed.
         """
         pos = [axis_dict['X'], axis_dict['Y'], 0]
-        self._dev.setScannerXYZRelPos(pos)
+        self._dev.base.setParameter(self._dev.base.getConst('ID_POSI_TARGET_X'), axis_dict['X']*1e11, 0 )
+        self._dev.base.setParameter(self._dev.base.getConst('ID_POSI_TARGET_Y'), axis_dict['Y']*1e11, 0 ) 
+        self._dev.base.setParameter(self._dev.base.getConst('ID_POSI_GOTO'), 1, 0)  
         return self.get_sample_pos()
     
     def set_sample_pos_rel(self, axis_rel_dict, move_time=0.1):
@@ -797,7 +826,7 @@ class SPM_ASC500(Base, ScannerInterface):
                                 capitalized or lower case, possible keys:
                                      ['X', 'X', 'Y', 'Y', 'Z', 'Z']
                                 or postfixed with a '1':
-                                   ['X1', 'x1', 'Y1', 'y1', 'Z1', 'z1'] 
+                                   ['X', 'X', 'Y', 'Y', 'Z', 'Z'] 
                                 Values are the desired position for the 
                                 sample scanner in m. E.g an passed value may
                                 look like
@@ -818,7 +847,8 @@ class SPM_ASC500(Base, ScannerInterface):
         """
         curr_pos = self.get_sample_pos()
         axis_dict = {'X': curr_pos['X']+axis_rel_dict['X'], 'Y': curr_pos['Y']+axis_rel_dict['Y']}
-        return self.set_sample_pos_abs(axis_dict)
+        self._dev.scanner.setPositionsXYRel([axis_dict['X'], axis_dict['Y']])
+        return 0
 
 
 
@@ -832,20 +862,20 @@ class SPM_ASC500(Base, ScannerInterface):
 
         @return bool: Function returns True if method succesful, False if not
         """
-        self._dev.setParameter(self._dev.getConst('ID_REG_LOOP_ON'), 0, 0)
-        curr_z_pm = getParameter(self._dev.getConst('ID_REG_SET_Z_M'))
+        self._dev.base.setParameter(self._dev.base.getConst('ID_REG_LOOP_ON'), 0, 0)
+        curr_z_pm = getParameter(self._dev.base.getConst('ID_REG_SET_Z_M'))
         rel_z_pm = rel_z*10e12
         move_rel_pm = int(curr_z_pm + rel_z_pm)
-        self._dev.setParameter(self._dev.getConst('ID_REG_SET_Z_M'), move_rel_pm, 0)
-        return self._dev.getParameter(self._dev.getConst('ID_REG_SET_Z_M'))==move_rel_pm
+        self._dev.base.setParameter(self._dev.base.getConst('ID_REG_SET_Z_M'), move_rel_pm, 0)
+        return self._dev.base.getParameter(self._dev.base.getConst('ID_REG_SET_Z_M'))==move_rel_pm
     
     def retract_probe(self):
         """ Retract sample or in this module language probe completely and switch off loop.
         @return bool: True if sample is retracted
         """
-        self._dev.setParameter(self._dev.getConst('ID_REG_LOOP_ON'), 0, 0)
-        self._dev.setParameter(self._dev.getConst('ID_REG_SET_Z_M'), 0, 0)
-        return self._dev.getParameter(self._dev.getConst('ID_REG_SET_Z_M'))==0
+        self._dev.base.setParameter(self._dev.base.getConst('ID_REG_LOOP_ON'), 0, 0)
+        self._dev.base.setParameter(self._dev.base.getConst('ID_REG_SET_Z_M'), 0, 0)
+        return self._dev.base.getParameter(self._dev.base.getConst('ID_REG_SET_Z_M'))==0
 
     def get_lifted_value(self):
         """ Gets the absolute lift from the sample (sample land, Z=0)
@@ -857,7 +887,7 @@ class SPM_ASC500(Base, ScannerInterface):
 
         @return float: absolute lifted distance from sample (m)
         """
-        return self._dev.getParameter(self._dev.getConst('ID_REG_SET_Z_M'))*10e-12
+        return self._dev.base.getParameter(self._dev.base.getConst('ID_REG_SET_Z_M'))*10e-12
 
     def is_probe_landed(self): 
         """ Returns state of probe, if it is currently landed or lifted
@@ -865,7 +895,7 @@ class SPM_ASC500(Base, ScannerInterface):
         @return bool: True = probe is currently landed 
                       False = probe is in lifted mode
         """
-        return self._dev.getParameter(self._dev.getConst('ID_REG_LOOP_ON'))==1
+        return self._dev.base.getParameter(self._dev.base.getConst('ID_REG_LOOP_ON'))==1
 
     def land_probe(self, fast=False):
         """ Land the probe on the surface.
@@ -891,5 +921,5 @@ class SPM_ASC500(Base, ScannerInterface):
 
         """
         landed = self.is_probe_landed()
-        self._dev.setParameter(self._dev.getConst('ID_REG_LOOP_ON'), 1, 0)
+        self._dev.base.setParameter(self._dev.base.getConst('ID_REG_LOOP_ON'), 1, 0)
         return not landed
