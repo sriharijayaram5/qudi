@@ -21,6 +21,7 @@ top-level directory of this distribution and at <https://github.com/Ulm-IQO/qudi
 import copy
 from core.module import Base
 from core.util.mutex import Mutex
+import time
 import numpy as np
 from scipy.interpolate import interp1d
 from hardware.spm.spm_library.ASC500_Python_Control.lib.asc500_device import Device
@@ -78,6 +79,8 @@ class SPM_ASC500(Base, ScannerInterface):
 
         self._dev.base.setDataEnable(1)
         self._spm_curr_state = ScannerState.UNCONFIGURED
+
+        self._objective_x_volt, self._objective_y_volt, self._objective_z_volt = 0.0, 0.0, 0.0
 
         self._create_scanner_contraints()
         self._create_scanner_measurements()
@@ -190,7 +193,7 @@ class SPM_ASC500(Base, ScannerInterface):
         sm.scanner_planes = ['XY', 'X2Y2', 'X2Z2', 'Y2Z2']
 
         sample_x_range, sample_y_range, sample_z_range = self._dev.limits.getXActualTravelLimit(), self._dev.limits.getYActualTravelLimit(), self._dev.limits.getZActualTravelLimit()
-        objective_x_range, objective_y_range, objective_z_range = self._unamplified_piezo_act_range()
+        objective_x_range, objective_y_range, objective_z_range = self._objective_piezo_act_range()
 
         sm.scanner_sensors = {  # name of sensor parameters 
                                 'SENS_PARAMS_SAMPLE'    : ['SenX', 'SenY', 'SenZ'],   # AFM sensor parameters
@@ -201,13 +204,26 @@ class SPM_ASC500(Base, ScannerInterface):
                                 'OBJECTIVE_SCANNER_RANGE' :    [[0, objective_x_range], [0, objective_y_range], [0, objective_z_range]]
                              }
         
-    def _unamplified_piezo_act_range(self):
+    def _objective_piezo_act_range(self):
         act_T = self._dev.base.getParameter(self._dev.base.getConst('ID_PIEZO_TEMP'),0)/1e3        
         T_range = np.array([self._dev.base.getParameter(self._dev.base.getConst('ID_PIEZO_T_LIM'),0)/1e3, self._dev.base.getParameter(self._dev.base.getConst('ID_PIEZO_T_LIM'),1)/1e3])
 
         v_interp = interp1d(T_range, np.array((5e-6, 1e-6)), kind='linear')
         act_piezo_range = v_interp(act_T)
         return act_piezo_range, act_piezo_range, act_piezo_range
+    
+    def _objective_piezo_act_pos(self):
+        piezo_range = self._objective_piezo_act_range()
+        obj_volt_range = np.array([0,10.0])
+        pos_interp = interp1d(obj_volt_range, np.array([0.0 ,piezo_range[0]]), kind='linear')
+        self._objective_x_volt, self._objective_y_volt, self._objective_z_volt = np.array([self._dev.base.getParameter(self._dev.base.getConst('ID_DAC_VALUE'), 0), self._dev.base.getParameter(self._dev.base.getConst('ID_DAC_VALUE'), 1), self._dev.base.getParameter(self._dev.base.getConst('ID_DAC_VALUE'), 2)]) * 305.2 * 1e-6
+        return float(pos_interp(self._objective_x_volt)), float(pos_interp(self._objective_y_volt)), float(pos_interp(self._objective_z_volt))
+
+    def _objective_volt_for_pos(self, pos):
+        piezo_range = self._objective_piezo_act_range()
+        obj_volt_range = np.array([0,10.0])
+        pos_interp = interp1d(np.array([0.0 ,piezo_range[0]]), obj_volt_range, kind='linear')
+        return pos_interp(pos)
 
     def check_interface_version(self, pause=None):
         """ Determines interface version from hardware interface 
@@ -659,7 +675,10 @@ class SPM_ASC500(Base, ScannerInterface):
         @return dict: objective scanner range dict with requested entries in m 
                       (SI units).
         """
-        pass
+        piezo_range = self._objective_piezo_act_range()
+        piezo_range_dict = {'X2': piezo_range[0], 'Y2': piezo_range[1], 'Z2': piezo_range[2]}
+        ret_dict = {i : piezo_range_dict[i.upper()] for i in axis_label_list}
+        return ret_dict
 
     def get_objective_pos(self, axis_label_list=['X2', 'Y2', 'Z2']):
         """ Get the objective scanner position. 
@@ -672,10 +691,10 @@ class SPM_ASC500(Base, ScannerInterface):
                        this interval. Error: output <= -1000
                        sample scanner position in m (SI units).
         """
-
-        sc_pos = {'X2': 0.0, 'Y2': 0.0, 'Z2': 0.0}  # objective scanner pos
+        x, y, z = self._objective_piezo_act_pos()
+        sc_pos = {'X2': x, 'Y2': y, 'Z2': z}  # objective scanner pos
  
-        return sc_pos
+        return {i : sc_pos[i.upper()] for i in axis_label_list}
 
 
     def get_objective_target_pos(self, axis_label_list=['X2', 'Y2', 'Z2']):
@@ -690,13 +709,13 @@ class SPM_ASC500(Base, ScannerInterface):
                        this interval. Error: output <= -1000
                        sample scanner position in m (SI units).
         """
-        pass
+        return self.get_objective_pos(axis_label_list)
 
     def set_objective_pos_abs(self, axis_label_dict, move_time=0.1):
         """ Set the objective scanner target position. (absolute coordinates) 
         Returns the potential position of the scanner objective (understood to be the next point)
 
-        @param str axis_label_list: the axis label, either capitalized or lower 
+        @param str axis_label_dict: the axis label, either capitalized or lower 
                                     case, possible values: 
                                         ['X2', 'x2', 'Y2', 'y2', 'Z2', 'z2'] 
 
@@ -706,7 +725,24 @@ class SPM_ASC500(Base, ScannerInterface):
         """
         
         # if velocity is given, time will be ignored
-        pass
+        scan_range = self.get_objective_scan_range(list(axis_label_dict.keys()))
+        for i in scan_range:
+            if axis_label_dict[i] > scan_range[i]:
+                self.log.warning(f'Objective scanner {i} to abs. position outside scan range: {axis_label_dict[i]*1e6:.3f} um')
+                return self.get_objective_pos(list(axis_label_dict.keys()))
+        volt = {i.upper() : self._objective_volt_for_pos(axis_label_dict[i]) for i in axis_label_dict}
+        ret_list = []
+        for i in volt:
+            self._move_objective(i, volt[i], move_time)
+        return self.get_objective_pos(list(axis_label_dict.keys()))
+    
+    def _move_objective(self, axis, volt, move_time):
+        axes = {'X2':0, 'Y2':1, 'Z2':2}
+        curr_volt = self._dev.base.getParameter(self._dev.base.getConst('ID_DAC_VALUE'), axes[axis])*305.2/1e6
+        for v in np.linspace(curr_volt, volt, 100):
+            self._dev.base.setParameter(self._dev.base.getConst('ID_DAC_VALUE'), int(v/305.2*1e6), axes[axis])
+            time.sleep(move_time/100)
+        return self.get_objective_pos([axis])
 
     def set_objective_pos_rel(self, axis_rel_dict, move_time=0.1):  
         """ Set the objective scanner position, relative to current position.
@@ -732,13 +768,15 @@ class SPM_ASC500(Base, ScannerInterface):
         
         @return float: the actual position set to the axis, or -1 if call failed.
         """
-        pass
+        for i in axis_rel_dict:
+            axis_rel_dict[i] += self.get_objective_pos([i])[i]
+        return self.set_objective_pos_abs(axis_rel_dict, move_time)
 
 
     # Probe scanner Axis/Movement functions
     # ==============================
 
-    def get_sample_scan_range(self, axis_label_list=['X','Y','']):
+    def get_sample_scan_range(self, axis_label_list=['X','Y','Z']):
         """ Get the sample scanner range for the provided axis label list. 
 
         @param list axis_label_list: the axis label string list, entries either 
@@ -750,9 +788,10 @@ class SPM_ASC500(Base, ScannerInterface):
         @return dict: sample scanner range dict with requested entries in m 
                       (SI units).
         """
-        return {'X': self._dev.getParameter(self._dev.getConst('ID_PIEZO_ACTRG_X')*1e-11), 
-                'Y': self._dev.getParameter(self._dev.getConst('ID_PIEZO_ACTRG_Y')*1e-11), 
-                'Z': self._dev.getParameter(self._dev.getConst('ID_REG_ZABS_LIMM')*1e-12)}
+        ret_dict = {'X': self._dev.base.getParameter(self._dev.base.getConst('ID_PIEZO_ACTRG_X'), 0)*1e-11, 
+                'Y': self._dev.base.getParameter(self._dev.base.getConst('ID_PIEZO_ACTRG_Y'), 0)*1e-11, 
+                'Z': self._dev.base.getParameter(self._dev.base.getConst('ID_REG_ZABS_LIMM'), 0)*1e-12}
+        return {i : ret_dict[i[0]] for i in axis_label_list}
 
     def get_sample_pos(self, axis_label_list=['X', 'Y', 'Z']):
         """ Get the sample scanner position. 
@@ -771,7 +810,7 @@ class SPM_ASC500(Base, ScannerInterface):
         sc_pos = {} # sample scanner pos
         sc_pos['X'], sc_pos['Y'], sc_pos['Z'] = self._dev.scanner.getPositionsXYZRel()
         
-        return sc_pos
+        return {i : sc_pos[i[0]] for i in axis_label_list}
 
 
     def get_sample_target_pos(self, axis_label_list=['X', 'Y', 'Z']):
@@ -787,8 +826,8 @@ class SPM_ASC500(Base, ScannerInterface):
                       output [0 .. AxisRange], though may fall outside this 
                       interval. Error: output <= -1000
         """
-        pos_dict = {'X': self._dev.base.getConst('ID_POSI_TARGET_X')*1e-11, 'Y':self._dev.base.getConst('ID_POSI_TARGET_Y')*1e-11}
-        return pos_dict
+        pos_dict = {'X': self._dev.base.getConst('ID_POSI_TARGET_X')*1e-11, 'Y':self._dev.base.getConst('ID_POSI_TARGET_Y')*1e-11, 'Z':0}
+        return {i : pos_dict[i[0]] for i in axis_label_list}
 
     def set_sample_pos_abs(self, axis_dict, move_time=0.1):
         """ Set the sample scanner position.
@@ -813,11 +852,21 @@ class SPM_ASC500(Base, ScannerInterface):
         
         @return float: the actual position set to the axis, or -1 if call failed.
         """
-        pos = [axis_dict['X'], axis_dict['Y'], 0]
-        self._dev.base.setParameter(self._dev.base.getConst('ID_POSI_TARGET_X'), axis_dict['X']*1e11, 0 )
-        self._dev.base.setParameter(self._dev.base.getConst('ID_POSI_TARGET_Y'), axis_dict['Y']*1e11, 0 ) 
+        scan_range = self.get_sample_scan_range(list(axis_dict.keys()))
+        for i in scan_range:
+            if axis_dict[i] > scan_range[i]:
+                self.log.warning(f'Sample scanner {i} to abs. position outside scan range: {axis_dict[i]*1e6:.3f} um')
+                return self.get_sample_pos(list(axis_dict.keys()))
+        
+        const_dict = {'X' : 'ID_POSI_TARGET_X', 'Y' : 'ID_POSI_TARGET_Y', 'Z' : 'ID_REG_SET_Z_M'}
+        
+        for i in axis_dict:
+            if i[0].upper() == 'Z':
+                axis_dict[i] *= 10 
+            self._dev.base.setParameter(self._dev.base.getConst(const_dict[i[0].upper()]), axis_dict[i]*1e11, 0 )
+        
         self._dev.base.setParameter(self._dev.base.getConst('ID_POSI_GOTO'), 1, 0)  
-        return self.get_sample_pos()
+        return self.get_sample_pos(list(axis_dict.keys()))
     
     def set_sample_pos_rel(self, axis_rel_dict, move_time=0.1):
         """ Set the sample scanner position, relative to current position.
@@ -845,12 +894,10 @@ class SPM_ASC500(Base, ScannerInterface):
         
         @return float: the actual position set to the axis, or -1 if call failed.
         """
-        curr_pos = self.get_sample_pos()
-        axis_dict = {'X': curr_pos['X']+axis_rel_dict['X'], 'Y': curr_pos['Y']+axis_rel_dict['Y']}
-        self._dev.scanner.setPositionsXYRel([axis_dict['X'], axis_dict['Y']])
-        return 0
-
-
+        curr_pos = self.get_sample_pos(list(axis_rel_dict.keys()))
+        for i in axis_rel_dict:
+            axis_rel_dict[i] += curr_pos[i]
+        return self.set_sample_pos_abs(axis_rel_dict)
 
     # Probe lifting functions
     # ========================
