@@ -49,6 +49,11 @@ class PulseStreamer(Base, PulserInterface):
     _pulsestreamer_ip = ConfigOption('pulsestreamer_ip', '192.168.1.100', missing='warn')
     _laser_channel = ConfigOption('laser_channel', 1, missing='warn')
     _uw_x_channel = ConfigOption('uw_x_channel', 3, missing='warn')
+
+    _pixel_start = ConfigOption('pixel_start', 1, missing='warn')
+    _pixel_stop = ConfigOption('pixel_stop', 2, missing='warn')
+    _sync_in = ConfigOption('sync_in', 3, missing='warn')
+
     _use_external_clock = ConfigOption('use_external_clock', False, missing='info')
     _external_clock_option = ConfigOption('external_clock_option', 0, missing='info')
     # 0: Internal (default), 1: External 125 MHz, 2: External 10 MHz
@@ -222,23 +227,29 @@ class PulseStreamer(Base, PulserInterface):
 
         return constraints
 
-    
-    def pulser_on(self):
+    def pulser_on(self, trigger=False,  n=-1, rearm=False, final=ps.OutputState([], 0, 0), laser=False):
         """ Switches the pulsing device on.
 
         @return int: error code (0:OK, -1:error)
         """
         if self._seq:
-            self.pulse_streamer.stream(self._seq)
+            if trigger:
+                self.pulse_streamer.setTrigger(start=ps.TriggerStart.HARDWARE_RISING)
+            else:
+                self.pulse_streamer.setTrigger(start=ps.TriggerStart.SOFTWARE)
+            if rearm:
+                self.pulse_streamer.setTrigger(start=ps.TriggerStart.HARDWARE_RISING, rearm=ps.TriggerRearm.MANUAL)
+            self.pulse_streamer.stream(self._seq, n_runs = n, final = final)
             self.pulse_streamer.startNow()
             self.__current_status = 1
             return 0
+        elif laser:
+            self.pulse_streamer.constant(ps.OutputState([self._laser_channel], 0, 0))
         else:
             self.log.error('no sequence/pulse pattern prepared for the pulse streamer')
             self.pulser_off()
             self.__current_status = -1
             return -1
-
     
     def pulser_off(self):
         """ Switches the pulsing device off.
@@ -770,3 +781,10 @@ class PulseStreamer(Base, PulserInterface):
         @return: bool, True for yes, False for no.
         """
         return False
+    
+    def load_swabian_sequence(self, seq):
+        self._seq = self.pulse_streamer.createSequence()
+        print(seq)
+        for key in seq.keys():
+            if seq[key]:
+                self._seq.setDigital(key, seq[key])

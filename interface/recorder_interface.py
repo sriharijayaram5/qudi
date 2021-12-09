@@ -24,7 +24,7 @@ import abc
 from enum import Enum, EnumMeta
 from collections import namedtuple
 from datetime import datetime
-from core.util.interfaces import InterfaceMetaclass
+from core.meta import InterfaceMetaclass
 
 
 class RecorderMode(EnumMeta):

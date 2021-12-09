@@ -23,7 +23,7 @@ top-level directory of this distribution and at <https://github.com/Ulm-IQO/qudi
 #from hardware.microwaveQ.microwaveq import MicrowaveQ    # for debugging only
 #from hardware.spm.spm_new import SmartSPM                # for debugging only
 from interface.scanner_interface import ScanStyle, ScannerMode
-# from hardware.microwaveQ.microwaveq import MicrowaveQMode
+from hardware.timetagger_counter import HWRecorderMode
 from core.module import Connector, StatusVar
 from core.configoption import ConfigOption
 from logic.generic_logic import GenericLogic
@@ -281,6 +281,7 @@ class AFMConfocalLogic(GenericLogic):
     counter_device = Connector(interface='SlowCounterInterface')
     counter_logic = Connector(interface='CounterLogic')
     fitlogic = Connector(interface='FitLogic')
+    pulser = Connector(interface='PulserInterface')
 
     # configuration parameters/options for the logic. In the config file you
     # have to specify the parameter, here: 'conf_1'
@@ -509,6 +510,7 @@ class AFMConfocalLogic(GenericLogic):
         #self._counter = MicrowaveQ()           # uncomment to get language server's help
         self._counterlogic = self.counter_logic()
         self._fitlogic = self.fitlogic()
+        self._pulser = self.pulser()
 
         self._qafm_scan_array = self.initialize_qafm_scan_array(0, 100e-6, 10, 
                                                                 0, 100e-6, 10)
@@ -539,7 +541,7 @@ class AFMConfocalLogic(GenericLogic):
         self._meas_path = os.path.abspath(self._meas_path)
 
         #FIXME: Introduce a state variable to prevent redundant configuration calls of the hardware.
-        # self._counter.configure_recorder(mode=MicrowaveQMode.PIXELCLOCK,
+        # self._counter.configure_recorder(mode=HWRecorderMode.PIXELCLOCK,
         #                                  params={'mw_frequency': 2.8e9, 
         #                                          'num_meas': 100})
 
@@ -1064,7 +1066,7 @@ class AFMConfocalLogic(GenericLogic):
 
         scan_speed_per_line = integration_time * coord0_num
 
-        scan_arr = self.create_scan_leftright(coord0_start, coord0_stop,
+        scan_arr = self.create_scan_leftright2(coord0_start, coord0_stop,
                                                coord1_start, coord1_stop,
                                                coord1_num)
 
@@ -1089,22 +1091,23 @@ class AFMConfocalLogic(GenericLogic):
         pulse_lengths = []
         freq_list = []
         freq1_pulse_time, freq2_pulse_time = integration_time, integration_time # default divisor times 
-
+        self._spm.set_ext_trigger(False)
         if 'counts' in meas_params:
             self._spm.set_ext_trigger(True)
             curr_scan_params.insert(0, 'counts')  # fluorescence of freq1 parameter
             spm_start_idx = 1 # start index of the temporary scan for the spm parameters
             
             if scan_mode == 'pixel':
-                ret_val_mq = self._counter.configure_recorder(mode=MicrowaveQMode.PIXELCLOCK, 
+                ret_val_mq = self._counter.configure_recorder(mode=HWRecorderMode.PIXELCLOCK, 
                                                               params={'mw_frequency': self._freq1_iso_b_frequency,
                                                                       'num_meas': coord0_num})
-
+                self._pulser.load_swabian_sequence(self._make_pulse_sequence(HWRecorderMode.PIXELCLOCK))
+                self._pulser.pulser_on(trigger=True, n=1)
                 self.log.info(f'Prepared pixelclock, val {ret_val_mq}')
 
             elif scan_mode == 'single iso-b':
                 ret_val_mq = self._counter.configure_recorder(
-                    mode=MicrowaveQMode.PIXELCLOCK_SINGLE_ISO_B,
+                    mode=HWRecorderMode.PIXELCLOCK_SINGLE_ISO_B,
                     params={'mw_frequency':self._freq1_iso_b_frequency,
                             'mw_power': self._iso_b_power, 
                             'num_meas': coord0_num })
@@ -1138,7 +1141,7 @@ class AFMConfocalLogic(GenericLogic):
                 freq1_pulse_time, freq2_pulse_time = pulse_lengths
 
                 ret_val_mq = self._counter.configure_recorder(
-                    mode=MicrowaveQMode.PIXELCLOCK_N_ISO_B,
+                    mode=HWRecorderMode.PIXELCLOCK_N_ISO_B,
                     params={'mw_frequency_list': freq_list,
                             'mw_pulse_lengths': pulse_lengths,
                             'mw_power': self._iso_b_power,
@@ -1433,14 +1436,14 @@ class AFMConfocalLogic(GenericLogic):
                 # pixel clock
                 if scan_mode == 'pixel':
                     self._counter.configure_recorder(
-                        mode=MicrowaveQMode.PIXELCLOCK, 
+                        mode=HWRecorderMode.PIXELCLOCK, 
                         params={'mw_frequency': self._freq1_iso_b_frequency,
                                 'num_meas': coord0_num})
 
                 # single iso-b
                 elif scan_mode == 'single iso-b':
                     self._counter.configure_recorder(
-                        mode=MicrowaveQMode.PIXELCLOCK_SINGLE_ISO_B,
+                        mode=HWRecorderMode.PIXELCLOCK_SINGLE_ISO_B,
                         params={'mw_frequency':self._freq1_iso_b_frequency,
                                 'mw_power': self._iso_b_power, 
                                 'num_meas': coord0_num })
@@ -1448,7 +1451,7 @@ class AFMConfocalLogic(GenericLogic):
                 # dual iso-b
                 elif scan_mode == 'dual iso-b':
                     self._counter.configure_recorder(
-                        mode=MicrowaveQMode.PIXELCLOCK_N_ISO_B,
+                        mode=HWRecorderMode.PIXELCLOCK_N_ISO_B,
                         params={'mw_frequency_list': freq_list,
                                 'mw_pulse_lengths': pulse_lengths,
                                 'mw_power': self._iso_b_power,
@@ -1669,7 +1672,7 @@ class AFMConfocalLogic(GenericLogic):
         freq_list = np.linspace(freq_start, freq_stop, freq_points, endpoint=True)
 
         ret_val = self._counter.configure_recorder(
-            mode=MicrowaveQMode.ESR,
+            mode=HWRecorderMode.ESR,
             params={'mw_frequency_list': freq_list,
                     'mw_power': mw_power,
                     'count_frequency': esr_count_freq,
@@ -1905,7 +1908,7 @@ class AFMConfocalLogic(GenericLogic):
                 time.sleep(2)
 
                 self._counter.stop_measurement()
-                self._counter.configure_recorder(mode=MicrowaveQMode.PIXELCLOCK,
+                self._counter.configure_recorder(mode=HWRecorderMode.PIXELCLOCK,
                                                  params={'mw_frequency': np.mean(freq_list),
                                                          'num_meas': coord0_num})
 
@@ -1918,7 +1921,7 @@ class AFMConfocalLogic(GenericLogic):
                                                       scan_style=ScanStyle.LINE) 
  
                 self._counter.configure_recorder(
-                    mode=MicrowaveQMode.ESR,
+                    mode=HWRecorderMode.ESR,
                     params={'mw_frequency_list': freq_list,
                             'mw_power': mw_power,
                             'count_frequency': esr_count_freq,
@@ -2067,7 +2070,7 @@ class AFMConfocalLogic(GenericLogic):
         freq_list = np.linspace(freq_start, freq_stop, freq_points, endpoint=True)
         
         ret_val = self._counter.configure_recorder(
-            mode=MicrowaveQMode.ESR,
+            mode=HWRecorderMode.ESR,
             params={'mw_frequency_list': freq_list,
                     'mw_power': mw_power,
                     'count_frequency': esr_count_freq,
@@ -2301,7 +2304,7 @@ class AFMConfocalLogic(GenericLogic):
                 self.sigHealthCheckStartSkip.emit()
                 time.sleep(2)
 
-                self._counter.configure_recorder(mode=MicrowaveQMode.PIXELCLOCK,
+                self._counter.configure_recorder(mode=HWRecorderMode.PIXELCLOCK,
                                                  params={'mw_frequency': self._freq1_iso_b_frequency,
                                                          'num_meas': coord0_num})
                 self._spm.finish_scan()
@@ -2315,7 +2318,7 @@ class AFMConfocalLogic(GenericLogic):
                                                       scan_style=ScanStyle.LINE) 
 
                 self._counter.configure_recorder(
-                    mode=MicrowaveQMode.ESR,
+                    mode=HWRecorderMode.ESR,
                     params={'mw_frequency_list': freq_list,
                             'mw_power': mw_power,
                             'count_frequency': esr_count_freq,
@@ -2465,7 +2468,7 @@ class AFMConfocalLogic(GenericLogic):
         time_idle_move = self._sg_idle_move_scan_obj
 
         mode, _ = self._counter.get_current_device_mode()
-        ret_val = self._counter.configure_recorder(mode=MicrowaveQMode.PIXELCLOCK,
+        ret_val = self._counter.configure_recorder(mode=HWRecorderMode.PIXELCLOCK,
                                                    params={'mw_frequency': self._freq1_iso_b_frequency,
                                                            'num_meas': coord0_num})
 
@@ -2684,7 +2687,7 @@ class AFMConfocalLogic(GenericLogic):
                              # moving without measuring
 
         ret_val = self._counter.configure_recorder(
-            mode=MicrowaveQMode.PIXELCLOCK, 
+            mode=HWRecorderMode.PIXELCLOCK, 
             params={'mw_frequency': self._freq1_iso_b_frequency,
                     'num_meas': coord0_num})
 
@@ -2826,7 +2829,7 @@ class AFMConfocalLogic(GenericLogic):
                              # moving without measuring
 
         ret_val = self._counter.configure_recorder(
-            mode=MicrowaveQMode.PIXELCLOCK, 
+            mode=HWRecorderMode.PIXELCLOCK, 
             params={'mw_frequency': self._freq1_iso_b_frequency,
                     'num_meas': res})
 
@@ -3372,6 +3375,20 @@ class AFMConfocalLogic(GenericLogic):
         self.sigQuantiScanFinished.emit()
         self.log.debug("Immediate stop request completed")
 
+# ==============================================================================
+#        Pulser configuration
+# ==============================================================================
+    def _make_pulse_sequence(self, mode):
+        pulse_dict = {0:[], 1:[], 2:[], 3:[], 4:[], 5:[], 6:[], 7:[]}
+
+        if mode == HWRecorderMode.PIXELCLOCK:
+            patt = [(1e-3/1e-9,1), (9e-3/1e-9,0), (1e-3/1e-9,0), (1e-3/1e-9,0)]
+            pulse_dict[self._pulser._pixel_start].extend(patt)
+
+            patt = [(1e-3/1e-9,0), (9e-3/1e-9,0), (1e-3/1e-9,1), (1e-3/1e-9,0)]
+            pulse_dict[self._pulser._pixel_stop].extend(patt)
+        
+        return pulse_dict
 
 # ==============================================================================
 #        Higher level optimization routines for objective scanner

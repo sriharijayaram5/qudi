@@ -23,6 +23,8 @@ top-level directory of this distribution and at <https://github.com/Ulm-IQO/qudi
 import TimeTagger as tt
 import time
 import numpy as np
+from collections import namedtuple
+from enum import Enum
 
 from core.module import Base
 from core.configoption import ConfigOption
@@ -32,7 +34,7 @@ from interface.slow_counter_interface import CountingMode
 
 from interface.recorder_interface import RecorderInterface, RecorderConstraints, RecorderState, RecorderMode
 
-class TimeTaggerMode(RecorderMode):
+class HWRecorderMode(RecorderMode):
     # starting methods
     UNCONFIGURED             = 0
     DUMMY                    = 1
@@ -89,6 +91,9 @@ class TimeTaggerCounter(Base, SlowCounterInterface, RecorderInterface):
     _channel_apd_0 = ConfigOption('timetagger_channel_apd_0', missing='error')
     _channel_apd_1 = ConfigOption('timetagger_channel_apd_1', None, missing='warn')
     _sum_channels = ConfigOption('timetagger_sum_channels', False)
+    _pixelclock_begin_chn = ConfigOption('pixelclock_begin_chn', 2, missing='error')
+    _pixelclock_click_chn = ConfigOption('pixelclock_click_chn', 1, missing='error')
+    _pixelclock_end_chn = ConfigOption('pixelclock_end_chn', 3, missing='error')
     _recorder_constraints = RecorderConstraints()
 
     def on_activate(self):
@@ -97,8 +102,9 @@ class TimeTaggerCounter(Base, SlowCounterInterface, RecorderInterface):
         self._tagger = tt.createTimeTagger()
         self._count_frequency = 50  # Hz
 
-        self._curr_mode = TimeTaggerMode.UNCONFIGURED
+        self._curr_mode = HWRecorderMode.UNCONFIGURED
         self._curr_state = RecorderState.UNLOCKED
+        self._create_recorder_constraints()
 
         if self._sum_channels and self._channel_apd_1 is None:
             self.log.error('Cannot sum channels when only one apd channel given')
@@ -111,6 +117,7 @@ class TimeTaggerCounter(Base, SlowCounterInterface, RecorderInterface):
             self._mode = 1
         elif self._channel_apd_1 is None:
             self._mode = 0
+            self._channel_apd = self._channel_apd_0
         else:
             self._mode = 2
 
@@ -190,15 +197,15 @@ class TimeTaggerCounter(Base, SlowCounterInterface, RecorderInterface):
                 n_values=1
             )
         
-        self._curr_mode = TimeTaggerMode.COUNTER
-        self._curr_state = RecorderState.IDLE
+        self._curr_mode = HWRecorderMode.COUNTER
+        self._curr_state = RecorderState.ARMED
 
         self.log.info('set up counter with {0}'.format(self._count_frequency))
         return 0
 
     def get_counter_channels(self):
         if self._mode < 2:
-            return self._channel_apd
+            return [self._channel_apd]
         else:
             return [self._channel_apd_0, self._channel_apd_1]
 
@@ -259,68 +266,67 @@ class TimeTaggerCounter(Base, SlowCounterInterface, RecorderInterface):
 
         rc.recorder_mode_params = {}
 
-        rc.recorder_modes = [TimeTaggerMode.UNCONFIGURED]
+        rc.recorder_modes = [HWRecorderMode.UNCONFIGURED]
 
-        rc.recorder_mode_states[TimeTaggerMode.UNCONFIGURED] = [RecorderState.LOCKED, RecorderState.UNLOCKED]
+        rc.recorder_mode_states[HWRecorderMode.UNCONFIGURED] = [RecorderState.LOCKED, RecorderState.UNLOCKED]
 
-        rc.recorder_mode_params[TimeTaggerMode.UNCONFIGURED] = {}
+        rc.recorder_mode_params[HWRecorderMode.UNCONFIGURED] = {}
 
-        rc.recorder_mode_measurements = {TimeTaggerMode.UNCONFIGURED: TimeTaggerMeasurementMode.DUMMY}
+        rc.recorder_mode_measurements = {HWRecorderMode.UNCONFIGURED: TimeTaggerMeasurementMode.DUMMY}
 
         # feature set 1 = 'Counting'
-        rc.recorder_modes.append(TimeTaggerMode.COUNTER)
+        rc.recorder_modes.append(HWRecorderMode.COUNTER)
 
         # configure possible states in a mode
-        rc.recorder_mode_states[TimeTaggerMode.COUNTER] = [RecorderState.IDLE, RecorderState.BUSY]
+        rc.recorder_mode_states[HWRecorderMode.COUNTER] = [RecorderState.IDLE, RecorderState.BUSY]
 
         # configure required paramaters for a mode
-        rc.recorder_mode_params[TimeTaggerMode.COUNTER] = {'count_frequency': 100}
+        rc.recorder_mode_params[HWRecorderMode.COUNTER] = {'count_frequency': 100}
 
         # configure default parameter for mode
-        rc.recorder_mode_params_defaults[TimeTaggerMode.COUNTER] = {}  # no defaults
+        rc.recorder_mode_params_defaults[HWRecorderMode.COUNTER] = {}  # no defaults
 
         # configure required measurement method
-        rc.recorder_mode_measurements[TimeTaggerMode.COUNTER] = TimeTaggerMeasurementMode.COUNTER
+        rc.recorder_mode_measurements[HWRecorderMode.COUNTER] = TimeTaggerMeasurementMode.COUNTER
 
         # feature set 2 = 'Continuous ESR'
-        rc.recorder_modes.append(TimeTaggerMode.ESR)
+        rc.recorder_modes.append(HWRecorderMode.ESR)
         
         # configure possible states in a mode
-        rc.recorder_mode_states[TimeTaggerMode.ESR] = [RecorderState.IDLE, RecorderState.BUSY]
+        rc.recorder_mode_states[HWRecorderMode.ESR] = [RecorderState.IDLE, RecorderState.BUSY]
 
         # configure required paramaters for a mode
-        rc.recorder_mode_params[TimeTaggerMode.ESR] = {'mw_frequency_list': [],
+        rc.recorder_mode_params[HWRecorderMode.ESR] = {'mw_frequency_list': [],
                                                         'mw_power': -30,
                                                         'count_frequency': 100,
                                                         'num_meas': 100}
 
         # configure defaults for mode
-        rc.recorder_mode_params_defaults[TimeTaggerMode.ESR] = {}     # no defaults
+        rc.recorder_mode_params_defaults[HWRecorderMode.ESR] = {}     # no defaults
 
         # configure measurement method
-        rc.recorder_mode_measurements[TimeTaggerMode.ESR] = TimeTaggerMeasurementMode.ESR
+        rc.recorder_mode_measurements[HWRecorderMode.ESR] = TimeTaggerMeasurementMode.ESR
 
         # feature set 16 = 'Pixel Clock'
-        rc.recorder_modes.append(TimeTaggerMode.PIXELCLOCK)
-        rc.recorder_modes.append(TimeTaggerMode.PIXELCLOCK_SINGLE_ISO_B)
+        rc.recorder_modes.append(HWRecorderMode.PIXELCLOCK)
+        rc.recorder_modes.append(HWRecorderMode.PIXELCLOCK_SINGLE_ISO_B)
         
         # configure possible states in a mode
-        rc.recorder_mode_states[TimeTaggerMode.PIXELCLOCK] = [RecorderState.IDLE, RecorderState.ARMED, RecorderState.BUSY]
-        rc.recorder_mode_states[TimeTaggerMode.PIXELCLOCK_SINGLE_ISO_B] = [RecorderState.IDLE, RecorderState.ARMED, RecorderState.BUSY]
+        rc.recorder_mode_states[HWRecorderMode.PIXELCLOCK] = [RecorderState.IDLE, RecorderState.ARMED, RecorderState.BUSY]
+        rc.recorder_mode_states[HWRecorderMode.PIXELCLOCK_SINGLE_ISO_B] = [RecorderState.IDLE, RecorderState.ARMED, RecorderState.BUSY]
 
         # configure required paramaters for a mode
-        rc.recorder_mode_params[TimeTaggerMode.PIXELCLOCK] = {'mw_frequency': 2.8e9,
-                                                            'num_meas': 100}
-        rc.recorder_mode_params[TimeTaggerMode.PIXELCLOCK_SINGLE_ISO_B] = {'mw_frequency': 2.8e9,
+        rc.recorder_mode_params[HWRecorderMode.PIXELCLOCK] = {}
+        rc.recorder_mode_params[HWRecorderMode.PIXELCLOCK_SINGLE_ISO_B] = {'mw_frequency': 2.8e9,
                                                                             'mw_power': -30,
                                                                             'num_meas': 100}
 
         # configure defaults for mode
-        rc.recorder_mode_params_defaults[TimeTaggerMode.PIXELCLOCK] = {}               # no defaults
-        rc.recorder_mode_params_defaults[TimeTaggerMode.PIXELCLOCK_SINGLE_ISO_B] = {}  # no defaults
+        rc.recorder_mode_params_defaults[HWRecorderMode.PIXELCLOCK] = {}               # no defaults
+        rc.recorder_mode_params_defaults[HWRecorderMode.PIXELCLOCK_SINGLE_ISO_B] = {}  # no defaults
 
-        rc.recorder_mode_measurements[TimeTaggerMode.PIXELCLOCK] = TimeTaggerMeasurementMode.PIXELCLOCK
-        rc.recorder_mode_measurements[TimeTaggerMode.PIXELCLOCK_SINGLE_ISO_B] = TimeTaggerMeasurementMode.PIXELCLOCK
+        rc.recorder_mode_measurements[HWRecorderMode.PIXELCLOCK] = TimeTaggerMeasurementMode.PIXELCLOCK
+        rc.recorder_mode_measurements[HWRecorderMode.PIXELCLOCK_SINGLE_ISO_B] = TimeTaggerMeasurementMode.PIXELCLOCK
 
     def get_recorder_constraints(self):
         """ Retrieve the hardware constrains from the recorder device.
@@ -332,8 +338,8 @@ class TimeTaggerCounter(Base, SlowCounterInterface, RecorderInterface):
     def configure_recorder(self, mode, params):
         """ Configures the recorder mode for current measurement. 
 
-        @param MicrowaveQMode mode: mode of recorder, as available from 
-                                  MicrowaveQMode types
+        @param HWRecorderMode mode: mode of recorder, as available from 
+                                  HWRecorderMode types
         @param dict params: specific settings as required for the given 
                             measurement mode 
 
@@ -341,11 +347,12 @@ class TimeTaggerCounter(Base, SlowCounterInterface, RecorderInterface):
         """
         dev_state = self._curr_state
         curr_mode = self._curr_mode
+        self._curr_meas_params = params
 
         if (dev_state == RecorderState.BUSY): 
             # on the fly configuration (in BUSY state) is only allowed in CW_MW mode.
             self.log.error(f'TimeTagger cannot be configured in the '
-                           f'requested mode "{TimeTaggerMode.name(mode)}", since the device '
+                           f'requested mode "{HWRecorderMode.name(mode)}", since the device '
                            f'state is in "{dev_state}". Stop ongoing '
                            f'measurements and make sure that the device is '
                            f'connected to be able to configure if '
@@ -357,7 +364,7 @@ class TimeTaggerCounter(Base, SlowCounterInterface, RecorderInterface):
         limits = self.get_recorder_constraints()
 
         if mode not in limits.recorder_modes:
-            self.log.error(f'Requested mode "{TimeTaggerMode.name(mode)}" not available.')
+            self.log.error(f'Requested mode "{HWRecorderMode.name(mode)}" not available.')
             return -1
 
         ret_val = 0
@@ -367,34 +374,255 @@ class TimeTaggerCounter(Base, SlowCounterInterface, RecorderInterface):
 
         # after all the checks are successful, delegate the call to the 
         # appropriate preparation function.
-        if mode == TimeTaggerMode.UNCONFIGURED:
+        if mode == HWRecorderMode.UNCONFIGURED:
             # not sure whether it makes sense to configure the device 
             # deliberately in an unconfigured state, it sounds like a 
             # contradiction in terms, but it might be important if device is reset
             pass
 
-        elif mode == TimeTaggerMode.PIXELCLOCK:
-            ret_val = self._prepare_pixelclock(freq=params['mw_frequency'])
+        elif mode == HWRecorderMode.PIXELCLOCK:
+            ret_val = self._prepare_pixelclock(pixelclock_begin_chn=self._pixelclock_begin_chn,
+                                                pixelclock_click_chn=self._pixelclock_click_chn,
+                                                pixelclock_end_chn=self._pixelclock_end_chn,
+                                                num_meas=params['num_meas'])
 
-        elif mode == TimeTaggerMode.PIXELCLOCK_SINGLE_ISO_B:
+        elif mode == HWRecorderMode.PIXELCLOCK_SINGLE_ISO_B:
             #TODO: make proper conversion of power to mw gain
             ret_val = self._prepare_pixelclock_single_iso_b(freq=params['mw_frequency'], 
                                                            power=params['mw_power'])
 
-        elif mode == TimeTaggerMode.COUNTER:
+        elif mode == HWRecorderMode.COUNTER:
             ret_val = self._prepare_counter(counting_window=1/params['count_frequency'])
 
-        elif mode == MicrowaveQMode.ESR:
+        elif mode == HWRecorderMode.ESR:
             ret_val = self._prepare_cw_esr(freq_list=params['mw_frequency_list'], 
                                           count_freq=params['count_frequency'],
                                           power=params['mw_power'])
 
         if ret_val == -1:
-            self._curr_mode = TimeTaggerMode.UNCONFIGURED
+            self._curr_mode = HWRecorderMode.UNCONFIGURED
         else:
             self._curr_mode = mode
             self._curr_state = RecorderState.IDLE
 
         return ret_val
-
     
+    def _prepare_pixelclock(self, pixelclock_begin_chn, pixelclock_click_chn, pixelclock_end_chn, num_meas):
+        self.cbm_counter = tt.CountBetweenMarkers(
+                    self._tagger,
+                    click_channel=self._pixelclock_click_chn,
+                    begin_channel=self._pixelclock_begin_chn,
+                    end_channel=self._pixelclock_end_chn,
+                    n_values=num_meas
+                )
+        self.recorder = self.cbm_counter
+        return 0
+
+    def start_recorder(self, arm=False):
+        """ Start recorder 
+        start recorder with mode as configured 
+        If pixel clock based methods, will begin on first trigger
+        If not first configured, will cause an error
+        
+        @param bool: arm: specifies armed state with regard to pixel clock trigger
+        
+        @return bool: success of command
+        """
+        mode, params = self._curr_mode, self._curr_meas_params
+        self._curr_mode_params = params
+        state = self._curr_state
+        meas_type = self._recorder_constraints.recorder_mode_measurements[self._curr_mode]
+        
+        if state == RecorderState.LOCKED:
+            self.log.warning('TT has not been unlocked.')
+            return False 
+
+        elif mode == HWRecorderMode.UNCONFIGURED:
+            self.log.warning('TT has not been configured.')
+            return  False
+
+        elif (state != RecorderState.IDLE) and (state != RecorderState.IDLE_UNACK):
+            self.log.warning('TimeTagger is not in Idle mode to start the measurement.')
+            return False 
+
+        num_meas = params['num_meas']
+
+        if arm and meas_type.movement  != 'line':
+            self.log.warning('TimeTagger: attempt to set ARMED state for a continuous measurement mode')
+            return False 
+        
+        # data format
+        # Pixel clock (line methods)
+        if meas_type.movement == 'line':
+            if mode == HWRecorderMode.PIXELCLOCK:
+                self._total_pulses = num_meas 
+                self._counted_pulses = 0
+
+                self._curr_frame = []
+                self._meas_res = np.zeros((num_meas))
+                
+                self.recorder.clear()
+
+                self._curr_state = RecorderState.ARMED
+
+        # Esr, Pulsed (point methods)
+        elif meas_type.movement == 'point':
+            if mode == HWRecorderMode.ESR:
+                self._meas_esr_res = np.zeros((num_meas, len(self._meas_esr_line)))
+                self._esr_counter = 0
+                self._current_esr_meas = []
+
+            elif mode == HWRecorderMode.GENERAL_PULSED:
+                #self._meas_pulsed_res = None    # method for indeterminate size arrays
+
+                self._meas_pulsed_res = np.zeros((num_meas, self._meas_length_pulse + 1),  #include frame_num
+                                                  dtype='<i4')
+                self._total_pulses = num_meas 
+
+                self._dev.ctrl.measurementLength.set(self._meas_length_pulse - 1)
+                self._pulsed_counter = 0
+                self._current_pulsed_meas = []
+
+            else:
+                self.log.error('TimeTagger configuration error; inconsistent modality')
+
+            self._mq_state.set_state(RecorderState.BUSY)
+
+        else:
+            self.log.error(f'TimeTagger: method {mode}, movement_type={meas_type.movement}'
+                            ' not implemented yet')
+            return False 
+
+        self.skip_data = False
+
+        # Pulsed method
+        if mode == HWRecorderMode.GENERAL_PULSED:
+            # General pulsed mode operates through ddr4 controller
+            # number of measurments set in configure_recorder method
+            self._dev.ddr4Ctrl.loadSeq() # loading sequence through DMA read to fpga
+            self._dev.ctrl.startGenPulseMode() # starting general pulsed mode
+
+        else:
+            # all other methods
+            self.recorder.start()
+            self.is_meeasurement_running = True
+
+        return True 
+
+    def get_measurements(self, meas_keys=None):
+        """ get measurements
+        returns the measurement array in integer format, (blocking, changes state)
+
+        @param (list): meas_keys:  list of measurement keys to be returned;
+                                   keys which do not exist in measurment object are returned as None;
+                                   If None is passed, only 'counts' is returned 
+
+        @return int_array: array of measurement as tuple elements, format depends upon 
+                           current mode setting
+        """
+        ret_list = [None, None, None, None]
+
+        if self._curr_mode == HWRecorderMode.PIXELCLOCK:
+            self.recorder.waitUntilFinished()
+            # ['counts', 'int_time', 'counts2', 'counts_diff']
+            data = self.recorder.getData()
+            ret_list[0] = data
+
+            data = self.recorder.getBinWidths()
+            ret_list[1] = data
+
+        # released
+        self._curr_state = RecorderState.IDLE
+
+        return ret_list
+    
+    def get_available_measurements(self, meas_keys=None):
+        ret_list = []
+
+        if self._curr_mode == HWRecorderMode.PIXELCLOCK:
+            # ['counts', 'int_time', 'counts2', 'counts_diff']
+            data = self.recorder.getData()
+            ret_list.append(data)
+
+            data = self.recorder.getBinWidths()
+            ret_list.append(data)
+
+            ret_list.append(None)
+            ret_list.append(None)
+    
+    def get_current_device_mode(self):
+        """ Get the current device mode with its configuration parameters
+
+        @return: (mode, params)
+                HWRecorderMode.mode mode: the current recorder mode 
+                dict params: the current configuration parameter
+        """
+        return self._curr_mode, self._curr_mode_params
+    
+    def get_current_device_state(self):
+        """  get_current_device_state
+        returns the current device state
+
+        @return RecorderState.state
+        """
+        return self._curr_state
+    
+    def get_measurement_methods(self):
+        """ gets the possible measurement methods
+        """
+        return None
+    
+    def get_parameters_for_modes(self, mode=None):
+        """ Returns the required parameters for the modes
+
+        @param HWRecorderMode mode: specifies the mode for sought parameters
+                                  If mode=None, all modes with their parameters 
+                                  are returned. Otherwise specific mode 
+                                  parameters are returned  
+
+        @return dict: containing as keys the HWRecorderMode.mode and as values a
+                      dictionary with all parameters associated to the mode.
+                      
+                      Example return with mode=HWRecorderMode.CW_MW:
+                            {HWRecorderMode.CW_MW: {'countwindow': 10,
+                                                  'mw_power': -30}}  
+        """
+
+        #TODO: think about to remove this interface method and put the content 
+        #      of this method into self.get_recorder_limits() 
+
+        # note, this output should coincide with the recorder_modes from 
+        # get_recorder_constraints()
+        
+        rc = self.get_recorder_constraints()
+
+        if mode not in rc.recorder_modes:
+            self.log.warning(f'Requested mode "{mode}" is not in the available '
+                             f'modes of the ProteusQ. Request skipped.')
+            return {}
+
+        if mode is None:
+            return rc.recorder_mode_params
+        else:
+            return {mode: rc.recorder_mode_params[mode]}
+        
+    def stop_measurement(self):
+        self.recorder.stop()
+        self.is_meeasurement_running = False
+    
+    def get_current_measurement_method_name(self):
+        """ gets the name of the measurment method currently in use
+        
+        @return string
+        """
+        curr_mm = self.get_current_measurement_method()
+        return curr_mm.name
+    
+    def get_current_measurement_method(self):
+        """ get the current measurement method
+        (Note: the measurment method cannot be set directly, it is an aspect of the measurement mode)
+
+        @return MicrowaveQMeasurementMode
+        """
+        rc = self._recorder_constraints
+        return rc.recorder_mode_measurements[self._curr_mode]

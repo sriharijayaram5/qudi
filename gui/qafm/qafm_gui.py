@@ -2037,6 +2037,7 @@ class ProteusQGUI(GUIBase):
         res_y = self._mw.afm_y_num_SpinBox.value()
 
         meas_params = ['counts']
+        # meas_params = []
 
         # add dual ISO-B mode parameter if necessary
         if self._qafm_logic._sg_iso_b_operation \

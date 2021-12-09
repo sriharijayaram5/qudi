@@ -1072,7 +1072,7 @@
   <action name="actionStart_QAFM_Scan">
    <property name="icon">
     <iconset>
-     <normaloff>../artwork/icons/66/scan-xy-afm-start.png</normaloff>../artwork/icons/66/scan-xy-afm-start.png</iconset>
+     <normaloff>../../artwork/icons/66/scan-xy-afm-start.png</normaloff>../../artwork/icons/66/scan-xy-afm-start.png</iconset>
    </property>
    <property name="text">
     <string>Start QAFM Scan</string>
@@ -1084,7 +1084,7 @@
   <action name="actionStop_Scan">
    <property name="icon">
     <iconset>
-     <normaloff>../artwork/icons/66/scan-stop.png</normaloff>../artwork/icons/66/scan-stop.png</iconset>
+     <normaloff>../../artwork/icons/66/scan-stop.png</normaloff>../../artwork/icons/66/scan-stop.png</iconset>
    </property>
    <property name="text">
     <string>Stop Scan</string>
@@ -1106,7 +1106,7 @@
   <action name="actionStart_Obj_XY_scan">
    <property name="icon">
     <iconset>
-     <normaloff>../artwork/icons/66/scan-xy-start.png</normaloff>../artwork/icons/66/scan-xy-start.png</iconset>
+     <normaloff>../../artwork/icons/66/scan-xy-start.png</normaloff>../../artwork/icons/66/scan-xy-start.png</iconset>
    </property>
    <property name="text">
     <string>Start_Obj_XY_scan</string>
@@ -1118,7 +1118,7 @@
   <action name="actionStart_Obj_XZ_scan">
    <property name="icon">
     <iconset>
-     <normaloff>../artwork/icons/66/scan-xz-start.png</normaloff>../artwork/icons/66/scan-xz-start.png</iconset>
+     <normaloff>../../artwork/icons/66/scan-xz-start.png</normaloff>../../artwork/icons/66/scan-xz-start.png</iconset>
    </property>
    <property name="text">
     <string>Start_Obj_XZ_scan</string>
@@ -1130,7 +1130,7 @@
   <action name="actionStart_Obj_YZ_scan">
    <property name="icon">
     <iconset>
-     <normaloff>../artwork/icons/66/scan-yz-start.png</normaloff>../artwork/icons/66/scan-yz-start.png</iconset>
+     <normaloff>../../artwork/icons/66/scan-yz-start.png</normaloff>../../artwork/icons/66/scan-yz-start.png</iconset>
    </property>
    <property name="text">
     <string>Start_Obj_YZ_scan</string>
@@ -1142,7 +1142,7 @@
   <action name="actionGo_To_AFM_pos">
    <property name="icon">
     <iconset>
-     <normaloff>../artwork/icons/66/goto_afm.png</normaloff>../artwork/icons/66/goto_afm.png</iconset>
+     <normaloff>../../artwork/icons/66/goto_afm.png</normaloff>../../artwork/icons/66/goto_afm.png</iconset>
    </property>
    <property name="text">
     <string>Go To AFM pos</string>
@@ -1154,7 +1154,7 @@
   <action name="actionGo_To_Obj_pos">
    <property name="icon">
     <iconset>
-     <normaloff>../artwork/icons/66/goto_obj_pos.png</normaloff>../artwork/icons/66/goto_obj_pos.png</iconset>
+     <normaloff>../../artwork/icons/66/goto_obj_pos.png</normaloff>../../artwork/icons/66/goto_obj_pos.png</iconset>
    </property>
    <property name="text">
     <string>Go To Obj pos</string>
@@ -1169,7 +1169,7 @@
    </property>
    <property name="icon">
     <iconset>
-     <normaloff>../artwork/icons/66/optimize-position.png</normaloff>../artwork/icons/66/optimize-position.png</iconset>
+     <normaloff>../../artwork/icons/66/optimize-position.png</normaloff>../../artwork/icons/66/optimize-position.png</iconset>
    </property>
    <property name="text">
     <string>Optimize Pos</string>
@@ -1197,7 +1197,7 @@
   <action name="actionSaveObjData">
    <property name="icon">
     <iconset>
-     <normaloff>../artwork/icons/66/save_objective.png</normaloff>../artwork/icons/66/save_objective.png</iconset>
+     <normaloff>../../artwork/icons/66/save_objective.png</normaloff>../../artwork/icons/66/save_objective.png</iconset>
    </property>
    <property name="text">
     <string>SaveObjData</string>
@@ -1212,7 +1212,7 @@
    </property>
    <property name="icon">
     <iconset>
-     <normaloff>../artwork/icons/66/save_opti.png</normaloff>../artwork/icons/66/save_opti.png</iconset>
+     <normaloff>../../artwork/icons/66/save_opti.png</normaloff>../../artwork/icons/66/save_opti.png</iconset>
    </property>
    <property name="text">
     <string>SaveOptiData</string>
@@ -1224,7 +1224,7 @@
   <action name="actionSaveDataQAFM">
    <property name="icon">
     <iconset>
-     <normaloff>../artwork/icons/66/save_afm_red.png</normaloff>../artwork/icons/66/save_afm_red.png</iconset>
+     <normaloff>../../artwork/icons/66/save_afm_red.png</normaloff>../../artwork/icons/66/save_afm_red.png</iconset>
    </property>
    <property name="text">
     <string>SaveDataQAFM</string>
