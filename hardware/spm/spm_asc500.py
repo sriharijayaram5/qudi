@@ -164,10 +164,10 @@ class SPM_ASC500(Base, ScannerInterface):
         sm = self._SCANNER_MEASUREMENTS 
 
         sm.scanner_measurements = { 
-            'Height(Dac)' : {'measured_units' : '10*pm',
-                             'scale_fac': 1e-11,    # multiplication factor to obtain SI units   
+            'Height(Dac)' : {'measured_units' : 'm',
+                             'scale_fac': 1,    # multiplication factor to obtain SI units   
                              'si_units': 'm', 
-                             'nice_name': 'Height (from DAC)'}
+                             'nice_name': 'Height'}
 
             # 'Mag' :         {'measured_units' : '350*uv', 
             #                  'scale_fac': 1/(1/305.2*1e6),    
@@ -355,7 +355,7 @@ class SPM_ASC500(Base, ScannerInterface):
             # For internal "line_style" scan definitions, the additional trigger signal 
             # is activated
             self._spm_curr_state =  ScannerState.IDLE
-            self._chn_no = 1
+            self._chn_no = 8
 
         else:
             self.log.error(f'Error configure_scanner(): mode = "{ScannerMode.name(mode)}"'
@@ -455,19 +455,18 @@ class SPM_ASC500(Base, ScannerInterface):
 
         self._coords = [[line_corr0_start,line_corr1_start],[line_corr0_stop,line_corr1_stop],[line_corr0_start,line_corr1_start],[line_corr0_stop,line_corr1_stop]]
         
-        # self._dev.scanner.setRelativeOrigin([9e-6,11e-6])
         self._dev.scanner.setNumberOfColumns(1)
         self._dev.scanner.setNumberOfLines(1)
-        self._dev.scanner.setRelativeOrigin([line_corr0_stop,line_corr1_stop])
-
+        self.end_coords = [line_corr0_stop,line_corr1_stop]
+        
         for index, val in enumerate(self._coords):
             self._dev.base.setParameter(self._dev.base.getConst('ID_PATH_GUI_X'), int(val[0]/10e-12), index)  # start point is current position
             self._dev.base.setParameter(self._dev.base.getConst('ID_PATH_GUI_Y'), int(val[1]/10e-12), index)  # start point is current position
 
         # define number path actions at a point ('ID_PATH_ACTION'), no. of actions, 0 
         self._dev.base.setParameter(self._dev.base.getConst('ID_PATH_ACTION'), 2 if self._trig else 1, 0)
-        # define which actions specifically ('ID_PATH_ACTION'), 0=manual handshake, 1=as the first action if no. of actions>=1
-        self._dev.base.setParameter(self._dev.base.getConst('ID_PATH_ACTION'), 0, 1)
+        # define which actions specifically ('ID_PATH_ACTION'), 0=manual handshake/2=Spec 1 dummy engine, 1=as the first action if no. of actions>=1 
+        self._dev.base.setParameter(self._dev.base.getConst('ID_PATH_ACTION'), 2, 1)
         self._dev.base.setParameter(self._dev.base.getConst('ID_PATH_ACTION'), 4, 2)
     
     def _create_objective_line(self, xOffset, yOffset, pxSize, columns):
@@ -492,7 +491,13 @@ class SPM_ASC500(Base, ScannerInterface):
             return 0
 
         if self._spm_curr_mode == ScannerMode.PROBE_CONTACT:
+            while True:
+                if self._dev.base.getParameter(self._dev.base.getConst('ID_PATH_RUNNING'), 0)==1 or self._dev.base.getParameter(self._dev.base.getConst('ID_SCAN_STATUS'), 0)==2:
+                    pass
+                else:
+                    break
             self._dev.base.setParameter(self._dev.base.getConst('ID_SPEC_PATHCTRL'), -1, 0 ) # -1 is grid mode
+            self._dev.scanner.setRelativeOrigin(self.end_coords) # set after path or it will attempt going to origin for some reason
             self._spm_curr_state =  ScannerState.PROBE_SCANNING
             self._poll_path_data()
 
@@ -533,31 +538,45 @@ class SPM_ASC500(Base, ScannerInterface):
     
     def _configurePathDataBuffering(self, sampTime):
 
+        self.spec_engine_dummy = 1
+        self.spec_count = 469 # this value works because it is not changed after spec engine starts - necessary for correct buffer size
+        
         self._dev.base.configureChannel(self._chn_no, # any Number between 0 and 13.
-                                self._dev.base.getConst('CHANCONN_PERMANENT'), # How you want to the data to be triggered - CHANCONN_PERMANENT is time triggered data
+                                self._dev.base.getConst('CHANCONN_SPEC_1'), # How you want to the data to be triggered - CHANCONN_PERMANENT is time triggered data
                                 self._dev.base.getConst('CHANADC_AFMAMPL'), # The ADC channel you want to get the data from
                                 1, # 0/1 -  if you want to switch on averaging
-                                sampTime/200) # Scanner sample time [s]
-        self._dev.base.configureDataBuffering(1, 200) # chNo = same as above; bufSize = Buffersize.
-        # MAKE SURE BUFFER SIZE IS GREATER THAN 128 FOR TIME TRIGGERED DATA
+                                sampTime) # Scanner sample time [s]
+
+        self._dev.base.setParameter(self._dev.base.getConst('ID_SPEC_DAC_NO'), 3, self.spec_engine_dummy) # index 1 is spec engine 1. Spec engine 0 is Z-Spec. 4 is the 4th DAC which is not used for objective scanning
+        self._dev.base.setParameter(self._dev.base.getConst('ID_SPEC_START_DISP'), 0, self.spec_engine_dummy)
+        self._dev.base.setParameter(self._dev.base.getConst('ID_SPEC_END_DISP'), 1000, self.spec_engine_dummy)
+        self._dev.base.setParameter(self._dev.base.getConst('ID_SPEC_COUNT'), self.spec_count, self.spec_engine_dummy)
+
+        self.spec_count = self._dev.base.getParameter(self._dev.base.getConst('ID_SPEC_COUNT'), self.spec_engine_dummy)
+        self._dev.base.setParameter(self._dev.base.getConst('ID_SPEC_MSPOINTS'), int((sampTime/(2.5e-6))/self.spec_count), self.spec_engine_dummy)
+        self._dev.base.configureDataBuffering(self._chn_no, self.spec_count) # chNo = same as above; bufSize = Buffersize.
+        
 
     def _poll_path_data(self):
-        data_index = 0
-        time.sleep(0.5)
-        while self._dev.base.getParameter(self._dev.base.getConst('ID_PATH_RUNNING'), 0)==1 or self._dev.base.getParameter(self._dev.base.getConst('ID_SCAN_STATUS'), 0)==2:
-            time.sleep(0.1)
-            if self._dev.base.getParameter(self._dev.base.getConst('ID_SPEC_PATHMANSTAT'), 0)==1:
-                self._polled_data[data_index] = self._grabASCData()
-                data_index += 1
-                self._dev.base.setParameter(self._dev.base.getConst('ID_SPEC_PATHPROCEED'), 1, 0)
-
+        '''
+        Polls the buffer after the spec engine is triggered at each point. _grabASCData is a blocking statement that only passes after buffer is full.
+        To implement Dual Pass the Z position will be set at every point inside the for loop
+        '''
+        for i in range(self._line_points):
+            self.spec_count = self._dev.base.getParameter(self._dev.base.getConst('ID_SPEC_COUNT'), self.spec_engine_dummy)
+            data = self._grabASCData(self.spec_count)
+            self._polled_data[i] = data
 
     def _grabASCData(self, bufSize=200):
         while True:
-                # Wait until buffer is full
+            # Wait until buffer is full
             if self._dev.base.waitForFullBuffer(self._chn_no) != 0:
                     break
-        buffer = self._dev.base.getDataBuffer(self._chn_no, 0, bufSize)
+        try:
+            buffer = self._dev.base.getDataBuffer(self._chn_no, 1, bufSize)
+        except:
+            self.log.error('Buffer fail')
+            return 0
         values = buffer[3][:]
         meta = buffer[4]
         phys_vals = []

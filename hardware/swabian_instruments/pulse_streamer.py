@@ -784,7 +784,7 @@ class PulseStreamer(Base, PulserInterface):
     
     def load_swabian_sequence(self, seq):
         self._seq = self.pulse_streamer.createSequence()
-        print(seq)
+
         for key in seq.keys():
             if seq[key]:
                 self._seq.setDigital(key, seq[key])
