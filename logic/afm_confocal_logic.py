@@ -538,6 +538,8 @@ class AFMConfocalLogic(GenericLogic):
         self.sigSaveDataGwyddion.connect(self._save_to_gwyddion)
         self.sigSaveDataGwyddionFinished.connect(self.decrease_save_counter)
 
+        self._spm.sigCollectObjectiveCounts.connect(self._collect_objective_counts)
+
         self._meas_path = os.path.abspath(self._meas_path)
 
         #FIXME: Introduce a state variable to prevent redundant configuration calls of the hardware.
@@ -1075,6 +1077,7 @@ class AFMConfocalLogic(GenericLogic):
                                         params={'line_points' : coord0_num,
                                                 'meas_params' : meas_params },
                                         scan_style=ScanStyle.LINE) 
+        print(curr_scan_params, meas_params)
 
         spm_start_idx = 0
 
@@ -1101,7 +1104,7 @@ class AFMConfocalLogic(GenericLogic):
                 ret_val_mq = self._counter.configure_recorder(mode=HWRecorderMode.PIXELCLOCK, 
                                                               params={'mw_frequency': self._freq1_iso_b_frequency,
                                                                       'num_meas': coord0_num})
-                self._pulser.load_swabian_sequence(self._make_pulse_sequence(HWRecorderMode.PIXELCLOCK))
+                self._pulser.load_swabian_sequence(self._make_pulse_sequence(HWRecorderMode.PIXELCLOCK, integration_time))
                 self._pulser.pulser_on(trigger=True, n=1)
                 self.log.info(f'Prepared pixelclock, val {ret_val_mq}')
 
@@ -1171,8 +1174,9 @@ class AFMConfocalLogic(GenericLogic):
                 self.log.info(f'Return.')
 
                 return self._qafm_scan_array
+        
+        meas_params = curr_scan_params
             
-
         # this case is for starting a new measurement:
         if (self._spm_line_num == 0) or (not continue_meas):
             self._spm_line_num = 0
@@ -1279,6 +1283,7 @@ class AFMConfocalLogic(GenericLogic):
 
                 i = meas_params.index('counts')
                 self._qafm_scan_line[i] = counts/int_time
+                # print(self._qafm_scan_line[i])
 
             if 'counts2' in meas_params:
                 # integration times for iso-B measurements are exact, not dependent upon pixel clock pulse
@@ -2471,6 +2476,7 @@ class AFMConfocalLogic(GenericLogic):
         ret_val = self._counter.configure_recorder(mode=HWRecorderMode.PIXELCLOCK,
                                                    params={'mw_frequency': self._freq1_iso_b_frequency,
                                                            'num_meas': coord0_num})
+        self._pulser.load_swabian_sequence(self._make_pulse_sequence(HWRecorderMode.PIXELCLOCK, integration_time))
 
         if ret_val < 0:
             self.module_state.unlock()
@@ -2522,11 +2528,11 @@ class AFMConfocalLogic(GenericLogic):
             self._scan_counter = 0
 
             # check input values
-        ret_val |= self._spm.check_spm_scan_params_by_plane(plane,
-                                                            coord0_start,
-                                                            coord0_stop,
-                                                            coord1_start,
-                                                            coord1_stop)
+        # ret_val |= self._spm.check_spm_scan_params_by_plane(plane,
+        #                                                     coord0_start,
+        #                                                     coord0_stop,
+        #                                                     coord1_start,
+        #                                                     coord1_stop)
 
         if ret_val < 1:
             return self._obj_scan_array
@@ -3355,7 +3361,7 @@ class AFMConfocalLogic(GenericLogic):
         #FIXME: this is mostly for debugging reasons, but it should be removed later.
         # unlock the state in case an error has happend.
         if not self._worker_thread.is_running() or not self._counter.is_measurement_running:
-            self._counter.meas_cond.wakeAll()
+            # self._counter.meas_cond.wakeAll()
             if self.module_state() != 'idle':
                 self.module_state.unlock()
 
@@ -3378,15 +3384,24 @@ class AFMConfocalLogic(GenericLogic):
 # ==============================================================================
 #        Pulser configuration
 # ==============================================================================
-    def _make_pulse_sequence(self, mode):
+    def _collect_objective_counts(self):
+        self._pulser.pulser_on(n=1)
+        while True:
+            if not self._pulser.pulse_streamer.isStreaming():
+                break
+        
+    def _make_pulse_sequence(self, mode, int_time):
         pulse_dict = {0:[], 1:[], 2:[], 3:[], 4:[], 5:[], 6:[], 7:[]}
-
+        
         if mode == HWRecorderMode.PIXELCLOCK:
-            patt = [(1e-3/1e-9,1), (9e-3/1e-9,0), (1e-3/1e-9,0), (1e-3/1e-9,0)]
+            patt = [(1e-3/1e-9,1), (int_time/1e-9,0), (1e-3/1e-9,0)]
             pulse_dict[self._pulser._pixel_start].extend(patt)
 
-            patt = [(1e-3/1e-9,0), (9e-3/1e-9,0), (1e-3/1e-9,1), (1e-3/1e-9,0)]
+            patt = [(1e-3/1e-9,0), (int_time/1e-9,0), (1e-3/1e-9,1)]
             pulse_dict[self._pulser._pixel_stop].extend(patt)
+
+            patt = [(1e-3/1e-9,0), (int_time/1e-9,0), (1e-3/1e-9,0), (10e-3/1e-9,1)]
+            pulse_dict[self._pulser._sync_in].extend(patt)
         
         return pulse_dict
 

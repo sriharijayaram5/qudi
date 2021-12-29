@@ -1187,17 +1187,17 @@ class ProteusQGUI(GUIBase):
         self._mw.obj_target_x_DSpinBox.setRange(0.0, 30e-6)
         self._mw.obj_target_x_DSpinBox.setSuffix('m')
         self._mw.obj_target_x_DSpinBox.setMinimalStep(0.1e-6)
-        self._mw.obj_target_x_DSpinBox.setValue(15e-6)
+        self._mw.obj_target_x_DSpinBox.setValue(0)
 
         self._mw.obj_target_y_DSpinBox.setRange(0.0, 30e-6)
         self._mw.obj_target_y_DSpinBox.setSuffix('m')
         self._mw.obj_target_y_DSpinBox.setMinimalStep(0.1e-6)
-        self._mw.obj_target_y_DSpinBox.setValue(15e-6)
+        self._mw.obj_target_y_DSpinBox.setValue(0)
 
         self._mw.obj_target_z_DSpinBox.setRange(0.0, 10e-6)
         self._mw.obj_target_z_DSpinBox.setSuffix('m')
         self._mw.obj_target_z_DSpinBox.setMinimalStep(0.1e-6)
-        self._mw.obj_target_z_DSpinBox.setValue(5e-6)
+        self._mw.obj_target_z_DSpinBox.setValue(0)
 
         self._mw.afm_x_min_DSpinBox.setRange(0.0, 100e-6)
         self._mw.afm_x_min_DSpinBox.setSuffix('m')
@@ -1387,6 +1387,12 @@ class ProteusQGUI(GUIBase):
             if 'opti_z' in obj_name:
                 dockwidget.graphicsView.setLabel('bottom', 'Z position', units='m')
                 dockwidget.graphicsView.setLabel('left', 'Fluorescence', units='c/s') 
+            
+            if 'counts_fw' in obj_name:
+                dockwidget.graphicsView_matrix.toggle_crosshair(True)
+                dockwidget.graphicsView_matrix.set_crosshair_size((1e-6,1e-6))
+                dockwidget.graphicsView_matrix.sigCrosshairDraggedPosChanged.connect(self.update_from_crosshair)
+
 
         self.adjust_qafm_image()
         self.adjust_all_obj_images()
@@ -2037,7 +2043,7 @@ class ProteusQGUI(GUIBase):
         res_y = self._mw.afm_y_num_SpinBox.value()
 
         meas_params = ['counts']
-        # meas_params = []
+        meas_params = []
 
         # add dual ISO-B mode parameter if necessary
         if self._qafm_logic._sg_iso_b_operation \
@@ -2201,6 +2207,13 @@ class ProteusQGUI(GUIBase):
                 dockwidget.show()
             else:
                 dockwidget.hide()
+    
+    def update_from_crosshair(self):
+        x = self._dockwidget_container['counts_fw'].graphicsView_matrix.crosshair_position[0]
+        self._mw.afm_target_x_DSpinBox.setValue(x)
+        y = self._dockwidget_container['counts_fw'].graphicsView_matrix.crosshair_position[1]
+        self._mw.afm_target_y_DSpinBox.setValue(y)
+        self.goto_afm_pos_clicked() 
 
     @QtCore.Slot(dict)
     def update_obj_pos(self, pos_dict):
@@ -2226,6 +2239,7 @@ class ProteusQGUI(GUIBase):
         y = self._mw.afm_target_y_DSpinBox.value()
         # connect via signal for non-blocking behaviour
         self.sigGotoAFMpos.emit({'x': x, 'y': y})
+        self._dockwidget_container['counts_fw'].graphicsView_matrix.set_crosshair_pos((x,y))
         #self._qafm_logic.start_set_afm_pos(x,y)
 
     def goto_obj_pos_clicked(self):

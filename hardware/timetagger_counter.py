@@ -105,6 +105,7 @@ class TimeTaggerCounter(Base, SlowCounterInterface, RecorderInterface):
         self._curr_mode = HWRecorderMode.UNCONFIGURED
         self._curr_state = RecorderState.UNLOCKED
         self._create_recorder_constraints()
+        self.is_measurement_running = False
 
         if self._sum_channels and self._channel_apd_1 is None:
             self.log.error('Cannot sum channels when only one apd channel given')
@@ -499,13 +500,12 @@ class TimeTaggerCounter(Base, SlowCounterInterface, RecorderInterface):
         if mode == HWRecorderMode.GENERAL_PULSED:
             # General pulsed mode operates through ddr4 controller
             # number of measurments set in configure_recorder method
-            self._dev.ddr4Ctrl.loadSeq() # loading sequence through DMA read to fpga
-            self._dev.ctrl.startGenPulseMode() # starting general pulsed mode
+            pass
 
         else:
             # all other methods
             self.recorder.start()
-            self.is_meeasurement_running = True
+            self.is_measurement_running = True
 
         return True 
 
@@ -520,20 +520,24 @@ class TimeTaggerCounter(Base, SlowCounterInterface, RecorderInterface):
         @return int_array: array of measurement as tuple elements, format depends upon 
                            current mode setting
         """
-        ret_list = [None, None, None, None]
-
+        ret = {'counts':None, 'int_time':None, 'counts2':None, 'counts_diff': None}
+        
         if self._curr_mode == HWRecorderMode.PIXELCLOCK:
-            self.recorder.waitUntilFinished()
+            while True:
+                if self.recorder.ready():
+                    break
+
             # ['counts', 'int_time', 'counts2', 'counts_diff']
             data = self.recorder.getData()
-            ret_list[0] = data
+            ret['counts'] = data
 
             data = self.recorder.getBinWidths()
-            ret_list[1] = data
+            ret['int_time'] = data/1e12 # returns in ps
 
         # released
         self._curr_state = RecorderState.IDLE
-
+        ret_list = [ret[i] for i in meas_keys]
+        
         return ret_list
     
     def get_available_measurements(self, meas_keys=None):
@@ -557,7 +561,7 @@ class TimeTaggerCounter(Base, SlowCounterInterface, RecorderInterface):
                 HWRecorderMode.mode mode: the current recorder mode 
                 dict params: the current configuration parameter
         """
-        return self._curr_mode, self._curr_mode_params
+        return self._curr_mode, None
     
     def get_current_device_state(self):
         """  get_current_device_state
@@ -608,7 +612,7 @@ class TimeTaggerCounter(Base, SlowCounterInterface, RecorderInterface):
         
     def stop_measurement(self):
         self.recorder.stop()
-        self.is_meeasurement_running = False
+        self.is_measurement_running = False
     
     def get_current_measurement_method_name(self):
         """ gets the name of the measurment method currently in use

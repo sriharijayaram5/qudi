@@ -51,8 +51,7 @@ class SPM_ASC500(Base, ScannerInterface):
     _SCANNER_CONSTRAINTS = ScannerConstraints()
     _SCANNER_MEASUREMENTS = ScannerMeasurements()
 
-    sigPixelClockStarted = QtCore.Signal(int, float)
-    sigPixelClockStopped = QtCore.Signal()
+    sigCollectObjectiveCounts = QtCore.Signal()
 
     _sync_in_timeout = ConfigOption('sync_in_timeout', missing='warn', default=0)
 
@@ -154,7 +153,7 @@ class SPM_ASC500(Base, ScannerInterface):
                                  }       
 
         sc.scanner_mode_params_defaults = {
-                                   ScannerMode.PROBE_CONTACT:         { 'meas_params': ['Height(Dac)']},
+                                   ScannerMode.PROBE_CONTACT:         { 'meas_params': []},
                                    ScannerMode.OBJECTIVE_XY:          { 'meas_params': []},
                                    ScannerMode.OBJECTIVE_XZ:          { 'meas_params': []},
                                    ScannerMode.OBJECTIVE_YZ:          { 'meas_params': []}
@@ -184,10 +183,10 @@ class SPM_ASC500(Base, ScannerInterface):
             #                  'si_units': 'Hz', 
             #                  'nice_name': 'Tuning Fork Frequency'},
             
-            # 'counts' :        {'measured_units' : 'arb.', 
-            #                  'scale_fac': 1,    
-            #                  'si_units': 'arb.', 
-            #                  'nice_name': 'Counts'}
+            ,'counts' :        {'measured_units' : 'arb.', 
+                             'scale_fac': 1,    
+                             'si_units': 'arb.', 
+                             'nice_name': 'Counts'}
         }
 
         sm.scanner_axes = { 'SAMPLE_AXES':     ['X', 'Y', 'Z'],
@@ -213,6 +212,12 @@ class SPM_ASC500(Base, ScannerInterface):
                              }
         
     def _objective_piezo_act_range(self):
+        # ID_GENDAC_LIMIT_RT
+
+        for i in range(3):
+            self._dev.base.setParameter(self._dev.base.getConst('ID_GENDAC_LIMIT_RT'), 10*1e6, i)
+            self._dev.base.setParameter(self._dev.base.getConst('ID_GENDAC_LIMIT_LT'), 10*1e6, i)
+
         act_T = self._dev.base.getParameter(self._dev.base.getConst('ID_PIEZO_TEMP'),0)/1e3        
         T_range = np.array([self._dev.base.getParameter(self._dev.base.getConst('ID_PIEZO_T_LIM'),0)/1e3, self._dev.base.getParameter(self._dev.base.getConst('ID_PIEZO_T_LIM'),1)/1e3])
 
@@ -253,19 +258,6 @@ class SPM_ASC500(Base, ScannerInterface):
         @param ScannerStyle scan_style: movement of scanner
         @param dict params: specific settings as required for the given 
                             measurement mode 
-        
-        @param float xOffset :
-            Offset of the scan area in X direction (in m)
-        @param float yOffset : 
-            Offset of the scan area in Y direction (in m)
-        @param int pxSize : 
-            Pixelsize / Size of a column/line. 1 px = 10 pm for ASC. Give here in nanometres
-        @param int columns : int
-            Scanrange number of columns. Determines range.
-        @param int lines : int
-            Scanrange number of lines. Determines range.
-        @param float scanSpeed : float
-            Scanner speed in um/s. Will be converted to sample time
 
         @return int: error code (0:OK, -1:error)
         (self, xOffset, yOffset, pxSize, columns, lines, sampTime):
@@ -339,15 +331,11 @@ class SPM_ASC500(Base, ScannerInterface):
 
         elif mode == ScannerMode.OBJECTIVE_XZ:
             # Objective scanning returns no parameters
-            ret_val, curr_plane, curr_meas_params = \
-                self._dev.setup_spm(**std_config[ScannerMode.OBJECTIVE_XZ],
-                                    line_points = params['line_points'])
+            self._spm_curr_state =  ScannerState.IDLE
 
         elif mode == ScannerMode.OBJECTIVE_YZ:
             # Objective scanning returns no parameters
-            ret_val, curr_plane, curr_meas_params = \
-                self._dev.setup_spm(**std_config[ScannerMode.OBJECTIVE_YZ],
-                                    line_points = params['line_points'])
+            self._spm_curr_state =  ScannerState.IDLE
 
         elif mode == ScannerMode.PROBE_CONTACT:
             # Scanner library specific style is always "LINE_STYLE" 
@@ -364,7 +352,7 @@ class SPM_ASC500(Base, ScannerInterface):
 
         self._line_points = params['line_points']
         self._spm_curr_sstyle = scan_style
-        self._curr_meas_params = params['meas_params']
+        self._curr_meas_params = ['Height(Dac)']
     
         return ret_val, 0, self._curr_meas_params
 
@@ -426,18 +414,40 @@ class SPM_ASC500(Base, ScannerInterface):
                                     line_corr1_start, line_corr1_stop, self._line_points)
             self._polled_data = np.zeros(self._line_points)
             self._configurePathDataBuffering(sampTime=sT)
+
+            return
         
         elif self._spm_curr_mode == ScannerMode.OBJECTIVE_XY:
-            scan_range = self.get_sample_scan_range(['X','Y'])
-            axis_dict = {'X': line_corr0_stop, 'Y': line_corr1_stop}
+            scan_range = self.get_objective_scan_range(['X2','Y2'])
+            axis_dict = {'X2': line_corr0_stop, 'Y2': line_corr1_stop}
             for i in scan_range:
                 if axis_dict[i] > scan_range[i]:
-                    self.log.warning(f'Objective scanner {i} to abs. position outside scan range: {axis_label_dict[i]*1e6:.3f} um')
+                    self.log.warning(f'Objective scanner {i} to abs. position outside scan range: {axis_dict[i]*1e6:.3f} um')
                     self.overrange = True
                     return self.get_objective_pos(list(axis_dict.keys()))
             self.overrange = False
-
-            self._create_objective_line(xOffset=line_corr0_start, yOffset=line_corr1_start, pxSize=px, columns=self._line_points)
+        
+        elif self._spm_curr_mode == ScannerMode.OBJECTIVE_XZ:
+            scan_range = self.get_objective_scan_range(['X2','Z2'])
+            axis_dict = {'X2': line_corr0_stop, 'Z2': line_corr1_stop}
+            for i in scan_range:
+                if axis_dict[i] > scan_range[i]:
+                    self.log.warning(f'Objective scanner {i} to abs. position outside scan range: {axis_dict[i]*1e6:.3f} um')
+                    self.overrange = True
+                    return self.get_objective_pos(list(axis_dict.keys()))
+            self.overrange = False
+        
+        elif self._spm_curr_mode == ScannerMode.OBJECTIVE_YZ:
+            scan_range = self.get_objective_scan_range(['Y2','Z2'])
+            axis_dict = {'Y2': line_corr0_stop, 'Z2': line_corr1_stop}
+            for i in scan_range:
+                if axis_dict[i] > scan_range[i]:
+                    self.log.warning(f'Objective scanner {i} to abs. position outside scan range: {axis_dict[i]*1e6:.3f} um')
+                    self.overrange = True
+                    return self.get_objective_pos(list(axis_dict.keys()))
+            self.overrange = False
+        self.idle_time = time_back
+        self._create_objective_line(xOffset=line_corr0_start, yOffset=line_corr1_start, pxSize=abs(line_corr0_stop-line_corr0_start)/self._line_points, columns=self._line_points)
     
     def set_ext_trigger(self, trig=False):
         self._trig = trig
@@ -457,6 +467,9 @@ class SPM_ASC500(Base, ScannerInterface):
         
         self._dev.scanner.setNumberOfColumns(1)
         self._dev.scanner.setNumberOfLines(1)
+        self._dev.scanner.setPixelSize(1e-9)
+        self._dev.base.setParameter(self._dev.base.getConst('ID_SCAN_ROTATION'), 0, 0)
+        
         self.end_coords = [line_corr0_stop,line_corr1_stop]
         
         for index, val in enumerate(self._coords):
@@ -471,10 +484,19 @@ class SPM_ASC500(Base, ScannerInterface):
     
     def _create_objective_line(self, xOffset, yOffset, pxSize, columns):
         self.objective_scan_line = {}
-        self.objective_scan_line['X'] = np.linspace(xOffset, xOffset + pxSize*columns, columns)
-        self.objective_scan_line['Y'] = np.ones(columns)*yOffset
+        if self._spm_curr_mode == ScannerMode.OBJECTIVE_XY:
+            self.objective_scan_line['X2'] = np.linspace(xOffset, xOffset + pxSize*columns, columns)
+            self.objective_scan_line['Y2'] = np.ones(columns)*yOffset
+        
+        elif self._spm_curr_mode == ScannerMode.OBJECTIVE_XZ:
+            self.objective_scan_line['X2'] = np.linspace(xOffset, xOffset + pxSize*columns, columns)
+            self.objective_scan_line['Z2'] = np.ones(columns)*yOffset
+        
+        elif self._spm_curr_mode == ScannerMode.OBJECTIVE_YZ:
+            self.objective_scan_line['Y2'] = np.linspace(xOffset, xOffset + pxSize*columns, columns)
+            self.objective_scan_line['Z2'] = np.ones(columns)*yOffset
 
-    def scan_line(self,int_time = 0.05): 
+    def scan_line(self, int_time=0.05): 
         """Execute a scan line measurement. 
 
         @param float int_time: integration time in s while staying on one point.
@@ -501,14 +523,21 @@ class SPM_ASC500(Base, ScannerInterface):
             self._spm_curr_state =  ScannerState.PROBE_SCANNING
             self._poll_path_data()
 
-        elif self._spm_curr_mode == ScannerMode.OBJECTIVE_XY:
+        elif self._spm_curr_mode == ScannerMode.OBJECTIVE_XY or self._spm_curr_mode == ScannerMode.OBJECTIVE_XZ or self._spm_curr_mode == ScannerMode.OBJECTIVE_YZ:
             self._spm_curr_state =  ScannerState.OBJECTIVE_SCANNING
             self._scan_objective()
         
         return 1
         
     def _scan_objective(self):
-        pass
+        axis_dict = {}
+        keys = list(self.objective_scan_line.keys())
+        for i in range(self._line_points):
+            axis_dict[keys[0]] = self.objective_scan_line[keys[0]][i]
+            axis_dict[keys[1]] = self.objective_scan_line[keys[1]][i]
+            self.set_objective_pos_abs(axis_dict, self.idle_time)
+            self.sigCollectObjectiveCounts.emit()
+
 
     def scan_point(self, num_params=None):
         """ Obtain measurments from a point
@@ -859,9 +888,12 @@ class SPM_ASC500(Base, ScannerInterface):
     def _move_objective(self, axis, volt, move_time):
         axes = {'X2':0, 'Y2':1, 'Z2':2}
         curr_volt = self._dev.base.getParameter(self._dev.base.getConst('ID_DAC_VALUE'), axes[axis])*305.2/1e6
-        for v in np.linspace(curr_volt, volt, 100):
-            self._dev.base.setParameter(self._dev.base.getConst('ID_DAC_VALUE'), int(v/305.2*1e6), axes[axis])
-            time.sleep(move_time/100)
+        if move_time==0:
+            self._dev.base.setParameter(self._dev.base.getConst('ID_DAC_VALUE'), abs(int(volt/305.2*1e6)), axes[axis])
+        else:
+            for v in np.linspace(curr_volt, volt, 100):
+                self._dev.base.setParameter(self._dev.base.getConst('ID_DAC_VALUE'), abs(int(v/305.2*1e6)), axes[axis])
+                time.sleep(move_time/100)
         return self.get_objective_pos([axis])
 
     def set_objective_pos_rel(self, axis_rel_dict, move_time=0.1):  
