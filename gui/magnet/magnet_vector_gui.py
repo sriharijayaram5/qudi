@@ -192,6 +192,14 @@ class MagnetGui(GUIBase):
         self._set_vel_display_axis0()
         self._set_vel_display_axis1()
 
+        # self._2d_alignment_ImageItem = ScanImageItem(image=self._magnet_logic.get_2d_data_matrix())
+        # self._mw.alignment_2d_GraphicsView.addItem(self._2d_alignment_ImageItem)
+        # axis0, axis1 = self._magnet_logic.get_2d_axis_arrays()
+        # step0 = axis0[1] - axis0[0]
+        # step1 = axis1[1] - axis1[0]
+        # self._2d_alignment_ImageItem.set_image_extent([[axis0[0]-step0/2, axis0[-1]+step0/2],
+        #                                                [axis1[0]-step1/2, axis1[-1]+step1/2]])
+
         layout = QtWidgets.QGridLayout()
         self._GLView = gl.GLViewWidget()
         layout.addWidget(self._GLView)
@@ -199,6 +207,7 @@ class MagnetGui(GUIBase):
         self._init_GLView()
         
         my_colors = ColorScaleInferno()
+        # self._2d_alignment_ImageItem.setLookupTable(my_colors.lut)
 
         # Set initial position for the crosshair, default is current magnet position
         current_position = self._magnet_logic.get_pos()
