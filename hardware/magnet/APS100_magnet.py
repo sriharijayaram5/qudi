@@ -894,7 +894,7 @@ class Magnet(Base, MagnetInterface):
             self.soc_x.send(self.utf8_to_byte('CHAN 2\n'))
             self.soc_x.send(self.utf8_to_byte("SWEEP PAUSE\n"))
             self.soc_y.send(self.utf8_to_byte("SWEEP PAUSE\n"))
-            self.soc_z.send(self.utf8_to_byte('CHAN 1\n))
+            self.soc_z.send(self.utf8_to_byte('CHAN 1\n'))
             self.soc_z.send(self.utf8_to_byte("SWEEP PAUSE\n"))
         elif len(param_list) > 0:
             self.log.warning('Some useless parameters were passed.')
