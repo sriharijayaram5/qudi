@@ -75,12 +75,18 @@ class MagnetLogic(GenericLogic):
     gatedcounterlogic = Connector(interface='CounterLogic')
     sequencegeneratorlogic = Connector(interface='SequenceGeneratorLogic')
 
-    align_2d_axis0_range = StatusVar('align_2d_axis0_range', 10e-3)
+    align_2d_axis0_name = StatusVar('align_2d_axis0_name', 'theta')
+    align_2d_axis1_name = StatusVar('align_2d_axis1_name', 'phi')
+    align_2d_axis2_name = StatusVar('align_2d_axis2_name', 'rho')
+    align_2d_axis0_range = StatusVar('align_2d_axis0_range', 2*np.pi)
     align_2d_axis0_step = StatusVar('align_2d_axis0_step', 1e-3)
     align_2d_axis0_vel = StatusVar('align_2d_axis0_vel', 10e-6)
-    align_2d_axis1_range = StatusVar('align_2d_axis1_range', 10e-3)
+    align_2d_axis1_range = StatusVar('align_2d_axis1_range', 2*np.pi)
     align_2d_axis1_step = StatusVar('align_2d_axis1_step', 1e-3)
     align_2d_axis1_vel = StatusVar('align_2d_axis1_vel', 10e-6)
+    align_2d_axis2_range = StatusVar('align_2d_axis2_range', 10e-3)
+    align_2d_axis2_step = StatusVar('align_2d_axis2_step', 1e-3)
+    align_2d_axis2_vel = StatusVar('align_2d_axis2_vel', 10e-6)
     curr_2d_pathway_mode = StatusVar('curr_2d_pathway_mode', 'snake-wise')
 
     _checktime = StatusVar('_checktime', 2.5)
@@ -241,6 +247,11 @@ class MagnetLogic(GenericLogic):
         else:
             axes = list(self._magnet_device.get_constraints())
             self.align_2d_axis1_name = axes[1]
+        if 'align_2d_axis2_name' in self._statusVariables:
+            self.align_2d_axis2_name = self._statusVariables['align_2d_axis2_name']
+        else:
+            axes = list(self._magnet_device.get_constraints())
+            self.align_2d_axis2_name = axes[2]
 
         self.sigTest.connect(self._do_premeasurement_proc)
 
@@ -292,6 +303,7 @@ class MagnetLogic(GenericLogic):
 
         self._statusVariables['align_2d_axis0_name'] = self.align_2d_axis0_name
         self._statusVariables['align_2d_axis1_name'] = self.align_2d_axis1_name
+        self._statusVariables['align_2d_axis2_name'] = self.align_2d_axis2_name
 
         self._statusVariables['odmr_2d_low_fitfunction'] = self.odmr_2d_low_fitfunction
         self._statusVariables['odmr_2d_high_fitfunction'] = self.odmr_2d_high_fitfunction
@@ -2054,6 +2066,12 @@ class MagnetLogic(GenericLogic):
         self._2d_align_axis1_vel = vel
         self.sig2DAxis1VelChanged.emit(vel)
         return vel
+    
+    def set_align_2d_axis2_range(self, axis_range):
+        """Set the specified value """
+        self.align_2d_axis2_range = axis_range
+        self.sig2DAxis2RangeChanged.emit(axis_range)
+        return axis_range
 
     def get_align_2d_axis0_name(self):
         """Return the current value"""
@@ -2086,6 +2104,10 @@ class MagnetLogic(GenericLogic):
     def get_align_2d_axis1_vel(self):
         """Return the current value"""
         return self.align_2d_axis1_vel
+    
+    def get_align_2d_axis2_range(self):
+        """Return the current value"""
+        return self.align_2d_axis2_range
 
 
 

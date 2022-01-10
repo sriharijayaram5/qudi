@@ -35,7 +35,7 @@ from core.statusvariable import StatusVar
 from gui.colordefs import ColorScaleInferno
 from gui.guibase import GUIBase
 from gui.guiutils import ColorBar
-from qtpy import QtCore
+from qtpy import QtCore, QtGui
 from qtpy import QtWidgets
 from qtwidgets.scientific_spinbox import ScienDSpinBox
 from qtwidgets.scan_plotwidget import ScanImageItem
@@ -67,6 +67,201 @@ class CrossLine(pg.InfiniteLine):
         if self.angle == 90:
             self.setValue(extroi.pos()[0] + extroi.size()[0] * 0.5)
 
+class _3DAlignmentImageItem():
+    def __init__(self, rho, thetas, phis, view):
+        self.thetas = thetas
+        self.phis = phis
+        self.d_th = abs(thetas[1]-thetas[0])/2
+        self.d_phi = abs(phis[1]-phis[0])/2
+        self.rho = rho
+        self.parent_view = view
+        self.items = []
+        
+    def del_items(self):
+        for item in self.items:
+            try:
+                self.parent_view.removeItem(item)
+            except:
+                print('No items to remove')
+                return
+    
+    def make_face(self, index):
+        theta, phi = self.thetas[index[0]], self.phis[index[1]]
+        vertices = []
+        for i in [1,-1]:
+            for j in [1,-1]:
+                _theta = theta + self.d_th*i
+                _phi = phi + self.d_phi*j
+                x1 = self.rho * np.sin(_theta) * np.cos(_phi)
+                y1 = self.rho * np.sin(_theta) * np.sin(_phi)
+                z1 = self.rho * np.cos(_theta)
+                vertices.append([x1,y1,z1])
+        faces = [[0,1,2],
+                 [1,2,3]]
+        
+        return vertices, faces
+                
+    def setImage(self, matrix, levels):
+        self.image = matrix
+        cb_min, cb_max = (levels)
+        norm = mpl.colors.Normalize(vmin=cb_min, vmax=cb_max)
+        cmap = cm.viridis
+        m = cm.ScalarMappable(norm=norm, cmap=cmap)
+        thet = self.thetas
+        ph = self.phis
+        mi_vertices = []
+        mi_faces = []
+        mi_colors = []
+        
+        n = 0
+        for i in range(len(thet)):
+            for j in range(len(ph)):
+                
+                verts, faces = self.make_face((i,j))
+                c = m.to_rgba(matrix[i,j])
+                colors = np.array([[*c],[*c]])
+                
+                mi_vertices.extend(verts)
+                mi_faces.extend(np.asarray(faces)+4*n)
+                mi_colors.extend(colors)
+                n += 1
+                ## Mesh item will automatically compute face normals.
+        m1 = gl.GLMeshItem(vertexes=np.asarray(mi_vertices), faces=np.asarray(mi_faces), faceColors=np.asarray(mi_colors), smooth=False, computeNormals=False)
+        m1.translate(0, 0, 0)
+        m1.setGLOptions('additive')
+        self.parent_view.addItem(m1)
+        self.items.append(m1)
+
+class CustomTextItem(gl.GLGraphicsItem.GLGraphicsItem):
+    def __init__(self, X, Y, Z, text):
+        gl.GLGraphicsItem.GLGraphicsItem.__init__(self)
+        self.text = text
+        self.X = X
+        self.Y = Y
+        self.Z = Z
+
+    def setGLViewWidget(self, GLViewWidget):
+        self.GLViewWidget = GLViewWidget
+
+    def setText(self, text):
+        self.text = text
+        self.update()
+
+    def setX(self, X):
+        self.X = X
+        self.update()
+
+    def setY(self, Y):
+        self.Y = Y
+        self.update()
+
+    def setZ(self, Z):
+        self.Z = Z
+        self.update()
+
+    def paint(self):
+        self.GLViewWidget.qglColor(QtCore.Qt.white)
+        self.GLViewWidget.renderText(self.X, self.Y, self.Z, self.text, QtGui.QFont('Arial', 12, QtGui.QFont.Medium))
+
+class _3DAxisItem():
+    def __init__(self, rho, thetas, phis, n_ticks, view, axis=False):
+        self.n_ticks = n_ticks
+        self.thetas = thetas
+        self.phis = phis
+        self.rho = rho
+        self.parent_view = view
+        self.items = []
+        if axis:
+            self.make_axis()
+        self.make_ticks()
+    
+    def del_items(self):
+        for item in self.items:
+            try:
+                self.parent_view.removeItem(item)
+            except:
+                print('No items to remove')
+                return
+                
+    def make_axis(self):
+        thet = np.linspace(self.thetas[0], self.thetas[-1], 50)
+        ph = np.linspace(self.phis[0], self.phis[-1], 50)
+        v = self.rho
+        d_th = abs(self.thetas[0] - self.thetas[1])*0.5
+        d_ph = abs(self.phis[0] - self.phis[1])*0.75
+        
+        thet -= d_th
+        ph -=d_ph
+
+        x0 = v * np.sin(thet[0]) * np.cos(ph[0])
+        y0 = v * np.sin(thet[0]) * np.sin(ph[0])
+        z0 = v * np.cos(thet[0])
+        for j in range(len(ph)):
+            theta = thet[0]
+            phi = ph[j]
+
+            x = v * np.sin(theta) * np.cos(phi)
+            y = v * np.sin(theta) * np.sin(phi)
+            z = v * np.cos(theta)
+
+            PlotItem = gl.GLLinePlotItem(pos=np.array([[x0,y0,z0],[x,y,z]]), color=pg.glColor((255, 255, 255, 255)), width=5, antialias=True)
+            self.parent_view.addItem(PlotItem)
+            self.items.append(PlotItem)
+            x0,y0,z0 = x,y,z
+
+        x0 = v * np.sin(thet[0]) * np.cos(ph[0])
+        y0 = v * np.sin(thet[0]) * np.sin(ph[0])
+        z0 = v * np.cos(thet[0])
+        for i in range(len(thet)):
+            theta = thet[i]
+            phi = ph[0]
+
+            x = v * np.sin(theta) * np.cos(phi)
+            y = v * np.sin(theta) * np.sin(phi)
+            z = v * np.cos(theta)
+
+            PlotItem = gl.GLLinePlotItem(pos=np.array([[x0,y0,z0],[x,y,z]]), color=pg.glColor((255, 255, 255, 255)), width=5, antialias=True)
+            self.parent_view.addItem(PlotItem)
+            self.items.append(PlotItem)
+            x0,y0,z0 = x,y,z
+    
+    def make_ticks(self):
+        thet = np.linspace(self.thetas[0], self.thetas[-1], self.n_ticks)
+        ph = np.linspace(self.phis[0], self.phis[-1], self.n_ticks)
+        v = self.rho
+        d_th = (self.thetas[1] - self.thetas[0])*2
+        d_ph = (self.phis[1] - self.phis[0])*2.5
+        x0 = v * np.sin(thet[0]) * np.cos(ph[0])
+        y0 = v * np.sin(thet[0]) * np.sin(ph[0])
+        z0 = v * np.cos(thet[0])
+        for j in range(len(ph)):
+            theta = thet[0]
+            phi = ph[j]
+
+            dx = v * np.sin(theta-d_th) * np.cos(phi)
+            dy = v * np.sin(theta-d_th) * np.sin(phi)
+            dz = v * np.cos(theta-d_th)
+
+            txt = CustomTextItem(dx,dy,dz,f'{phi/np.pi:.2f}π')
+            txt.setGLViewWidget(self.parent_view)
+            self.parent_view.addItem(txt)
+            self.items.append(txt)
+
+        x0 = v * np.sin(thet[0]) * np.cos(ph[0])
+        y0 = v * np.sin(thet[0]) * np.sin(ph[0])
+        z0 = v * np.cos(thet[0])
+        for i in range(len(thet)):
+            theta = thet[i]
+            phi = ph[0]
+
+            dx = v * np.sin(theta) * np.cos(phi-d_ph)
+            dy = v * np.sin(theta) * np.sin(phi-d_ph)
+            dz = v * np.cos(theta)
+
+            txt = CustomTextItem(dx,dy,dz,f'{theta/np.pi:.2f}π')
+            txt.setGLViewWidget(self.parent_view)
+            self.parent_view.addItem(txt)
+            self.items.append(txt)
 
 class MagnetMainWindow(QtWidgets.QMainWindow):
     """ Create the Main Window based on the *.ui file. """
@@ -117,6 +312,9 @@ class MagnetGui(GUIBase):
         self._save_logic = self.savelogic()
 
         self._mw = MagnetMainWindow()
+        self._GLView = None
+        self._3D_axis = None
+        self._2d_alignment_ImageItem = None
 
         # create all the needed control elements. They will manage the
         # connection with each other themselves. Note some buttons are also
@@ -133,10 +331,36 @@ class MagnetGui(GUIBase):
 
         axis_list = list(self._magnet_logic.get_hardware_constraints())
         self._mw.align_2d_axis0_name_ComboBox.clear()
-        self._mw.align_2d_axis0_name_ComboBox.addItems(axis_list)
+        self._mw.align_2d_axis0_name_ComboBox.addItems(['theta'])
+        self._mw.align_2d_axis0_name_ComboBox.setCurrentIndex(0)
 
         self._mw.align_2d_axis1_name_ComboBox.clear()
-        self._mw.align_2d_axis1_name_ComboBox.addItems(axis_list)
+        self._mw.align_2d_axis1_name_ComboBox.addItems(['phi'])
+        self._mw.align_2d_axis1_name_ComboBox.setCurrentIndex(0)
+
+        self._mw.align_2d_axis2_name_ComboBox.clear()
+        self._mw.align_2d_axis2_name_ComboBox.addItems(['rho'])
+        self._mw.align_2d_axis2_name_ComboBox.setCurrentIndex(0)
+        
+        self._mw.move_abs_axis_x_Slider.setEnabled(False)
+        self._mw.move_abs_axis_y_Slider.setEnabled(False)
+        self._mw.move_abs_axis_z_Slider.setEnabled(False)
+
+        self._mw.move_abs_axis_x_ScienDSpinBox.setEnabled(False)
+        self._mw.move_abs_axis_y_ScienDSpinBox.setEnabled(False)
+        self._mw.move_abs_axis_z_ScienDSpinBox.setEnabled(False)
+
+        self._mw.move_rel_axis_x_ScienDSpinBox.setEnabled(False)
+        self._mw.move_rel_axis_y_ScienDSpinBox.setEnabled(False)
+        self._mw.move_rel_axis_z_ScienDSpinBox.setEnabled(False)
+        
+        self._mw.move_rel_axis_x_p_PushButton.setEnabled(False)
+        self._mw.move_rel_axis_y_p_PushButton.setEnabled(False)
+        self._mw.move_rel_axis_z_p_PushButton.setEnabled(False)
+
+        self._mw.move_rel_axis_x_m_PushButton.setEnabled(False)
+        self._mw.move_rel_axis_y_m_PushButton.setEnabled(False)
+        self._mw.move_rel_axis_z_m_PushButton.setEnabled(False)
 
         # Setup dock widgets
         self._mw.centralwidget.hide()
@@ -204,7 +428,6 @@ class MagnetGui(GUIBase):
         self._GLView = gl.GLViewWidget()
         layout.addWidget(self._GLView)
         self._mw.frame.setLayout(layout)
-        self._init_GLView()
         
         my_colors = ColorScaleInferno()
         # self._2d_alignment_ImageItem.setLookupTable(my_colors.lut)
@@ -212,8 +435,8 @@ class MagnetGui(GUIBase):
         # Set initial position for the crosshair, default is current magnet position
         current_position = self._magnet_logic.get_pos()
         current_2d_array = self._magnet_logic.get_2d_axis_arrays()
-        ini_pos_x_crosshair = current_position[self._magnet_logic.align_2d_axis0_name]
-        ini_pos_y_crosshair = current_position[self._magnet_logic.align_2d_axis1_name]
+        # ini_pos_x_crosshair = current_position[self._magnet_logic.align_2d_axis0_name]
+        # ini_pos_y_crosshair = current_position[self._magnet_logic.align_2d_axis1_name]
 
         ini_width_crosshair = [
             (current_2d_array[0][-1] - current_2d_array[0][0]) / len(current_2d_array[0]),
@@ -253,6 +476,10 @@ class MagnetGui(GUIBase):
         self._update_2d_graph_data()
         self._update_2d_graph_cb()
 
+        self._3D_axis.del_items()
+        self._2d_alignment_ImageItem.del_items()
+        self._init_GLView()
+
 
         # Add save file tag input box
         self._mw.alignment_2d_nametag_LineEdit = QtWidgets.QLineEdit(self._mw)
@@ -279,20 +506,21 @@ class MagnetGui(GUIBase):
             #print('self.get_ref_move_rel_ScienDSpinBox('+axis_label+').valueChanged.connect(lambda: self.move_rel_changed('+axis_label+'))')
 
         # General 2d alignment:
-        index = self._mw.align_2d_axis0_name_ComboBox.findText(self._magnet_logic.align_2d_axis0_name)
-        self._mw.align_2d_axis0_name_ComboBox.setCurrentIndex(index)
-        self._mw.align_2d_axis0_name_ComboBox.currentIndexChanged.connect(self.align_2d_axis0_name_changed)
+        # index = self._mw.align_2d_axis0_name_ComboBox.findText(self._magnet_logic.align_2d_axis0_name)
+        # self._mw.align_2d_axis0_name_ComboBox.setCurrentIndex(index)
+        # self._mw.align_2d_axis0_name_ComboBox.currentIndexChanged.connect(self.align_2d_axis0_name_changed)
         self._mw.align_2d_axis0_range_DSpinBox.setValue(self._magnet_logic.align_2d_axis0_range)
         self._mw.align_2d_axis0_range_DSpinBox.editingFinished.connect(self.align_2d_axis0_range_changed)
+        self._mw.align_2d_axis2_range_DSpinBox.editingFinished.connect(self.align_2d_axis2_range_changed)
         self._mw.align_2d_axis0_range_DSpinBox.editingFinished.connect(self.update_roi_from_range)
         self._mw.align_2d_axis0_step_DSpinBox.setValue(self._magnet_logic.align_2d_axis0_step)
         self._mw.align_2d_axis0_step_DSpinBox.editingFinished.connect(self.align_2d_axis0_step_changed)
         self._mw.align_2d_axis0_vel_DSpinBox.setValue(self._magnet_logic.align_2d_axis0_vel)
         self._mw.align_2d_axis0_vel_DSpinBox.editingFinished.connect(self.align_2d_axis0_vel_changed)
 
-        index = self._mw.align_2d_axis1_name_ComboBox.findText(self._magnet_logic.align_2d_axis1_name)
-        self._mw.align_2d_axis1_name_ComboBox.setCurrentIndex(index)
-        self._mw.align_2d_axis1_name_ComboBox.currentIndexChanged.connect(self.align_2d_axis1_name_changed)
+        # index = self._mw.align_2d_axis1_name_ComboBox.findText(self._magnet_logic.align_2d_axis1_name)
+        # self._mw.align_2d_axis1_name_ComboBox.setCurrentIndex(index)
+        # self._mw.align_2d_axis1_name_ComboBox.currentIndexChanged.connect(self.align_2d_axis1_name_changed)
         self._mw.align_2d_axis1_range_DSpinBox.setValue(self._magnet_logic.align_2d_axis1_range)
         self._mw.align_2d_axis1_range_DSpinBox.editingFinished.connect(self.align_2d_axis1_range_changed)
         self._mw.align_2d_axis1_range_DSpinBox.editingFinished.connect(self.update_roi_from_range)
@@ -300,6 +528,17 @@ class MagnetGui(GUIBase):
         self._mw.align_2d_axis1_step_DSpinBox.editingFinished.connect(self.align_2d_axis1_step_changed)
         self._mw.align_2d_axis1_vel_DSpinBox.setValue(self._magnet_logic.align_2d_axis1_vel)
         self._mw.align_2d_axis1_vel_DSpinBox.editingFinished.connect(self.align_2d_axis1_vel_changed)
+
+        # index = self._mw.align_2d_axis2_name_ComboBox.findText(self._magnet_logic.align_2d_axis2_name)
+        # self._mw.align_2d_axis2_name_ComboBox.setCurrentIndex(index)
+        # self._mw.align_2d_axis2_name_ComboBox.currentIndexChanged.connect(self.align_2d_axis2_name_changed)
+        self._mw.align_2d_axis2_range_DSpinBox.setValue(self._magnet_logic.align_2d_axis2_range)
+        self._mw.align_2d_axis2_range_DSpinBox.editingFinished.connect(self.align_2d_axis2_range_changed)
+        self._mw.align_2d_axis2_range_DSpinBox.editingFinished.connect(self.update_roi_from_range)
+        self._mw.align_2d_axis2_step_DSpinBox.setValue(self._magnet_logic.align_2d_axis2_step)
+        # self._mw.align_2d_axis2_step_DSpinBox.editingFinished.connect(self.align_2d_axis2_step_changed)
+        self._mw.align_2d_axis2_vel_DSpinBox.setValue(self._magnet_logic.align_2d_axis2_vel)
+        # self._mw.align_2d_axis2_vel_DSpinBox.editingFinished.connect(self.align_2d_axis2_vel_changed)
 
         # for fluorescence alignment:
         self._mw.align_2d_fluorescence_optimize_freq_SpinBox.setValue(self._magnet_logic.get_optimize_pos_freq())
@@ -717,7 +956,7 @@ class MagnetGui(GUIBase):
             dspinbox_ref.setSuffix(constraints[axis_label]['unit'])
 
             # set the horizontal size to 100 pixel:
-            dspinbox_ref.setMaximumSize(QtCore.QSize(80, 16777215))
+            dspinbox_ref.setMinimumSize(QtCore.QSize(80, 16777215))
 
             self._mw.move_abs_GridLayout.addWidget(dspinbox_ref, index, 2, 1, 1)
 
@@ -879,8 +1118,8 @@ class MagnetGui(GUIBase):
         movement = dspinbox.value() * direction
 
         self._magnet_logic.move_rel({axis_label: movement})
-        # if self._interactive_mode:
-        #     self.update_pos()
+        if self._interactive_mode:
+            self.update_pos()
         return axis_label, direction
 
     def move_abs(self, param_dict=None):
@@ -904,8 +1143,8 @@ class MagnetGui(GUIBase):
 
             self._magnet_logic.move_abs(move_abs)
 
-        # if self._interactive_mode:
-        #     self.update_pos()
+        if self._interactive_mode:
+            self.update_pos()
             return param_dict
 
     def get_ref_curr_pos_ScienDSpinBox(self, label):
@@ -965,6 +1204,16 @@ class MagnetGui(GUIBase):
         """
         axis_range = self._mw.align_2d_axis0_range_DSpinBox.value()
         self._magnet_logic.set_align_2d_axis0_range(axis_range)
+        return axis_range
+
+    def align_2d_axis2_range_changed(self):
+        """ Pass the current GUI value to the logic
+
+        @return float: Passed range
+        """
+        axis_range = self._mw.align_2d_axis2_range_DSpinBox.value()
+        # self._magnet_logic.set_align_2d_axis2_range(axis_range)
+        self.make_new_sphere(radius=axis_range)
         return axis_range
 
     def align_2d_axis0_step_changed(self):
@@ -1079,6 +1328,8 @@ class MagnetGui(GUIBase):
             # update the values also of the absolute movement display:
             #dspinbox_move_abs_ref = self.get_ref_move_abs_ScienDSpinBox(axis_label)
             #dspinbox_move_abs_ref.setValue(curr_pos[axis_label])
+        
+        self.update_GLView_vector(curr_pos)
 
         # self._mw.alignment_2d_GraphicsView.set_crosshair_pos(
         #     [curr_pos[self._magnet_logic.align_2d_axis0_name],
@@ -1285,6 +1536,32 @@ class MagnetGui(GUIBase):
         self._mw.align_2d_axis1_vel_DSpinBox.setSingleStep(constraints[axis1_name]['vel_step'],
                                                            dynamic_stepping=False)
         self._mw.align_2d_axis1_vel_DSpinBox.setSuffix(constraints[axis1_name]['unit']+'/s')
+    
+    def _update_limits_axis2(self):
+        """ Whenever a new axis name was chosen in axis0 config, the limits of the
+            viewboxes will be adjusted.
+        """
+
+        constraints = self._magnet_logic.get_hardware_constraints()
+        axis2_name = self._mw.align_2d_axis2_name_ComboBox.currentText()
+
+        self._mw.align_2d_axis2_range_DSpinBox.setMinimum(0)
+        self._mw.align_2d_axis2_range_DSpinBox.setMaximum(constraints[axis2_name]['pos_max'])
+        self._mw.align_2d_axis2_range_DSpinBox.setSingleStep(constraints[axis2_name]['pos_step'],
+                                                             dynamic_stepping=False)
+        self._mw.align_2d_axis2_range_DSpinBox.setSuffix(constraints[axis2_name]['unit'])
+
+        self._mw.align_2d_axis2_step_DSpinBox.setMinimum(0)
+        self._mw.align_2d_axis2_step_DSpinBox.setMaximum(constraints[axis2_name]['pos_max'])
+        self._mw.align_2d_axis2_step_DSpinBox.setSingleStep(constraints[axis2_name]['pos_step'],
+                                                            dynamic_stepping=False)
+        self._mw.align_2d_axis2_step_DSpinBox.setSuffix(constraints[axis2_name]['unit'])
+
+        self._mw.align_2d_axis2_vel_DSpinBox.setMinimum(constraints[axis2_name]['vel_min'])
+        self._mw.align_2d_axis2_vel_DSpinBox.setMaximum(constraints[axis2_name]['vel_max'])
+        self._mw.align_2d_axis2_vel_DSpinBox.setSingleStep(constraints[axis2_name]['vel_step'],
+                                                           dynamic_stepping=False)
+        self._mw.align_2d_axis2_vel_DSpinBox.setSuffix(constraints[axis2_name]['unit']+'/s')
 
     def _set_vel_display_axis0(self):
         """ Set the visibility of the velocity display for axis 0. """
@@ -1316,6 +1593,11 @@ class MagnetGui(GUIBase):
         step0 = axis0_array[1] - axis0_array[0]
         step1 = axis1_array[1] - axis1_array[0]
 
+        if self._3D_axis:
+            self._3D_axis.del_items()
+
+        # self._3D_axis = _3DAxisItem(rho=self._magnet_logic.get_pos(['rho'])['rho'], thetas=axis0_array, phis=axis1_array, n_ticks=5, view=self._GLView, axis=False)
+        self._3D_axis = _3DAxisItem(rho=1, thetas=axis0_array, phis=axis1_array, n_ticks=5, view=self._GLView, axis=False)
         # self._2d_alignment_ImageItem.set_image_extent([[axis0_array[0]-step0/2, axis0_array[-1]+step0/2],
         #                                                [axis1_array[0]-step1/2, axis1_array[-1]+step1/2]])
 
@@ -1341,14 +1623,14 @@ class MagnetGui(GUIBase):
                 low_centile = 0.0
 
             # mask the array such that the arrays will be
-            # masked_image = np.ma.masked_equal(self._2d_alignment_ImageItem.image, 0.0)
+            masked_image = np.ma.masked_equal(self._2d_alignment_ImageItem.image, 0.0)
 
-            # if len(masked_image.compressed()) == 0:
-            #     cb_min = np.percentile(self._2d_alignment_ImageItem.image, low_centile)
-            #     cb_max = np.percentile(self._2d_alignment_ImageItem.image, high_centile)
-            # else:
-            #     cb_min = np.percentile(masked_image.compressed(), low_centile)
-            #     cb_max = np.percentile(masked_image.compressed(), high_centile)
+            if len(masked_image.compressed()) == 0:
+                cb_min = np.percentile(self._2d_alignment_ImageItem.image, low_centile)
+                cb_max = np.percentile(self._2d_alignment_ImageItem.image, high_centile)
+            else:
+                cb_min = np.percentile(masked_image.compressed(), low_centile)
+                cb_max = np.percentile(masked_image.compressed(), high_centile)
 
         else:
             cb_min = self._mw.alignment_2d_cb_min_centiles_DSpinBox.value()
@@ -1362,6 +1644,7 @@ class MagnetGui(GUIBase):
     def _update_2d_graph_data(self):
         """ Refresh the 2D-matrix image. """
         matrix_data = self._magnet_logic.get_2d_data_matrix()
+        axis0_array, axis1_array = self._magnet_logic.get_2d_axis_arrays()
 
         if self._mw.alignment_2d_centiles_RadioButton.isChecked():
 
@@ -1377,18 +1660,22 @@ class MagnetGui(GUIBase):
 
             # compress the 2D masked array to a 1D array where the zero values
             # are excluded:
-            # if len(masked_image.compressed()) == 0:
-            #     cb_min = np.percentile(self._2d_alignment_ImageItem.image, low_centile)
-            #     cb_max = np.percentile(self._2d_alignment_ImageItem.image, high_centile)
-            # else:
-            #     cb_min = np.percentile(masked_image.compressed(), low_centile)
-            #     cb_max = np.percentile(masked_image.compressed(), high_centile)
+            if len(masked_image.compressed()) == 0:
+                cb_min = np.percentile(matrix_data, low_centile)
+                cb_max = np.percentile(matrix_data, high_centile)
+            else:
+                cb_min = np.percentile(masked_image.compressed(), low_centile)
+                cb_max = np.percentile(masked_image.compressed(), high_centile)
         else:
             cb_min = self._mw.alignment_2d_cb_min_centiles_DSpinBox.value()
             cb_max = self._mw.alignment_2d_cb_max_centiles_DSpinBox.value()
 
-
-        # self._2d_alignment_ImageItem.setImage(image=matrix_data, levels=(cb_min, cb_max))
+        if self._2d_alignment_ImageItem:
+            self._2d_alignment_ImageItem.del_items()
+            
+        # self._3d_alignment_ImageItem = _3DAlignmentImageItem(rho=self._magnet_logic.get_pos(['rho'])['rho'], thetas=axis0_array, phis=axis1_array, view=self._GLView)
+        self._2d_alignment_ImageItem = _3DAlignmentImageItem(rho=1, thetas=axis0_array, phis=axis1_array, view=self._GLView)
+        self._2d_alignment_ImageItem.setImage(matrix=matrix_data, levels=(cb_min, cb_max))
         self._update_2d_graph_axis()
 
         self._update_2d_graph_cb()
@@ -1646,70 +1933,56 @@ class MagnetGui(GUIBase):
         md = gl.MeshData.sphere(rows=20, cols=20)
         m4 = gl.GLMeshItem(meshdata=md, smooth=True, drawFaces=False, drawEdges=True, edgeColor=(0.3,0.3,0.3,1))
         m4.translate(0,0,0)
-        view.addItem(m4)
-
-        thet = np.linspace(np.pi/4,3*np.pi/4,20)
-        ph = np.linspace(-np.pi/4,np.pi/4,20)
-
+        self.sphere = m4
+        view.addItem(self.sphere)
+        self.vector_item = gl.GLLinePlotItem(pos=np.array([[0,0,0],[0,0,0]]), color=pg.glColor((255, 255, 255, 255)), width=5, antialias=True)
+        self._GLView.addItem(self.vector_item)
         
-        norm = mpl.colors.Normalize(vmin=np.min(thet)+np.min(ph), vmax=np.max(thet)+np.max(ph))
-        cmap = cm.hot
-        x = 0.3
+        def makeGaussian(size, fwhm = 3, center=None):
+            """ Make a square gaussian kernel.
 
-        m = cm.ScalarMappable(norm=norm, cmap=cmap)
-        v = 0.4
-        for i in range(len(thet)):
-            for j in range(len(ph)):
-                theta = thet[i]
-                phi = ph[j]
+            size is the length of a side of the square
+            fwhm is full-width-half-maximum, which
+            can be thought of as an effective radius.
+            """
 
-                d_theta = abs(thet[1]-thet[0])
-                d_phi = abs(ph[1]-ph[0])
+            x = np.arange(0, size, 1, float)
+            y = x[:,np.newaxis]
 
-                x = v * np.sin(theta) * np.cos(phi)
-                y = v * np.sin(theta) * np.sin(phi)
-                z = v * np.cos(theta)
+            if center is None:
+                x0 = y0 = size // 2
+            else:
+                x0 = center[0]
+                y0 = center[1]
 
-                _theta = theta + d_theta
-                _phi = phi
-                x1 = v * np.sin(_theta) * np.cos(_phi)
-                y1 = v * np.sin(_theta) * np.sin(_phi)
-                z1 = v * np.cos(_theta)
+            return np.exp(-4*np.log(2) * ((x-x0)**2 + (y-y0)**2) / fwhm**2)
 
-                _theta = theta - d_theta
-                _phi = phi + d_phi
-                x2 = v * np.sin(_theta) * np.cos(_phi)
-                y2 = v * np.sin(_theta) * np.sin(_phi)
-                z2 = v * np.cos(_theta)
+        size = 30
+        thet = np.linspace(np.pi/4,3*np.pi/4,size)
+        ph = np.linspace(0,0.5*np.pi,size)
+        matrix = np.random.random((size,size))
+        matrix = makeGaussian(size, size/3)
+        rho = 0.7
 
-                _theta = theta - d_theta
-                _phi = phi - d_phi
-                x3 = v * np.sin(_theta) * np.cos(_phi)
-                y3 = v * np.sin(_theta) * np.sin(_phi)
-                z3 = v * np.cos(_theta)
-
-
-                verts = np.array([
-                    [x1, y1, z1],
-                    [x2, y2, z2],
-                    [x3, y3, z3]
-                ])
-                faces = np.array([
-                    [0, 1, 2]
-                ])
-                
-                c = m.to_rgba(theta+phi)
-                
-                colors = np.array([
-                    [*c]
-                ])
-
-                ## Mesh item will automatically compute face normals.
-                m1 = gl.GLMeshItem(vertexes=verts, faces=faces, faceColors=colors, smooth=False)
-                m1.translate(0, 0, 0)
-                # m1.setGLOptions('additive')
-                view.addItem(m1)
+        self._3D_axis = _3DAxisItem(rho, thet, ph, 5, self._GLView, False)
+        self._2d_alignment_ImageItem = _3DAlignmentImageItem(rho, thet, ph, self._GLView)
+        self._2d_alignment_ImageItem.setImage(matrix, (0,1))
         self._GLView.update()
+    
+    def make_new_sphere(self, radius=1):
+        self._GLView.removeItem(self.sphere)
+        md = gl.MeshData.sphere(rows=20, cols=20, radius=radius)
+        m4 = gl.GLMeshItem(meshdata=md, smooth=True, drawFaces=False, drawEdges=True, edgeColor=(0.3,0.3,0.3,1))
+        m4.translate(0,0,0)
+        self.sphere = m4
+        self._GLView.addItem(self.sphere)
+        self._GLView.update()
+    
+    def update_GLView_vector(self, curr_pos):
+        if self._GLView:
+            self._GLView.removeItem(self.vector_item)
+            self.vector_item = gl.GLLinePlotItem(pos=np.array([[0,0,0],[curr_pos['x'],curr_pos['y'],curr_pos['z']]]), color=pg.glColor((255, 255, 255, 255)), width=5, antialias=True)
+            self._GLView.addItem(self.vector_item)
 
 
 
