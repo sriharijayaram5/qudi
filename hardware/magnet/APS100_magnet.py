@@ -44,7 +44,7 @@ class Magnet(Base, MagnetInterface):
         module.Class: 'sc_magnet.magnet.Magnet'
         magnet_port: 3000
         magnet_IP_address_x: 192.168.0.12
-        magnet_IP_address_y: 192.168.0.13
+        magnet_IP_address_y: 129.69.46.186
         magnet_IP_address_z: 192.168.0.14
         magnet_waitingtime: 0.01 # in seconds
         magnet_x_constr: 1.0
@@ -68,10 +68,10 @@ class Magnet(Base, MagnetInterface):
     # function get_constraints(). The problem is here that
     # the constraint rho is no constant and is dependent on the
     # current theta and phi value.
-    x_constr = ConfigOption('magnet_x_constr', 10e-3)
-    y_constr = ConfigOption('magnet_y_constr', 10e-3)
-    z_constr = ConfigOption('magnet_z_constr', 10e-3)
-    rho_constr = ConfigOption('magnet_rho_constr', 10e-3)
+    x_constr = ConfigOption('magnet_x_constr', 1e-3)
+    y_constr = ConfigOption('magnet_y_constr', 1e-3)
+    z_constr = ConfigOption('magnet_z_constr', 1e-3)
+    rho_constr = ConfigOption('magnet_rho_constr', 1e-3)
 
     def __init__(self, **kwargs):
         """Here the connections to the power supplies and to the counter are established"""
@@ -112,12 +112,15 @@ class Magnet(Base, MagnetInterface):
         self.soc_x.connect((self.ip_addr_x, self.port))
         self.soc_y.connect((self.ip_addr_y, self.port))
         self.soc_z.connect((self.ip_addr_z, self.port))
+        socket.setdefaulttimeout(1)
+
+        self.tell({'x':'REMOTE', 'y':'REMOTE', 'z':'REMOTE'})
 
 #       sending a signal to all coils to receive an answer to cut off the
 #       useless welcome message.
-        ask_dict = {'x': "*IDN?", 'y': "*IDN?", 'z': "*IDN?"}
+        ask_dict = {'x': "*IDN?", 'y': "*IDN?"}
         answ_dict = self.ask(ask_dict)
-        self.log.info("Magnet in state: {0}".format(answ_dict))
+        self.log.info("Magnets: {0}".format(answ_dict))
 
 
     def on_deactivate(self):
