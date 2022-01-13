@@ -76,7 +76,7 @@ class Magnet(Base, MagnetInterface):
     def __init__(self, **kwargs):
         """Here the connections to the power supplies and to the counter are established"""
         super().__init__(**kwargs)
-        socket.setdefaulttimeout(3)
+        socket.setdefaulttimeout(1)
         try:
             self.soc_x = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         except socket.timeout:
@@ -112,7 +112,10 @@ class Magnet(Base, MagnetInterface):
         self.soc_x.connect((self.ip_addr_x, self.port))
         self.soc_y.connect((self.ip_addr_y, self.port))
         self.soc_z.connect((self.ip_addr_z, self.port))
-        socket.setdefaulttimeout(1)
+
+        self.x_dir = 'ZERO'
+        self.y_dir = 'ZERO'
+        self.z_dir = 'ZERO'
 
         self.tell({'x':'REMOTE', 'y':'REMOTE', 'z':'REMOTE'})
 
@@ -276,6 +279,9 @@ class Magnet(Base, MagnetInterface):
         if internal_counter == 0:
             self.log.warning('no parameter_dict was given therefore the '
                     'function tell() call was useless')
+            return -1
+        else:
+            return 0
 
     def ask(self, param_dict):
         """Asks the magnet a 'question' and returns an answer from it.
@@ -379,6 +385,7 @@ class Magnet(Base, MagnetInterface):
             """
 
         field_dict = self.get_current_field()
+        old_dict = field_dict.copy()
         mode = self.mode
 
         if param_dict.get('x') is not None:
@@ -406,21 +413,27 @@ class Magnet(Base, MagnetInterface):
 
         new_coord = [field_dict['x'], field_dict['y'], field_dict['z']]
         check_var = self.check_constraints({mode: {'cart': new_coord}})
-        if np.sqrt(new_coord[0]**2 + new_coord[1]**2 + new_coord[2]**2)>=1: #T
+        if np.sqrt(new_coord[0]**2 + new_coord[1]**2 + new_coord[2]**2)>self.rho_constr: #T
             return -1
         # to kG
         param_dict = {i:param_dict[i]*10 for i in param_dict.keys()}
 
         if check_var:
             self.log.info(f'Setting: {param_dict}')
-            # if param_dict.get('x') is not None:
-            #     self.soc_x.send(self.utf8_to_byte('CHAN 2\n'))
-            #     self.soc_x.send(self.utf8_to_byte("IMAG " + str(param_dict['x']) + "\n"))
-            # if param_dict.get('y') is not None:
-            #     self.soc_y.send(self.utf8_to_byte("IMAG " + str(param_dict['y']) + "\n"))
-            # if param_dict.get('z') is not None:
-            #     self.soc_z.send(self.utf8_to_byte('CHAN 1\n'))
-            #     self.soc_z.send(self.utf8_to_byte("IMAG " + str(param_dict['z']) + "\n"))
+            if param_dict.get('x') is not None:
+                self.soc_x.send(self.utf8_to_byte('CHAN 2\n'))
+                lim = 'U' if old_dict['x']<field_dict['x'] else 'L'
+                self.x_dir = 'UP' if lim=='U' else 'DOWN'
+                self.soc_x.send(self.utf8_to_byte(f"{lim}LIM " + str(param_dict['x']) + "\n"))
+            if param_dict.get('y') is not None:
+                lim = 'U' if old_dict['y']<field_dict['y'] else 'L'
+                self.y_dir = 'UP' if lim=='U' else 'DOWN'
+                self.soc_y.send(self.utf8_to_byte(f"{lim}LIM " + str(param_dict['y']) + "\n"))
+            if param_dict.get('z') is not None:
+                self.soc_z.send(self.utf8_to_byte('CHAN 1\n'))
+                lim = 'U' if old_dict['z']<field_dict['z'] else 'L'
+                self.z_dir = 'UP' if lim=='U' else 'DOWN'
+                self.soc_z.send(self.utf8_to_byte(f"{lim}LIM " + str(param_dict['z']) + "\n"))
 
         else:
             self.log.warning('resulting field would be too high in '
@@ -437,6 +450,10 @@ class Magnet(Base, MagnetInterface):
             else all axes will be ramped.
             @return int: error code (0:OK, -1:error)
             """
+
+        self.log.info(f'Ramping...')
+        self.tell({'x':f'SWEEP {self.x_dir}', 'y':f'SWEEP {self.y_dir}', 'z':f'SWEEP {self.z_dir}'})
+
         return 0
 
     def ramp_to_zero(self, axis):
@@ -445,16 +462,7 @@ class Magnet(Base, MagnetInterface):
             @param axis: string axis: (allowed inputs 'x', 'y' and 'z')
             """
 
-        if axis == "x":
-            self.soc_x.send(self.utf8_to_byte('CHAN 2\n'))
-            self.soc_x.send(self.utf8_to_byte("SWEEP ZERO\n"))
-        elif axis == "y":
-            self.soc_y.send(self.utf8_to_byte("SWEEP ZERO\n"))
-        elif axis == "z":
-            self.soc_z.send(self.utf8_to_byte('CHAN 1\n'))
-            self.soc_z.send(self.utf8_to_byte("SWEEP ZERO\n"))
-        else:
-            self.log.error("In function ramp_to_zero only 'x', 'y' and 'z' are possible axes")
+        self.tell({f'{axis}':'SWEEP ZERO'})
 
     def calibrate(self, param_list=None):
         """ Calibrates the stage. In the case of the super conducting magnet
@@ -818,7 +826,7 @@ class Magnet(Base, MagnetInterface):
                           float z : representing the field strength in z direction
 
             """
-        ask_dict = {'x': "IMAG?\n", 'y': "IMAG?\n", 'z': "IMAG?\n"}
+        ask_dict = {'x': "IOUT?\n", 'y': "IOUT?\n", 'z': "IOUT?\n"}
         answ_dict = self.ask(ask_dict)
         # having always a weird bug, where the response of the magnet
         # doesn't make sense, as it is always the same way I try to
@@ -829,17 +837,17 @@ class Magnet(Base, MagnetInterface):
 
         my_pattern = re.compile('[-+]?[0-9][.][0-9]+')
         try:
-            answ_dict['x'] = float(answ_dict['x'][:-1])/10
+            answ_dict['x'] = float(answ_dict['x'][:-2])/10
         except ValueError:
             match_list = re.findall(my_pattern, answ_dict['x'])
             answ_dict['x'] = float(match_list[0])
         try:
-            answ_dict['y'] = float(answ_dict['y'][:-1])/10
+            answ_dict['y'] = float(answ_dict['y'][:-2])/10
         except ValueError:
             match_list = re.findall(my_pattern, answ_dict['y'])
             answ_dict['y'] = float(match_list[0])
         try:
-            answ_dict['z'] = float(answ_dict['z'][:-1])/10
+            answ_dict['z'] = float(answ_dict['z'][:-2])/10
         except ValueError:
             match_list = re.findall(my_pattern, answ_dict['z'])
             answ_dict['z'] = float(match_list[0])
@@ -894,28 +902,12 @@ class Magnet(Base, MagnetInterface):
             @return integer: 0 everything is ok and -1 an error occured.
             """
         if not param_list:
-            self.soc_x.send(self.utf8_to_byte('CHAN 2\n'))
-            self.soc_x.send(self.utf8_to_byte("SWEEP PAUSE\n"))
-            self.soc_y.send(self.utf8_to_byte("SWEEP PAUSE\n"))
-            self.soc_z.send(self.utf8_to_byte('CHAN 1\n'))
-            self.soc_z.send(self.utf8_to_byte("SWEEP PAUSE\n"))
-        elif len(param_list) > 0:
-            self.log.warning('Some useless parameters were passed.')
-            return -1
+            ret = self.tell({'x':'SWEEP PAUSE', 'y':'SWEEP PAUSE', 'z':'SWEEP PAUSE'})
         else:
-            if 'x' in param_list:
-                self.soc_x.send(self.utf8_to_byte('CHAN 2\n'))
-                self.soc_x.send(self.utf8_to_byte("SWEEP PAUSE\n"))
-                param_list.remove('x')
-            if 'y' in param_list:
-                self.soc_y.send(self.utf8_to_byte("SWEEP PAUSE\n"))
-                param_list.remove('y')
-            if 'z' in param_list:
-                self.soc_z.send(self.utf8_to_byte('CHAN 1\n'))
-                self.soc_z.send(self.utf8_to_byte("SWEEP PAUSE\n"))
-                param_list.remove('z')
+            for i in param_list:
+                ret = self.tell({f'{i}':'SWEEP PAUSE'})
 
-        return 0
+        return ret
 
     def abort(self):
         """ Stops movement of the stage
@@ -944,18 +936,13 @@ class Magnet(Base, MagnetInterface):
             """
         ask_dict = {}
 
-        for i_dea in range(2):
-            if not param_list:
-                ask_dict['x'] = "IOUT?\n"
-                ask_dict['y'] = "IOUT?\n"
-                ask_dict['z'] = "IOUT?\n"
-            else:
-                for axis in param_list:
-                    ask_dict[axis] = "IOUT?\n"
-            if i_dea == 0:
-                pass
-                # wait some time not sure if this is necessary.
-                # time.sleep(self.waitingtime)
+        if not param_list:
+            ask_dict['x'] = "IOUT?\n"
+            ask_dict['y'] = "IOUT?\n"
+            ask_dict['z'] = "IOUT?\n"
+        else:
+            for axis in param_list:
+                ask_dict[axis] = "IOUT?\n"
 
         answer_dict = self.ask(ask_dict)
 
@@ -1046,7 +1033,8 @@ class Magnet(Base, MagnetInterface):
 
             constraint_x = constraint_dict['rho']['vel_max']
             if constraint_x > param_list[1]:
-                tell_dict['x'] = 'CONF:RAMP:RATE:FIELD:' + str(param_list[0]) + ", " + str(param_list[1]) + ", " + str(param_list[2])
+                # tell_dict['x'] = 'CONF:RAMP:RATE:FIELD:' + str(param_list[0]) + ", " + str(param_list[1]) + ", " + str(param_list[2])
+                pass
             else:
                 self.log.warning("constraint vel_max was violated in set_velocity with axis = 'x'")
 
@@ -1060,7 +1048,8 @@ class Magnet(Base, MagnetInterface):
 
             constraint_y = constraint_dict['theta']['vel_max']
             if constraint_y > param_list[1]:
-                tell_dict['y'] = 'CONF:RAMP:RATE:FIELD:' + str(param_list[0]) + ", " + str(param_list[1]) + ", " + str(param_list[2])
+                # tell_dict['y'] = 'CONF:RAMP:RATE:FIELD:' + str(param_list[0]) + ", " + str(param_list[1]) + ", " + str(param_list[2])
+                pass
             else:
                 self.log.warning("constraint vel_max was violated in set_velocity with axis = 'y'")
             internal_counter += 1
@@ -1073,13 +1062,15 @@ class Magnet(Base, MagnetInterface):
 
             constraint_z = constraint_dict['phi']['vel_max']
             if constraint_z > param_list[1]:
-                tell_dict['z'] = 'CONF:RAMP:RATE:FIELD:' + str(param_list[0]) + ", " + str(param_list[1]) + ", " + str(param_list[2])
+                # tell_dict['z'] = 'CONF:RAMP:RATE:FIELD:' + str(param_list[0]) + ", " + str(param_list[1]) + ", " + str(param_list[2])
+                pass
             else:
                 self.log.warning("constraint vel_max was violated in set_velocity with axis = 'z'")
             internal_counter += 1
 
         if internal_counter > 0:
-            self.tell(tell_dict)
+            # self.tell(tell_dict)
+            pass
         else:
             self.log.warning('There was no statement supplied in change_ramp_rate')
             return_val = -1

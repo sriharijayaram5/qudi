@@ -87,6 +87,13 @@ class SPM_ASC500(Base, ScannerInterface):
         self._spm_curr_state = ScannerState.UNCONFIGURED
 
         self._objective_x_volt, self._objective_y_volt, self._objective_z_volt = 0.0, 0.0, 0.0
+        self._dev.base.setParameter(self._dev.base.getConst('ID_GENDAC_LIMIT_RT'), 3e6, 0)
+        self._dev.base.setParameter(self._dev.base.getConst('ID_GENDAC_LIMIT_RT'), 3e6, 1)
+        self._dev.base.setParameter(self._dev.base.getConst('ID_GENDAC_LIMIT_RT'), 3e6, 2)
+
+        self._dev.base.setParameter(self._dev.base.getConst('ID_GENDAC_LIMIT_LT'), 7.5e6, 0)
+        self._dev.base.setParameter(self._dev.base.getConst('ID_GENDAC_LIMIT_LT'), 7.5e6, 1)
+        self._dev.base.setParameter(self._dev.base.getConst('ID_GENDAC_LIMIT_LT'), 7.5e6, 2)
 
         self._create_scanner_contraints()
         self._create_scanner_measurements()
@@ -212,31 +219,25 @@ class SPM_ASC500(Base, ScannerInterface):
                              }
         
     def _objective_piezo_act_range(self):
-        # ID_GENDAC_LIMIT_RT
-
-        for i in range(3):
-            self._dev.base.setParameter(self._dev.base.getConst('ID_GENDAC_LIMIT_RT'), 10*1e6, i)
-            self._dev.base.setParameter(self._dev.base.getConst('ID_GENDAC_LIMIT_LT'), 10*1e6, i)
-
-        act_T = self._dev.base.getParameter(self._dev.base.getConst('ID_PIEZO_TEMP'),0)/1e3        
-        T_range = np.array([self._dev.base.getParameter(self._dev.base.getConst('ID_PIEZO_T_LIM'),0)/1e3, self._dev.base.getParameter(self._dev.base.getConst('ID_PIEZO_T_LIM'),1)/1e3])
-
-        v_interp = interp1d(T_range, np.array((5e-6, 1e-6)), kind='linear')
-        act_piezo_range = v_interp(act_T)
-        return act_piezo_range, act_piezo_range, act_piezo_range
+        dict = self.get_sample_scan_range()
+        return dict['X'], dict['Y'], dict['Z']
     
     def _objective_piezo_act_pos(self):
         piezo_range = self._objective_piezo_act_range()
-        obj_volt_range = np.array([0,10.0])
-        pos_interp = interp1d(obj_volt_range, np.array([0.0 ,piezo_range[0]]), kind='linear')
+        u_lim = self._dev.base.getParameter(self._dev.base.getConst('ID_GENDAC_LIMIT_CT'), 0)/1e6  
+        obj_volt_range = np.array([0, u_lim])
+        pos_interp_xy = interp1d(obj_volt_range, np.array([0.0 ,piezo_range[0]]), kind='linear')
+        pos_interp_z = interp1d(obj_volt_range, np.array([0.0 ,piezo_range[2]]), kind='linear')
         self._objective_x_volt, self._objective_y_volt, self._objective_z_volt = np.array([self._dev.base.getParameter(self._dev.base.getConst('ID_DAC_VALUE'), 0), self._dev.base.getParameter(self._dev.base.getConst('ID_DAC_VALUE'), 1), self._dev.base.getParameter(self._dev.base.getConst('ID_DAC_VALUE'), 2)]) * 305.2 * 1e-6
-        return float(pos_interp(self._objective_x_volt)), float(pos_interp(self._objective_y_volt)), float(pos_interp(self._objective_z_volt))
+        return float(pos_interp_xy(self._objective_x_volt)), float(pos_interp_xy(self._objective_y_volt)), float(pos_interp_z(self._objective_z_volt))
 
-    def _objective_volt_for_pos(self, pos):
+    def _objective_volt_for_pos(self, pos, xy):
         piezo_range = self._objective_piezo_act_range()
-        obj_volt_range = np.array([0,10.0])
-        pos_interp = interp1d(np.array([0.0 ,piezo_range[0]]), obj_volt_range, kind='linear')
-        return pos_interp(pos)
+        u_lim = self._dev.base.getParameter(self._dev.base.getConst('ID_GENDAC_LIMIT_CT'), 0)/1e6  
+        obj_volt_range = np.array([0, u_lim])
+        pos_interp_xy = interp1d(np.array([0.0 ,piezo_range[0]]), obj_volt_range, kind='linear')
+        pos_interp_z = interp1d(np.array([0.0 ,piezo_range[2]]), obj_volt_range, kind='linear')
+        return pos_interp_xy(pos) if xy else pos_interp_z(pos)
 
     def check_interface_version(self, pause=None):
         """ Determines interface version from hardware interface 
@@ -879,7 +880,7 @@ class SPM_ASC500(Base, ScannerInterface):
             if axis_label_dict[i] > scan_range[i]:
                 self.log.warning(f'Objective scanner {i} to abs. position outside scan range: {axis_label_dict[i]*1e6:.3f} um')
                 return self.get_objective_pos(list(axis_label_dict.keys()))
-        volt = {i.upper() : self._objective_volt_for_pos(axis_label_dict[i]) for i in axis_label_dict}
+        volt = {i.upper() : self._objective_volt_for_pos(axis_label_dict[i], True if 'X' in i or 'Y' in i else False) for i in axis_label_dict}
         ret_list = []
         for i in volt:
             self._move_objective(i, volt[i], move_time)
@@ -888,6 +889,7 @@ class SPM_ASC500(Base, ScannerInterface):
     def _move_objective(self, axis, volt, move_time):
         axes = {'X2':0, 'Y2':1, 'Z2':2}
         curr_volt = self._dev.base.getParameter(self._dev.base.getConst('ID_DAC_VALUE'), axes[axis])*305.2/1e6
+        move_time=0
         if move_time==0:
             self._dev.base.setParameter(self._dev.base.getConst('ID_DAC_VALUE'), abs(int(volt/305.2*1e6)), axes[axis])
         else:
