@@ -26,6 +26,7 @@ import numpy as np
 from qtpy import QtCore
 from scipy.interpolate import interp1d
 from hardware.spm.spm_library.ASC500_Python_Control.lib.asc500_device import Device
+import pulsestreamer as ps
 
 from interface.scanner_interface import ScannerInterface, ScannerMode, ScanStyle, \
                                         ScannerState, ScannerConstraints, ScannerMeasurements  
@@ -98,6 +99,8 @@ class SPM_ASC500(Base, ScannerInterface):
         self._create_scanner_contraints()
         self._create_scanner_measurements()
         self._trig = False
+
+        self._pulser = ps.PulseStreamer('129.69.46.68')
 
         return
 
@@ -538,6 +541,11 @@ class SPM_ASC500(Base, ScannerInterface):
             axis_dict[keys[1]] = self.objective_scan_line[keys[1]][i]
             self.set_objective_pos_abs(axis_dict, self.idle_time)
             self.sigCollectObjectiveCounts.emit()
+            while True:
+                if not self._pulser.isStreaming():
+                    break
+            while not self._pulser.hasFinished():
+                pass
 
 
     def scan_point(self, num_params=None):
@@ -889,9 +897,13 @@ class SPM_ASC500(Base, ScannerInterface):
     def _move_objective(self, axis, volt, move_time):
         axes = {'X2':0, 'Y2':1, 'Z2':2}
         curr_volt = self._dev.base.getParameter(self._dev.base.getConst('ID_DAC_VALUE'), axes[axis])*305.2/1e6
-        move_time=0
+        move_time=0.0
         if move_time==0:
             self._dev.base.setParameter(self._dev.base.getConst('ID_DAC_VALUE'), abs(int(volt/305.2*1e6)), axes[axis])
+            while True:
+                trans_volt = self._dev.base.getParameter(self._dev.base.getConst('ID_DAC_VALUE'), axes[axis])*305.2/1e6
+                if np.isclose(trans_volt, volt, rtol=1e-02, atol=1e-02):
+                    break
         else:
             for v in np.linspace(curr_volt, volt, 100):
                 self._dev.base.setParameter(self._dev.base.getConst('ID_DAC_VALUE'), abs(int(v/305.2*1e6)), axes[axis])

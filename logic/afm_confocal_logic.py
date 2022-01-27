@@ -3386,9 +3386,7 @@ class AFMConfocalLogic(GenericLogic):
 # ==============================================================================
     def _collect_objective_counts(self):
         self._pulser.pulser_on(n=1)
-        while True:
-            if not self._pulser.pulse_streamer.isStreaming():
-                break
+        # self.log.debug('Pulsing')
         
     def _make_pulse_sequence(self, mode, int_time):
         pulse_dict = {0:[], 1:[], 2:[], 3:[], 4:[], 5:[], 6:[], 7:[]}

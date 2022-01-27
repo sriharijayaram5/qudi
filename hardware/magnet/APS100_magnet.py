@@ -21,6 +21,7 @@ top-level directory of this distribution and at <https://github.com/Ulm-IQO/qudi
 
 
 import socket
+import serial
 from core.module import Base
 from core.configoption import ConfigOption
 import numpy as np
@@ -56,9 +57,8 @@ class Magnet(Base, MagnetInterface):
     # config opts
     port = ConfigOption('magnet_port', missing='error')
 
-    ip_addr_x = ConfigOption('magnet_IP_address_x', missing='error')
-    ip_addr_y = ConfigOption('magnet_IP_address_y', missing='error')
-    ip_addr_z = ConfigOption('magnet_IP_address_z', missing='error')
+    addr_zx = ConfigOption('magnet_address_zx', missing='error')
+    addr_y = ConfigOption('magnet_address_y', missing='error')
 
     # default waiting time of the pc after a message was sent to the magnet
     waitingtime = ConfigOption('magnet_waitingtime', 0.01)
@@ -78,17 +78,9 @@ class Magnet(Base, MagnetInterface):
         super().__init__(**kwargs)
         socket.setdefaulttimeout(1)
         try:
-            self.soc_x = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        except socket.timeout:
-            self.log.error("socket timeout for coil in x-direction")
-        try:
             self.soc_y = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         except socket.timeout:
             self.log.error("socket timeout for coil in y-direction")
-        try:
-            self.soc_z = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        except socket.timeout:
-            self.log.error("socket timeout for coil in z-direction")
 
         # This is saves in which interval the input theta was in the last movement
         self._inter = 1
@@ -109,9 +101,8 @@ class Magnet(Base, MagnetInterface):
 
         @return int: (0: Ok, -1:error)
         """
-        self.soc_x.connect((self.ip_addr_x, self.port))
-        self.soc_y.connect((self.ip_addr_y, self.port))
-        self.soc_z.connect((self.ip_addr_z, self.port))
+        self.ser_zx = serial.Serial(port=self.addr_zx, baudrate=9600, bytesize=8, timeout=2, stopbits=serial.STOPBITS_ONE)
+        self.soc_y.connect((self.addr_y, self.port))
 
         self.x_dir = 'ZERO'
         self.y_dir = 'ZERO'
@@ -127,9 +118,8 @@ class Magnet(Base, MagnetInterface):
 
 
     def on_deactivate(self):
-        self.soc_x.close()
+        self.ser_zx.close()
         self.soc_y.close()
-        self.soc_z.close()
 
     def utf8_to_byte(self, myutf8):
         """
@@ -258,11 +248,14 @@ class Magnet(Base, MagnetInterface):
                                       with an appropriate command for the magnet
         """
         internal_counter = 0
+        self.log.debug(f'{param_dict}')
         if param_dict.get('x') is not None:
             if not param_dict['x'].endswith('\n'):
                 param_dict['x'] += '\n'
-            self.soc_x.send(self.utf8_to_byte('CHAN 2\n'))
-            self.soc_x.send(self.utf8_to_byte(param_dict['x']))
+            self.ser_zx.write(self.utf8_to_byte('CHAN 2\n'))
+            self.ser_zx.readline().decode()
+            self.ser_zx.write(self.utf8_to_byte(param_dict['x']))
+            self.ser_zx.readline().decode()
             internal_counter += 1
         if param_dict.get('y') is not None:
             if not param_dict['y'].endswith('\n'):
@@ -272,8 +265,10 @@ class Magnet(Base, MagnetInterface):
         if param_dict.get('z') is not None:
             if not param_dict['z'].endswith('\n'):
                 param_dict['z'] += '\n'
-            self.soc_z.send(self.utf8_to_byte('CHAN 1\n'))
-            self.soc_z.send(self.utf8_to_byte(param_dict['z']))
+            self.ser_zx.write(self.utf8_to_byte('CHAN 1\n'))
+            self.ser_zx.readline().decode()
+            self.ser_zx.write(self.utf8_to_byte(param_dict['z']))
+            self.ser_zx.readline().decode()
             internal_counter += 1
 
         if internal_counter == 0:
@@ -300,16 +295,13 @@ class Magnet(Base, MagnetInterface):
             if not param_dict['x'].endswith('\n'):
                 param_dict['x'] += '\n'
                 # repeat this block to get out crappy messages.
-            self.soc_x.send(self.utf8_to_byte('CHAN 2\n'))
-            self.soc_x.send(self.utf8_to_byte(param_dict['x']))
+            self.ser_zx.write(self.utf8_to_byte('CHAN 2\n'))
+            self.ser_zx.readline().decode()
+            self.ser_zx.write(self.utf8_to_byte(param_dict['x']))
+            self.ser_zx.readline().decode()
             # time.sleep(self.waitingtime)                   # you need to wait until magnet generating
             # an answer.
-            answer_dict['x'] = self.byte_to_utf8(self.soc_x.recv(1024))  # receive an answer
-            self.soc_x.send(self.utf8_to_byte(param_dict['x']))
-            # time.sleep(self.waitingtime)                   # you need to wait until magnet generating
-            # an answer.
-            answer_dict['x'] = self.byte_to_utf8(self.soc_x.recv(1024))  # receive an answer
-
+            answer_dict['x'] = self.byte_to_utf8(self.ser_zx.readline())  # receive an answer
             answer_dict['x'] = answer_dict['x'].replace('\r', '')
             answer_dict['x'] = answer_dict['x'].replace('\n', '')
         if param_dict.get('y') is not None:
@@ -328,15 +320,13 @@ class Magnet(Base, MagnetInterface):
         if param_dict.get('z') is not None:
             if not param_dict['z'].endswith('\n'):
                 param_dict['z'] += '\n'
-            self.soc_z.send(self.utf8_to_byte('CHAN 2\n'))
-            self.soc_z.send(self.utf8_to_byte(param_dict['z']))
+            self.ser_zx.write(self.utf8_to_byte('CHAN 1\n'))
+            self.ser_zx.readline().decode()
+            self.ser_zx.write(self.utf8_to_byte(param_dict['z']))
+            self.ser_zx.readline().decode()
             # time.sleep(self.waitingtime)                   # you need to wait until magnet generating
             # an answer.
-            answer_dict['z'] = self.byte_to_utf8(self.soc_z.recv(1024))  # receive an answer
-            self.soc_z.send(self.utf8_to_byte(param_dict['z']))
-            # time.sleep(self.waitingtime)                   # you need to wait until magnet generating
-            # an answer.
-            answer_dict['z'] = self.byte_to_utf8(self.soc_z.recv(1024))  # receive an answer
+            answer_dict['z'] = self.byte_to_utf8(self.ser_zx.readline())  # receive an answer
             answer_dict['z'] = answer_dict['z'].replace('\r', '')
             answer_dict['z'] = answer_dict['z'].replace('\n', '')
 
@@ -367,8 +357,8 @@ class Magnet(Base, MagnetInterface):
             status_plural = self.ask_status()
         status_dict = {}
         for axes in status_plural:
-            curr_I = float(status_plural[axes][:-1])
-            set_I = float(field_dict[axes][:-1])
+            curr_I = float(status_plural[axes][:-4])
+            set_I = float(field_dict[axes][:-4])
             translated_status = 1 if np.isclose([curr_I],[set_I], atol=1e-4) else 0
             status_dict[axes] = translated_status
 
@@ -421,19 +411,20 @@ class Magnet(Base, MagnetInterface):
         if check_var:
             self.log.info(f'Setting: {param_dict}')
             if param_dict.get('x') is not None:
-                self.soc_x.send(self.utf8_to_byte('CHAN 2\n'))
                 lim = 'U' if old_dict['x']<field_dict['x'] else 'L'
                 self.x_dir = 'UP' if lim=='U' else 'DOWN'
-                self.soc_x.send(self.utf8_to_byte(f"{lim}LIM " + str(param_dict['x']) + "\n"))
+                cmd = self.utf8_to_byte(f"{lim}LIM " + str(param_dict['x']) + "\n")
+                self.tell({'x':f'{cmd}'})
             if param_dict.get('y') is not None:
                 lim = 'U' if old_dict['y']<field_dict['y'] else 'L'
                 self.y_dir = 'UP' if lim=='U' else 'DOWN'
-                self.soc_y.send(self.utf8_to_byte(f"{lim}LIM " + str(param_dict['y']) + "\n"))
+                cmd = self.utf8_to_byte(f"{lim}LIM " + str(param_dict['y']) + "\n")
+                self.tell({'y':f'{cmd}'})
             if param_dict.get('z') is not None:
-                self.soc_z.send(self.utf8_to_byte('CHAN 1\n'))
                 lim = 'U' if old_dict['z']<field_dict['z'] else 'L'
                 self.z_dir = 'UP' if lim=='U' else 'DOWN'
-                self.soc_z.send(self.utf8_to_byte(f"{lim}LIM " + str(param_dict['z']) + "\n"))
+                cmd = self.utf8_to_byte(f"{lim}LIM " + str(param_dict['z']) + "\n")
+                self.tell({'z':f'{cmd}'})
 
         else:
             self.log.warning('resulting field would be too high in '
@@ -452,6 +443,9 @@ class Magnet(Base, MagnetInterface):
             """
 
         self.log.info(f'Ramping...')
+        self.x_dir = 'ZERO'
+        self.y_dir = 'ZERO'
+        self.z_dir = 'ZERO'
         self.tell({'x':f'SWEEP {self.x_dir}', 'y':f'SWEEP {self.y_dir}', 'z':f'SWEEP {self.z_dir}'})
 
         return 0
@@ -837,17 +831,17 @@ class Magnet(Base, MagnetInterface):
 
         my_pattern = re.compile('[-+]?[0-9][.][0-9]+')
         try:
-            answ_dict['x'] = float(answ_dict['x'][:-2])/10
+            answ_dict['x'] = float(answ_dict['x'][:-4])/10
         except ValueError:
             match_list = re.findall(my_pattern, answ_dict['x'])
             answ_dict['x'] = float(match_list[0])
         try:
-            answ_dict['y'] = float(answ_dict['y'][:-2])/10
+            answ_dict['y'] = float(answ_dict['y'][:-4])/10
         except ValueError:
             match_list = re.findall(my_pattern, answ_dict['y'])
             answ_dict['y'] = float(match_list[0])
         try:
-            answ_dict['z'] = float(answ_dict['z'][:-2])/10
+            answ_dict['z'] = float(answ_dict['z'][:-4])/10
         except ValueError:
             match_list = re.findall(my_pattern, answ_dict['z'])
             answ_dict['z'] = float(match_list[0])
@@ -1096,15 +1090,15 @@ class Magnet(Base, MagnetInterface):
             ask_dict['y'] = "RATE? 0"
             ask_dict['z'] = "RATE? 0"
             answ_dict = self.ask(ask_dict)
-            return_dict['x'] = float(answ_dict['x'])
-            return_dict['y'] = float(answ_dict['y'])
-            return_dict['z'] = float(answ_dict['z'])
+            return_dict['x'] = float(answ_dict['x'][:-2])
+            return_dict['y'] = float(answ_dict['y'][:-2])
+            return_dict['z'] = float(answ_dict['z'][:-2])
         else:
             for axis in param_list:
                 ask_dict[axis] = "RATE? 0"
             answ_dict = self.ask(ask_dict)
             for axis in param_list:
-                return_dict[axis] = float(answ_dict[axis])
+                return_dict[axis] = float(answ_dict[axis][:-2])
 
         return return_dict
 

@@ -2178,6 +2178,9 @@ class ProteusQGUI(GUIBase):
         self._mw.actionSaveDataQAFM.setEnabled(False)
         self._mw.actionSaveObjData.setEnabled(False)
         self._mw.actionSaveOptiData.setEnabled(False)
+        self._dockwidget_container[f'obj_xy'].graphicsView_matrix.toggle_crosshair(False)
+        self._dockwidget_container[f'obj_xz'].graphicsView_matrix.toggle_crosshair(False)
+        self._dockwidget_container[f'obj_yz'].graphicsView_matrix.toggle_crosshair(False)
 
     def enable_scan_actions(self):
         self._mw.actionStart_QAFM_Scan.setEnabled(True)
@@ -2190,6 +2193,9 @@ class ProteusQGUI(GUIBase):
         self._mw.actionSaveDataQAFM.setEnabled(True)
         self._mw.actionSaveObjData.setEnabled(True)
         self._mw.actionSaveOptiData.setEnabled(True)
+        self._dockwidget_container[f'obj_xy'].graphicsView_matrix.toggle_crosshair(True)
+        self._dockwidget_container[f'obj_xz'].graphicsView_matrix.toggle_crosshair(True)
+        self._dockwidget_container[f'obj_yz'].graphicsView_matrix.toggle_crosshair(True)
 
     def enable_optimizer_action(self):
         self._mw.actionOptimize_Pos.setEnabled(True)
@@ -2254,7 +2260,7 @@ class ProteusQGUI(GUIBase):
 
     def goto_obj_pos_clicked(self):
 
-        self.disable_scan_actions()
+        # self.disable_scan_actions()
         
         x = self._mw.obj_target_x_DSpinBox.value()
         y = self._mw.obj_target_y_DSpinBox.value()
