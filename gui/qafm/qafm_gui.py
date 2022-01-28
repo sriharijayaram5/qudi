@@ -2082,6 +2082,9 @@ class ProteusQGUI(GUIBase):
         res_x = self._mw.obj_x_num_SpinBox.value()
         res_y = self._mw.obj_y_num_SpinBox.value()
 
+        res_x = self._qafm_logic._spm._find_spec_count(x_start, x_stop, res_x)
+        self._mw.obj_x_num_SpinBox.setValue(res_x)
+
         self._qafm_logic.start_scan_area_obj_by_line(coord0_start=x_start,
                                                       coord0_stop=x_stop,
                                                       coord0_num=res_x,
@@ -2102,6 +2105,9 @@ class ProteusQGUI(GUIBase):
         z_stop = self._mw.obj_z_max_DSpinBox.value()
         res_x = self._mw.obj_x_num_SpinBox.value()
         res_z = self._mw.obj_z_num_SpinBox.value()
+
+        res_x = self._qafm_logic._spm._find_spec_count(x_start, x_stop, res_x)
+        self._mw.obj_x_num_SpinBox.setValue(res_x)
 
         self._qafm_logic.start_scan_area_obj_by_line(coord0_start=x_start,
                                                       coord0_stop=x_stop,
@@ -2124,6 +2130,9 @@ class ProteusQGUI(GUIBase):
         z_stop = self._mw.obj_z_max_DSpinBox.value()
         res_y = self._mw.obj_y_num_SpinBox.value()
         res_z = self._mw.obj_z_num_SpinBox.value()
+
+        res_y = self._qafm_logic._spm._find_spec_count(y_start, y_stop, res_y)
+        self._mw.obj_y_num_SpinBox.setValue(res_y)
 
         self._qafm_logic.start_scan_area_obj_by_line(coord0_start=y_start,
                                                       coord0_stop=y_stop,
