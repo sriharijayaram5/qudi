@@ -26,7 +26,6 @@ import numpy as np
 from qtpy import QtCore
 from scipy.interpolate import interp1d
 from hardware.spm.spm_library.ASC500_Python_Control.lib.asc500_device import Device
-import pulsestreamer as ps
 
 from interface.scanner_interface import ScannerInterface, ScannerMode, ScanStyle, \
                                         ScannerState, ScannerConstraints, ScannerMeasurements  
@@ -101,8 +100,6 @@ class SPM_ASC500(Base, ScannerInterface):
         self._create_scanner_contraints()
         self._create_scanner_measurements()
         self._trig = False
-
-        self._pulser = ps.PulseStreamer('129.69.46.68')
 
         return
 
@@ -459,6 +456,7 @@ class SPM_ASC500(Base, ScannerInterface):
                     return self.get_objective_pos(list(axis_dict.keys()))
             self.overrange = False
         self.idle_time = time_back
+        sT=time_forward/self._line_points
         self._create_objective_line(xOffset=line_corr0_start, yOffset=line_corr1_start, pxSize=abs(line_corr0_stop-line_corr0_start)/self._line_points, columns=self._line_points)
         self._polled_data = np.zeros(self._line_points)
         self._configurePathDataBuffering(sampTime=sT)
@@ -656,7 +654,7 @@ class SPM_ASC500(Base, ScannerInterface):
             self.spec_count = self._dev.base.getParameter(self._dev.base.getConst('ID_SPEC_COUNT'), self.spec_engine_dummy)
             data = self._grabASCData(self.spec_count)
             if self._spm_curr_mode == ScannerMode.PROBE_CONTACT:
-                self._polled_data[i] = np.mmean(data)
+                self._polled_data[i] = np.mean(data)
             else:
                 self._polled_data = data
 
