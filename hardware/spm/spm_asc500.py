@@ -88,6 +88,7 @@ class SPM_ASC500(Base, ScannerInterface):
         self._spm_curr_state = ScannerState.UNCONFIGURED
 
         self._objective_x_volt, self._objective_y_volt, self._objective_z_volt = 0.0, 0.0, 0.0
+        # DO NOT CHANGE
         self._dev.base.setParameter(self._dev.base.getConst('ID_GENDAC_LIMIT_RT'), 3e6, 0)
         self._dev.base.setParameter(self._dev.base.getConst('ID_GENDAC_LIMIT_RT'), 3e6, 1)
         self._dev.base.setParameter(self._dev.base.getConst('ID_GENDAC_LIMIT_RT'), 3e6, 2)
