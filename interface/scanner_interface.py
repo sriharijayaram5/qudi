@@ -51,6 +51,7 @@ class ScannerMode(Enum):
     PROBE_CONSTANT_HEIGHT = 5
     PROBE_DUAL_PASS       = 6
     PROBE_Z_SWEEP         = 7
+    OBJECTIVE_ZX          = 8
 
     @classmethod
     def name(cls,val):

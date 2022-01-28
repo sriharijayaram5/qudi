@@ -125,6 +125,9 @@ class SPM_ASC500(Base, ScannerInterface):
 
             ScannerMode.OBJECTIVE_YZ:  { 'plane'       : 'Y2Z2', 
                                          'scan_style'  : ScanStyle.LINE },
+            
+            ScannerMode.OBJECTIVE_ZX:  { 'plane'       : 'Z2X2', 
+                                         'scan_style'  : ScanStyle.LINE },                                         
 
             ScannerMode.PROBE_CONTACT: { 'plane'       : 'XY', 
                                          'scan_style'  : ScanStyle.LINE }}
@@ -133,7 +136,8 @@ class SPM_ASC500(Base, ScannerInterface):
         sc.scanner_modes = [ ScannerMode.PROBE_CONTACT,
                              ScannerMode.OBJECTIVE_XY,
                               ScannerMode.OBJECTIVE_XZ,
-                               ScannerMode.OBJECTIVE_YZ
+                               ScannerMode.OBJECTIVE_YZ,
+                               ScannerMode.OBJECTIVE_ZX
                              ]  
 
         sc.scanner_mode_states = { ScannerMode.PROBE_CONTACT: [ ScannerState.IDLE,
@@ -147,6 +151,10 @@ class SPM_ASC500(Base, ScannerInterface):
                                    ScannerMode.OBJECTIVE_XZ: [  ScannerState.IDLE,
                                                                 ScannerState.OBJECTIVE_MOVING,
                                                                 ScannerState.OBJECTIVE_SCANNING],
+                                    
+                                    ScannerMode.OBJECTIVE_ZX: [  ScannerState.IDLE,
+                                                                ScannerState.OBJECTIVE_MOVING,
+                                                                ScannerState.OBJECTIVE_SCANNING],
 
                                    ScannerMode.OBJECTIVE_YZ: [  ScannerState.IDLE,
                                                                 ScannerState.OBJECTIVE_MOVING,
@@ -158,6 +166,7 @@ class SPM_ASC500(Base, ScannerInterface):
         sc.scanner_mode_params = {ScannerMode.PROBE_CONTACT:         { 'line_points': 100 },
                                     ScannerMode.OBJECTIVE_XY:          { 'line_points': 100 },
                                     ScannerMode.OBJECTIVE_XZ:          { 'line_points': 100 },
+                                    ScannerMode.OBJECTIVE_ZX:          { 'line_points': 100 },
                                     ScannerMode.OBJECTIVE_YZ:          { 'line_points': 100 }
                                  }       
 
@@ -165,6 +174,7 @@ class SPM_ASC500(Base, ScannerInterface):
                                    ScannerMode.PROBE_CONTACT:         { 'meas_params': []},
                                    ScannerMode.OBJECTIVE_XY:          { 'meas_params': []},
                                    ScannerMode.OBJECTIVE_XZ:          { 'meas_params': []},
+                                   ScannerMode.OBJECTIVE_ZX:          { 'meas_params': []},
                                    ScannerMode.OBJECTIVE_YZ:          { 'meas_params': []}
                                 }  # to be defined
         
@@ -280,6 +290,9 @@ class SPM_ASC500(Base, ScannerInterface):
             ScannerMode.OBJECTIVE_XZ:  { 'plane'       : 'X2Z2', 
                                          'scan_style'  : ScanStyle.LINE },
 
+            ScannerMode.OBJECTIVE_ZX:  { 'plane'       : 'Z2X2', 
+                                         'scan_style'  : ScanStyle.LINE },                                         
+
             ScannerMode.OBJECTIVE_YZ:  { 'plane'       : 'Y2Z2', 
                                          'scan_style'  : ScanStyle.LINE },
 
@@ -339,6 +352,11 @@ class SPM_ASC500(Base, ScannerInterface):
             self._chn_no = 6 # counter channel
 
         elif mode == ScannerMode.OBJECTIVE_YZ:
+            # Objective scanning returns no parameters
+            self._spm_curr_state =  ScannerState.IDLE
+            self._chn_no = 6 # counter channel
+        
+        elif mode == ScannerMode.OBJECTIVE_ZX:
             # Objective scanning returns no parameters
             self._spm_curr_state =  ScannerState.IDLE
             self._chn_no = 6 # counter channel
@@ -445,6 +463,17 @@ class SPM_ASC500(Base, ScannerInterface):
                     return self.get_objective_pos(list(axis_dict.keys()))
             self.overrange = False
         
+        elif self._spm_curr_mode == ScannerMode.OBJECTIVE_ZX:
+            self.fast_axis = 2
+            scan_range = self.get_objective_scan_range(['Z2','X2'])
+            axis_dict = {'Z2': line_corr0_stop, 'X2': line_corr1_stop}
+            for i in scan_range:
+                if axis_dict[i] > scan_range[i]:
+                    self.log.warning(f'Objective scanner {i} to abs. position outside scan range: {axis_dict[i]*1e6:.3f} um')
+                    self.overrange = True
+                    return self.get_objective_pos(list(axis_dict.keys()))
+            self.overrange = False
+        
         elif self._spm_curr_mode == ScannerMode.OBJECTIVE_YZ:
             self.fast_axis = 1
             scan_range = self.get_objective_scan_range(['Y2','Z2'])
@@ -504,6 +533,10 @@ class SPM_ASC500(Base, ScannerInterface):
             self.objective_scan_line['X2'] = np.linspace(xOffset, xOffset + pxSize*columns, columns)
             self.objective_scan_line['Z2'] = np.ones(columns)*yOffset
         
+        elif self._spm_curr_mode == ScannerMode.OBJECTIVE_ZX:
+            self.objective_scan_line['Z2'] = np.linspace(xOffset, xOffset + pxSize*columns, columns)
+            self.objective_scan_line['X2'] = np.ones(columns)*yOffset
+        
         elif self._spm_curr_mode == ScannerMode.OBJECTIVE_YZ:
             self.objective_scan_line['Y2'] = np.linspace(xOffset, xOffset + pxSize*columns, columns)
             self.objective_scan_line['Z2'] = np.ones(columns)*yOffset
@@ -535,7 +568,7 @@ class SPM_ASC500(Base, ScannerInterface):
             self._spm_curr_state =  ScannerState.PROBE_SCANNING
             self._poll_path_data()
 
-        elif self._spm_curr_mode == ScannerMode.OBJECTIVE_XY or self._spm_curr_mode == ScannerMode.OBJECTIVE_XZ or self._spm_curr_mode == ScannerMode.OBJECTIVE_YZ:
+        elif self._spm_curr_mode == ScannerMode.OBJECTIVE_XY or self._spm_curr_mode == ScannerMode.OBJECTIVE_XZ or self._spm_curr_mode == ScannerMode.OBJECTIVE_YZ or self._spm_curr_mode == ScannerMode.OBJECTIVE_ZX:
             self._spm_curr_state =  ScannerState.OBJECTIVE_SCANNING
             self._scan_objective()
         
@@ -609,10 +642,10 @@ class SPM_ASC500(Base, ScannerInterface):
                                     1, # 0/1 -  if you want to switch on averaging
                                     sampTime) # Scanner sample time [s]
             
-            start_cart = self.objective_scan_line[{0:'X2', 1:'Y2'}[self.fast_axis]][0]
-            stop_cart = self.objective_scan_line[{0:'X2', 1:'Y2'}[self.fast_axis]][-1]
-            start = self._objective_volt_for_pos(start_cart, True)
-            stop = self._objective_volt_for_pos(stop_cart, True)
+            start_cart = self.objective_scan_line[{0:'X2', 1:'Y2', 2:'Z2'}[self.fast_axis]][0]
+            stop_cart = self.objective_scan_line[{0:'X2', 1:'Y2', 2:'Z2'}[self.fast_axis]][-1]
+            start = self._objective_volt_for_pos(start_cart, True if not self.fast_axis==2 else False)
+            stop = self._objective_volt_for_pos(stop_cart, True if not self.fast_axis==2 else False)
             self._dev.base.setParameter(self._dev.base.getConst('ID_SPEC_DAC_NO'), self.fast_axis, self.spec_engine_dummy) # index 1 is spec engine 1. Spec engine 0 is Z-Spec. 4 is the 4th DAC which is not used for objective scanning
             self._dev.base.setParameter(self._dev.base.getConst('ID_SPEC_START_DISP'), start*1e3, self.spec_engine_dummy)
             self._dev.base.setParameter(self._dev.base.getConst('ID_SPEC_END_DISP'), stop*1e3, self.spec_engine_dummy)

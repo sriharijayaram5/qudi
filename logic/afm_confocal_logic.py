@@ -2819,7 +2819,7 @@ class AFMConfocalLogic(GenericLogic):
         @return 2D_array: measurement results in a two dimensional list.
         """
 
-        plane = 'X2Z2'
+        plane = 'Z2X2'
 
         opti_name = 'opti_z'
 
@@ -2851,21 +2851,21 @@ class AFMConfocalLogic(GenericLogic):
 
         # FIXME: check whether the number of parameters are required and whether they are set correctly.
         # self._spm._params_per_point = len(names_buffers)
-        ret_val, _, _ = self._spm.configure_scanner(mode=ScannerMode.OBJECTIVE_XZ,
+        ret_val, _, _ = self._spm.configure_scanner(mode=ScannerMode.OBJECTIVE_ZX,
                                                     params= {'line_points': res },
                                                     scan_style=ScanStyle.LINE) 
 
         self._spm.set_ext_trigger(True)
 
-        self._opti_scan_array = self.initialize_opti_z_scan_array(coord1_start,
-                                                                  coord1_stop,
+        self._opti_scan_array = self.initialize_opti_z_scan_array(coord0_start,
+                                                                  coord0_stop,
                                                                   res)
         # check input values
-        ret_val |= self._spm.check_spm_scan_params_by_plane(plane,
-                                                            coord0_start,
-                                                            coord0_stop,
-                                                            coord1_start,
-                                                            coord1_stop)
+        # ret_val |= self._spm.check_spm_scan_params_by_plane(plane,
+        #                                                     coord0_start,
+        #                                                     coord0_stop,
+        #                                                     coord1_start,
+        #                                                     coord1_stop)
         if ret_val < 1:
             return self._opti_scan_array
 
@@ -2876,8 +2876,8 @@ class AFMConfocalLogic(GenericLogic):
         self._opti_scan_array[opti_name]['params']['Parameters for'] = 'Optimize Z measurement'
         self._opti_scan_array[opti_name]['params']['axis name for coord0'] = 'Z'
         self._opti_scan_array[opti_name]['params']['measurement direction '] = 'Z'
-        self._opti_scan_array[opti_name]['params']['coord0_start (m)'] = coord1_start
-        self._opti_scan_array[opti_name]['params']['coord0_stop (m)'] = coord1_stop
+        self._opti_scan_array[opti_name]['params']['coord0_start (m)'] = coord0_start
+        self._opti_scan_array[opti_name]['params']['coord0_stop (m)'] = coord0_stop
         self._opti_scan_array[opti_name]['params']['coord0_num (#)'] = res
 
         self._opti_scan_array[opti_name]['params']['Scan speed per line (s)'] = scan_speed_per_line
@@ -2904,7 +2904,7 @@ class AFMConfocalLogic(GenericLogic):
         if int_time is None or np.any(np.isclose(int_time,0,atol=1e-12)):
             int_time = integration_time
 
-        self._opti_scan_array[opti_name]['data'] = counts / int_time 
+        self._opti_scan_array[opti_name]['data'] = counts[0] / int_time 
 
         #print(f'Optimizer Z scan complete.')
         self.sigOptimizeLineScanFinished.emit(opti_name)
@@ -3050,10 +3050,10 @@ class AFMConfocalLogic(GenericLogic):
         #                                                res=res_z,
         #                                                integration_time=int_time_z,
         #                                                wait_first_point=True)
-        opti_scan_arr = self.scan_line_obj_by_line_opti(coord0_start=x_max,
-                                                        coord0_stop=x_max,
-                                                        coord1_start=z_start,
-                                                        coord1_stop=z_stop,
+        opti_scan_arr = self.scan_line_obj_by_line_opti(coord1_start=x_max,
+                                                        coord1_stop=x_max,
+                                                        coord0_start=z_start,
+                                                        coord0_stop=z_stop,
                                                         res=res_z,
                                                         integration_time=int_time_z)
 

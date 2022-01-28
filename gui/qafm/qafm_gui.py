@@ -891,7 +891,7 @@ class ProteusQGUI(GUIBase):
         sd['iso_b_operation'] = self._sd.iso_b_operation_CheckBox.isChecked()
 
         sd['optimizer_x_res'] = self._qafm_logic._spm._find_spec_count(0, sd['optimizer_x_range'], sd['optimizer_x_res'])
-        self._sd.optimizer_x_res_SpinBox.setValue(res_x)
+        self._sd.optimizer_x_res_SpinBox.setValue(sd['optimizer_x_res'])
 
         self._qafm_logic.set_qafm_settings(sd)
 
