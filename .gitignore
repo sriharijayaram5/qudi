@@ -28,7 +28,7 @@
 /documentation/generated
 /documentation/images
 /Data
-
+/notebooks
 # log files
 *.log
 *.log.*
