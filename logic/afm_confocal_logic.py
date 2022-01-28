@@ -2720,11 +2720,11 @@ class AFMConfocalLogic(GenericLogic):
                                                                    coord1_stop,
                                                                    coord1_num)
         # check input values
-        ret_val |= self._spm.check_spm_scan_params_by_plane(plane,
-                                                            coord0_start,
-                                                            coord0_stop,
-                                                            coord1_start,
-                                                            coord1_stop)
+        # ret_val |= self._spm.check_spm_scan_params_by_plane(plane,
+        #                                                     coord0_start,
+        #                                                     coord0_stop,
+        #                                                     coord1_start,
+        #                                                     coord1_stop)
 
         if ret_val < 1:
             return self._opti_scan_array
@@ -2759,10 +2759,10 @@ class AFMConfocalLogic(GenericLogic):
                                      time_forward=scan_speed_per_line,
                                      time_back=time_idle_move)
 
-            self._counter.start_recorder(arm=True)
+            # self._counter.start_recorder(arm=True)
             self._spm.scan_line()
 
-            counts, int_time = self._counter.get_measurements(['counts', 'int_time']) 
+            counts, int_time = self._spm.get_measurements(),  None
 
             if int_time is None or np.any(np.isclose(int_time,0,atol=1e-12)):
                 int_time = integration_time
@@ -2785,7 +2785,7 @@ class AFMConfocalLogic(GenericLogic):
 
 
         # clean up the counter
-        self._counter.stop_measurement()
+        # self._counter.stop_measurement()
 
         # clean up the spm
         self._spm.finish_scan()
@@ -2896,10 +2896,10 @@ class AFMConfocalLogic(GenericLogic):
                                  time_forward=scan_speed_per_line,
                                  time_back=time_idle_move)
 
-        self._counter.start_recorder(arm=True)
+        # self._counter.start_recorder(arm=True)
         self._spm.scan_line()
 
-        counts, int_time = self._counter.get_measurements(['counts', 'int_time']) 
+        counts, int_time = self._spm.get_measurements(),  None
 
         if int_time is None or np.any(np.isclose(int_time,0,atol=1e-12)):
             int_time = integration_time
@@ -2919,7 +2919,7 @@ class AFMConfocalLogic(GenericLogic):
         # clean up the spm
         self._spm.finish_scan()
         # clean up the counter
-        self._counter.stop_measurement()
+        # self._counter.stop_measurement()
 
         return self._opti_scan_array
 

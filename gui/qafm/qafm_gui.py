@@ -889,6 +889,10 @@ class ProteusQGUI(GUIBase):
         sd['optimizer_int_time'] = self._sd.optimizer_int_time_DoubleSpinBox.value()
         sd['optimizer_period'] = self._sd.optimizer_period_DoubleSpinBox.value()
         sd['iso_b_operation'] = self._sd.iso_b_operation_CheckBox.isChecked()
+
+        sd['optimizer_x_res'] = self._qafm_logic._spm._find_spec_count(0, sd['optimizer_x_range'], sd['optimizer_x_res'])
+        self._sd.optimizer_x_res_SpinBox.setValue(res_x)
+
         self._qafm_logic.set_qafm_settings(sd)
 
 
