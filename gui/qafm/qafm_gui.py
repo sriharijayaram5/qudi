@@ -266,6 +266,7 @@ class ProteusQGUI(GUIBase):
         self._qafm_logic.sigOptimizeLineScanFinished.connect(self._update_opti_data)
         self._qafm_logic.sigOptimizeScanFinished.connect(self.enable_optimizer_action)
         self._qafm_logic.sigOptimizeScanFinished.connect(self.update_target_pos)
+        self._qafm_logic.sigOptimizeScanFinished.connect(self.update_opti_crosshair)
 
         self._mw.actionOptimize_Pos.triggered.connect(self.start_optimize_clicked)
 
@@ -430,6 +431,8 @@ class ProteusQGUI(GUIBase):
 
         self._sd.accepted.connect(self.update_qafm_settings)
         self._sd.rejected.connect(self.keep_former_qafm_settings)
+        self._sd.optimizer_z_res_SpinBox.setMinimum(10)
+        self._sd.optimizer_x_res_SpinBox.setMinimum(10)
         self._sd.buttonBox.button(QtWidgets.QDialogButtonBox.Apply).clicked.connect(self.update_qafm_settings)
 
         self._sd.iso_b_operation_CheckBox.stateChanged.connect(self._mw.dockWidget_isob.setVisible)
@@ -890,8 +893,21 @@ class ProteusQGUI(GUIBase):
         sd['optimizer_period'] = self._sd.optimizer_period_DoubleSpinBox.value()
         sd['iso_b_operation'] = self._sd.iso_b_operation_CheckBox.isChecked()
 
-        sd['optimizer_x_res'] = self._qafm_logic._spm._find_spec_count(0, sd['optimizer_x_range'], sd['optimizer_x_res'])
+        x_target = self._mw.obj_target_x_DSpinBox.value()
+        start = x_target-sd['optimizer_x_range']/2
+        if (start)<0:
+            self.log.warning('X position too low for optimize range')
+            start = 0
+        sd['optimizer_x_res'] = self._qafm_logic._spm._find_spec_count(start, x_target+sd['optimizer_x_range']/2, sd['optimizer_x_res'])
         self._sd.optimizer_x_res_SpinBox.setValue(sd['optimizer_x_res'])
+
+        z_target = self._mw.obj_target_z_DSpinBox.value()
+        start = z_target-sd['optimizer_z_range']/2
+        if (start)<0:
+            self.log.warning('Z position too low for optimize range')
+            start = 0
+        sd['optimizer_z_res'] = self._qafm_logic._spm._find_spec_count(start, z_target+sd['optimizer_z_range']/2, sd['optimizer_z_res'], False)
+        self._sd.optimizer_z_res_SpinBox.setValue(sd['optimizer_z_res'])
 
         self._qafm_logic.set_qafm_settings(sd)
 
@@ -1140,14 +1156,24 @@ class ProteusQGUI(GUIBase):
 
         @return pyqtgraph.PlotDataItem: object holding the 1D measurement.
         """
-
+        _pen = pg.mkPen(palette.c1,style=QtCore.Qt.DotLine)
+        _palette = palette.c1
+        _width = 4
+        _symbolSize = 7
+        _symbol = 'o'
+        if 'fit' in name:
+            _pen = pg.mkPen(palette.c2,style=QtCore.Qt.SolidLine)
+            _palette = palette.c2
+            _width = 2
+            _symbol = 'd'
+            _symbolSize = 3
         self._plot_container[name] = pg.PlotDataItem(x=x_axis, y=y_axis,
-                                                     pen=pg.mkPen(palette.c1, 
-                                                                  style=QtCore.Qt.DotLine),
-                                                     symbol='o',
-                                                     symbolPen=palette.c1,
-                                                     symbolBrush=palette.c1,
-                                                     symbolSize=7
+                                                     pen=_pen,
+                                                     symbol=_symbol,
+                                                     symbolPen=_palette,
+                                                     symbolBrush=_palette,
+                                                     symbolSize=_symbolSize,
+                                                     width=_width
                                                     )
         return self._plot_container[name]
 
@@ -1352,6 +1378,11 @@ class ProteusQGUI(GUIBase):
                 plot_item = self._create_plot_item(obj_name, 
                                data_dict[obj_name]['coord0_arr'], 
                                data_dict[obj_name]['data'])
+                dockwidget.graphicsView.addItem(plot_item)
+
+                plot_item = self._create_plot_item(obj_name+'_fit', 
+                               data_dict[obj_name]['coord0_arr'], 
+                               data_dict[obj_name]['data_fit'])
                 dockwidget.graphicsView.addItem(plot_item)
 
             else:
@@ -1951,6 +1982,10 @@ class ProteusQGUI(GUIBase):
                                                    y=opti_data[obj_name]['data'])
 
             self._plot_container[obj_name].getViewBox().updateAutoRange() 
+            self._plot_container[obj_name+'_fit'].setData(x=opti_data[obj_name]['coord0_arr'], 
+                                                   y=opti_data[obj_name]['data_fit'])
+
+            self._plot_container[obj_name+'_fit'].getViewBox().updateAutoRange() 
 
 
     def update_target_pos(self):
@@ -1960,7 +1995,12 @@ class ProteusQGUI(GUIBase):
         self._mw.obj_target_x_DSpinBox.setValue(x_max)
         self._mw.obj_target_y_DSpinBox.setValue(y_max)
         self._mw.obj_target_z_DSpinBox.setValue(z_max)
-
+    
+    def update_opti_crosshair(self):
+        x_max, y_max, c_max, z_max, c_max_z = self._qafm_logic._opt_val
+        vb = self._dockwidget_container['opti_xy']
+        vb.graphicsView_matrix.toggle_crosshair(True)
+        vb.graphicsView_matrix.crosshair.setPos((x_max,y_max))
 
     def _get_scan_cb_range(self, dockwidget_name,data=None):
         """ Determines the cb_min and cb_max values for the xy scan image.
@@ -2152,6 +2192,8 @@ class ProteusQGUI(GUIBase):
         """ Start optimizer scan."""
 
         self.disable_scan_actions()
+
+        self.update_qafm_settings()
 
         x_target = self._mw.obj_target_x_DSpinBox.value()
         y_target = self._mw.obj_target_y_DSpinBox.value()

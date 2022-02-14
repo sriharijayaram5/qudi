@@ -729,6 +729,7 @@ class AFMConfocalLogic(GenericLogic):
                      'params': {}, # !!! here are all the measurement parameter saved
                      'fit_result': None,
                      'display_range':None,
+                     'data_fit': np.zeros(num_points)
                      }
 
         self._opti_scan_array[name] = meas_dict
@@ -2426,7 +2427,7 @@ class AFMConfocalLogic(GenericLogic):
                                integration_time, plane='X2Y2',
                                continue_meas=False):
 
-        """ QAFM measurement (optical + afm) forward and backward for a scan by line.
+        """ Tip scanning measurement (optical) forward for a scan by line.
 
         @param float coord0_start: start coordinate in um
         @param float coord0_stop: start coordinate in um
@@ -2436,7 +2437,7 @@ class AFMConfocalLogic(GenericLogic):
         @param int coord1_num: number of points in y direction
         @param float integration_time: time for the optical integration in s
         @param str plane: Name of the plane to be scanned. Possible options are
-                            'XY', 'YZ', 'XZ', 'X2Y2', 'Y2Z2', 'X2Z2'
+                        'X2Y2', 'Y2Z2', 'X2Z2'
         @param list meas_params: list of possible strings of the measurement
                                  parameter. Have a look at MEAS_PARAMS to see
                                  the available parameters.
@@ -2528,11 +2529,11 @@ class AFMConfocalLogic(GenericLogic):
             self._scan_counter = 0
 
             # check input values
-        # ret_val |= self._spm.check_spm_scan_params_by_plane(plane,
-        #                                                     coord0_start,
-        #                                                     coord0_stop,
-        #                                                     coord1_start,
-        #                                                     coord1_stop)
+        ret_val |= self._spm.check_spm_scan_params_by_plane(plane,
+                                                            coord0_start,
+                                                            coord0_stop,
+                                                            coord1_start,
+                                                            coord1_stop)
 
         if ret_val < 1:
             return self._obj_scan_array
@@ -2617,8 +2618,8 @@ class AFMConfocalLogic(GenericLogic):
         self._spm.finish_scan()
         # clean up the counter
         # self._counter.stop_measurement()
-
-        self.module_state.unlock()
+        if self.module_state()!='idle':
+            self.module_state.unlock()
         self.sigObjScanFinished.emit()
 
         return self._obj_scan_array
@@ -3006,13 +3007,15 @@ class AFMConfocalLogic(GenericLogic):
                                                         y_start, y_stop, res_y,
                                                         int_time_xy)
 
-        if self._stop_request:
+        if self._stop_request or z_start<0 or x_start<0:
             
             # only unlock, if it is a standalone call.
             if optimizer_standalone_call:
                 self.module_state.unlock()
 
             self.sigOptimizeScanFinished.emit()
+            if z_start<0 or x_start<0:
+                self.log.warning('X or Z position too low for optimize range!')
             return
 
         x_max, y_max, c_max = self._calc_max_val_xy(arr=opti_scan_arr['opti_xy']['data'], 
@@ -3066,11 +3069,12 @@ class AFMConfocalLogic(GenericLogic):
             self.sigOptimizeScanFinished.emit()
             return
 
-        z_max, c_max_z = self._calc_max_val_z(opti_scan_arr['opti_z']['data'], 
+        z_max, c_max_z, res = self._calc_max_val_z(opti_scan_arr['opti_z']['data'], 
                                               z_start, z_stop)
 
         self._opti_scan_array['opti_z']['params']['coord0 optimal pos (nm)'] = z_max
         self._opti_scan_array['opti_z']['params']['signal at optimal pos (c/s)'] = c_max_z
+        self._opti_scan_array['opti_z']['data_fit'] = res.best_fit
 
         self.log.debug(f'Found maximum at: [{x_max*1e6:.2f}, {y_max*1e6:.2f}, {z_max*1e6:.2f}]')
 
@@ -3443,7 +3447,7 @@ class AFMConfocalLogic(GenericLogic):
         if self._stop_request:
             return
 
-        z_max, c_max_z = self._calc_max_val_z(apd_arr_z, z_start, z_stop)
+        z_max, c_max_z, _ = self._calc_max_val_z(apd_arr_z, z_start, z_stop)
 
         self.set_obj_pos({'x': x_max, 'y': y_max, 'z':z_max})
 
@@ -3506,7 +3510,7 @@ class AFMConfocalLogic(GenericLogic):
 
         z_max = res.params['center'].value
 
-        return z_max, c_max
+        return z_max, c_max, res
 
 
     @deprecated("This method seems not to be used")

@@ -105,8 +105,8 @@ class SPM_ASC500(Base, ScannerInterface):
 
     def on_deactivate(self):
         """ Clean up and deactivate the spm module. """
-        self._dev.scanner.closeScanner()
-        self._dev.base.stopServer()
+        # self._dev.scanner.closeScanner()
+        # self._dev.base.stopServer()
         self._spm_curr_state = ScannerState.DISCONNECTED
         
         return 
@@ -240,7 +240,19 @@ class SPM_ASC500(Base, ScannerInterface):
         obj_volt_range = np.array([0, u_lim])
         pos_interp_xy = interp1d(obj_volt_range, np.array([0.0 ,piezo_range[0]]), kind='linear')
         pos_interp_z = interp1d(obj_volt_range, np.array([0.0 ,piezo_range[2]]), kind='linear')
-        self._objective_x_volt, self._objective_y_volt, self._objective_z_volt = np.array([self._dev.base.getParameter(self._dev.base.getConst('ID_DAC_VALUE'), 0), self._dev.base.getParameter(self._dev.base.getConst('ID_DAC_VALUE'), 1), self._dev.base.getParameter(self._dev.base.getConst('ID_DAC_VALUE'), 2)]) * 305.2 * 1e-6
+
+        def rounder(x):
+            try:
+                return np.round(x,-1*int(np.ceil(np.log10(x))-4)) * 1e-6
+            except OverflowError:
+                return np.round(x,0) * 1e-6
+            
+        self._objective_x_volt = rounder(self._dev.base.getParameter(self._dev.base.getConst('ID_DAC_VALUE'), 0) * 305.2)
+
+        self._objective_y_volt = rounder(self._dev.base.getParameter(self._dev.base.getConst('ID_DAC_VALUE'), 1) * 305.2)
+
+        self._objective_z_volt = rounder(self._dev.base.getParameter(self._dev.base.getConst('ID_DAC_VALUE'), 2) * 305.2)
+
         return float(pos_interp_xy(self._objective_x_volt)), float(pos_interp_xy(self._objective_y_volt)), float(pos_interp_z(self._objective_z_volt))
 
     def _objective_volt_for_pos(self, pos, xy):
@@ -630,11 +642,12 @@ class SPM_ASC500(Base, ScannerInterface):
             self._dev.base.setParameter(self._dev.base.getConst('ID_SPEC_COUNT'), self.spec_count, self.spec_engine_dummy)
 
             self.spec_count = self._dev.base.getParameter(self._dev.base.getConst('ID_SPEC_COUNT'), self.spec_engine_dummy)
-            self._dev.base.setParameter(self._dev.base.getConst('ID_SPEC_MSPOINTS'), int((sampTime/(2.5e-6))/self.spec_count), self.spec_engine_dummy)
+            self._dev.base.setParameter(self._dev.base.getConst('ID_SPEC_MSPOINTS'), int((sampTime/2.5e-6)/self.spec_count), self.spec_engine_dummy)
             self._dev.base.configureDataBuffering(self._chn_no, self.spec_count) # chNo = same as above; bufSize = Buffersize.
         else:
             self.spec_engine_dummy = 2
             self.spec_count = self._line_points
+            self._dev.base.setParameter(self._dev.base.getConst('ID_CNT_EXP_TIME'),int(sampTime/2.5e-6), 0)
             
             self._dev.base.configureChannel(self._chn_no, # any Number between 0 and 13.
                                     self._dev.base.getConst(f'CHANCONN_SPEC_{self.spec_engine_dummy}'), # How you want to the data to be triggered - CHANCONN_PERMANENT is time triggered data
@@ -651,10 +664,10 @@ class SPM_ASC500(Base, ScannerInterface):
             self._dev.base.setParameter(self._dev.base.getConst('ID_SPEC_END_DISP'), stop*1e3, self.spec_engine_dummy)
             self._dev.base.setParameter(self._dev.base.getConst('ID_SPEC_COUNT'), self.spec_count, self.spec_engine_dummy)
 
-            self._dev.base.setParameter(self._dev.base.getConst('ID_SPEC_MSPOINTS'), int((sampTime/(2.5e-6))), self.spec_engine_dummy)
+            self._dev.base.setParameter(self._dev.base.getConst('ID_SPEC_MSPOINTS'), int(sampTime/2.5e-6), self.spec_engine_dummy)
             self._dev.base.configureDataBuffering(self._chn_no, self.spec_count) # chNo = same as above; bufSize = Buffersize.
         
-    def _find_spec_count(self, start_cart, stop_cart, m):
+    def _find_spec_count(self, start_cart, stop_cart, m, xy=True):
         spec_engine = 2
         n = 3e6//(305.2*m)
         spec_count0 = int(np.round(3/(305.2e-6*n)))
@@ -664,8 +677,8 @@ class SPM_ASC500(Base, ScannerInterface):
             for j in range(2):
                 sc0 = spec_count0+i*(k)
                 k*=-1
-                start = self._objective_volt_for_pos(start_cart, True)
-                stop = self._objective_volt_for_pos(stop_cart, True)
+                start = self._objective_volt_for_pos(start_cart, xy)
+                stop = self._objective_volt_for_pos(stop_cart, xy)
                 self._dev.base.setParameter(self._dev.base.getConst('ID_SPEC_START_DISP'), start*1e3, spec_engine)
                 self._dev.base.setParameter(self._dev.base.getConst('ID_SPEC_END_DISP'), stop*1e3, spec_engine)
                 self._dev.base.setParameter(self._dev.base.getConst('ID_SPEC_COUNT'), sc0, spec_engine)
@@ -731,6 +744,9 @@ class SPM_ASC500(Base, ScannerInterface):
 
         phys_vals = np.array([self._polled_data])
         return phys_vals
+    
+    def check_spm_scan_params_by_plane(self, plane, coord0_start, coord0_stop, coord1_start,coord1_stop):
+        return -1 if coord0_start>coord0_stop or coord1_start>coord1_stop else 1
 
     def finish_scan(self):
         """ Request completion of the current scan line 
@@ -757,7 +773,7 @@ class SPM_ASC500(Base, ScannerInterface):
         @return: None
         """    
         self._dev.zcontrol.setPositionZ(0)
-        self._dev.scanner.closeScanner()
+        # self._dev.scanner.closeScanner()
 
     def calibrate_constant_height(self, calib_points, safety_lift):
         """ Calibrate constant height
