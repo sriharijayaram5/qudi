@@ -32,3 +32,4 @@
 # log files
 *.log
 *.log.*
+notebooks/APS100.ipynb
