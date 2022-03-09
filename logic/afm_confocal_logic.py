@@ -261,6 +261,43 @@ class HealthChecker(object):
                 if self.log: self.log.debug("HealthCheck reports possible death, attempting resurection")
  
 
+class PulseSequence:
+    '''
+    A pulse sequence to be loaded that is made of PulseBlock instances. The pulse blocks can be repeated
+    as well and multiple can be added.
+    '''
+    def __init__(self):
+        self.pulse_dict = {0:[], 1:[], 2:[], 3:[], 4:[], 5:[], 6:[], 7:[]}
+
+    def append(self, block_list):
+        '''
+        append a list of tuples of type: 
+        [(PulseBlock_instance_1, n_repetitions), (PulseBlock_instance_2, n_repetitions)]
+        '''
+        for block, n in block_list:
+            for i in range(n):
+                for key in block.block_dict.keys():
+                    self.pulse_dict[key].extend(block.block_dict[key]/1e-9)
+
+    
+class PulseBlock:
+    '''
+    Small repeating pulse blocks that can be appended to a PulseSequence instance
+    '''
+    def __init__(self):
+        self.block_dict = {0:[], 1:[], 2:[], 3:[], 4:[], 5:[], 6:[], 7:[]}
+    
+    def append(self, init_length, channels, repetition):
+        '''
+        init_length in s; will be converted by sequence class to ns
+        channels are digital channels of PS in swabian language
+        '''
+        tf = {True:1, False:0}
+        for i in range(repetition):
+            for chn in channels.keys():
+                self.block_dict[chn].extend([(init_length, tf[channels[chn]])])    
+
+
 class AFMConfocalLogic(GenericLogic):
     """ Main AFM logic class providing advanced measurement control. """
 
@@ -537,8 +574,6 @@ class AFMConfocalLogic(GenericLogic):
     
         self.sigSaveDataGwyddion.connect(self._save_to_gwyddion)
         self.sigSaveDataGwyddionFinished.connect(self.decrease_save_counter)
-
-        self._spm.sigCollectObjectiveCounts.connect(self._collect_objective_counts)
 
         self._meas_path = os.path.abspath(self._meas_path)
 
@@ -2078,10 +2113,14 @@ class AFMConfocalLogic(GenericLogic):
         ret_val = self._counter.configure_recorder(
             mode=HWRecorderMode.ESR,
             params={'mw_frequency_list': freq_list,
-                    'mw_power': mw_power,
-                    'count_frequency': esr_count_freq,
                     'num_meas': num_esr_runs } )
-    
+                    
+        # self._mw.load_list(freq_list)
+        # self._mw.set_cw_power(mw_power)
+        
+        self._pulser.load_swabian_sequence(self._make_pulse_sequence(HWRecorderMode.ESR, 1/esr_count_freq, freq_points, num_esr_runs))
+        self._pulser.pulser_on(trigger=True, n=1)
+
         if ret_val < 0:
             self.sigQuantiScanFinished.emit()
             return self._qafm_scan_array
@@ -2190,7 +2229,7 @@ class AFMConfocalLogic(GenericLogic):
 
             self._afm_pos = {'x': scan_coords[0], 'y': scan_coords[2]}
 
-            self._spm.scan_point()  # these are points to throw away
+            # self._spm.scan_point()  # these are points to throw away
             self.sigNewAFMPos.emit(self._afm_pos)
 
             # if len(vals) > 0:
@@ -2204,11 +2243,13 @@ class AFMConfocalLogic(GenericLogic):
                 self._scan_point = np.zeros(num_params) 
 
                 # at first the AFM parameter
+                # arm recorder
+                self._counter.start_recorder(arm=True)
+
                 self._debug = self._spm.scan_point()
                 self._scan_point[2:] = self._debug 
                 
                 # obtain ESR measurement
-                self._counter.start_recorder()
                 esr_meas = self._counter.get_measurements()[:, 2:]
 
                 esr_meas_mean = esr_meas.mean(axis=0)
@@ -2477,7 +2518,7 @@ class AFMConfocalLogic(GenericLogic):
         ret_val = self._counter.configure_recorder(mode=HWRecorderMode.PIXELCLOCK,
                                                    params={'mw_frequency': self._freq1_iso_b_frequency,
                                                            'num_meas': coord0_num})
-        self._pulser.load_swabian_sequence(self._make_pulse_sequence(HWRecorderMode.PIXELCLOCK, integration_time))
+        # self._pulser.load_swabian_sequence(self._make_pulse_sequence(HWRecorderMode.PIXELCLOCK, integration_time))
 
         if ret_val < 0:
             self.module_state.unlock()
@@ -3388,22 +3429,60 @@ class AFMConfocalLogic(GenericLogic):
 # ==============================================================================
 #        Pulser configuration
 # ==============================================================================
-    def _collect_objective_counts(self):
-        self._pulser.pulser_on(n=1)
-        # self.log.debug('Pulsing')
-        
-    def _make_pulse_sequence(self, mode, int_time):
-        pulse_dict = {0:[], 1:[], 2:[], 3:[], 4:[], 5:[], 6:[], 7:[]}
+    def _make_pulse_sequence(self, mode, int_time, freq_points=1, num_esr_runs=1):
+
+        d_ch = {0: False , 1: False , 2: False , 3: False , 4: False , 5: False , 6: False , 7: False }
+        clear = lambda x: {i:False for i in x.keys()}
         
         if mode == HWRecorderMode.PIXELCLOCK:
-            patt = [(1e-3/1e-9,1), (int_time/1e-9,0), (1e-3/1e-9,0)]
-            pulse_dict[self._pulser._pixel_start].extend(patt)
+            seq = PulseSequence()
+            
+            block_1 = PulseBlock()
+            
+            d_ch = clear(d_ch)
+            d_ch[self._pulser._pixel_start] = True
+            block_1.append(init_length = 1e-6, channels = d_ch, repetition = 1)
 
-            patt = [(1e-3/1e-9,0), (int_time/1e-9,0), (1e-3/1e-9,1)]
-            pulse_dict[self._pulser._pixel_stop].extend(patt)
+            d_ch = clear(d_ch)
+            block_1.append(init_length = int_time, channels = d_ch, repetition = 1)
 
-            patt = [(1e-3/1e-9,0), (int_time/1e-9,0), (1e-3/1e-9,0), (10e-3/1e-9,1)]
-            pulse_dict[self._pulser._sync_in].extend(patt)
+            d_ch = clear(d_ch)
+            d_ch[self._pulser._pixel_stop] = True
+            d_ch[self._pulser._sync_in] = True
+            block_1.append(init_length = 1e-6, channels = d_ch, repetition = 1)
+
+            seq.append([(block_1, 1)])
+
+            pulse_dict = seq.pulse_dict
+
+        if mode == HWRecorderMode.ESR:
+
+            seq = PulseSequence()
+            
+            block_1 = PulseBlock()
+
+            d_ch = clear(d_ch)
+            d_ch[self._pulser._mw_trig] = True
+            d_ch[self._pulser._laser] = True
+            d_ch[self._pulser._mw_switch] = True
+            d_ch[self._pulser._pixel_start] = True
+            block_1.append(init_length = int_time, channels = d_ch, repetition = 1)
+
+            d_ch = clear(d_ch)
+            d_ch[self._pulser._pixel_stop] = True
+            block_1.append(init_length = 1e-6, channels = d_ch, repetition = 1)
+
+            seq.append([(block_1, freq_points*num_esr_runs)])
+
+            block_2 = PulseBlock()
+
+            d_ch = clear(d_ch)
+            d_ch[self._pulser._sync_in] = True
+            block_2.append(init_length = 1e-6, channels = d_ch, repetition = 1)
+
+            seq.append([(block_2, 1)])
+
+            pulse_dict = seq.pulse_dict
         
         return pulse_dict
 

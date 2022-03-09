@@ -97,9 +97,13 @@ class SPM_ASC500(Base, ScannerInterface):
         self._dev.base.setParameter(self._dev.base.getConst('ID_GENDAC_LIMIT_LT'), 7.5e6, 2)
         self._dev.base.setParameter(self._dev.base.getConst('ID_GENDAC_LIMIT_LT'), 7.5e6, 3)
 
+        self.slew_rates = {'X2':None, 'Y2':None, 'Z2':None}
+        # self.set_obj_slew_rate({'Z2':1})
+
         self._create_scanner_contraints()
         self._create_scanner_measurements()
         self._trig = False
+        self.objective_lock = False
 
         return
 
@@ -110,6 +114,17 @@ class SPM_ASC500(Base, ScannerInterface):
         self._spm_curr_state = ScannerState.DISCONNECTED
         
         return 
+    
+    def set_obj_slew_rate(self, axis_dict):
+        '''
+        Slew rate given as integers for the axis key. SPM takes rate in units of 466uV/s.
+        '''
+        axes = {'X2':0, 'Y2':1, 'Z2':2} # axes DAC number
+        for key in axis_dict.keys():
+            self._dev.base.setParameter(self._dev.base.getConst('ID_DAC_GEN_STEP'), axis_dict[key], axes[key])
+
+            self.log.info(f'{key} slew rate set to {axis_dict[key]}*466 uV/s')
+            self.slew_rates[key]  = axis_dict[key]
 
     def _create_scanner_contraints(self):
 
@@ -289,6 +304,7 @@ class SPM_ASC500(Base, ScannerInterface):
         """
         dev_state = self.get_current_device_state()
         self._spm_curr_mode = mode
+        self._spm_curr_sstyle = scan_style
         #curr_mode, curr_params, curr_sstyle = self.get_current_device_config()
 
         # note that here, all methods configure the SPM for "TscanMode.LINE_SCAN"
@@ -451,6 +467,11 @@ class SPM_ASC500(Base, ScannerInterface):
             self._polled_data = np.zeros(self._line_points)
             self._configurePathDataBuffering(sampTime=sT)
 
+            if self._spm_curr_sstyle==ScanStyle.POINT:
+                self._dev.base.setParameter(self._dev.base.getConst('ID_SPEC_PATHCTRL'), -1, 0 ) # -1 is grid mode
+                self._dev.scanner.setRelativeOrigin(self.end_coords) # set after path or it will attempt going to origin for some reason
+                self._spm_curr_state =  ScannerState.PROBE_SCANNING
+
             return
         
         elif self._spm_curr_mode == ScannerMode.OBJECTIVE_XY:
@@ -530,10 +551,19 @@ class SPM_ASC500(Base, ScannerInterface):
             self._dev.base.setParameter(self._dev.base.getConst('ID_PATH_GUI_Y'), int(val[1]/10e-12), index)  # start point is current position
 
         # define number path actions at a point ('ID_PATH_ACTION'), no. of actions, 0 
-        self._dev.base.setParameter(self._dev.base.getConst('ID_PATH_ACTION'), 2 if self._trig else 1, 0)
-        # define which actions specifically ('ID_PATH_ACTION'), 0=manual handshake/2=Spec 1 dummy engine, 1=as the first action if no. of actions>=1 
-        self._dev.base.setParameter(self._dev.base.getConst('ID_PATH_ACTION'), 2, 1)
-        self._dev.base.setParameter(self._dev.base.getConst('ID_PATH_ACTION'), 4, 2)
+        if self._spm_curr_sstyle == ScanStyle.LINE:
+            self._dev.base.setParameter(self._dev.base.getConst('ID_PATH_ACTION'), 2 if self._trig else 1, 0)
+            # define which actions specifically ('ID_PATH_ACTION'), 0=manual handshake/2=Spec 1 dummy engine, 1=as the first action if no. of actions>=1 
+            self._dev.base.setParameter(self._dev.base.getConst('ID_PATH_ACTION'), 2, 1)
+            self._dev.base.setParameter(self._dev.base.getConst('ID_PATH_ACTION'), 4, 2)
+        else:
+            # If the scan mode is ESR then one needs to scan point by point mode. This would be non blocking between each point and therefore the manual
+            # handshake makes sure the tip waits at the next point until logic is ready to proceed
+            self._dev.base.setParameter(self._dev.base.getConst('ID_PATH_ACTION'), 3, 0)
+            # define which actions specifically ('ID_PATH_ACTION'), 0=manual handshake/2=Spec 1 dummy engine, 1=as the first action if no. of actions>=1 
+            self._dev.base.setParameter(self._dev.base.getConst('ID_PATH_ACTION'), 0, 1)
+            self._dev.base.setParameter(self._dev.base.getConst('ID_PATH_ACTION'), 2, 2)
+            self._dev.base.setParameter(self._dev.base.getConst('ID_PATH_ACTION'), 4, 3)
     
     def _create_objective_line(self, xOffset, yOffset, pxSize, columns):
         self.objective_scan_line = {}
@@ -619,7 +649,21 @@ class SPM_ASC500(Base, ScannerInterface):
             in given scan-point.
             After scan line ends, need to call next SetupScanLine
         """
-        pass
+        if self.overrange:
+            return 0
+
+        if self._spm_curr_mode == ScannerMode.PROBE_CONTACT:
+            self._dev.base.setParameter(self._dev.base.getConst('ID_SPEC_PATHPROCEED') ,1 ,0)
+            while True:
+                if self._dev.base.getParameter(self._dev.base.getConst('ID_PATH_RUNNING'), 0)==1 or self._dev.base.getParameter(self._dev.base.getConst('ID_SCAN_STATUS'), 0)==2:
+                    pass
+                else:
+                    break
+            
+            self._poll_point_data()
+            return self._polled_data
+            
+        return 0
     
     def _configurePathDataBuffering(self, sampTime):
         # The channel configuration and GUI element showing the input for the Specs have little do with each other. Multiple channels can be triggered by a spec. If the GUI channel is the same 
@@ -703,6 +747,16 @@ class SPM_ASC500(Base, ScannerInterface):
                 self._polled_data[i] = np.mean(data)
             else:
                 self._polled_data = data
+
+    def _poll_point_data(self):
+        '''
+        Polls the buffer after the spec engine is triggered at each point. _grabASCData is a blocking statement that only passes after buffer is full.
+        To implement Dual Pass the Z position will be set at every point inside the for loop
+        '''
+
+        self.spec_count = self._dev.base.getParameter(self._dev.base.getConst('ID_SPEC_COUNT'), self.spec_engine_dummy)
+        data = self._grabASCData(self.spec_count)
+        self._polled_data = np.mean(data)
 
     def _grabASCData(self, bufSize=200):
         while True:
@@ -985,6 +1039,9 @@ class SPM_ASC500(Base, ScannerInterface):
         """
         
         # if velocity is given, time will be ignored
+        if self.objective_lock:
+            self.log.warning('Objective locked. Cannot move objective right until toggled.')
+            return self.get_objective_pos(list(axis_label_dict.keys()))
         scan_range = self.get_objective_scan_range(list(axis_label_dict.keys()))
         for i in scan_range:
             if axis_label_dict[i] > scan_range[i]:

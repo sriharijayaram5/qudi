@@ -884,6 +884,7 @@
    <attribute name="toolBarBreak">
     <bool>false</bool>
    </attribute>
+   <addaction name="actionLock_Obj"/>
    <addaction name="actionGo_To_Obj_pos"/>
    <addaction name="actionStart_Obj_XY_scan"/>
    <addaction name="actionStart_Obj_XZ_scan"/>
@@ -1149,6 +1150,22 @@
    </property>
    <property name="toolTip">
     <string>Go to target AFM Position</string>
+   </property>
+  </action>
+  <action name="actionLock_Obj">
+  <property name="checkable">
+    <bool>false</bool>
+   </property>
+   <property name="icon">
+    <iconset>
+     <normaloff>../../artwork/icons/66/unlocked_obj.png</normaloff>
+     <normalon>../../artwork/icons/66/locked_obj.png</normalon>../../artwork/icons/66/unlocked_obj.png</iconset>
+   </property>
+   <property name="text">
+    <string>Lock Obj movement</string>
+   </property>
+   <property name="toolTip">
+    <string>Toggle flag that checks whether objective should be locked or not</string>
    </property>
   </action>
   <action name="actionGo_To_Obj_pos">

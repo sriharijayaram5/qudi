@@ -1,0 +1,3910 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   id="svg2"
+   sodipodi:version="0.32"
+   inkscape:version="1.1.1 (3bf5ae0d25, 2021-09-20)"
+   width="135"
+   height="135"
+   version="1.0"
+   sodipodi:docname="locked_obj_vector.svg"
+   inkscape:output_extension="org.inkscape.output.svgz.inkscape"
+   inkscape:export-filename="D:\Software\proteusq\qudi-modules\artwork\icons\save_objective.png"
+   inkscape:export-xdpi="22"
+   inkscape:export-ydpi="22"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns:xlink="http://www.w3.org/1999/xlink"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg"
+   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+   xmlns:cc="http://creativecommons.org/ns#"
+   xmlns:dc="http://purl.org/dc/elements/1.1/">
+  <metadata
+     id="metadata7">
+    <rdf:RDF>
+      <cc:Work
+         rdf:about="">
+        <dc:format>image/svg+xml</dc:format>
+        <dc:type
+           rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
+      </cc:Work>
+    </rdf:RDF>
+  </metadata>
+  <defs
+     id="defs5">
+    <linearGradient
+       id="linearGradient28077">
+      <stop
+         style="stop-color:#7a7a7a;stop-opacity:1;"
+         offset="0"
+         id="stop28079" />
+      <stop
+         style="stop-color:#000000;stop-opacity:0.4909091;"
+         offset="1"
+         id="stop28081" />
+    </linearGradient>
+    <linearGradient
+       id="linearGradient28069">
+      <stop
+         style="stop-color:#868385;stop-opacity:1;"
+         offset="0"
+         id="stop28071" />
+      <stop
+         style="stop-color:#4a4949;stop-opacity:1"
+         offset="1"
+         id="stop28073" />
+    </linearGradient>
+    <linearGradient
+       id="linearGradient28059">
+      <stop
+         style="stop-color:#ffffff;stop-opacity:1;"
+         offset="0"
+         id="stop28061" />
+      <stop
+         style="stop-color:#000000;stop-opacity:1;"
+         offset="1"
+         id="stop28063" />
+    </linearGradient>
+    <linearGradient
+       id="linearGradient17395">
+      <stop
+         style="stop-color:#ffffff;stop-opacity:1;"
+         offset="0"
+         id="stop17397" />
+      <stop
+         style="stop-color:#ffffff;stop-opacity:0.80000001;"
+         offset="1"
+         id="stop17399" />
+    </linearGradient>
+    <linearGradient
+       id="linearGradient17383">
+      <stop
+         style="stop-color:#202020;stop-opacity:1;"
+         offset="0"
+         id="stop17385" />
+      <stop
+         style="stop-color:#202020;stop-opacity:0.76363635;"
+         offset="1"
+         id="stop17387" />
+    </linearGradient>
+    <linearGradient
+       id="linearGradient3215">
+      <stop
+         style="stop-color:#8a8a8a;stop-opacity:1;"
+         offset="0"
+         id="stop3217" />
+      <stop
+         style="stop-color:#c6c6c6;stop-opacity:1;"
+         offset="1"
+         id="stop3219" />
+    </linearGradient>
+    <linearGradient
+       id="linearGradient3111">
+      <stop
+         style="stop-color:#ffffff;stop-opacity:1;"
+         offset="0"
+         id="stop3113" />
+      <stop
+         id="stop3603"
+         offset="0.5"
+         style="stop-color:#ffffff;stop-opacity:0.69818181;" />
+      <stop
+         style="stop-color:#ffffff;stop-opacity:0;"
+         offset="1"
+         id="stop3115" />
+    </linearGradient>
+    <linearGradient
+       id="linearGradient3077">
+      <stop
+         style="stop-color:#d0ced9;stop-opacity:1;"
+         offset="0"
+         id="stop3079" />
+      <stop
+         id="stop3087"
+         offset="0.25"
+         style="stop-color:#ecf1f9;stop-opacity:1;" />
+      <stop
+         id="stop3085"
+         offset="0.5"
+         style="stop-color:#ffffff;stop-opacity:1;" />
+      <stop
+         style="stop-color:#c6d5e3;stop-opacity:1;"
+         offset="1"
+         id="stop3081" />
+    </linearGradient>
+    <linearGradient
+       inkscape:collect="always"
+       id="linearGradient3317">
+      <stop
+         style="stop-color:#000000;stop-opacity:1;"
+         offset="0"
+         id="stop3319" />
+      <stop
+         style="stop-color:#000000;stop-opacity:0;"
+         offset="1"
+         id="stop3321" />
+    </linearGradient>
+    <linearGradient
+       id="linearGradient3174">
+      <stop
+         style="stop-color:#2e2a2b;stop-opacity:1;"
+         offset="0"
+         id="stop3176" />
+      <stop
+         id="stop3182"
+         offset="0.33497536"
+         style="stop-color:#4c494a;stop-opacity:1;" />
+      <stop
+         style="stop-color:#5b595a;stop-opacity:1;"
+         offset="0.66748768"
+         id="stop3214" />
+      <stop
+         style="stop-color:#6b696a;stop-opacity:1;"
+         offset="1"
+         id="stop3178" />
+    </linearGradient>
+    <clipPath
+       clipPathUnits="userSpaceOnUse"
+       id="clipPath3008">
+      <rect
+         style="opacity:0.265625;fill:none;fill-opacity:1;stroke:#000000;stroke-width:0.39999992;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:4.1500001;stroke-opacity:1"
+         id="rect3010"
+         width="78.12355"
+         height="55.395592"
+         x="24.680513"
+         y="-68.245476"
+         rx="1.133948"
+         ry="1.133948" />
+    </clipPath>
+    <clipPath
+       clipPathUnits="userSpaceOnUse"
+       id="clipPath3215">
+      <path
+         style="opacity:1;fill:url(#linearGradient3219);fill-opacity:1;stroke:none;stroke-width:0.5;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:1.08780003;stroke-opacity:1"
+         d="m 11.375,-167.68125 c -2.9534479,0 -3.375,0.36407 -3.375,3.34375 v 0.78125 c 0,-2.97968 0.4215521,-3.3125 3.375,-3.3125 h 105.25 c 2.95345,0 3.375,0.33282 3.375,3.3125 v -0.78125 c 0,-2.97968 -0.42155,-3.34375 -3.375,-3.34375 z"
+         id="path3217"
+         inkscape:connector-curvature="0" />
+    </clipPath>
+    <linearGradient
+       inkscape:collect="always"
+       xlink:href="#linearGradient3317"
+       id="linearGradient3219"
+       gradientUnits="userSpaceOnUse"
+       gradientTransform="matrix(2.5599786,0,0,2.5827101,317.24891,-5063.043)"
+       x1="-98.926186"
+       y1="1892.9656"
+       x2="-98.926186"
+       y2="1897.0332" />
+    <clipPath
+       clipPathUnits="userSpaceOnUse"
+       id="clipPath3199">
+      <path
+         style="fill:#000000;fill-opacity:0.12831858;stroke:none;stroke-width:0.5;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:4.1500001;stroke-opacity:1"
+         d="m 18.189713,132.42089 c -1.419208,0 -2.5625,1.1433 -2.5625,2.5625 v 37.18328 h 72.000002 v -37.18328 c 0,-1.4192 -1.14329,-2.5625 -2.5625,-2.5625 z"
+         id="path3201"
+         clip-path="none"
+         sodipodi:nodetypes="ccccccc"
+         inkscape:connector-curvature="0" />
+    </clipPath>
+    <clipPath
+       clipPathUnits="userSpaceOnUse"
+       id="clipPath25065">
+      <path
+         sodipodi:nodetypes="cccccccccccccccc"
+         id="path25067"
+         d="m -283.36245,66.003757 c -1.17725,0 -2.125,0.94775 -2.125,2.125 v 37.818753 h 55.40625 V 68.128757 c 0,-1.17725 -0.94775,-2.125 -2.125,-2.125 z m 6.21875,3.34375 h 14.125 c 0.51955,0 0.9375,0.41795 0.9375,0.9375 v 26.125 c 0,0.51955 -0.41795,0.9375 -0.9375,0.9375 h -14.125 c -0.51955,0 -0.9375,-0.41795 -0.9375,-0.9375 v -26.125 c 0,-0.519547 0.41795,-0.9375 0.9375,-0.9375 z"
+         style="opacity:1;fill:url(#linearGradient25069);fill-opacity:1;stroke:none;stroke-width:0.1;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:4.1500001;stroke-opacity:1"
+         inkscape:connector-curvature="0" />
+    </clipPath>
+    <linearGradient
+       inkscape:collect="always"
+       xlink:href="#linearGradient3215"
+       id="linearGradient25069"
+       gradientUnits="userSpaceOnUse"
+       gradientTransform="translate(-318.0812,-14.652496)"
+       x1="52"
+       y1="112"
+       x2="52"
+       y2="80" />
+    <clipPath
+       clipPathUnits="userSpaceOnUse"
+       id="clipPath28041">
+      <rect
+         style="opacity:0.18359375;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.1;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:4.1500001;stroke-opacity:1"
+         id="rect28043"
+         width="8"
+         height="12"
+         x="12"
+         y="12"
+         rx="1.079258"
+         ry="1.079258" />
+    </clipPath>
+    <clipPath
+       clipPathUnits="userSpaceOnUse"
+       id="clipPath28045">
+      <rect
+         style="opacity:0.18359375;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.1;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:4.1500001;stroke-opacity:1"
+         id="rect28047"
+         width="8"
+         height="12"
+         x="12"
+         y="12"
+         rx="1.079258"
+         ry="1.079258" />
+    </clipPath>
+    <filter
+       style="color-interpolation-filters:sRGB"
+       inkscape:label="Tritone"
+       id="filter4580"
+       x="-0.014345992"
+       y="-0.052363635"
+       width="1.028692"
+       height="1.1047273">
+      <feColorMatrix
+         type="hueRotate"
+         values="0"
+         result="colormatrix1"
+         id="feColorMatrix4544" />
+      <feColorMatrix
+         in="colormatrix1"
+         type="matrix"
+         values="1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 0 0 0 0 1 "
+         result="colormatrix2"
+         id="feColorMatrix4546" />
+      <feColorMatrix
+         in="colormatrix1"
+         type="matrix"
+         values="0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 0 0 0 1 "
+         result="colormatrix3"
+         id="feColorMatrix4548" />
+      <feColorMatrix
+         in="colormatrix1"
+         type="matrix"
+         values="0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 0 0 1 "
+         result="colormatrix4"
+         id="feColorMatrix4550" />
+      <feBlend
+         in="colormatrix2"
+         in2="colormatrix3"
+         mode="darken"
+         result="blend1"
+         id="feBlend4552" />
+      <feBlend
+         in="blend1"
+         in2="colormatrix4"
+         mode="darken"
+         result="blend2"
+         id="feBlend4554" />
+      <feBlend
+         in="colormatrix2"
+         in2="colormatrix3"
+         mode="lighten"
+         result="blend3"
+         id="feBlend4556" />
+      <feBlend
+         in="blend3"
+         in2="colormatrix4"
+         mode="lighten"
+         result="blend4"
+         id="feBlend4558" />
+      <feComponentTransfer
+         in="blend4"
+         result="componentTransfer"
+         id="feComponentTransfer4562">
+        <feFuncR
+           type="linear"
+           slope="0"
+           id="feFuncR4560" />
+      </feComponentTransfer>
+      <feBlend
+         in="blend2"
+         in2="componentTransfer"
+         mode="lighten"
+         result="blend5"
+         id="feBlend4564" />
+      <feColorMatrix
+         in="blend5"
+         type="matrix"
+         values="-1 1 0 0 0 -1 1 0 0 0 -1 1 0 0 0 0 0 0 0 1 "
+         result="colormatrix5"
+         id="feColorMatrix4566" />
+      <feFlood
+         flood-opacity="1"
+         flood-color="rgb(255,175,26)"
+         result="flood"
+         id="feFlood4568" />
+      <feComposite
+         k4="0"
+         k3="0"
+         k2="0"
+         in="colormatrix5"
+         in2="flood"
+         operator="arithmetic"
+         k1="1"
+         result="composite1"
+         id="feComposite4570" />
+      <feGaussianBlur
+         stdDeviation="0.01"
+         result="blur"
+         id="feGaussianBlur4572" />
+      <feBlend
+         in2="blur"
+         mode="normal"
+         result="blend6"
+         id="feBlend4574" />
+      <feComposite
+         in="blend2"
+         in2="blend6"
+         operator="arithmetic"
+         k1="0"
+         k2="1"
+         k3="1"
+         k4="0"
+         result="composite2"
+         id="feComposite4576" />
+      <feComposite
+         in2="SourceGraphic"
+         operator="in"
+         result="fbSourceGraphic"
+         id="feComposite4578" />
+      <feColorMatrix
+         result="fbSourceGraphicAlpha"
+         in="fbSourceGraphic"
+         values="0 0 0 -1 0 0 0 0 -1 0 0 0 0 -1 0 0 0 0 1 0"
+         id="feColorMatrix4734" />
+      <feColorMatrix
+         id="feColorMatrix4736"
+         type="hueRotate"
+         values="0"
+         result="colormatrix1"
+         in="fbSourceGraphic" />
+      <feColorMatrix
+         id="feColorMatrix4738"
+         in="colormatrix1"
+         type="matrix"
+         values="1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 0 0 0 0 1 "
+         result="colormatrix2" />
+      <feColorMatrix
+         id="feColorMatrix4740"
+         in="colormatrix1"
+         type="matrix"
+         values="0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 0 0 0 1 "
+         result="colormatrix3" />
+      <feColorMatrix
+         id="feColorMatrix4742"
+         in="colormatrix1"
+         type="matrix"
+         values="0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 0 0 1 "
+         result="colormatrix4" />
+      <feBlend
+         in2="colormatrix3"
+         id="feBlend4744"
+         in="colormatrix2"
+         mode="darken"
+         result="blend1" />
+      <feBlend
+         in2="colormatrix4"
+         id="feBlend4746"
+         in="blend1"
+         mode="darken"
+         result="blend2" />
+      <feBlend
+         in2="colormatrix3"
+         id="feBlend4748"
+         in="colormatrix2"
+         mode="lighten"
+         result="blend3" />
+      <feBlend
+         in2="colormatrix4"
+         id="feBlend4750"
+         in="blend3"
+         mode="lighten"
+         result="blend4" />
+      <feComponentTransfer
+         id="feComponentTransfer4752"
+         in="blend4"
+         result="componentTransfer">
+        <feFuncR
+           id="feFuncR4754"
+           type="linear"
+           slope="0" />
+      </feComponentTransfer>
+      <feBlend
+         in2="componentTransfer"
+         id="feBlend4756"
+         in="blend2"
+         mode="lighten"
+         result="blend5" />
+      <feColorMatrix
+         id="feColorMatrix4758"
+         in="blend5"
+         type="matrix"
+         values="-1 1 0 0 0 -1 1 0 0 0 -1 1 0 0 0 0 0 0 0 1 "
+         result="colormatrix5" />
+      <feFlood
+         id="feFlood4760"
+         flood-opacity="1"
+         flood-color="rgb(255,65,26)"
+         result="flood" />
+      <feComposite
+         k4="0"
+         k3="0"
+         k2="0"
+         in2="flood"
+         id="feComposite4762"
+         in="colormatrix5"
+         operator="arithmetic"
+         k1="1"
+         result="composite1" />
+      <feGaussianBlur
+         id="feGaussianBlur4764"
+         stdDeviation="0.01"
+         result="blur" />
+      <feBlend
+         in2="blur"
+         id="feBlend4766"
+         mode="normal"
+         result="blend6" />
+      <feComposite
+         in2="blend6"
+         id="feComposite4768"
+         in="blend2"
+         operator="arithmetic"
+         k1="0"
+         k2="1"
+         k3="1"
+         k4="0"
+         result="composite2" />
+      <feComposite
+         in2="fbSourceGraphic"
+         id="feComposite4770"
+         operator="in"
+         result="fbSourceGraphic" />
+      <feColorMatrix
+         result="fbSourceGraphicAlpha"
+         in="fbSourceGraphic"
+         values="0 0 0 -1 0 0 0 0 -1 0 0 0 0 -1 0 0 0 0 1 0"
+         id="feColorMatrix4924" />
+      <feColorMatrix
+         id="feColorMatrix4926"
+         type="hueRotate"
+         values="0"
+         result="colormatrix1"
+         in="fbSourceGraphic" />
+      <feColorMatrix
+         id="feColorMatrix4928"
+         in="colormatrix1"
+         type="matrix"
+         values="1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 0 0 0 0 1 "
+         result="colormatrix2" />
+      <feColorMatrix
+         id="feColorMatrix4930"
+         in="colormatrix1"
+         type="matrix"
+         values="0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 0 0 0 1 "
+         result="colormatrix3" />
+      <feColorMatrix
+         id="feColorMatrix4932"
+         in="colormatrix1"
+         type="matrix"
+         values="0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 0 0 1 "
+         result="colormatrix4" />
+      <feBlend
+         in2="colormatrix3"
+         id="feBlend4934"
+         in="colormatrix2"
+         mode="darken"
+         result="blend1" />
+      <feBlend
+         in2="colormatrix4"
+         id="feBlend4936"
+         in="blend1"
+         mode="darken"
+         result="blend2" />
+      <feBlend
+         in2="colormatrix3"
+         id="feBlend4938"
+         in="colormatrix2"
+         mode="lighten"
+         result="blend3" />
+      <feBlend
+         in2="colormatrix4"
+         id="feBlend4940"
+         in="blend3"
+         mode="lighten"
+         result="blend4" />
+      <feComponentTransfer
+         id="feComponentTransfer4942"
+         in="blend4"
+         result="componentTransfer">
+        <feFuncR
+           id="feFuncR4944"
+           type="linear"
+           slope="0" />
+      </feComponentTransfer>
+      <feBlend
+         in2="componentTransfer"
+         id="feBlend4946"
+         in="blend2"
+         mode="lighten"
+         result="blend5" />
+      <feColorMatrix
+         id="feColorMatrix4948"
+         in="blend5"
+         type="matrix"
+         values="-1 1 0 0 0 -1 1 0 0 0 -1 1 0 0 0 0 0 0 0 1 "
+         result="colormatrix5" />
+      <feFlood
+         id="feFlood4950"
+         flood-opacity="1"
+         flood-color="rgb(255,65,0)"
+         result="flood" />
+      <feComposite
+         k4="0"
+         k3="0"
+         k2="0"
+         in2="flood"
+         id="feComposite4952"
+         in="colormatrix5"
+         operator="arithmetic"
+         k1="1"
+         result="composite1" />
+      <feGaussianBlur
+         id="feGaussianBlur4954"
+         stdDeviation="0.01"
+         result="blur" />
+      <feBlend
+         in2="blur"
+         id="feBlend4956"
+         mode="normal"
+         result="blend6" />
+      <feComposite
+         in2="blend6"
+         id="feComposite4958"
+         in="blend2"
+         operator="arithmetic"
+         k1="0"
+         k2="1"
+         k3="1"
+         k4="0"
+         result="composite2" />
+      <feComposite
+         in2="fbSourceGraphic"
+         id="feComposite4960"
+         operator="in"
+         result="fbSourceGraphic" />
+      <feColorMatrix
+         result="fbSourceGraphicAlpha"
+         in="fbSourceGraphic"
+         values="0 0 0 -1 0 0 0 0 -1 0 0 0 0 -1 0 0 0 0 1 0"
+         id="feColorMatrix5114" />
+      <feColorMatrix
+         id="feColorMatrix5116"
+         type="hueRotate"
+         values="0"
+         result="colormatrix1"
+         in="fbSourceGraphic" />
+      <feColorMatrix
+         id="feColorMatrix5118"
+         in="colormatrix1"
+         type="matrix"
+         values="1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 0 0 0 0 1 "
+         result="colormatrix2" />
+      <feColorMatrix
+         id="feColorMatrix5120"
+         in="colormatrix1"
+         type="matrix"
+         values="0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 0 0 0 1 "
+         result="colormatrix3" />
+      <feColorMatrix
+         id="feColorMatrix5122"
+         in="colormatrix1"
+         type="matrix"
+         values="0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 0 0 1 "
+         result="colormatrix4" />
+      <feBlend
+         in2="colormatrix3"
+         id="feBlend5124"
+         in="colormatrix2"
+         mode="darken"
+         result="blend1" />
+      <feBlend
+         in2="colormatrix4"
+         id="feBlend5126"
+         in="blend1"
+         mode="darken"
+         result="blend2" />
+      <feBlend
+         in2="colormatrix3"
+         id="feBlend5128"
+         in="colormatrix2"
+         mode="lighten"
+         result="blend3" />
+      <feBlend
+         in2="colormatrix4"
+         id="feBlend5130"
+         in="blend3"
+         mode="lighten"
+         result="blend4" />
+      <feComponentTransfer
+         id="feComponentTransfer5132"
+         in="blend4"
+         result="componentTransfer">
+        <feFuncR
+           id="feFuncR5134"
+           type="linear"
+           slope="0" />
+      </feComponentTransfer>
+      <feBlend
+         in2="componentTransfer"
+         id="feBlend5136"
+         in="blend2"
+         mode="lighten"
+         result="blend5" />
+      <feColorMatrix
+         id="feColorMatrix5138"
+         in="blend5"
+         type="matrix"
+         values="-1 1 0 0 0 -1 1 0 0 0 -1 1 0 0 0 0 0 0 0 1 "
+         result="colormatrix5" />
+      <feFlood
+         id="feFlood5140"
+         flood-opacity="1"
+         flood-color="rgb(255,224,0)"
+         result="flood" />
+      <feComposite
+         k4="0"
+         k3="0"
+         k2="0"
+         in2="flood"
+         id="feComposite5142"
+         in="colormatrix5"
+         operator="arithmetic"
+         k1="1"
+         result="composite1" />
+      <feGaussianBlur
+         id="feGaussianBlur5144"
+         stdDeviation="0.01"
+         result="blur" />
+      <feBlend
+         in2="blur"
+         id="feBlend5146"
+         mode="normal"
+         result="blend6" />
+      <feComposite
+         in2="blend6"
+         id="feComposite5148"
+         in="blend2"
+         operator="arithmetic"
+         k1="0"
+         k2="1"
+         k3="1"
+         k4="0"
+         result="composite2" />
+      <feComposite
+         in2="fbSourceGraphic"
+         id="feComposite5150"
+         operator="in"
+         result="fbSourceGraphic" />
+      <feColorMatrix
+         result="fbSourceGraphicAlpha"
+         in="fbSourceGraphic"
+         values="0 0 0 -1 0 0 0 0 -1 0 0 0 0 -1 0 0 0 0 1 0"
+         id="feColorMatrix5304" />
+      <feColorMatrix
+         id="feColorMatrix5306"
+         type="hueRotate"
+         values="0"
+         result="colormatrix1"
+         in="fbSourceGraphic" />
+      <feColorMatrix
+         id="feColorMatrix5308"
+         in="colormatrix1"
+         type="matrix"
+         values="1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 0 0 0 0 1 "
+         result="colormatrix2" />
+      <feColorMatrix
+         id="feColorMatrix5310"
+         in="colormatrix1"
+         type="matrix"
+         values="0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 0 0 0 1 "
+         result="colormatrix3" />
+      <feColorMatrix
+         id="feColorMatrix5312"
+         in="colormatrix1"
+         type="matrix"
+         values="0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 0 0 1 "
+         result="colormatrix4" />
+      <feBlend
+         in2="colormatrix3"
+         id="feBlend5314"
+         in="colormatrix2"
+         mode="darken"
+         result="blend1" />
+      <feBlend
+         in2="colormatrix4"
+         id="feBlend5316"
+         in="blend1"
+         mode="darken"
+         result="blend2" />
+      <feBlend
+         in2="colormatrix3"
+         id="feBlend5318"
+         in="colormatrix2"
+         mode="lighten"
+         result="blend3" />
+      <feBlend
+         in2="colormatrix4"
+         id="feBlend5320"
+         in="blend3"
+         mode="lighten"
+         result="blend4" />
+      <feComponentTransfer
+         id="feComponentTransfer5322"
+         in="blend4"
+         result="componentTransfer">
+        <feFuncR
+           id="feFuncR5324"
+           type="linear"
+           slope="0" />
+      </feComponentTransfer>
+      <feBlend
+         in2="componentTransfer"
+         id="feBlend5326"
+         in="blend2"
+         mode="lighten"
+         result="blend5" />
+      <feColorMatrix
+         id="feColorMatrix5328"
+         in="blend5"
+         type="matrix"
+         values="-1 1 0 0 0 -1 1 0 0 0 -1 1 0 0 0 0 0 0 0 1 "
+         result="colormatrix5" />
+      <feFlood
+         id="feFlood5330"
+         flood-opacity="1"
+         flood-color="rgb(0,255,42)"
+         result="flood" />
+      <feComposite
+         k4="0"
+         k3="0"
+         k2="0"
+         in2="flood"
+         id="feComposite5332"
+         in="colormatrix5"
+         operator="arithmetic"
+         k1="1"
+         result="composite1" />
+      <feGaussianBlur
+         id="feGaussianBlur5334"
+         stdDeviation="0.01"
+         result="blur" />
+      <feBlend
+         in2="blur"
+         id="feBlend5336"
+         mode="normal"
+         result="blend6" />
+      <feComposite
+         in2="blend6"
+         id="feComposite5338"
+         in="blend2"
+         operator="arithmetic"
+         k1="0"
+         k2="1"
+         k3="1"
+         k4="0"
+         result="composite2" />
+      <feComposite
+         in2="fbSourceGraphic"
+         id="feComposite5340"
+         operator="in"
+         result="fbSourceGraphic" />
+      <feColorMatrix
+         result="fbSourceGraphicAlpha"
+         in="fbSourceGraphic"
+         values="0 0 0 -1 0 0 0 0 -1 0 0 0 0 -1 0 0 0 0 1 0"
+         id="feColorMatrix5494" />
+      <feColorMatrix
+         id="feColorMatrix5496"
+         type="hueRotate"
+         values="0"
+         result="colormatrix1"
+         in="fbSourceGraphic" />
+      <feColorMatrix
+         id="feColorMatrix5498"
+         in="colormatrix1"
+         type="matrix"
+         values="1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 0 0 0 0 1 "
+         result="colormatrix2" />
+      <feColorMatrix
+         id="feColorMatrix5500"
+         in="colormatrix1"
+         type="matrix"
+         values="0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 0 0 0 1 "
+         result="colormatrix3" />
+      <feColorMatrix
+         id="feColorMatrix5502"
+         in="colormatrix1"
+         type="matrix"
+         values="0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 0 0 1 "
+         result="colormatrix4" />
+      <feBlend
+         in2="colormatrix3"
+         id="feBlend5504"
+         in="colormatrix2"
+         mode="darken"
+         result="blend1" />
+      <feBlend
+         in2="colormatrix4"
+         id="feBlend5506"
+         in="blend1"
+         mode="darken"
+         result="blend2" />
+      <feBlend
+         in2="colormatrix3"
+         id="feBlend5508"
+         in="colormatrix2"
+         mode="lighten"
+         result="blend3" />
+      <feBlend
+         in2="colormatrix4"
+         id="feBlend5510"
+         in="blend3"
+         mode="lighten"
+         result="blend4" />
+      <feComponentTransfer
+         id="feComponentTransfer5512"
+         in="blend4"
+         result="componentTransfer">
+        <feFuncR
+           id="feFuncR5514"
+           type="linear"
+           slope="0" />
+      </feComponentTransfer>
+      <feBlend
+         in2="componentTransfer"
+         id="feBlend5516"
+         in="blend2"
+         mode="lighten"
+         result="blend5" />
+      <feColorMatrix
+         id="feColorMatrix5518"
+         in="blend5"
+         type="matrix"
+         values="-1 1 0 0 0 -1 1 0 0 0 -1 1 0 0 0 0 0 0 0 1 "
+         result="colormatrix5" />
+      <feFlood
+         id="feFlood5520"
+         flood-opacity="1"
+         flood-color="rgb(0,186,30)"
+         result="flood" />
+      <feComposite
+         k4="0"
+         k3="0"
+         k2="0"
+         in2="flood"
+         id="feComposite5522"
+         in="colormatrix5"
+         operator="arithmetic"
+         k1="1"
+         result="composite1" />
+      <feGaussianBlur
+         id="feGaussianBlur5524"
+         stdDeviation="0.01"
+         result="blur" />
+      <feBlend
+         in2="blur"
+         id="feBlend5526"
+         mode="normal"
+         result="blend6" />
+      <feComposite
+         in2="blend6"
+         id="feComposite5528"
+         in="blend2"
+         operator="arithmetic"
+         k1="0"
+         k2="1"
+         k3="1"
+         k4="0"
+         result="composite2" />
+      <feComposite
+         in2="fbSourceGraphic"
+         id="feComposite5530"
+         operator="in"
+         result="composite3" />
+    </filter>
+    <filter
+       style="color-interpolation-filters:sRGB"
+       inkscape:label="Tritone"
+       id="filter4618"
+       x="-0.0055384614"
+       y="-0.0043636363"
+       width="1.0110769"
+       height="1.0087273">
+      <feColorMatrix
+         type="hueRotate"
+         values="0"
+         result="colormatrix1"
+         id="feColorMatrix4582" />
+      <feColorMatrix
+         in="colormatrix1"
+         type="matrix"
+         values="1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 0 0 0 0 1 "
+         result="colormatrix2"
+         id="feColorMatrix4584" />
+      <feColorMatrix
+         in="colormatrix1"
+         type="matrix"
+         values="0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 0 0 0 1 "
+         result="colormatrix3"
+         id="feColorMatrix4586" />
+      <feColorMatrix
+         in="colormatrix1"
+         type="matrix"
+         values="0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 0 0 1 "
+         result="colormatrix4"
+         id="feColorMatrix4588" />
+      <feBlend
+         in="colormatrix2"
+         in2="colormatrix3"
+         mode="darken"
+         result="blend1"
+         id="feBlend4590" />
+      <feBlend
+         in="blend1"
+         in2="colormatrix4"
+         mode="darken"
+         result="blend2"
+         id="feBlend4592" />
+      <feBlend
+         in="colormatrix2"
+         in2="colormatrix3"
+         mode="lighten"
+         result="blend3"
+         id="feBlend4594" />
+      <feBlend
+         in="blend3"
+         in2="colormatrix4"
+         mode="lighten"
+         result="blend4"
+         id="feBlend4596" />
+      <feComponentTransfer
+         in="blend4"
+         result="componentTransfer"
+         id="feComponentTransfer4600">
+        <feFuncR
+           type="linear"
+           slope="0"
+           id="feFuncR4598" />
+      </feComponentTransfer>
+      <feBlend
+         in="blend2"
+         in2="componentTransfer"
+         mode="lighten"
+         result="blend5"
+         id="feBlend4602" />
+      <feColorMatrix
+         in="blend5"
+         type="matrix"
+         values="-1 1 0 0 0 -1 1 0 0 0 -1 1 0 0 0 0 0 0 0 1 "
+         result="colormatrix5"
+         id="feColorMatrix4604" />
+      <feFlood
+         flood-opacity="1"
+         flood-color="rgb(255,175,26)"
+         result="flood"
+         id="feFlood4606" />
+      <feComposite
+         k4="0"
+         k3="0"
+         k2="0"
+         in="colormatrix5"
+         in2="flood"
+         operator="arithmetic"
+         k1="1"
+         result="composite1"
+         id="feComposite4608" />
+      <feGaussianBlur
+         stdDeviation="0.01"
+         result="blur"
+         id="feGaussianBlur4610" />
+      <feBlend
+         in2="blur"
+         mode="normal"
+         result="blend6"
+         id="feBlend4612" />
+      <feComposite
+         in="blend2"
+         in2="blend6"
+         operator="arithmetic"
+         k1="0"
+         k2="1"
+         k3="1"
+         k4="0"
+         result="composite2"
+         id="feComposite4614" />
+      <feComposite
+         in2="SourceGraphic"
+         operator="in"
+         result="fbSourceGraphic"
+         id="feComposite4616" />
+      <feColorMatrix
+         result="fbSourceGraphicAlpha"
+         in="fbSourceGraphic"
+         values="0 0 0 -1 0 0 0 0 -1 0 0 0 0 -1 0 0 0 0 1 0"
+         id="feColorMatrix4772" />
+      <feColorMatrix
+         id="feColorMatrix4774"
+         type="hueRotate"
+         values="0"
+         result="colormatrix1"
+         in="fbSourceGraphic" />
+      <feColorMatrix
+         id="feColorMatrix4776"
+         in="colormatrix1"
+         type="matrix"
+         values="1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 0 0 0 0 1 "
+         result="colormatrix2" />
+      <feColorMatrix
+         id="feColorMatrix4778"
+         in="colormatrix1"
+         type="matrix"
+         values="0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 0 0 0 1 "
+         result="colormatrix3" />
+      <feColorMatrix
+         id="feColorMatrix4780"
+         in="colormatrix1"
+         type="matrix"
+         values="0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 0 0 1 "
+         result="colormatrix4" />
+      <feBlend
+         in2="colormatrix3"
+         id="feBlend4782"
+         in="colormatrix2"
+         mode="darken"
+         result="blend1" />
+      <feBlend
+         in2="colormatrix4"
+         id="feBlend4784"
+         in="blend1"
+         mode="darken"
+         result="blend2" />
+      <feBlend
+         in2="colormatrix3"
+         id="feBlend4786"
+         in="colormatrix2"
+         mode="lighten"
+         result="blend3" />
+      <feBlend
+         in2="colormatrix4"
+         id="feBlend4788"
+         in="blend3"
+         mode="lighten"
+         result="blend4" />
+      <feComponentTransfer
+         id="feComponentTransfer4790"
+         in="blend4"
+         result="componentTransfer">
+        <feFuncR
+           id="feFuncR4792"
+           type="linear"
+           slope="0" />
+      </feComponentTransfer>
+      <feBlend
+         in2="componentTransfer"
+         id="feBlend4794"
+         in="blend2"
+         mode="lighten"
+         result="blend5" />
+      <feColorMatrix
+         id="feColorMatrix4796"
+         in="blend5"
+         type="matrix"
+         values="-1 1 0 0 0 -1 1 0 0 0 -1 1 0 0 0 0 0 0 0 1 "
+         result="colormatrix5" />
+      <feFlood
+         id="feFlood4798"
+         flood-opacity="1"
+         flood-color="rgb(255,65,26)"
+         result="flood" />
+      <feComposite
+         k4="0"
+         k3="0"
+         k2="0"
+         in2="flood"
+         id="feComposite4800"
+         in="colormatrix5"
+         operator="arithmetic"
+         k1="1"
+         result="composite1" />
+      <feGaussianBlur
+         id="feGaussianBlur4802"
+         stdDeviation="0.01"
+         result="blur" />
+      <feBlend
+         in2="blur"
+         id="feBlend4804"
+         mode="normal"
+         result="blend6" />
+      <feComposite
+         in2="blend6"
+         id="feComposite4806"
+         in="blend2"
+         operator="arithmetic"
+         k1="0"
+         k2="1"
+         k3="1"
+         k4="0"
+         result="composite2" />
+      <feComposite
+         in2="fbSourceGraphic"
+         id="feComposite4808"
+         operator="in"
+         result="fbSourceGraphic" />
+      <feColorMatrix
+         result="fbSourceGraphicAlpha"
+         in="fbSourceGraphic"
+         values="0 0 0 -1 0 0 0 0 -1 0 0 0 0 -1 0 0 0 0 1 0"
+         id="feColorMatrix4962" />
+      <feColorMatrix
+         id="feColorMatrix4964"
+         type="hueRotate"
+         values="0"
+         result="colormatrix1"
+         in="fbSourceGraphic" />
+      <feColorMatrix
+         id="feColorMatrix4966"
+         in="colormatrix1"
+         type="matrix"
+         values="1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 0 0 0 0 1 "
+         result="colormatrix2" />
+      <feColorMatrix
+         id="feColorMatrix4968"
+         in="colormatrix1"
+         type="matrix"
+         values="0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 0 0 0 1 "
+         result="colormatrix3" />
+      <feColorMatrix
+         id="feColorMatrix4970"
+         in="colormatrix1"
+         type="matrix"
+         values="0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 0 0 1 "
+         result="colormatrix4" />
+      <feBlend
+         in2="colormatrix3"
+         id="feBlend4972"
+         in="colormatrix2"
+         mode="darken"
+         result="blend1" />
+      <feBlend
+         in2="colormatrix4"
+         id="feBlend4974"
+         in="blend1"
+         mode="darken"
+         result="blend2" />
+      <feBlend
+         in2="colormatrix3"
+         id="feBlend4976"
+         in="colormatrix2"
+         mode="lighten"
+         result="blend3" />
+      <feBlend
+         in2="colormatrix4"
+         id="feBlend4978"
+         in="blend3"
+         mode="lighten"
+         result="blend4" />
+      <feComponentTransfer
+         id="feComponentTransfer4980"
+         in="blend4"
+         result="componentTransfer">
+        <feFuncR
+           id="feFuncR4982"
+           type="linear"
+           slope="0" />
+      </feComponentTransfer>
+      <feBlend
+         in2="componentTransfer"
+         id="feBlend4984"
+         in="blend2"
+         mode="lighten"
+         result="blend5" />
+      <feColorMatrix
+         id="feColorMatrix4986"
+         in="blend5"
+         type="matrix"
+         values="-1 1 0 0 0 -1 1 0 0 0 -1 1 0 0 0 0 0 0 0 1 "
+         result="colormatrix5" />
+      <feFlood
+         id="feFlood4988"
+         flood-opacity="1"
+         flood-color="rgb(255,65,0)"
+         result="flood" />
+      <feComposite
+         k4="0"
+         k3="0"
+         k2="0"
+         in2="flood"
+         id="feComposite4990"
+         in="colormatrix5"
+         operator="arithmetic"
+         k1="1"
+         result="composite1" />
+      <feGaussianBlur
+         id="feGaussianBlur4992"
+         stdDeviation="0.01"
+         result="blur" />
+      <feBlend
+         in2="blur"
+         id="feBlend4994"
+         mode="normal"
+         result="blend6" />
+      <feComposite
+         in2="blend6"
+         id="feComposite4996"
+         in="blend2"
+         operator="arithmetic"
+         k1="0"
+         k2="1"
+         k3="1"
+         k4="0"
+         result="composite2" />
+      <feComposite
+         in2="fbSourceGraphic"
+         id="feComposite4998"
+         operator="in"
+         result="fbSourceGraphic" />
+      <feColorMatrix
+         result="fbSourceGraphicAlpha"
+         in="fbSourceGraphic"
+         values="0 0 0 -1 0 0 0 0 -1 0 0 0 0 -1 0 0 0 0 1 0"
+         id="feColorMatrix5152" />
+      <feColorMatrix
+         id="feColorMatrix5154"
+         type="hueRotate"
+         values="0"
+         result="colormatrix1"
+         in="fbSourceGraphic" />
+      <feColorMatrix
+         id="feColorMatrix5156"
+         in="colormatrix1"
+         type="matrix"
+         values="1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 0 0 0 0 1 "
+         result="colormatrix2" />
+      <feColorMatrix
+         id="feColorMatrix5158"
+         in="colormatrix1"
+         type="matrix"
+         values="0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 0 0 0 1 "
+         result="colormatrix3" />
+      <feColorMatrix
+         id="feColorMatrix5160"
+         in="colormatrix1"
+         type="matrix"
+         values="0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 0 0 1 "
+         result="colormatrix4" />
+      <feBlend
+         in2="colormatrix3"
+         id="feBlend5162"
+         in="colormatrix2"
+         mode="darken"
+         result="blend1" />
+      <feBlend
+         in2="colormatrix4"
+         id="feBlend5164"
+         in="blend1"
+         mode="darken"
+         result="blend2" />
+      <feBlend
+         in2="colormatrix3"
+         id="feBlend5166"
+         in="colormatrix2"
+         mode="lighten"
+         result="blend3" />
+      <feBlend
+         in2="colormatrix4"
+         id="feBlend5168"
+         in="blend3"
+         mode="lighten"
+         result="blend4" />
+      <feComponentTransfer
+         id="feComponentTransfer5170"
+         in="blend4"
+         result="componentTransfer">
+        <feFuncR
+           id="feFuncR5172"
+           type="linear"
+           slope="0" />
+      </feComponentTransfer>
+      <feBlend
+         in2="componentTransfer"
+         id="feBlend5174"
+         in="blend2"
+         mode="lighten"
+         result="blend5" />
+      <feColorMatrix
+         id="feColorMatrix5176"
+         in="blend5"
+         type="matrix"
+         values="-1 1 0 0 0 -1 1 0 0 0 -1 1 0 0 0 0 0 0 0 1 "
+         result="colormatrix5" />
+      <feFlood
+         id="feFlood5178"
+         flood-opacity="1"
+         flood-color="rgb(255,224,0)"
+         result="flood" />
+      <feComposite
+         k4="0"
+         k3="0"
+         k2="0"
+         in2="flood"
+         id="feComposite5180"
+         in="colormatrix5"
+         operator="arithmetic"
+         k1="1"
+         result="composite1" />
+      <feGaussianBlur
+         id="feGaussianBlur5182"
+         stdDeviation="0.01"
+         result="blur" />
+      <feBlend
+         in2="blur"
+         id="feBlend5184"
+         mode="normal"
+         result="blend6" />
+      <feComposite
+         in2="blend6"
+         id="feComposite5186"
+         in="blend2"
+         operator="arithmetic"
+         k1="0"
+         k2="1"
+         k3="1"
+         k4="0"
+         result="composite2" />
+      <feComposite
+         in2="fbSourceGraphic"
+         id="feComposite5188"
+         operator="in"
+         result="fbSourceGraphic" />
+      <feColorMatrix
+         result="fbSourceGraphicAlpha"
+         in="fbSourceGraphic"
+         values="0 0 0 -1 0 0 0 0 -1 0 0 0 0 -1 0 0 0 0 1 0"
+         id="feColorMatrix5342" />
+      <feColorMatrix
+         id="feColorMatrix5344"
+         type="hueRotate"
+         values="0"
+         result="colormatrix1"
+         in="fbSourceGraphic" />
+      <feColorMatrix
+         id="feColorMatrix5346"
+         in="colormatrix1"
+         type="matrix"
+         values="1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 0 0 0 0 1 "
+         result="colormatrix2" />
+      <feColorMatrix
+         id="feColorMatrix5348"
+         in="colormatrix1"
+         type="matrix"
+         values="0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 0 0 0 1 "
+         result="colormatrix3" />
+      <feColorMatrix
+         id="feColorMatrix5350"
+         in="colormatrix1"
+         type="matrix"
+         values="0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 0 0 1 "
+         result="colormatrix4" />
+      <feBlend
+         in2="colormatrix3"
+         id="feBlend5352"
+         in="colormatrix2"
+         mode="darken"
+         result="blend1" />
+      <feBlend
+         in2="colormatrix4"
+         id="feBlend5354"
+         in="blend1"
+         mode="darken"
+         result="blend2" />
+      <feBlend
+         in2="colormatrix3"
+         id="feBlend5356"
+         in="colormatrix2"
+         mode="lighten"
+         result="blend3" />
+      <feBlend
+         in2="colormatrix4"
+         id="feBlend5358"
+         in="blend3"
+         mode="lighten"
+         result="blend4" />
+      <feComponentTransfer
+         id="feComponentTransfer5360"
+         in="blend4"
+         result="componentTransfer">
+        <feFuncR
+           id="feFuncR5362"
+           type="linear"
+           slope="0" />
+      </feComponentTransfer>
+      <feBlend
+         in2="componentTransfer"
+         id="feBlend5364"
+         in="blend2"
+         mode="lighten"
+         result="blend5" />
+      <feColorMatrix
+         id="feColorMatrix5366"
+         in="blend5"
+         type="matrix"
+         values="-1 1 0 0 0 -1 1 0 0 0 -1 1 0 0 0 0 0 0 0 1 "
+         result="colormatrix5" />
+      <feFlood
+         id="feFlood5368"
+         flood-opacity="1"
+         flood-color="rgb(0,255,42)"
+         result="flood" />
+      <feComposite
+         k4="0"
+         k3="0"
+         k2="0"
+         in2="flood"
+         id="feComposite5370"
+         in="colormatrix5"
+         operator="arithmetic"
+         k1="1"
+         result="composite1" />
+      <feGaussianBlur
+         id="feGaussianBlur5372"
+         stdDeviation="0.01"
+         result="blur" />
+      <feBlend
+         in2="blur"
+         id="feBlend5374"
+         mode="normal"
+         result="blend6" />
+      <feComposite
+         in2="blend6"
+         id="feComposite5376"
+         in="blend2"
+         operator="arithmetic"
+         k1="0"
+         k2="1"
+         k3="1"
+         k4="0"
+         result="composite2" />
+      <feComposite
+         in2="fbSourceGraphic"
+         id="feComposite5378"
+         operator="in"
+         result="fbSourceGraphic" />
+      <feColorMatrix
+         result="fbSourceGraphicAlpha"
+         in="fbSourceGraphic"
+         values="0 0 0 -1 0 0 0 0 -1 0 0 0 0 -1 0 0 0 0 1 0"
+         id="feColorMatrix5532" />
+      <feColorMatrix
+         id="feColorMatrix5534"
+         type="hueRotate"
+         values="0"
+         result="colormatrix1"
+         in="fbSourceGraphic" />
+      <feColorMatrix
+         id="feColorMatrix5536"
+         in="colormatrix1"
+         type="matrix"
+         values="1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 0 0 0 0 1 "
+         result="colormatrix2" />
+      <feColorMatrix
+         id="feColorMatrix5538"
+         in="colormatrix1"
+         type="matrix"
+         values="0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 0 0 0 1 "
+         result="colormatrix3" />
+      <feColorMatrix
+         id="feColorMatrix5540"
+         in="colormatrix1"
+         type="matrix"
+         values="0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 0 0 1 "
+         result="colormatrix4" />
+      <feBlend
+         in2="colormatrix3"
+         id="feBlend5542"
+         in="colormatrix2"
+         mode="darken"
+         result="blend1" />
+      <feBlend
+         in2="colormatrix4"
+         id="feBlend5544"
+         in="blend1"
+         mode="darken"
+         result="blend2" />
+      <feBlend
+         in2="colormatrix3"
+         id="feBlend5546"
+         in="colormatrix2"
+         mode="lighten"
+         result="blend3" />
+      <feBlend
+         in2="colormatrix4"
+         id="feBlend5548"
+         in="blend3"
+         mode="lighten"
+         result="blend4" />
+      <feComponentTransfer
+         id="feComponentTransfer5550"
+         in="blend4"
+         result="componentTransfer">
+        <feFuncR
+           id="feFuncR5552"
+           type="linear"
+           slope="0" />
+      </feComponentTransfer>
+      <feBlend
+         in2="componentTransfer"
+         id="feBlend5554"
+         in="blend2"
+         mode="lighten"
+         result="blend5" />
+      <feColorMatrix
+         id="feColorMatrix5556"
+         in="blend5"
+         type="matrix"
+         values="-1 1 0 0 0 -1 1 0 0 0 -1 1 0 0 0 0 0 0 0 1 "
+         result="colormatrix5" />
+      <feFlood
+         id="feFlood5558"
+         flood-opacity="1"
+         flood-color="rgb(0,186,30)"
+         result="flood" />
+      <feComposite
+         k4="0"
+         k3="0"
+         k2="0"
+         in2="flood"
+         id="feComposite5560"
+         in="colormatrix5"
+         operator="arithmetic"
+         k1="1"
+         result="composite1" />
+      <feGaussianBlur
+         id="feGaussianBlur5562"
+         stdDeviation="0.01"
+         result="blur" />
+      <feBlend
+         in2="blur"
+         id="feBlend5564"
+         mode="normal"
+         result="blend6" />
+      <feComposite
+         in2="blend6"
+         id="feComposite5566"
+         in="blend2"
+         operator="arithmetic"
+         k1="0"
+         k2="1"
+         k3="1"
+         k4="0"
+         result="composite2" />
+      <feComposite
+         in2="fbSourceGraphic"
+         id="feComposite5568"
+         operator="in"
+         result="composite3" />
+    </filter>
+    <filter
+       style="color-interpolation-filters:sRGB"
+       inkscape:label="Tritone"
+       id="filter4656"
+       x="-0.0079999998"
+       y="-0.028799999"
+       width="1.016"
+       height="1.0576">
+      <feColorMatrix
+         type="hueRotate"
+         values="0"
+         result="colormatrix1"
+         id="feColorMatrix4620" />
+      <feColorMatrix
+         in="colormatrix1"
+         type="matrix"
+         values="1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 0 0 0 0 1 "
+         result="colormatrix2"
+         id="feColorMatrix4622" />
+      <feColorMatrix
+         in="colormatrix1"
+         type="matrix"
+         values="0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 0 0 0 1 "
+         result="colormatrix3"
+         id="feColorMatrix4624" />
+      <feColorMatrix
+         in="colormatrix1"
+         type="matrix"
+         values="0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 0 0 1 "
+         result="colormatrix4"
+         id="feColorMatrix4626" />
+      <feBlend
+         in="colormatrix2"
+         in2="colormatrix3"
+         mode="darken"
+         result="blend1"
+         id="feBlend4628" />
+      <feBlend
+         in="blend1"
+         in2="colormatrix4"
+         mode="darken"
+         result="blend2"
+         id="feBlend4630" />
+      <feBlend
+         in="colormatrix2"
+         in2="colormatrix3"
+         mode="lighten"
+         result="blend3"
+         id="feBlend4632" />
+      <feBlend
+         in="blend3"
+         in2="colormatrix4"
+         mode="lighten"
+         result="blend4"
+         id="feBlend4634" />
+      <feComponentTransfer
+         in="blend4"
+         result="componentTransfer"
+         id="feComponentTransfer4638">
+        <feFuncR
+           type="linear"
+           slope="0"
+           id="feFuncR4636" />
+      </feComponentTransfer>
+      <feBlend
+         in="blend2"
+         in2="componentTransfer"
+         mode="lighten"
+         result="blend5"
+         id="feBlend4640" />
+      <feColorMatrix
+         in="blend5"
+         type="matrix"
+         values="-1 1 0 0 0 -1 1 0 0 0 -1 1 0 0 0 0 0 0 0 1 "
+         result="colormatrix5"
+         id="feColorMatrix4642" />
+      <feFlood
+         flood-opacity="1"
+         flood-color="rgb(255,175,26)"
+         result="flood"
+         id="feFlood4644" />
+      <feComposite
+         k4="0"
+         k3="0"
+         k2="0"
+         in="colormatrix5"
+         in2="flood"
+         operator="arithmetic"
+         k1="1"
+         result="composite1"
+         id="feComposite4646" />
+      <feGaussianBlur
+         stdDeviation="0.01"
+         result="blur"
+         id="feGaussianBlur4648" />
+      <feBlend
+         in2="blur"
+         mode="normal"
+         result="blend6"
+         id="feBlend4650" />
+      <feComposite
+         in="blend2"
+         in2="blend6"
+         operator="arithmetic"
+         k1="0"
+         k2="1"
+         k3="1"
+         k4="0"
+         result="composite2"
+         id="feComposite4652" />
+      <feComposite
+         in2="SourceGraphic"
+         operator="in"
+         result="fbSourceGraphic"
+         id="feComposite4654" />
+      <feColorMatrix
+         result="fbSourceGraphicAlpha"
+         in="fbSourceGraphic"
+         values="0 0 0 -1 0 0 0 0 -1 0 0 0 0 -1 0 0 0 0 1 0"
+         id="feColorMatrix4810" />
+      <feColorMatrix
+         id="feColorMatrix4812"
+         type="hueRotate"
+         values="0"
+         result="colormatrix1"
+         in="fbSourceGraphic" />
+      <feColorMatrix
+         id="feColorMatrix4814"
+         in="colormatrix1"
+         type="matrix"
+         values="1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 0 0 0 0 1 "
+         result="colormatrix2" />
+      <feColorMatrix
+         id="feColorMatrix4816"
+         in="colormatrix1"
+         type="matrix"
+         values="0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 0 0 0 1 "
+         result="colormatrix3" />
+      <feColorMatrix
+         id="feColorMatrix4818"
+         in="colormatrix1"
+         type="matrix"
+         values="0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 0 0 1 "
+         result="colormatrix4" />
+      <feBlend
+         in2="colormatrix3"
+         id="feBlend4820"
+         in="colormatrix2"
+         mode="darken"
+         result="blend1" />
+      <feBlend
+         in2="colormatrix4"
+         id="feBlend4822"
+         in="blend1"
+         mode="darken"
+         result="blend2" />
+      <feBlend
+         in2="colormatrix3"
+         id="feBlend4824"
+         in="colormatrix2"
+         mode="lighten"
+         result="blend3" />
+      <feBlend
+         in2="colormatrix4"
+         id="feBlend4826"
+         in="blend3"
+         mode="lighten"
+         result="blend4" />
+      <feComponentTransfer
+         id="feComponentTransfer4828"
+         in="blend4"
+         result="componentTransfer">
+        <feFuncR
+           id="feFuncR4830"
+           type="linear"
+           slope="0" />
+      </feComponentTransfer>
+      <feBlend
+         in2="componentTransfer"
+         id="feBlend4832"
+         in="blend2"
+         mode="lighten"
+         result="blend5" />
+      <feColorMatrix
+         id="feColorMatrix4834"
+         in="blend5"
+         type="matrix"
+         values="-1 1 0 0 0 -1 1 0 0 0 -1 1 0 0 0 0 0 0 0 1 "
+         result="colormatrix5" />
+      <feFlood
+         id="feFlood4836"
+         flood-opacity="1"
+         flood-color="rgb(255,65,26)"
+         result="flood" />
+      <feComposite
+         k4="0"
+         k3="0"
+         k2="0"
+         in2="flood"
+         id="feComposite4838"
+         in="colormatrix5"
+         operator="arithmetic"
+         k1="1"
+         result="composite1" />
+      <feGaussianBlur
+         id="feGaussianBlur4840"
+         stdDeviation="0.01"
+         result="blur" />
+      <feBlend
+         in2="blur"
+         id="feBlend4842"
+         mode="normal"
+         result="blend6" />
+      <feComposite
+         in2="blend6"
+         id="feComposite4844"
+         in="blend2"
+         operator="arithmetic"
+         k1="0"
+         k2="1"
+         k3="1"
+         k4="0"
+         result="composite2" />
+      <feComposite
+         in2="fbSourceGraphic"
+         id="feComposite4846"
+         operator="in"
+         result="fbSourceGraphic" />
+      <feColorMatrix
+         result="fbSourceGraphicAlpha"
+         in="fbSourceGraphic"
+         values="0 0 0 -1 0 0 0 0 -1 0 0 0 0 -1 0 0 0 0 1 0"
+         id="feColorMatrix5000" />
+      <feColorMatrix
+         id="feColorMatrix5002"
+         type="hueRotate"
+         values="0"
+         result="colormatrix1"
+         in="fbSourceGraphic" />
+      <feColorMatrix
+         id="feColorMatrix5004"
+         in="colormatrix1"
+         type="matrix"
+         values="1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 0 0 0 0 1 "
+         result="colormatrix2" />
+      <feColorMatrix
+         id="feColorMatrix5006"
+         in="colormatrix1"
+         type="matrix"
+         values="0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 0 0 0 1 "
+         result="colormatrix3" />
+      <feColorMatrix
+         id="feColorMatrix5008"
+         in="colormatrix1"
+         type="matrix"
+         values="0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 0 0 1 "
+         result="colormatrix4" />
+      <feBlend
+         in2="colormatrix3"
+         id="feBlend5010"
+         in="colormatrix2"
+         mode="darken"
+         result="blend1" />
+      <feBlend
+         in2="colormatrix4"
+         id="feBlend5012"
+         in="blend1"
+         mode="darken"
+         result="blend2" />
+      <feBlend
+         in2="colormatrix3"
+         id="feBlend5014"
+         in="colormatrix2"
+         mode="lighten"
+         result="blend3" />
+      <feBlend
+         in2="colormatrix4"
+         id="feBlend5016"
+         in="blend3"
+         mode="lighten"
+         result="blend4" />
+      <feComponentTransfer
+         id="feComponentTransfer5018"
+         in="blend4"
+         result="componentTransfer">
+        <feFuncR
+           id="feFuncR5020"
+           type="linear"
+           slope="0" />
+      </feComponentTransfer>
+      <feBlend
+         in2="componentTransfer"
+         id="feBlend5022"
+         in="blend2"
+         mode="lighten"
+         result="blend5" />
+      <feColorMatrix
+         id="feColorMatrix5024"
+         in="blend5"
+         type="matrix"
+         values="-1 1 0 0 0 -1 1 0 0 0 -1 1 0 0 0 0 0 0 0 1 "
+         result="colormatrix5" />
+      <feFlood
+         id="feFlood5026"
+         flood-opacity="1"
+         flood-color="rgb(255,65,0)"
+         result="flood" />
+      <feComposite
+         k4="0"
+         k3="0"
+         k2="0"
+         in2="flood"
+         id="feComposite5028"
+         in="colormatrix5"
+         operator="arithmetic"
+         k1="1"
+         result="composite1" />
+      <feGaussianBlur
+         id="feGaussianBlur5030"
+         stdDeviation="0.01"
+         result="blur" />
+      <feBlend
+         in2="blur"
+         id="feBlend5032"
+         mode="normal"
+         result="blend6" />
+      <feComposite
+         in2="blend6"
+         id="feComposite5034"
+         in="blend2"
+         operator="arithmetic"
+         k1="0"
+         k2="1"
+         k3="1"
+         k4="0"
+         result="composite2" />
+      <feComposite
+         in2="fbSourceGraphic"
+         id="feComposite5036"
+         operator="in"
+         result="fbSourceGraphic" />
+      <feColorMatrix
+         result="fbSourceGraphicAlpha"
+         in="fbSourceGraphic"
+         values="0 0 0 -1 0 0 0 0 -1 0 0 0 0 -1 0 0 0 0 1 0"
+         id="feColorMatrix5190" />
+      <feColorMatrix
+         id="feColorMatrix5192"
+         type="hueRotate"
+         values="0"
+         result="colormatrix1"
+         in="fbSourceGraphic" />
+      <feColorMatrix
+         id="feColorMatrix5194"
+         in="colormatrix1"
+         type="matrix"
+         values="1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 0 0 0 0 1 "
+         result="colormatrix2" />
+      <feColorMatrix
+         id="feColorMatrix5196"
+         in="colormatrix1"
+         type="matrix"
+         values="0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 0 0 0 1 "
+         result="colormatrix3" />
+      <feColorMatrix
+         id="feColorMatrix5198"
+         in="colormatrix1"
+         type="matrix"
+         values="0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 0 0 1 "
+         result="colormatrix4" />
+      <feBlend
+         in2="colormatrix3"
+         id="feBlend5200"
+         in="colormatrix2"
+         mode="darken"
+         result="blend1" />
+      <feBlend
+         in2="colormatrix4"
+         id="feBlend5202"
+         in="blend1"
+         mode="darken"
+         result="blend2" />
+      <feBlend
+         in2="colormatrix3"
+         id="feBlend5204"
+         in="colormatrix2"
+         mode="lighten"
+         result="blend3" />
+      <feBlend
+         in2="colormatrix4"
+         id="feBlend5206"
+         in="blend3"
+         mode="lighten"
+         result="blend4" />
+      <feComponentTransfer
+         id="feComponentTransfer5208"
+         in="blend4"
+         result="componentTransfer">
+        <feFuncR
+           id="feFuncR5210"
+           type="linear"
+           slope="0" />
+      </feComponentTransfer>
+      <feBlend
+         in2="componentTransfer"
+         id="feBlend5212"
+         in="blend2"
+         mode="lighten"
+         result="blend5" />
+      <feColorMatrix
+         id="feColorMatrix5214"
+         in="blend5"
+         type="matrix"
+         values="-1 1 0 0 0 -1 1 0 0 0 -1 1 0 0 0 0 0 0 0 1 "
+         result="colormatrix5" />
+      <feFlood
+         id="feFlood5216"
+         flood-opacity="1"
+         flood-color="rgb(255,224,0)"
+         result="flood" />
+      <feComposite
+         k4="0"
+         k3="0"
+         k2="0"
+         in2="flood"
+         id="feComposite5218"
+         in="colormatrix5"
+         operator="arithmetic"
+         k1="1"
+         result="composite1" />
+      <feGaussianBlur
+         id="feGaussianBlur5220"
+         stdDeviation="0.01"
+         result="blur" />
+      <feBlend
+         in2="blur"
+         id="feBlend5222"
+         mode="normal"
+         result="blend6" />
+      <feComposite
+         in2="blend6"
+         id="feComposite5224"
+         in="blend2"
+         operator="arithmetic"
+         k1="0"
+         k2="1"
+         k3="1"
+         k4="0"
+         result="composite2" />
+      <feComposite
+         in2="fbSourceGraphic"
+         id="feComposite5226"
+         operator="in"
+         result="fbSourceGraphic" />
+      <feColorMatrix
+         result="fbSourceGraphicAlpha"
+         in="fbSourceGraphic"
+         values="0 0 0 -1 0 0 0 0 -1 0 0 0 0 -1 0 0 0 0 1 0"
+         id="feColorMatrix5380" />
+      <feColorMatrix
+         id="feColorMatrix5382"
+         type="hueRotate"
+         values="0"
+         result="colormatrix1"
+         in="fbSourceGraphic" />
+      <feColorMatrix
+         id="feColorMatrix5384"
+         in="colormatrix1"
+         type="matrix"
+         values="1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 0 0 0 0 1 "
+         result="colormatrix2" />
+      <feColorMatrix
+         id="feColorMatrix5386"
+         in="colormatrix1"
+         type="matrix"
+         values="0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 0 0 0 1 "
+         result="colormatrix3" />
+      <feColorMatrix
+         id="feColorMatrix5388"
+         in="colormatrix1"
+         type="matrix"
+         values="0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 0 0 1 "
+         result="colormatrix4" />
+      <feBlend
+         in2="colormatrix3"
+         id="feBlend5390"
+         in="colormatrix2"
+         mode="darken"
+         result="blend1" />
+      <feBlend
+         in2="colormatrix4"
+         id="feBlend5392"
+         in="blend1"
+         mode="darken"
+         result="blend2" />
+      <feBlend
+         in2="colormatrix3"
+         id="feBlend5394"
+         in="colormatrix2"
+         mode="lighten"
+         result="blend3" />
+      <feBlend
+         in2="colormatrix4"
+         id="feBlend5396"
+         in="blend3"
+         mode="lighten"
+         result="blend4" />
+      <feComponentTransfer
+         id="feComponentTransfer5398"
+         in="blend4"
+         result="componentTransfer">
+        <feFuncR
+           id="feFuncR5400"
+           type="linear"
+           slope="0" />
+      </feComponentTransfer>
+      <feBlend
+         in2="componentTransfer"
+         id="feBlend5402"
+         in="blend2"
+         mode="lighten"
+         result="blend5" />
+      <feColorMatrix
+         id="feColorMatrix5404"
+         in="blend5"
+         type="matrix"
+         values="-1 1 0 0 0 -1 1 0 0 0 -1 1 0 0 0 0 0 0 0 1 "
+         result="colormatrix5" />
+      <feFlood
+         id="feFlood5406"
+         flood-opacity="1"
+         flood-color="rgb(0,255,42)"
+         result="flood" />
+      <feComposite
+         k4="0"
+         k3="0"
+         k2="0"
+         in2="flood"
+         id="feComposite5408"
+         in="colormatrix5"
+         operator="arithmetic"
+         k1="1"
+         result="composite1" />
+      <feGaussianBlur
+         id="feGaussianBlur5410"
+         stdDeviation="0.01"
+         result="blur" />
+      <feBlend
+         in2="blur"
+         id="feBlend5412"
+         mode="normal"
+         result="blend6" />
+      <feComposite
+         in2="blend6"
+         id="feComposite5414"
+         in="blend2"
+         operator="arithmetic"
+         k1="0"
+         k2="1"
+         k3="1"
+         k4="0"
+         result="composite2" />
+      <feComposite
+         in2="fbSourceGraphic"
+         id="feComposite5416"
+         operator="in"
+         result="fbSourceGraphic" />
+      <feColorMatrix
+         result="fbSourceGraphicAlpha"
+         in="fbSourceGraphic"
+         values="0 0 0 -1 0 0 0 0 -1 0 0 0 0 -1 0 0 0 0 1 0"
+         id="feColorMatrix5570" />
+      <feColorMatrix
+         id="feColorMatrix5572"
+         type="hueRotate"
+         values="0"
+         result="colormatrix1"
+         in="fbSourceGraphic" />
+      <feColorMatrix
+         id="feColorMatrix5574"
+         in="colormatrix1"
+         type="matrix"
+         values="1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 0 0 0 0 1 "
+         result="colormatrix2" />
+      <feColorMatrix
+         id="feColorMatrix5576"
+         in="colormatrix1"
+         type="matrix"
+         values="0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 0 0 0 1 "
+         result="colormatrix3" />
+      <feColorMatrix
+         id="feColorMatrix5578"
+         in="colormatrix1"
+         type="matrix"
+         values="0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 0 0 1 "
+         result="colormatrix4" />
+      <feBlend
+         in2="colormatrix3"
+         id="feBlend5580"
+         in="colormatrix2"
+         mode="darken"
+         result="blend1" />
+      <feBlend
+         in2="colormatrix4"
+         id="feBlend5582"
+         in="blend1"
+         mode="darken"
+         result="blend2" />
+      <feBlend
+         in2="colormatrix3"
+         id="feBlend5584"
+         in="colormatrix2"
+         mode="lighten"
+         result="blend3" />
+      <feBlend
+         in2="colormatrix4"
+         id="feBlend5586"
+         in="blend3"
+         mode="lighten"
+         result="blend4" />
+      <feComponentTransfer
+         id="feComponentTransfer5588"
+         in="blend4"
+         result="componentTransfer">
+        <feFuncR
+           id="feFuncR5590"
+           type="linear"
+           slope="0" />
+      </feComponentTransfer>
+      <feBlend
+         in2="componentTransfer"
+         id="feBlend5592"
+         in="blend2"
+         mode="lighten"
+         result="blend5" />
+      <feColorMatrix
+         id="feColorMatrix5594"
+         in="blend5"
+         type="matrix"
+         values="-1 1 0 0 0 -1 1 0 0 0 -1 1 0 0 0 0 0 0 0 1 "
+         result="colormatrix5" />
+      <feFlood
+         id="feFlood5596"
+         flood-opacity="1"
+         flood-color="rgb(0,186,30)"
+         result="flood" />
+      <feComposite
+         k4="0"
+         k3="0"
+         k2="0"
+         in2="flood"
+         id="feComposite5598"
+         in="colormatrix5"
+         operator="arithmetic"
+         k1="1"
+         result="composite1" />
+      <feGaussianBlur
+         id="feGaussianBlur5600"
+         stdDeviation="0.01"
+         result="blur" />
+      <feBlend
+         in2="blur"
+         id="feBlend5602"
+         mode="normal"
+         result="blend6" />
+      <feComposite
+         in2="blend6"
+         id="feComposite5604"
+         in="blend2"
+         operator="arithmetic"
+         k1="0"
+         k2="1"
+         k3="1"
+         k4="0"
+         result="composite2" />
+      <feComposite
+         in2="fbSourceGraphic"
+         id="feComposite5606"
+         operator="in"
+         result="composite3" />
+    </filter>
+    <filter
+       style="color-interpolation-filters:sRGB"
+       inkscape:label="Tritone"
+       id="filter4694"
+       x="-0.0055384614"
+       y="-0.0032727272"
+       width="1.0110769"
+       height="1.0065455">
+      <feColorMatrix
+         type="hueRotate"
+         values="0"
+         result="colormatrix1"
+         id="feColorMatrix4658" />
+      <feColorMatrix
+         in="colormatrix1"
+         type="matrix"
+         values="1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 0 0 0 0 1 "
+         result="colormatrix2"
+         id="feColorMatrix4660" />
+      <feColorMatrix
+         in="colormatrix1"
+         type="matrix"
+         values="0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 0 0 0 1 "
+         result="colormatrix3"
+         id="feColorMatrix4662" />
+      <feColorMatrix
+         in="colormatrix1"
+         type="matrix"
+         values="0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 0 0 1 "
+         result="colormatrix4"
+         id="feColorMatrix4664" />
+      <feBlend
+         in="colormatrix2"
+         in2="colormatrix3"
+         mode="darken"
+         result="blend1"
+         id="feBlend4666" />
+      <feBlend
+         in="blend1"
+         in2="colormatrix4"
+         mode="darken"
+         result="blend2"
+         id="feBlend4668" />
+      <feBlend
+         in="colormatrix2"
+         in2="colormatrix3"
+         mode="lighten"
+         result="blend3"
+         id="feBlend4670" />
+      <feBlend
+         in="blend3"
+         in2="colormatrix4"
+         mode="lighten"
+         result="blend4"
+         id="feBlend4672" />
+      <feComponentTransfer
+         in="blend4"
+         result="componentTransfer"
+         id="feComponentTransfer4676">
+        <feFuncR
+           type="linear"
+           slope="0"
+           id="feFuncR4674" />
+      </feComponentTransfer>
+      <feBlend
+         in="blend2"
+         in2="componentTransfer"
+         mode="lighten"
+         result="blend5"
+         id="feBlend4678" />
+      <feColorMatrix
+         in="blend5"
+         type="matrix"
+         values="-1 1 0 0 0 -1 1 0 0 0 -1 1 0 0 0 0 0 0 0 1 "
+         result="colormatrix5"
+         id="feColorMatrix4680" />
+      <feFlood
+         flood-opacity="1"
+         flood-color="rgb(255,175,26)"
+         result="flood"
+         id="feFlood4682" />
+      <feComposite
+         k4="0"
+         k3="0"
+         k2="0"
+         in="colormatrix5"
+         in2="flood"
+         operator="arithmetic"
+         k1="1"
+         result="composite1"
+         id="feComposite4684" />
+      <feGaussianBlur
+         stdDeviation="0.01"
+         result="blur"
+         id="feGaussianBlur4686" />
+      <feBlend
+         in2="blur"
+         mode="normal"
+         result="blend6"
+         id="feBlend4688" />
+      <feComposite
+         in="blend2"
+         in2="blend6"
+         operator="arithmetic"
+         k1="0"
+         k2="1"
+         k3="1"
+         k4="0"
+         result="composite2"
+         id="feComposite4690" />
+      <feComposite
+         in2="SourceGraphic"
+         operator="in"
+         result="fbSourceGraphic"
+         id="feComposite4692" />
+      <feColorMatrix
+         result="fbSourceGraphicAlpha"
+         in="fbSourceGraphic"
+         values="0 0 0 -1 0 0 0 0 -1 0 0 0 0 -1 0 0 0 0 1 0"
+         id="feColorMatrix4848" />
+      <feColorMatrix
+         id="feColorMatrix4850"
+         type="hueRotate"
+         values="0"
+         result="colormatrix1"
+         in="fbSourceGraphic" />
+      <feColorMatrix
+         id="feColorMatrix4852"
+         in="colormatrix1"
+         type="matrix"
+         values="1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 0 0 0 0 1 "
+         result="colormatrix2" />
+      <feColorMatrix
+         id="feColorMatrix4854"
+         in="colormatrix1"
+         type="matrix"
+         values="0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 0 0 0 1 "
+         result="colormatrix3" />
+      <feColorMatrix
+         id="feColorMatrix4856"
+         in="colormatrix1"
+         type="matrix"
+         values="0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 0 0 1 "
+         result="colormatrix4" />
+      <feBlend
+         in2="colormatrix3"
+         id="feBlend4858"
+         in="colormatrix2"
+         mode="darken"
+         result="blend1" />
+      <feBlend
+         in2="colormatrix4"
+         id="feBlend4860"
+         in="blend1"
+         mode="darken"
+         result="blend2" />
+      <feBlend
+         in2="colormatrix3"
+         id="feBlend4862"
+         in="colormatrix2"
+         mode="lighten"
+         result="blend3" />
+      <feBlend
+         in2="colormatrix4"
+         id="feBlend4864"
+         in="blend3"
+         mode="lighten"
+         result="blend4" />
+      <feComponentTransfer
+         id="feComponentTransfer4866"
+         in="blend4"
+         result="componentTransfer">
+        <feFuncR
+           id="feFuncR4868"
+           type="linear"
+           slope="0" />
+      </feComponentTransfer>
+      <feBlend
+         in2="componentTransfer"
+         id="feBlend4870"
+         in="blend2"
+         mode="lighten"
+         result="blend5" />
+      <feColorMatrix
+         id="feColorMatrix4872"
+         in="blend5"
+         type="matrix"
+         values="-1 1 0 0 0 -1 1 0 0 0 -1 1 0 0 0 0 0 0 0 1 "
+         result="colormatrix5" />
+      <feFlood
+         id="feFlood4874"
+         flood-opacity="1"
+         flood-color="rgb(255,65,26)"
+         result="flood" />
+      <feComposite
+         k4="0"
+         k3="0"
+         k2="0"
+         in2="flood"
+         id="feComposite4876"
+         in="colormatrix5"
+         operator="arithmetic"
+         k1="1"
+         result="composite1" />
+      <feGaussianBlur
+         id="feGaussianBlur4878"
+         stdDeviation="0.01"
+         result="blur" />
+      <feBlend
+         in2="blur"
+         id="feBlend4880"
+         mode="normal"
+         result="blend6" />
+      <feComposite
+         in2="blend6"
+         id="feComposite4882"
+         in="blend2"
+         operator="arithmetic"
+         k1="0"
+         k2="1"
+         k3="1"
+         k4="0"
+         result="composite2" />
+      <feComposite
+         in2="fbSourceGraphic"
+         id="feComposite4884"
+         operator="in"
+         result="fbSourceGraphic" />
+      <feColorMatrix
+         result="fbSourceGraphicAlpha"
+         in="fbSourceGraphic"
+         values="0 0 0 -1 0 0 0 0 -1 0 0 0 0 -1 0 0 0 0 1 0"
+         id="feColorMatrix5038" />
+      <feColorMatrix
+         id="feColorMatrix5040"
+         type="hueRotate"
+         values="0"
+         result="colormatrix1"
+         in="fbSourceGraphic" />
+      <feColorMatrix
+         id="feColorMatrix5042"
+         in="colormatrix1"
+         type="matrix"
+         values="1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 0 0 0 0 1 "
+         result="colormatrix2" />
+      <feColorMatrix
+         id="feColorMatrix5044"
+         in="colormatrix1"
+         type="matrix"
+         values="0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 0 0 0 1 "
+         result="colormatrix3" />
+      <feColorMatrix
+         id="feColorMatrix5046"
+         in="colormatrix1"
+         type="matrix"
+         values="0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 0 0 1 "
+         result="colormatrix4" />
+      <feBlend
+         in2="colormatrix3"
+         id="feBlend5048"
+         in="colormatrix2"
+         mode="darken"
+         result="blend1" />
+      <feBlend
+         in2="colormatrix4"
+         id="feBlend5050"
+         in="blend1"
+         mode="darken"
+         result="blend2" />
+      <feBlend
+         in2="colormatrix3"
+         id="feBlend5052"
+         in="colormatrix2"
+         mode="lighten"
+         result="blend3" />
+      <feBlend
+         in2="colormatrix4"
+         id="feBlend5054"
+         in="blend3"
+         mode="lighten"
+         result="blend4" />
+      <feComponentTransfer
+         id="feComponentTransfer5056"
+         in="blend4"
+         result="componentTransfer">
+        <feFuncR
+           id="feFuncR5058"
+           type="linear"
+           slope="0" />
+      </feComponentTransfer>
+      <feBlend
+         in2="componentTransfer"
+         id="feBlend5060"
+         in="blend2"
+         mode="lighten"
+         result="blend5" />
+      <feColorMatrix
+         id="feColorMatrix5062"
+         in="blend5"
+         type="matrix"
+         values="-1 1 0 0 0 -1 1 0 0 0 -1 1 0 0 0 0 0 0 0 1 "
+         result="colormatrix5" />
+      <feFlood
+         id="feFlood5064"
+         flood-opacity="1"
+         flood-color="rgb(255,65,0)"
+         result="flood" />
+      <feComposite
+         k4="0"
+         k3="0"
+         k2="0"
+         in2="flood"
+         id="feComposite5066"
+         in="colormatrix5"
+         operator="arithmetic"
+         k1="1"
+         result="composite1" />
+      <feGaussianBlur
+         id="feGaussianBlur5068"
+         stdDeviation="0.01"
+         result="blur" />
+      <feBlend
+         in2="blur"
+         id="feBlend5070"
+         mode="normal"
+         result="blend6" />
+      <feComposite
+         in2="blend6"
+         id="feComposite5072"
+         in="blend2"
+         operator="arithmetic"
+         k1="0"
+         k2="1"
+         k3="1"
+         k4="0"
+         result="composite2" />
+      <feComposite
+         in2="fbSourceGraphic"
+         id="feComposite5074"
+         operator="in"
+         result="fbSourceGraphic" />
+      <feColorMatrix
+         result="fbSourceGraphicAlpha"
+         in="fbSourceGraphic"
+         values="0 0 0 -1 0 0 0 0 -1 0 0 0 0 -1 0 0 0 0 1 0"
+         id="feColorMatrix5228" />
+      <feColorMatrix
+         id="feColorMatrix5230"
+         type="hueRotate"
+         values="0"
+         result="colormatrix1"
+         in="fbSourceGraphic" />
+      <feColorMatrix
+         id="feColorMatrix5232"
+         in="colormatrix1"
+         type="matrix"
+         values="1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 0 0 0 0 1 "
+         result="colormatrix2" />
+      <feColorMatrix
+         id="feColorMatrix5234"
+         in="colormatrix1"
+         type="matrix"
+         values="0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 0 0 0 1 "
+         result="colormatrix3" />
+      <feColorMatrix
+         id="feColorMatrix5236"
+         in="colormatrix1"
+         type="matrix"
+         values="0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 0 0 1 "
+         result="colormatrix4" />
+      <feBlend
+         in2="colormatrix3"
+         id="feBlend5238"
+         in="colormatrix2"
+         mode="darken"
+         result="blend1" />
+      <feBlend
+         in2="colormatrix4"
+         id="feBlend5240"
+         in="blend1"
+         mode="darken"
+         result="blend2" />
+      <feBlend
+         in2="colormatrix3"
+         id="feBlend5242"
+         in="colormatrix2"
+         mode="lighten"
+         result="blend3" />
+      <feBlend
+         in2="colormatrix4"
+         id="feBlend5244"
+         in="blend3"
+         mode="lighten"
+         result="blend4" />
+      <feComponentTransfer
+         id="feComponentTransfer5246"
+         in="blend4"
+         result="componentTransfer">
+        <feFuncR
+           id="feFuncR5248"
+           type="linear"
+           slope="0" />
+      </feComponentTransfer>
+      <feBlend
+         in2="componentTransfer"
+         id="feBlend5250"
+         in="blend2"
+         mode="lighten"
+         result="blend5" />
+      <feColorMatrix
+         id="feColorMatrix5252"
+         in="blend5"
+         type="matrix"
+         values="-1 1 0 0 0 -1 1 0 0 0 -1 1 0 0 0 0 0 0 0 1 "
+         result="colormatrix5" />
+      <feFlood
+         id="feFlood5254"
+         flood-opacity="1"
+         flood-color="rgb(255,224,0)"
+         result="flood" />
+      <feComposite
+         k4="0"
+         k3="0"
+         k2="0"
+         in2="flood"
+         id="feComposite5256"
+         in="colormatrix5"
+         operator="arithmetic"
+         k1="1"
+         result="composite1" />
+      <feGaussianBlur
+         id="feGaussianBlur5258"
+         stdDeviation="0.01"
+         result="blur" />
+      <feBlend
+         in2="blur"
+         id="feBlend5260"
+         mode="normal"
+         result="blend6" />
+      <feComposite
+         in2="blend6"
+         id="feComposite5262"
+         in="blend2"
+         operator="arithmetic"
+         k1="0"
+         k2="1"
+         k3="1"
+         k4="0"
+         result="composite2" />
+      <feComposite
+         in2="fbSourceGraphic"
+         id="feComposite5264"
+         operator="in"
+         result="fbSourceGraphic" />
+      <feColorMatrix
+         result="fbSourceGraphicAlpha"
+         in="fbSourceGraphic"
+         values="0 0 0 -1 0 0 0 0 -1 0 0 0 0 -1 0 0 0 0 1 0"
+         id="feColorMatrix5418" />
+      <feColorMatrix
+         id="feColorMatrix5420"
+         type="hueRotate"
+         values="0"
+         result="colormatrix1"
+         in="fbSourceGraphic" />
+      <feColorMatrix
+         id="feColorMatrix5422"
+         in="colormatrix1"
+         type="matrix"
+         values="1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 0 0 0 0 1 "
+         result="colormatrix2" />
+      <feColorMatrix
+         id="feColorMatrix5424"
+         in="colormatrix1"
+         type="matrix"
+         values="0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 0 0 0 1 "
+         result="colormatrix3" />
+      <feColorMatrix
+         id="feColorMatrix5426"
+         in="colormatrix1"
+         type="matrix"
+         values="0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 0 0 1 "
+         result="colormatrix4" />
+      <feBlend
+         in2="colormatrix3"
+         id="feBlend5428"
+         in="colormatrix2"
+         mode="darken"
+         result="blend1" />
+      <feBlend
+         in2="colormatrix4"
+         id="feBlend5430"
+         in="blend1"
+         mode="darken"
+         result="blend2" />
+      <feBlend
+         in2="colormatrix3"
+         id="feBlend5432"
+         in="colormatrix2"
+         mode="lighten"
+         result="blend3" />
+      <feBlend
+         in2="colormatrix4"
+         id="feBlend5434"
+         in="blend3"
+         mode="lighten"
+         result="blend4" />
+      <feComponentTransfer
+         id="feComponentTransfer5436"
+         in="blend4"
+         result="componentTransfer">
+        <feFuncR
+           id="feFuncR5438"
+           type="linear"
+           slope="0" />
+      </feComponentTransfer>
+      <feBlend
+         in2="componentTransfer"
+         id="feBlend5440"
+         in="blend2"
+         mode="lighten"
+         result="blend5" />
+      <feColorMatrix
+         id="feColorMatrix5442"
+         in="blend5"
+         type="matrix"
+         values="-1 1 0 0 0 -1 1 0 0 0 -1 1 0 0 0 0 0 0 0 1 "
+         result="colormatrix5" />
+      <feFlood
+         id="feFlood5444"
+         flood-opacity="1"
+         flood-color="rgb(0,255,42)"
+         result="flood" />
+      <feComposite
+         k4="0"
+         k3="0"
+         k2="0"
+         in2="flood"
+         id="feComposite5446"
+         in="colormatrix5"
+         operator="arithmetic"
+         k1="1"
+         result="composite1" />
+      <feGaussianBlur
+         id="feGaussianBlur5448"
+         stdDeviation="0.01"
+         result="blur" />
+      <feBlend
+         in2="blur"
+         id="feBlend5450"
+         mode="normal"
+         result="blend6" />
+      <feComposite
+         in2="blend6"
+         id="feComposite5452"
+         in="blend2"
+         operator="arithmetic"
+         k1="0"
+         k2="1"
+         k3="1"
+         k4="0"
+         result="composite2" />
+      <feComposite
+         in2="fbSourceGraphic"
+         id="feComposite5454"
+         operator="in"
+         result="fbSourceGraphic" />
+      <feColorMatrix
+         result="fbSourceGraphicAlpha"
+         in="fbSourceGraphic"
+         values="0 0 0 -1 0 0 0 0 -1 0 0 0 0 -1 0 0 0 0 1 0"
+         id="feColorMatrix5608" />
+      <feColorMatrix
+         id="feColorMatrix5610"
+         type="hueRotate"
+         values="0"
+         result="colormatrix1"
+         in="fbSourceGraphic" />
+      <feColorMatrix
+         id="feColorMatrix5612"
+         in="colormatrix1"
+         type="matrix"
+         values="1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 0 0 0 0 1 "
+         result="colormatrix2" />
+      <feColorMatrix
+         id="feColorMatrix5614"
+         in="colormatrix1"
+         type="matrix"
+         values="0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 0 0 0 1 "
+         result="colormatrix3" />
+      <feColorMatrix
+         id="feColorMatrix5616"
+         in="colormatrix1"
+         type="matrix"
+         values="0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 0 0 1 "
+         result="colormatrix4" />
+      <feBlend
+         in2="colormatrix3"
+         id="feBlend5618"
+         in="colormatrix2"
+         mode="darken"
+         result="blend1" />
+      <feBlend
+         in2="colormatrix4"
+         id="feBlend5620"
+         in="blend1"
+         mode="darken"
+         result="blend2" />
+      <feBlend
+         in2="colormatrix3"
+         id="feBlend5622"
+         in="colormatrix2"
+         mode="lighten"
+         result="blend3" />
+      <feBlend
+         in2="colormatrix4"
+         id="feBlend5624"
+         in="blend3"
+         mode="lighten"
+         result="blend4" />
+      <feComponentTransfer
+         id="feComponentTransfer5626"
+         in="blend4"
+         result="componentTransfer">
+        <feFuncR
+           id="feFuncR5628"
+           type="linear"
+           slope="0" />
+      </feComponentTransfer>
+      <feBlend
+         in2="componentTransfer"
+         id="feBlend5630"
+         in="blend2"
+         mode="lighten"
+         result="blend5" />
+      <feColorMatrix
+         id="feColorMatrix5632"
+         in="blend5"
+         type="matrix"
+         values="-1 1 0 0 0 -1 1 0 0 0 -1 1 0 0 0 0 0 0 0 1 "
+         result="colormatrix5" />
+      <feFlood
+         id="feFlood5634"
+         flood-opacity="1"
+         flood-color="rgb(0,186,30)"
+         result="flood" />
+      <feComposite
+         k4="0"
+         k3="0"
+         k2="0"
+         in2="flood"
+         id="feComposite5636"
+         in="colormatrix5"
+         operator="arithmetic"
+         k1="1"
+         result="composite1" />
+      <feGaussianBlur
+         id="feGaussianBlur5638"
+         stdDeviation="0.01"
+         result="blur" />
+      <feBlend
+         in2="blur"
+         id="feBlend5640"
+         mode="normal"
+         result="blend6" />
+      <feComposite
+         in2="blend6"
+         id="feComposite5642"
+         in="blend2"
+         operator="arithmetic"
+         k1="0"
+         k2="1"
+         k3="1"
+         k4="0"
+         result="composite2" />
+      <feComposite
+         in2="fbSourceGraphic"
+         id="feComposite5644"
+         operator="in"
+         result="composite3" />
+    </filter>
+    <filter
+       style="color-interpolation-filters:sRGB"
+       inkscape:label="Tritone"
+       id="filter4732"
+       x="-0.0055384614"
+       y="-0.016"
+       width="1.0110769"
+       height="1.032">
+      <feColorMatrix
+         type="hueRotate"
+         values="0"
+         result="colormatrix1"
+         id="feColorMatrix4696" />
+      <feColorMatrix
+         in="colormatrix1"
+         type="matrix"
+         values="1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 0 0 0 0 1 "
+         result="colormatrix2"
+         id="feColorMatrix4698" />
+      <feColorMatrix
+         in="colormatrix1"
+         type="matrix"
+         values="0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 0 0 0 1 "
+         result="colormatrix3"
+         id="feColorMatrix4700" />
+      <feColorMatrix
+         in="colormatrix1"
+         type="matrix"
+         values="0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 0 0 1 "
+         result="colormatrix4"
+         id="feColorMatrix4702" />
+      <feBlend
+         in="colormatrix2"
+         in2="colormatrix3"
+         mode="darken"
+         result="blend1"
+         id="feBlend4704" />
+      <feBlend
+         in="blend1"
+         in2="colormatrix4"
+         mode="darken"
+         result="blend2"
+         id="feBlend4706" />
+      <feBlend
+         in="colormatrix2"
+         in2="colormatrix3"
+         mode="lighten"
+         result="blend3"
+         id="feBlend4708" />
+      <feBlend
+         in="blend3"
+         in2="colormatrix4"
+         mode="lighten"
+         result="blend4"
+         id="feBlend4710" />
+      <feComponentTransfer
+         in="blend4"
+         result="componentTransfer"
+         id="feComponentTransfer4714">
+        <feFuncR
+           type="linear"
+           slope="0"
+           id="feFuncR4712" />
+      </feComponentTransfer>
+      <feBlend
+         in="blend2"
+         in2="componentTransfer"
+         mode="lighten"
+         result="blend5"
+         id="feBlend4716" />
+      <feColorMatrix
+         in="blend5"
+         type="matrix"
+         values="-1 1 0 0 0 -1 1 0 0 0 -1 1 0 0 0 0 0 0 0 1 "
+         result="colormatrix5"
+         id="feColorMatrix4718" />
+      <feFlood
+         flood-opacity="1"
+         flood-color="rgb(255,175,26)"
+         result="flood"
+         id="feFlood4720" />
+      <feComposite
+         k4="0"
+         k3="0"
+         k2="0"
+         in="colormatrix5"
+         in2="flood"
+         operator="arithmetic"
+         k1="1"
+         result="composite1"
+         id="feComposite4722" />
+      <feGaussianBlur
+         stdDeviation="0.01"
+         result="blur"
+         id="feGaussianBlur4724" />
+      <feBlend
+         in2="blur"
+         mode="normal"
+         result="blend6"
+         id="feBlend4726" />
+      <feComposite
+         in="blend2"
+         in2="blend6"
+         operator="arithmetic"
+         k1="0"
+         k2="1"
+         k3="1"
+         k4="0"
+         result="composite2"
+         id="feComposite4728" />
+      <feComposite
+         in2="SourceGraphic"
+         operator="in"
+         result="fbSourceGraphic"
+         id="feComposite4730" />
+      <feColorMatrix
+         result="fbSourceGraphicAlpha"
+         in="fbSourceGraphic"
+         values="0 0 0 -1 0 0 0 0 -1 0 0 0 0 -1 0 0 0 0 1 0"
+         id="feColorMatrix4886" />
+      <feColorMatrix
+         id="feColorMatrix4888"
+         type="hueRotate"
+         values="0"
+         result="colormatrix1"
+         in="fbSourceGraphic" />
+      <feColorMatrix
+         id="feColorMatrix4890"
+         in="colormatrix1"
+         type="matrix"
+         values="1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 0 0 0 0 1 "
+         result="colormatrix2" />
+      <feColorMatrix
+         id="feColorMatrix4892"
+         in="colormatrix1"
+         type="matrix"
+         values="0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 0 0 0 1 "
+         result="colormatrix3" />
+      <feColorMatrix
+         id="feColorMatrix4894"
+         in="colormatrix1"
+         type="matrix"
+         values="0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 0 0 1 "
+         result="colormatrix4" />
+      <feBlend
+         in2="colormatrix3"
+         id="feBlend4896"
+         in="colormatrix2"
+         mode="darken"
+         result="blend1" />
+      <feBlend
+         in2="colormatrix4"
+         id="feBlend4898"
+         in="blend1"
+         mode="darken"
+         result="blend2" />
+      <feBlend
+         in2="colormatrix3"
+         id="feBlend4900"
+         in="colormatrix2"
+         mode="lighten"
+         result="blend3" />
+      <feBlend
+         in2="colormatrix4"
+         id="feBlend4902"
+         in="blend3"
+         mode="lighten"
+         result="blend4" />
+      <feComponentTransfer
+         id="feComponentTransfer4904"
+         in="blend4"
+         result="componentTransfer">
+        <feFuncR
+           id="feFuncR4906"
+           type="linear"
+           slope="0" />
+      </feComponentTransfer>
+      <feBlend
+         in2="componentTransfer"
+         id="feBlend4908"
+         in="blend2"
+         mode="lighten"
+         result="blend5" />
+      <feColorMatrix
+         id="feColorMatrix4910"
+         in="blend5"
+         type="matrix"
+         values="-1 1 0 0 0 -1 1 0 0 0 -1 1 0 0 0 0 0 0 0 1 "
+         result="colormatrix5" />
+      <feFlood
+         id="feFlood4912"
+         flood-opacity="1"
+         flood-color="rgb(255,65,26)"
+         result="flood" />
+      <feComposite
+         k4="0"
+         k3="0"
+         k2="0"
+         in2="flood"
+         id="feComposite4914"
+         in="colormatrix5"
+         operator="arithmetic"
+         k1="1"
+         result="composite1" />
+      <feGaussianBlur
+         id="feGaussianBlur4916"
+         stdDeviation="0.01"
+         result="blur" />
+      <feBlend
+         in2="blur"
+         id="feBlend4918"
+         mode="normal"
+         result="blend6" />
+      <feComposite
+         in2="blend6"
+         id="feComposite4920"
+         in="blend2"
+         operator="arithmetic"
+         k1="0"
+         k2="1"
+         k3="1"
+         k4="0"
+         result="composite2" />
+      <feComposite
+         in2="fbSourceGraphic"
+         id="feComposite4922"
+         operator="in"
+         result="fbSourceGraphic" />
+      <feColorMatrix
+         result="fbSourceGraphicAlpha"
+         in="fbSourceGraphic"
+         values="0 0 0 -1 0 0 0 0 -1 0 0 0 0 -1 0 0 0 0 1 0"
+         id="feColorMatrix5076" />
+      <feColorMatrix
+         id="feColorMatrix5078"
+         type="hueRotate"
+         values="0"
+         result="colormatrix1"
+         in="fbSourceGraphic" />
+      <feColorMatrix
+         id="feColorMatrix5080"
+         in="colormatrix1"
+         type="matrix"
+         values="1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 0 0 0 0 1 "
+         result="colormatrix2" />
+      <feColorMatrix
+         id="feColorMatrix5082"
+         in="colormatrix1"
+         type="matrix"
+         values="0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 0 0 0 1 "
+         result="colormatrix3" />
+      <feColorMatrix
+         id="feColorMatrix5084"
+         in="colormatrix1"
+         type="matrix"
+         values="0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 0 0 1 "
+         result="colormatrix4" />
+      <feBlend
+         in2="colormatrix3"
+         id="feBlend5086"
+         in="colormatrix2"
+         mode="darken"
+         result="blend1" />
+      <feBlend
+         in2="colormatrix4"
+         id="feBlend5088"
+         in="blend1"
+         mode="darken"
+         result="blend2" />
+      <feBlend
+         in2="colormatrix3"
+         id="feBlend5090"
+         in="colormatrix2"
+         mode="lighten"
+         result="blend3" />
+      <feBlend
+         in2="colormatrix4"
+         id="feBlend5092"
+         in="blend3"
+         mode="lighten"
+         result="blend4" />
+      <feComponentTransfer
+         id="feComponentTransfer5094"
+         in="blend4"
+         result="componentTransfer">
+        <feFuncR
+           id="feFuncR5096"
+           type="linear"
+           slope="0" />
+      </feComponentTransfer>
+      <feBlend
+         in2="componentTransfer"
+         id="feBlend5098"
+         in="blend2"
+         mode="lighten"
+         result="blend5" />
+      <feColorMatrix
+         id="feColorMatrix5100"
+         in="blend5"
+         type="matrix"
+         values="-1 1 0 0 0 -1 1 0 0 0 -1 1 0 0 0 0 0 0 0 1 "
+         result="colormatrix5" />
+      <feFlood
+         id="feFlood5102"
+         flood-opacity="1"
+         flood-color="rgb(255,65,0)"
+         result="flood" />
+      <feComposite
+         k4="0"
+         k3="0"
+         k2="0"
+         in2="flood"
+         id="feComposite5104"
+         in="colormatrix5"
+         operator="arithmetic"
+         k1="1"
+         result="composite1" />
+      <feGaussianBlur
+         id="feGaussianBlur5106"
+         stdDeviation="0.01"
+         result="blur" />
+      <feBlend
+         in2="blur"
+         id="feBlend5108"
+         mode="normal"
+         result="blend6" />
+      <feComposite
+         in2="blend6"
+         id="feComposite5110"
+         in="blend2"
+         operator="arithmetic"
+         k1="0"
+         k2="1"
+         k3="1"
+         k4="0"
+         result="composite2" />
+      <feComposite
+         in2="fbSourceGraphic"
+         id="feComposite5112"
+         operator="in"
+         result="fbSourceGraphic" />
+      <feColorMatrix
+         result="fbSourceGraphicAlpha"
+         in="fbSourceGraphic"
+         values="0 0 0 -1 0 0 0 0 -1 0 0 0 0 -1 0 0 0 0 1 0"
+         id="feColorMatrix5266" />
+      <feColorMatrix
+         id="feColorMatrix5268"
+         type="hueRotate"
+         values="0"
+         result="colormatrix1"
+         in="fbSourceGraphic" />
+      <feColorMatrix
+         id="feColorMatrix5270"
+         in="colormatrix1"
+         type="matrix"
+         values="1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 0 0 0 0 1 "
+         result="colormatrix2" />
+      <feColorMatrix
+         id="feColorMatrix5272"
+         in="colormatrix1"
+         type="matrix"
+         values="0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 0 0 0 1 "
+         result="colormatrix3" />
+      <feColorMatrix
+         id="feColorMatrix5274"
+         in="colormatrix1"
+         type="matrix"
+         values="0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 0 0 1 "
+         result="colormatrix4" />
+      <feBlend
+         in2="colormatrix3"
+         id="feBlend5276"
+         in="colormatrix2"
+         mode="darken"
+         result="blend1" />
+      <feBlend
+         in2="colormatrix4"
+         id="feBlend5278"
+         in="blend1"
+         mode="darken"
+         result="blend2" />
+      <feBlend
+         in2="colormatrix3"
+         id="feBlend5280"
+         in="colormatrix2"
+         mode="lighten"
+         result="blend3" />
+      <feBlend
+         in2="colormatrix4"
+         id="feBlend5282"
+         in="blend3"
+         mode="lighten"
+         result="blend4" />
+      <feComponentTransfer
+         id="feComponentTransfer5284"
+         in="blend4"
+         result="componentTransfer">
+        <feFuncR
+           id="feFuncR5286"
+           type="linear"
+           slope="0" />
+      </feComponentTransfer>
+      <feBlend
+         in2="componentTransfer"
+         id="feBlend5288"
+         in="blend2"
+         mode="lighten"
+         result="blend5" />
+      <feColorMatrix
+         id="feColorMatrix5290"
+         in="blend5"
+         type="matrix"
+         values="-1 1 0 0 0 -1 1 0 0 0 -1 1 0 0 0 0 0 0 0 1 "
+         result="colormatrix5" />
+      <feFlood
+         id="feFlood5292"
+         flood-opacity="1"
+         flood-color="rgb(255,224,0)"
+         result="flood" />
+      <feComposite
+         k4="0"
+         k3="0"
+         k2="0"
+         in2="flood"
+         id="feComposite5294"
+         in="colormatrix5"
+         operator="arithmetic"
+         k1="1"
+         result="composite1" />
+      <feGaussianBlur
+         id="feGaussianBlur5296"
+         stdDeviation="0.01"
+         result="blur" />
+      <feBlend
+         in2="blur"
+         id="feBlend5298"
+         mode="normal"
+         result="blend6" />
+      <feComposite
+         in2="blend6"
+         id="feComposite5300"
+         in="blend2"
+         operator="arithmetic"
+         k1="0"
+         k2="1"
+         k3="1"
+         k4="0"
+         result="composite2" />
+      <feComposite
+         in2="fbSourceGraphic"
+         id="feComposite5302"
+         operator="in"
+         result="fbSourceGraphic" />
+      <feColorMatrix
+         result="fbSourceGraphicAlpha"
+         in="fbSourceGraphic"
+         values="0 0 0 -1 0 0 0 0 -1 0 0 0 0 -1 0 0 0 0 1 0"
+         id="feColorMatrix5456" />
+      <feColorMatrix
+         id="feColorMatrix5458"
+         type="hueRotate"
+         values="0"
+         result="colormatrix1"
+         in="fbSourceGraphic" />
+      <feColorMatrix
+         id="feColorMatrix5460"
+         in="colormatrix1"
+         type="matrix"
+         values="1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 0 0 0 0 1 "
+         result="colormatrix2" />
+      <feColorMatrix
+         id="feColorMatrix5462"
+         in="colormatrix1"
+         type="matrix"
+         values="0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 0 0 0 1 "
+         result="colormatrix3" />
+      <feColorMatrix
+         id="feColorMatrix5464"
+         in="colormatrix1"
+         type="matrix"
+         values="0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 0 0 1 "
+         result="colormatrix4" />
+      <feBlend
+         in2="colormatrix3"
+         id="feBlend5466"
+         in="colormatrix2"
+         mode="darken"
+         result="blend1" />
+      <feBlend
+         in2="colormatrix4"
+         id="feBlend5468"
+         in="blend1"
+         mode="darken"
+         result="blend2" />
+      <feBlend
+         in2="colormatrix3"
+         id="feBlend5470"
+         in="colormatrix2"
+         mode="lighten"
+         result="blend3" />
+      <feBlend
+         in2="colormatrix4"
+         id="feBlend5472"
+         in="blend3"
+         mode="lighten"
+         result="blend4" />
+      <feComponentTransfer
+         id="feComponentTransfer5474"
+         in="blend4"
+         result="componentTransfer">
+        <feFuncR
+           id="feFuncR5476"
+           type="linear"
+           slope="0" />
+      </feComponentTransfer>
+      <feBlend
+         in2="componentTransfer"
+         id="feBlend5478"
+         in="blend2"
+         mode="lighten"
+         result="blend5" />
+      <feColorMatrix
+         id="feColorMatrix5480"
+         in="blend5"
+         type="matrix"
+         values="-1 1 0 0 0 -1 1 0 0 0 -1 1 0 0 0 0 0 0 0 1 "
+         result="colormatrix5" />
+      <feFlood
+         id="feFlood5482"
+         flood-opacity="1"
+         flood-color="rgb(0,255,42)"
+         result="flood" />
+      <feComposite
+         k4="0"
+         k3="0"
+         k2="0"
+         in2="flood"
+         id="feComposite5484"
+         in="colormatrix5"
+         operator="arithmetic"
+         k1="1"
+         result="composite1" />
+      <feGaussianBlur
+         id="feGaussianBlur5486"
+         stdDeviation="0.01"
+         result="blur" />
+      <feBlend
+         in2="blur"
+         id="feBlend5488"
+         mode="normal"
+         result="blend6" />
+      <feComposite
+         in2="blend6"
+         id="feComposite5490"
+         in="blend2"
+         operator="arithmetic"
+         k1="0"
+         k2="1"
+         k3="1"
+         k4="0"
+         result="composite2" />
+      <feComposite
+         in2="fbSourceGraphic"
+         id="feComposite5492"
+         operator="in"
+         result="fbSourceGraphic" />
+      <feColorMatrix
+         result="fbSourceGraphicAlpha"
+         in="fbSourceGraphic"
+         values="0 0 0 -1 0 0 0 0 -1 0 0 0 0 -1 0 0 0 0 1 0"
+         id="feColorMatrix5646" />
+      <feColorMatrix
+         id="feColorMatrix5648"
+         type="hueRotate"
+         values="0"
+         result="colormatrix1"
+         in="fbSourceGraphic" />
+      <feColorMatrix
+         id="feColorMatrix5650"
+         in="colormatrix1"
+         type="matrix"
+         values="1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 0 0 0 0 1 "
+         result="colormatrix2" />
+      <feColorMatrix
+         id="feColorMatrix5652"
+         in="colormatrix1"
+         type="matrix"
+         values="0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 0 0 0 1 "
+         result="colormatrix3" />
+      <feColorMatrix
+         id="feColorMatrix5654"
+         in="colormatrix1"
+         type="matrix"
+         values="0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 0 0 1 "
+         result="colormatrix4" />
+      <feBlend
+         in2="colormatrix3"
+         id="feBlend5656"
+         in="colormatrix2"
+         mode="darken"
+         result="blend1" />
+      <feBlend
+         in2="colormatrix4"
+         id="feBlend5658"
+         in="blend1"
+         mode="darken"
+         result="blend2" />
+      <feBlend
+         in2="colormatrix3"
+         id="feBlend5660"
+         in="colormatrix2"
+         mode="lighten"
+         result="blend3" />
+      <feBlend
+         in2="colormatrix4"
+         id="feBlend5662"
+         in="blend3"
+         mode="lighten"
+         result="blend4" />
+      <feComponentTransfer
+         id="feComponentTransfer5664"
+         in="blend4"
+         result="componentTransfer">
+        <feFuncR
+           id="feFuncR5666"
+           type="linear"
+           slope="0" />
+      </feComponentTransfer>
+      <feBlend
+         in2="componentTransfer"
+         id="feBlend5668"
+         in="blend2"
+         mode="lighten"
+         result="blend5" />
+      <feColorMatrix
+         id="feColorMatrix5670"
+         in="blend5"
+         type="matrix"
+         values="-1 1 0 0 0 -1 1 0 0 0 -1 1 0 0 0 0 0 0 0 1 "
+         result="colormatrix5" />
+      <feFlood
+         id="feFlood5672"
+         flood-opacity="1"
+         flood-color="rgb(0,186,30)"
+         result="flood" />
+      <feComposite
+         k4="0"
+         k3="0"
+         k2="0"
+         in2="flood"
+         id="feComposite5674"
+         in="colormatrix5"
+         operator="arithmetic"
+         k1="1"
+         result="composite1" />
+      <feGaussianBlur
+         id="feGaussianBlur5676"
+         stdDeviation="0.01"
+         result="blur" />
+      <feBlend
+         in2="blur"
+         id="feBlend5678"
+         mode="normal"
+         result="blend6" />
+      <feComposite
+         in2="blend6"
+         id="feComposite5680"
+         in="blend2"
+         operator="arithmetic"
+         k1="0"
+         k2="1"
+         k3="1"
+         k4="0"
+         result="composite2" />
+      <feComposite
+         in2="fbSourceGraphic"
+         id="feComposite5682"
+         operator="in"
+         result="composite3" />
+    </filter>
+    <filter
+       style="color-interpolation-filters:sRGB;"
+       inkscape:label="Drop Shadow"
+       id="filter8959"
+       x="-0.080545261"
+       y="-0.056137577"
+       width="1.188778"
+       height="1.2058379">
+      <feFlood
+         flood-opacity="0.498039"
+         flood-color="rgb(0,0,0)"
+         result="flood"
+         id="feFlood8949" />
+      <feComposite
+         in="flood"
+         in2="SourceGraphic"
+         operator="in"
+         result="composite1"
+         id="feComposite8951" />
+      <feGaussianBlur
+         in="composite1"
+         stdDeviation="5.98802"
+         result="blur"
+         id="feGaussianBlur8953" />
+      <feOffset
+         dx="9.88024"
+         dy="23.9521"
+         result="offset"
+         id="feOffset8955" />
+      <feComposite
+         in="SourceGraphic"
+         in2="offset"
+         operator="over"
+         result="fbSourceGraphic"
+         id="feComposite8957" />
+      <feColorMatrix
+         result="fbSourceGraphicAlpha"
+         in="fbSourceGraphic"
+         values="0 0 0 -1 0 0 0 0 -1 0 0 0 0 -1 0 0 0 0 1 0"
+         id="feColorMatrix8979" />
+      <feFlood
+         id="feFlood8981"
+         flood-opacity="0.498039"
+         flood-color="rgb(0,0,0)"
+         result="flood"
+         in="fbSourceGraphic" />
+      <feComposite
+         in2="fbSourceGraphic"
+         id="feComposite8983"
+         in="flood"
+         operator="in"
+         result="composite1" />
+      <feGaussianBlur
+         id="feGaussianBlur8985"
+         in="composite1"
+         stdDeviation="5.98802"
+         result="blur" />
+      <feOffset
+         id="feOffset8987"
+         dx="0"
+         dy="23.9521"
+         result="offset" />
+      <feComposite
+         in2="offset"
+         id="feComposite8989"
+         in="fbSourceGraphic"
+         operator="over"
+         result="composite2" />
+    </filter>
+  </defs>
+  <sodipodi:namedview
+     inkscape:window-height="1017"
+     inkscape:window-width="1920"
+     inkscape:pageshadow="2"
+     inkscape:pageopacity="0.0"
+     guidetolerance="10.0"
+     gridtolerance="10.0"
+     objecttolerance="10.0"
+     borderopacity="1.0"
+     bordercolor="#666666"
+     pagecolor="#ffffff"
+     id="base"
+     width="128px"
+     height="128px"
+     showgrid="false"
+     inkscape:zoom="3.1445299"
+     inkscape:cx="15.423609"
+     inkscape:cy="60.899405"
+     inkscape:window-x="1912"
+     inkscape:window-y="-8"
+     inkscape:current-layer="svg2"
+     showguides="true"
+     inkscape:guide-bbox="true"
+     fit-margin-top="0"
+     fit-margin-left="0"
+     fit-margin-right="0"
+     fit-margin-bottom="0"
+     inkscape:window-maximized="1"
+     inkscape:pagecheckerboard="0">
+    <inkscape:grid
+       type="xygrid"
+       id="grid3064"
+       spacingx="1"
+       spacingy="1"
+       empspacing="2"
+       originx="3.1999996"
+       originy="10.207119" />
+    <inkscape:grid
+       id="GridFromPre046Settings"
+       type="xygrid"
+       originx="3.1999996"
+       originy="10.207119"
+       spacingx="4"
+       spacingy="4"
+       color="#3f3fff"
+       empcolor="#3f3fff"
+       opacity="0.15"
+       empopacity="0.38"
+       empspacing="2" />
+  </sodipodi:namedview>
+  <g
+     id="g8587"
+     transform="matrix(0.22149179,0,0,0.22149179,9.7040139,5.4927984)"
+     style="filter:url(#filter8959)"
+     inkscape:export-filename="C:\Users\Sreehari Jayaram\qudi\artwork\icons\66\locked_obj.png"
+     inkscape:export-xdpi="100"
+     inkscape:export-ydpi="100">
+    <path
+       id="SVGCleanerId_0"
+       style="fill:#ffb655"
+       d="m 411.151,201.697 h -23.273 -46.545 -85.332 -85.335 -46.545 -23.273 c -12.853,0 -23.273,10.42 -23.273,23.273 v 263.758 c 0,12.853 10.42,23.273 23.273,23.273 h 155.153 155.15 c 12.853,0 23.273,-10.42 23.273,-23.273 V 224.97 c 0,-12.853 -10.42,-23.273 -23.273,-23.273 z" />
+    <g
+       id="g8499">
+      <path
+         id="SVGCleanerId_0_1_"
+         style="fill:#ffb655"
+         d="m 411.151,201.697 h -23.273 -46.545 -85.332 -85.335 -46.545 -23.273 c -12.853,0 -23.273,10.42 -23.273,23.273 v 263.758 c 0,12.853 10.42,23.273 23.273,23.273 h 155.153 155.15 c 12.853,0 23.273,-10.42 23.273,-23.273 V 224.97 c 0,-12.853 -10.42,-23.273 -23.273,-23.273 z" />
+    </g>
+    <path
+       style="fill:#77757f"
+       d="m 294.738,331.582 c -0.061,-1.171 -0.18,-2.326 -0.343,-3.468 -0.135,-0.957 -0.306,-1.904 -0.51,-2.838 -3.263,-14.901 -15.106,-26.629 -30.078,-29.701 -0.085,-0.017 -0.171,-0.029 -0.258,-0.047 -1.809,-0.358 -3.663,-0.596 -5.556,-0.692 -0.393,-0.02 -0.79,-0.022 -1.184,-0.031 -0.27,-0.005 -0.538,-0.02 -0.808,-0.02 0,0 0,0 -0.002,0 -21.388,0 -38.788,17.4 -38.788,38.788 0,12.663 6.102,23.926 15.515,31.009 v 31.054 c 0,12.853 10.42,23.273 23.273,23.273 0.002,0 0.002,0 0.002,0 0.563,0 1.116,-0.045 1.669,-0.084 0.234,-0.017 0.476,-0.012 0.709,-0.036 0.334,-0.034 0.658,-0.102 0.987,-0.15 11.253,-1.635 19.906,-11.295 19.906,-23.001 v -31.052 c 9.413,-7.083 15.515,-18.347 15.515,-31.009 0.001,-0.67 -0.016,-1.334 -0.049,-1.995 z"
+       id="path8501" />
+    <path
+       style="fill:#c3c3c7"
+       d="m 170.667,131.877 c 0,-47.051 38.281,-85.332 85.333,-85.332 47.052,0 85.333,38.281 85.333,85.332 v 69.82 h 46.545 v -69.82 C 387.879,59.161 328.718,0 256,0 183.282,0 124.121,59.161 124.121,131.877 v 69.82 h 46.545 v -69.82 z"
+       id="path8503" />
+    <path
+       style="fill:#57575c"
+       d="m 256.002,294.788 c 0,0 0,0 -0.002,0 -21.388,0 -38.788,17.4 -38.788,38.788 0,12.663 6.102,23.926 15.515,31.009 v 31.052 c 0,12.853 10.42,23.273 23.273,23.273 0.002,0 0.002,0 0.002,0 z"
+       id="path8505" />
+    <g
+       id="g8517">
+      <path
+         style="fill:#f1cb30"
+         d="m 258.38,418.788 c -0.233,0.023 -0.475,0.02 -0.709,0.036 0.236,-0.016 0.476,-0.011 0.709,-0.036 z"
+         id="path8507" />
+      <path
+         style="fill:#f1cb30"
+         d="m 259.367,418.638 c 11.253,-1.635 19.906,-11.295 19.906,-23.001 0,11.706 -8.653,21.367 -19.906,23.001 z"
+         id="path8509" />
+      <path
+         style="fill:#f1cb30"
+         d="m 293.885,325.278 c 0.205,0.934 0.375,1.879 0.51,2.838 -0.135,-0.959 -0.305,-1.904 -0.51,-2.838 z"
+         id="path8511" />
+      <path
+         style="fill:#f1cb30"
+         d="m 256.811,294.808 c 0.394,0.008 0.791,0.009 1.184,0.031 -0.394,-0.02 -0.791,-0.022 -1.184,-0.031 z"
+         id="path8513" />
+      <path
+         style="fill:#f1cb30"
+         d="m 263.55,295.531 c 0.087,0.017 0.172,0.029 0.258,0.047 -0.086,-0.017 -0.171,-0.03 -0.258,-0.047 z"
+         id="path8515" />
+    </g>
+    <path
+       style="fill:#ee8700"
+       d="m 100.848,512 h 155.153 v -93.091 c 0,0 0,0 -0.002,0 -12.853,0 -23.273,-10.42 -23.273,-23.273 v -31.052 c -9.413,-7.083 -15.515,-18.347 -15.515,-31.009 0,-21.388 17.4,-38.788 38.788,-38.788 0.002,0 0.002,0 0.002,0 v -93.091 h -85.335 -46.545 -23.273 c -12.853,0 -23.273,10.42 -23.273,23.273 V 488.727 C 77.576,501.58 87.996,512 100.848,512 Z"
+       id="path8519" />
+    <path
+       style="fill:#a9a8ae"
+       d="m 124.121,131.879 v 69.818 h 46.545 v -69.818 c 0,-47.053 38.281,-85.333 85.333,-85.333 V 0 C 183.282,0 124.121,59.161 124.121,131.879 Z"
+       id="path8521" />
+    <g
+       id="g8523" />
+    <g
+       id="g8525" />
+    <g
+       id="g8527" />
+    <g
+       id="g8529" />
+    <g
+       id="g8531" />
+    <g
+       id="g8533" />
+    <g
+       id="g8535" />
+    <g
+       id="g8537" />
+    <g
+       id="g8539" />
+    <g
+       id="g8541" />
+    <g
+       id="g8543" />
+    <g
+       id="g8545" />
+    <g
+       id="g8547" />
+    <g
+       id="g8549" />
+    <g
+       id="g8551" />
+  </g>
+  <g
+     id="g5243"
+     transform="matrix(1.8529856,0,0,1.8529856,-14.344852,-82.293898)"
+     inkscape:export-filename="C:\Users\Sreehari Jayaram\qudi\artwork\icons\66\locked_obj.png"
+     inkscape:export-xdpi="100"
+     inkscape:export-ydpi="100">
+    <g
+       id="g9974"
+       transform="translate(-41.875698,-0.51486514)">
+      <path
+         style="fill:#455a64;filter:url(#filter4732)"
+         id="path2-7"
+         d="m 104,82 c 7.2,0 13,1.8 13,4 0,2.2 -5.8,5 -13,5 -7.2,0 -13,-2.8 -13,-5 0,-2.2 5.8,-4 13,-4 z"
+         inkscape:connector-curvature="0" />
+      <path
+         style="fill:#37474f;filter:url(#filter4694)"
+         id="path4-2"
+         d="m 114,91 v 21 c 0,2.2 -4.5,4 -10,4 -5.5,0 -10,-1.8 -10,-4 V 91 Z M 104,72 c -7.2,0 -13,1.8 -13,4 0,2.2 5.8,5 13,5 7.2,0 13,-2.8 13,-5 0,-2.2 -5.8,-4 -13,-4 z m 12,11.1 H 92 v 2.8 c 0,0 0,0 0,0.1 0,1.7 5.4,3 12,3 6.6,0 12,-1.3 12,-3 0,-0.1 0,-0.1 0,-0.2 z"
+         inkscape:connector-curvature="0" />
+      <path
+         style="fill:#42a5f5;filter:url(#filter4656)"
+         id="path6-1"
+         d="m 104,80 c 4.2,0 7,-0.5 8.9,-1.1 0.1,-0.1 0.1,-0.3 0.1,-0.4 0,-1.9 -4,-3.5 -9,-3.5 -5,0 -9,1.6 -9,3.5 0,0.1 0,0.3 0.1,0.4 1.9,0.6 4.7,1.1 8.9,1.1 z"
+         inkscape:connector-curvature="0" />
+      <path
+         style="fill:#546e7a;filter:url(#filter4618)"
+         id="path8-9"
+         d="M 104,80 C 92,80 91,76 91,76 v 6.3 c 0,0 0,0 0.1,0.1 0.5,1.9 5.3,3.4 11.3,3.6 0,0 0,0 0.1,0 0.5,0 1,0 1.5,0 0.5,0 1,0 1.5,0 0,0 0,0 0.1,0 6,-0.2 10.8,-1.7 11.3,-3.6 0,0 0,0 0.1,-0.1 V 76 c 0,0 -1,4 -13,4 z m 0,10 C 96.8,90 91,88.2 91,86 v 19 c 0,0 0.9,4 13,4 12.1,0 13,-4 13,-4 V 86 c 0,2.2 -5.8,4 -13,4 z m 3,12 c 0,1.6 -1.3,3 -3,3 -1.7,0 -3,-1.4 -3,-3 v -6 c 0,-1.7 1.3,-3 3,-3 1.7,0 3,1.3 3,3 z"
+         inkscape:connector-curvature="0" />
+      <path
+         style="fill:#90caf9;filter:url(#filter4580)"
+         id="path10-7"
+         d="m 108,79 c -0.1,0 -0.2,0 -0.4,-0.1 -0.6,-0.2 -1.8,-0.6 -3.6,-0.6 -1.8,0 -3,0.4 -3.6,0.6 -0.5,0.2 -1.1,0 -1.3,-0.6 -0.2,-0.5 0,-1.1 0.6,-1.3 2.5,-1 6.2,-1 8.7,0 0.5,0.2 0.8,0.8 0.6,1.3 -0.2,0.5 -0.6,0.7 -1,0.7 z"
+         inkscape:connector-curvature="0" />
+    </g>
+  </g>
+</svg>

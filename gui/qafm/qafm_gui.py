@@ -281,6 +281,7 @@ class ProteusQGUI(GUIBase):
 
         self._mw.actionGo_To_AFM_pos.triggered.connect(self.goto_afm_pos_clicked)
         self._mw.actionGo_To_Obj_pos.triggered.connect(self.goto_obj_pos_clicked)
+        self._mw.actionLock_Obj.toggled.connect(self.lock_obj_toggled)
         
 
         self.sigGotoObjpos.connect(self._qafm_logic.set_obj_pos)
@@ -311,6 +312,7 @@ class ProteusQGUI(GUIBase):
         self._mw.action_Quantitative_Measure.triggered.connect(self.openQuantiMeas)
         self._mw.action_Quantitative_Measure.setChecked(False)
         self._qm.sigQuantiMeasClose.connect(self.onCloseQuantiMeas)
+        self._qm.scan_dir_fw_bw_RadioButton.setEnabled(False)
 
         # connect Quantitative signals 
         self._qm.Start_QM_PushButton.clicked.connect(self.start_quantitative_measure_clicked)
@@ -2229,6 +2231,7 @@ class ProteusQGUI(GUIBase):
         self._mw.actionStart_Obj_YZ_scan.setEnabled(False)
         self._mw.actionGo_To_AFM_pos.setEnabled(False)
         self._mw.actionGo_To_Obj_pos.setEnabled(False)
+        self._mw.actionLock_obj.setEnabled(False)
         self._mw.actionOptimize_Pos.setEnabled(False)
         self._mw.actionSaveDataQAFM.setEnabled(False)
         self._mw.actionSaveObjData.setEnabled(False)
@@ -2244,6 +2247,7 @@ class ProteusQGUI(GUIBase):
         self._mw.actionStart_Obj_YZ_scan.setEnabled(True)
         self._mw.actionGo_To_AFM_pos.setEnabled(True)
         self._mw.actionGo_To_Obj_pos.setEnabled(True)
+        self._mw.actionLock_Obj.setEnabled(True)
         self._mw.actionOptimize_Pos.setEnabled(True)
         self._mw.actionSaveDataQAFM.setEnabled(True)
         self._mw.actionSaveObjData.setEnabled(True)
@@ -2327,6 +2331,10 @@ class ProteusQGUI(GUIBase):
         self._dockwidget_container['obj_xz'].graphicsView_matrix.set_crosshair_pos((x,z))
         self._dockwidget_container['obj_yz'].graphicsView_matrix.set_crosshair_pos((y,z))
         #self._qafm_logic.start_set_obj_pos()
+
+    def lock_obj_toggled(self):
+        state = self._mw.actionLock_Obj.isChecked()
+        self._qafm_logic._spm.objective_lock = state
 
     def update_targetpos_xy(self, event, xy_pos):
 
