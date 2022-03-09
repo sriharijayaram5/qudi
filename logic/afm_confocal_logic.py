@@ -3091,6 +3091,7 @@ class AFMConfocalLogic(GenericLogic):
         if optimizer_standalone_call:
             self.module_state.unlock()
 
+        self.sigOptimizeLineScanFinished.emit('opti_z')
         self.sigOptimizeScanFinished.emit()
         self._counter.stop_measurement()
 

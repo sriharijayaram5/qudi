@@ -893,23 +893,46 @@ class ProteusQGUI(GUIBase):
         sd['optimizer_period'] = self._sd.optimizer_period_DoubleSpinBox.value()
         sd['iso_b_operation'] = self._sd.iso_b_operation_CheckBox.isChecked()
 
+        ret_val = True
         x_target = self._mw.obj_target_x_DSpinBox.value()
         start = x_target-sd['optimizer_x_range']/2
-        if (start)<0:
+        stop = x_target+sd['optimizer_x_range']/2
+        if start<0:
             self.log.warning('X position too low for optimize range')
-            start = 0
-        sd['optimizer_x_res'] = self._qafm_logic._spm._find_spec_count(start, x_target+sd['optimizer_x_range']/2, sd['optimizer_x_res'])
+            ret_val = False
+
+        x_range = self._qafm_logic._spm.get_objective_scan_range(['X2'])['X2']
+        if stop>x_range:
+            self.log.warning('X position too high for optimize range')
+            ret_val = False
+        
+        if not ret_val:
+            return ret_val
+
+        sd['optimizer_x_res'] = self._qafm_logic._spm._find_spec_count(start, stop, sd['optimizer_x_res'])
+        
         self._sd.optimizer_x_res_SpinBox.setValue(sd['optimizer_x_res'])
 
         z_target = self._mw.obj_target_z_DSpinBox.value()
         start = z_target-sd['optimizer_z_range']/2
-        if (start)<0:
+        stop = z_target+sd['optimizer_z_range']/2
+        if start<0:
             self.log.warning('Z position too low for optimize range')
-            start = 0
-        sd['optimizer_z_res'] = self._qafm_logic._spm._find_spec_count(start, z_target+sd['optimizer_z_range']/2, sd['optimizer_z_res'], False)
+            ret_val = False
+
+        z_range = self._qafm_logic._spm.get_objective_scan_range(['Z2'])['Z2']
+        if stop>z_range:
+            self.log.warning('Z position too high for optimize range')
+            ret_val = False
+        
+        if not ret_val:
+            return ret_val
+        sd['optimizer_z_res'] = self._qafm_logic._spm._find_spec_count(start, stop, sd['optimizer_z_res'], False)
+
         self._sd.optimizer_z_res_SpinBox.setValue(sd['optimizer_z_res'])
 
         self._qafm_logic.set_qafm_settings(sd)
+        return ret_val
 
 
     def keep_former_qafm_settings(self):
@@ -2193,22 +2216,27 @@ class ProteusQGUI(GUIBase):
 
         self.disable_scan_actions()
 
-        self.update_qafm_settings()
+        ret_val = self.update_qafm_settings()
 
-        x_target = self._mw.obj_target_x_DSpinBox.value()
-        y_target = self._mw.obj_target_y_DSpinBox.value()
-        z_target = self._mw.obj_target_z_DSpinBox.value()
+        if ret_val:
 
-        # settings of optimizer can be set in its setting window
+            x_target = self._mw.obj_target_x_DSpinBox.value()
+            y_target = self._mw.obj_target_y_DSpinBox.value()
+            z_target = self._mw.obj_target_z_DSpinBox.value()
 
-        self._qafm_logic.set_optimizer_target(x_target=x_target, 
-                                              y_target=y_target, 
-                                              z_target=z_target)
+            # settings of optimizer can be set in its setting window
 
-        ret_val = self._qafm_logic.set_optimize_request(True)
-        # if the request is valid, then True will be returned, if not False
+            self._qafm_logic.set_optimizer_target(x_target=x_target, 
+                                                y_target=y_target, 
+                                                z_target=z_target)
 
-        self._mw.actionOptimize_Pos.setEnabled(not ret_val)  
+            ret_val = self._qafm_logic.set_optimize_request(True)
+            # if the request is valid, then True will be returned, if not False
+
+            self._mw.actionOptimize_Pos.setEnabled(not ret_val)  
+        else:
+            self._mw.actionOptimize_Pos.setEnabled(True)  
+            self.enable_scan_actions()
 
     def stop_any_scanning(self):
         """ Stop all scanning actions."""
