@@ -600,6 +600,7 @@ class ODMRLogic(GenericLogic):
         """
 
         clock_status = self._odmr_counter.set_up_odmr_clock(clock_frequency=self.clock_frequency)
+
         if clock_status < 0:
             return -1
 
@@ -675,6 +676,7 @@ class ODMRLogic(GenericLogic):
                  len(self._odmr_counter.get_odmr_channels()),
                  self.odmr_plot_x.size]
             )
+            self._odmr_counter.set_odmr_length(self.odmr_plot_x.size)
             self.sigNextLine.emit()
             return 0
 

@@ -14,7 +14,7 @@
    </rect>
   </property>
   <property name="windowTitle">
-   <string>ProteusQ</string>
+   <string>AttoDRY2200_Pi3 SPM</string>
   </property>
   <widget class="QWidget" name="centralwidget">
    <property name="enabled">
@@ -627,7 +627,7 @@
         <item row="2" column="0">
          <widget class="QLineEdit" name="probename_LineEdit">
           <property name="toolTip">
-           <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Type here the name of the Quantilever (also known as the probe) for the ProteusQ.&lt;br/&gt;The data will be saved into this folder.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+           <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Type here the name of the Quantilever (also known as the probe) for the AttoDRY2200_Pi3 SPM.&lt;br/&gt;The data will be saved into this folder.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
           </property>
          </widget>
         </item>
@@ -648,7 +648,7 @@
         <item row="2" column="1">
          <widget class="QLineEdit" name="samplename_LineEdit">
           <property name="toolTip">
-           <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Type here the name of the Sample, which is investigated wit the ProteusQ.&lt;br/&gt;The data will be saved into this folder.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+           <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Type here the name of the Sample, which is investigated with the AttoDRY2200_Pi3 SPM.&lt;br/&gt;The data will be saved into this folder.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
           </property>
          </widget>
         </item>
@@ -1154,7 +1154,7 @@
   </action>
   <action name="actionLock_Obj">
   <property name="checkable">
-    <bool>false</bool>
+    <bool>true</bool>
    </property>
    <property name="icon">
     <iconset>

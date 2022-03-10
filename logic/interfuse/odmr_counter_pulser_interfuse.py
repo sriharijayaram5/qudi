@@ -21,10 +21,8 @@ top-level directory of this distribution and at <https://github.com/Ulm-IQO/qudi
 import numpy as np
 from hardware.timetagger_counter import HWRecorderMode
 from core.connector import Connector
-from interface.recorder_interface import RecorderInterface
 from logic.generic_logic import GenericLogic
 from interface.odmr_counter_interface import ODMRCounterInterface
-from interface.pulser_interface import PulserInterface
 
 class PulseSequence:
     '''
@@ -42,7 +40,7 @@ class PulseSequence:
         for block, n in block_list:
             for i in range(n):
                 for key in block.block_dict.keys():
-                    self.pulse_dict[key].extend(block.block_dict[key]/1e-9)
+                    self.pulse_dict[key].extend(block.block_dict[key])
 
     
 class PulseBlock:
@@ -60,9 +58,9 @@ class PulseBlock:
         tf = {True:1, False:0}
         for i in range(repetition):
             for chn in channels.keys():
-                self.block_dict[chn].extend([(init_length, tf[channels[chn]])])    
+                self.block_dict[chn].extend([(init_length/1e-9, tf[channels[chn]])])    
 
-class ODMRCounterInterfuse(GenericLogic, ODMRCounterInterface, PulserInterface, RecorderInterface):
+class ODMRCounterInterfuse(GenericLogic, ODMRCounterInterface):
     """ This is the Interfuse class supplies the controls for a simple ODMR with counter and pulser."""
 
 
@@ -77,6 +75,10 @@ class ODMRCounterInterfuse(GenericLogic, ODMRCounterInterface, PulserInterface, 
         """ Initialisation performed during activation of the module."""
         self._pulser = self.pulser()
         self._sc_device = self.slowcounter()  # slow counter device
+
+        self._lock_in_active = False
+        self._oversampling = 10
+        self._odmr_length = 100
 
     def on_deactivate(self):
         pass
@@ -103,14 +105,14 @@ class ODMRCounterInterfuse(GenericLogic, ODMRCounterInterface, PulserInterface, 
 
         d_ch = clear(d_ch)
         d_ch[self._pulser._mw_trig] = True
-        d_ch[self._pulser._laser] = True
+        d_ch[self._pulser._laser_channel] = True
         d_ch[self._pulser._mw_switch] = True
         d_ch[self._pulser._pixel_start] = True
         block_1.append(init_length = 1/clock_frequency, channels = d_ch, repetition = 1)
 
         d_ch = clear(d_ch)
         d_ch[self._pulser._pixel_stop] = True
-        block_1.append(init_length = 1e-6, channels = d_ch, repetition = 1)
+        block_1.append(init_length = 1e-3, channels = d_ch, repetition = 1)
 
         seq.append([(block_1, 1)])
 
@@ -160,26 +162,27 @@ class ODMRCounterInterfuse(GenericLogic, ODMRCounterInterface, PulserInterface, 
         @return float[]: the photon counts per second
         """
         self._sc_device.start_recorder()
-        counts = np.zeros((len(self.get_odmr_channels()), length))
 
-        self._pulser.pulser_on(n=length)
-        counts[:, i] = self._sc_device.get_measurements('counts')[0]
-
+        self._pulser.pulser_on(n=length+1) # not sure why n=length fails
+        counts = self._sc_device.get_measurements(['counts'])[0]
+    
         return False, counts
 
     def close_odmr(self):
-        """ Close the odmr and clean up afterwards.
+        """ Close the odmr and clean up afterwards.     
 
         @return int: error code (0:OK, -1:error)
         """
-        return self._sc_device.stop_measurement()
+        self._sc_device.stop_measurement()
+        return 0
 
     def close_odmr_clock(self):
         """ Close the odmr and clean up afterwards.
 
         @return int: error code (0:OK, -1:error)
         """
-        return self._sc_device.stop_measurement()
+        self._sc_device.stop_measurement()
+        return 0
 
     def get_odmr_channels(self):
         """ Return a list of channel names.
@@ -187,3 +190,27 @@ class ODMRCounterInterfuse(GenericLogic, ODMRCounterInterface, PulserInterface, 
         @return list(str): channels recorded during ODMR measurement
         """
         return ['APD0']
+    
+    @property
+    def lock_in_active(self):
+        return self._lock_in_active
+
+    @lock_in_active.setter
+    def lock_in_active(self, val):
+        if not isinstance(val, bool):
+            self.log.error('lock_in_active has to be boolean.')
+        else:
+            self._lock_in_active = val
+            if self._lock_in_active:
+                self.log.warn('Lock-In is not implemented')
+    
+    @property
+    def oversampling(self):
+        return self._oversampling
+
+    @oversampling.setter
+    def oversampling(self, val):
+        if not isinstance(val, (int, float)):
+            self.log.error('oversampling has to be int of float.')
+        else:
+            self._oversampling = int(val)

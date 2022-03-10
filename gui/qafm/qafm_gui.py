@@ -145,7 +145,7 @@ class ProteusQMainWindow(QtWidgets.QMainWindow):
 class ProteusQGUI(GUIBase):
     """ GUI to control the ProteusQ. """
     
-    _modclass = 'ProteusQGUI'
+    _modclass = 'AttoDRY2200_Pi3_GUI'
     _modtype = 'gui'
 
     _LabQversion = 'x.x'      #dynmically assigned
@@ -254,6 +254,8 @@ class ProteusQGUI(GUIBase):
         self._qafm_logic.sigObjLineScanFinished.connect(self._update_obj_data)
         self._qafm_logic.sigObjScanFinished.connect(self.enable_scan_actions)
         self._qafm_logic.sigNewObjPos.connect(self.update_obj_pos)
+        
+        self._mw.actionLock_Obj.toggled.connect(self.lock_obj_toggled)
 
         self._mw.actionStart_QAFM_Scan.triggered.connect(self.start_qafm_scan_clicked)
         self._mw.actionStop_Scan.triggered.connect(self.stop_any_scanning)
@@ -280,9 +282,7 @@ class ProteusQGUI(GUIBase):
         self._mw.actionLoad_Display.triggered.connect(self.load_view)
 
         self._mw.actionGo_To_AFM_pos.triggered.connect(self.goto_afm_pos_clicked)
-        self._mw.actionGo_To_Obj_pos.triggered.connect(self.goto_obj_pos_clicked)
-        self._mw.actionLock_Obj.toggled.connect(self.lock_obj_toggled)
-        
+        self._mw.actionGo_To_Obj_pos.triggered.connect(self.goto_obj_pos_clicked)    
 
         self.sigGotoObjpos.connect(self._qafm_logic.set_obj_pos)
         self.sigGotoAFMpos.connect(self._qafm_logic.set_afm_pos)
@@ -2259,7 +2259,7 @@ class ProteusQGUI(GUIBase):
         self._mw.actionStart_Obj_YZ_scan.setEnabled(False)
         self._mw.actionGo_To_AFM_pos.setEnabled(False)
         self._mw.actionGo_To_Obj_pos.setEnabled(False)
-        self._mw.actionLock_obj.setEnabled(False)
+        self._mw.actionLock_Obj.setEnabled(False)
         self._mw.actionOptimize_Pos.setEnabled(False)
         self._mw.actionSaveDataQAFM.setEnabled(False)
         self._mw.actionSaveObjData.setEnabled(False)

@@ -53,8 +53,8 @@ class PulseStreamer(Base, PulserInterface):
     _pixel_start = ConfigOption('pixel_start', 1, missing='warn')
     _pixel_stop = ConfigOption('pixel_stop', 2, missing='warn')
     _sync_in = ConfigOption('sync_in', 3, missing='warn')
-    _mw_trig = ConfigOption('mw_trig', 4, missing='info')
-    _mw_switch = ConfigOption('mw_trig', 5, missing='info')
+    _mw_switch = ConfigOption('mw_switch', 4, missing='info')
+    _mw_trig = ConfigOption('mw_trig', 5, missing='info')
 
     _use_external_clock = ConfigOption('use_external_clock', False, missing='info')
     _external_clock_option = ConfigOption('external_clock_option', 0, missing='info')

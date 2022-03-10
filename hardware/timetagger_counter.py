@@ -502,8 +502,6 @@ class TimeTaggerCounter(Base, SlowCounterInterface, RecorderInterface):
             else:
                 self.log.error('TimeTagger configuration error; inconsistent modality')
 
-            self._mq_state.set_state(RecorderState.BUSY)
-
         else:
             self.log.error(f'TimeTagger: method {mode}, movement_type={meas_type.movement}'
                             ' not implemented yet')
@@ -560,6 +558,8 @@ class TimeTaggerCounter(Base, SlowCounterInterface, RecorderInterface):
 
             data = self.recorder.getBinWidths().reshape(self._curr_meas_params['num_meas'], len(self._curr_meas_params['mw_frequency_list']))
             ret['int_time'] = data/1e12 # returns in ps
+            ret['counts'] = np.divide(ret['counts'].astype(float), ret['int_time'])
+            
 
         # released
         self._curr_state = RecorderState.IDLE

@@ -277,7 +277,7 @@ class PulseSequence:
         for block, n in block_list:
             for i in range(n):
                 for key in block.block_dict.keys():
-                    self.pulse_dict[key].extend(block.block_dict[key]/1e-9)
+                    self.pulse_dict[key].extend(block.block_dict[key])
 
     
 class PulseBlock:
@@ -295,7 +295,7 @@ class PulseBlock:
         tf = {True:1, False:0}
         for i in range(repetition):
             for chn in channels.keys():
-                self.block_dict[chn].extend([(init_length, tf[channels[chn]])])    
+                self.block_dict[chn].extend([(init_length/1e-9, tf[channels[chn]])])    
 
 
 class AFMConfocalLogic(GenericLogic):
