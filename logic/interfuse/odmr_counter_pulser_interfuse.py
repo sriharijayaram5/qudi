@@ -163,7 +163,7 @@ class ODMRCounterInterfuse(GenericLogic, ODMRCounterInterface):
         """
         self._sc_device.start_recorder()
 
-        self._pulser.pulser_on(n=length+1) # not sure why n=length fails
+        self._pulser.pulser_on(n=length) # not sure why n=length fails
         counts = self._sc_device.get_measurements(['counts'])[0]
     
         return False, counts
@@ -174,6 +174,7 @@ class ODMRCounterInterfuse(GenericLogic, ODMRCounterInterface):
         @return int: error code (0:OK, -1:error)
         """
         self._sc_device.stop_measurement()
+        self._pulser.pulser_off()
         return 0
 
     def close_odmr_clock(self):

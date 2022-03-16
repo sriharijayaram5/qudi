@@ -72,7 +72,7 @@ class PulseStreamer(Base, PulserInterface):
         self.__currently_loaded_waveform = ''  # loaded and armed waveform name
         self.__samples_written = 0
         self._trigger = ps.TriggerStart.SOFTWARE
-        self._laser_mw_on_state = ps.OutputState([self._laser_channel, self._uw_x_channel], 0, 0)
+        self._laser_mw_on_state = ps.OutputState([], 0, 0)
 
     def on_activate(self):
         """ Establish connection to pulse streamer and tell it to cancel all operations """
@@ -89,6 +89,7 @@ class PulseStreamer(Base, PulserInterface):
         self.__samples_written = 0
         self.__currently_loaded_waveform = ''
         self.current_status = 0
+        self._seq = None
 
     def on_deactivate(self):
         self.reset()
@@ -216,7 +217,7 @@ class PulseStreamer(Base, PulserInterface):
         # sample file length max is not well-defined for PulseStreamer, which collates sequential identical pulses into
         # one. Total number of not-sequentially-identical pulses which can be stored: 1 M.
         constraints.waveform_length.min = 1
-        constraints.waveform_length.max = 134217728
+        constraints.waveform_length.max = 13421772800
         constraints.waveform_length.step = 1
         constraints.waveform_length.default = 1
 

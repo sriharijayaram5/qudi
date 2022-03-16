@@ -227,7 +227,7 @@ class MicrowaveSmiq(Base, MicrowaveInterface):
             return_val = [start+step, stop, step]
         elif 'list' in mode:
             # Exclude first frequency entry (duplicate due to trigger issues)
-            frequency_str = self._gpib_connection.query(':LIST:FREQ?').split(',', 1)[1]
+            frequency_str = self._gpib_connection.query(':LIST:FREQ?')
             return_val = np.array([float(freq) for freq in frequency_str.split(',')])
         return return_val
 
@@ -339,7 +339,7 @@ class MicrowaveSmiq(Base, MicrowaveInterface):
 
         # Set list frequencies
         if frequency is not None:
-            s = ' {0:f},'.format(frequency[0])
+            s = ''
             for f in frequency[:-1]:
                 s += ' {0:f},'.format(f)
             s += ' {0:f}'.format(frequency[-1])

@@ -584,7 +584,7 @@ class AFMConfocalLogic(GenericLogic):
 
         # safety precaution in case the meas path does not exist
         if not os.path.exists(self._meas_path):
-            self._meas_path = self._save_logic.get_path_for_module(module_name='ProteusQ')
+            self._meas_path = self._save_logic.get_path_for_module(module_name='AttoDRY2200_Pi3_SPM')
 
         # in this threadpool our worker thread will be run
         self.threadpool = QtCore.QThreadPool()
@@ -4341,7 +4341,7 @@ class AFMConfocalLogic(GenericLogic):
         """
 
         if use_qudi_savescheme:
-            return_path = self._save_logic.get_path_for_module(module_name='ProteusQ')
+            return_path = self._save_logic.get_path_for_module(module_name='AttoDRY2200_Pi3_SPM')
         else:
 
             if root_path is None or root_path == '' or not os.path.exists(root_path):
