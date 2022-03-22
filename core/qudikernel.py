@@ -162,7 +162,7 @@ def install_kernel():
     try:
         # prepare temporary kernelspec folder
         tempdir = tempfile.mkdtemp(suffix='_kernels')
-        path = os.path.join(tempdir, 'qudi')
+        path = os.path.join(tempdir, 'sj5-qudi')
         resourcepath = os.path.join(path, 'resources')
         kernelpath = os.path.abspath(__file__)
         os.mkdir(path)
@@ -184,7 +184,7 @@ def install_kernel():
 
         # install kernelspec folder
         kernel_spec_manager = KernelSpecManager()
-        dest = kernel_spec_manager.install_kernel_spec(path, kernel_name='qudi', user=True)
+        dest = kernel_spec_manager.install_kernel_spec(path, kernel_name='sj5-qudi', user=True)
         logging.info('Installed kernelspec qudi in {}'.format(dest))
     except OSError as e:
         if e.errno == errno.EACCES:

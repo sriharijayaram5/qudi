@@ -357,6 +357,7 @@ class ProteusQGUI(GUIBase):
         """ Deactivate the module properly.
         """
         self.store_status_var()
+        self.saveWindowGeometry(self._mw)
         self._mw.close()
         self._qm.close()
         self._sd.close()
@@ -403,6 +404,7 @@ class ProteusQGUI(GUIBase):
         Moreover it sets default values.
         """
         self._mw = ProteusQMainWindow()
+        self.restoreWindowPos(self._mw)
 
         ###################################################################
         #               Configuring the dock widgets                      #

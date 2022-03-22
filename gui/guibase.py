@@ -33,6 +33,9 @@ class GUIBaseMixin(BaseMixin):
         warnings.warn('Every GUI module needs to reimplement the show() '
                 'function!')
 
+    def saveWindowGeometry(self, window):
+        self._statusVariables[f'window_rect_{window.windowTitle()}'] = window.frameGeometry().getRect()
+    
     def saveWindowPos(self, window):
         self._statusVariables['pos_x'] = window.pos().x()
         self._statusVariables['pos_y'] = window.pos().y()
@@ -40,6 +43,8 @@ class GUIBaseMixin(BaseMixin):
     def restoreWindowPos(self, window):
         if 'pos_x' in self._statusVariables and 'pos_y' in self._statusVariables:
             window.move(self._statusVariables['pos_x'],  self._statusVariables['pos_y'])
+        if f'window_rect_{window.windowTitle()}' in self._statusVariables:
+            window.setGeometry(*self._statusVariables[f'window_rect_{window.windowTitle()}'])
 
 
 class GUIBase(QObject, GUIBaseMixin):
