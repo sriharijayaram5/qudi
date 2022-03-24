@@ -459,8 +459,9 @@ class SPM_ASC500(Base, ScannerInterface):
                     return self.get_sample_pos(list(axis_dict.keys()))
             self.overrange = False
 
-            px=int((abs(line_corr0_stop-line_corr0_start)/self._line_points)*1e11)
+            px=int((abs(line_corr0_stop-line_corr0_start))*1e9)
             sT=time_forward/self._line_points
+            self._dev.base.setParameter(self._dev.base.getConst('ID_SCAN_PSPEED'), px/time_back, 0)
             
             self._configureSamplePath(line_corr0_start, line_corr0_stop, 
                                     line_corr1_start, line_corr1_stop, self._line_points)
@@ -606,9 +607,10 @@ class SPM_ASC500(Base, ScannerInterface):
                 else:
                     break
             self._dev.base.setParameter(self._dev.base.getConst('ID_SPEC_PATHCTRL'), -1, 0 ) # -1 is grid mode
-            self._dev.scanner.setRelativeOrigin(self.end_coords) # set after path or it will attempt going to origin for some reason
+             # set after path or it will attempt going to origin for some reason
             self._spm_curr_state =  ScannerState.PROBE_SCANNING
             self._poll_path_data()
+            self._dev.scanner.setRelativeOrigin(self.end_coords)
 
         elif self._spm_curr_mode == ScannerMode.OBJECTIVE_XY or self._spm_curr_mode == ScannerMode.OBJECTIVE_XZ or self._spm_curr_mode == ScannerMode.OBJECTIVE_YZ or self._spm_curr_mode == ScannerMode.OBJECTIVE_ZX:
             self._spm_curr_state =  ScannerState.OBJECTIVE_SCANNING
