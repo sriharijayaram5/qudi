@@ -319,6 +319,7 @@ class AFMConfocalLogic(GenericLogic):
     counter_logic = Connector(interface='CounterLogic')
     fitlogic = Connector(interface='FitLogic')
     pulser = Connector(interface='PulserInterface')
+    microwave = Connector(interface='MicrowaveInterface')
 
     # configuration parameters/options for the logic. In the config file you
     # have to specify the parameter, here: 'conf_1'
@@ -548,6 +549,7 @@ class AFMConfocalLogic(GenericLogic):
         self._counterlogic = self.counter_logic()
         self._fitlogic = self.fitlogic()
         self._pulser = self.pulser()
+        self._mw = self.microwave()
 
         self._qafm_scan_array = self.initialize_qafm_scan_array(0, 100e-6, 10, 
                                                                 0, 100e-6, 10)
@@ -1138,8 +1140,7 @@ class AFMConfocalLogic(GenericLogic):
             
             if scan_mode == 'pixel':
                 ret_val_mq = self._counter.configure_recorder(mode=HWRecorderMode.PIXELCLOCK, 
-                                                              params={'mw_frequency': self._freq1_iso_b_frequency,
-                                                                      'num_meas': coord0_num})
+                                                              params={'num_meas': coord0_num})
                 self._pulser.load_swabian_sequence(self._make_pulse_sequence(HWRecorderMode.PIXELCLOCK, integration_time))
                 self._pulser.pulser_on(trigger=True, n=1)
                 self.log.info(f'Prepared pixelclock, val {ret_val_mq}')
@@ -1150,7 +1151,10 @@ class AFMConfocalLogic(GenericLogic):
                     params={'mw_frequency':self._freq1_iso_b_frequency,
                             'mw_power': self._iso_b_power, 
                             'num_meas': coord0_num })
-
+                self._pulser.load_swabian_sequence(self._make_pulse_sequence(HWRecorderMode.PIXELCLOCK_SINGLE_ISO_B, integration_time))
+                self._pulser.pulser_on(trigger=True, n=1)
+                self._mw.set_cw(self._freq1_iso_b_frequency, self._iso_b_power)
+                self._mw.cw_on()
                 self.log.info(f'Prepared pixelclock single iso b, val {ret_val_mq}')
 
             elif scan_mode == 'dual iso-b':
@@ -1524,6 +1528,7 @@ class AFMConfocalLogic(GenericLogic):
 
         # clean up the spm
         self._spm.finish_scan()
+        self._mw.off()
         self.module_state.unlock()
         self.sigQAFMScanFinished.emit()
 
@@ -2115,9 +2120,8 @@ class AFMConfocalLogic(GenericLogic):
             params={'mw_frequency_list': freq_list,
                     'num_meas': num_esr_runs } )
                     
-        # self._mw.load_list(freq_list)
-        # self._mw.set_cw_power(mw_power)
-        
+        self._mw.set_list(freq_list, mw_power)
+                
         self._pulser.load_swabian_sequence(self._make_pulse_sequence(HWRecorderMode.ESR, 1/esr_count_freq, freq_points, num_esr_runs))
         self._pulser.pulser_on(trigger=True, n=1)
 
@@ -2223,6 +2227,8 @@ class AFMConfocalLogic(GenericLogic):
                                      line_corr1_stop=scan_coords[3],
                                      time_forward=scan_speed_per_line,
                                      time_back=idle_move_time)
+            
+            self._mw.list_on()
 
             # -1 otherwise it would be more than coord0_num points, since first one is counted too.
             x_step = (scan_coords[1] - scan_coords[0]) / (coord0_num - 1)
@@ -2327,6 +2333,7 @@ class AFMConfocalLogic(GenericLogic):
 
                 # emit a signal at every point, so that update can happen in real time.
                 self.sigQAFMLineScanFinished.emit()
+                self._mw.reset_listpos()
 
                 # possibility to stop during line scan.
                 if self._stop_request:
@@ -2390,6 +2397,8 @@ class AFMConfocalLogic(GenericLogic):
 
         # clean up the spm
         self._spm.finish_scan()
+        self._mw.off()
+        self._counter.stop_measurement()
         # self.module_state.unlock()
         self.sigQuantiScanFinished.emit()
 
@@ -3455,8 +3464,30 @@ class AFMConfocalLogic(GenericLogic):
             seq.append([(block_1, 1)])
 
             pulse_dict = seq.pulse_dict
+        
+        elif mode == HWRecorderMode.PIXELCLOCK_SINGLE_ISO_B:
+            seq = PulseSequence()
+            
+            block_1 = PulseBlock()
+            
+            d_ch = clear(d_ch)
+            d_ch[self._pulser._pixel_start] = True
+            block_1.append(init_length = 1e-6, channels = d_ch, repetition = 1)
 
-        if mode == HWRecorderMode.ESR:
+            d_ch = clear(d_ch)
+            d_ch[self._pulser._mw_switch] = True
+            block_1.append(init_length = int_time, channels = d_ch, repetition = 1)
+
+            d_ch = clear(d_ch)
+            d_ch[self._pulser._pixel_stop] = True
+            d_ch[self._pulser._sync_in] = True
+            block_1.append(init_length = 1e-6, channels = d_ch, repetition = 1)
+
+            seq.append([(block_1, 1)])
+
+            pulse_dict = seq.pulse_dict
+
+        elif mode == HWRecorderMode.ESR:
 
             seq = PulseSequence()
             

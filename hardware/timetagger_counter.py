@@ -381,16 +381,11 @@ class TimeTaggerCounter(Base, SlowCounterInterface, RecorderInterface):
             # contradiction in terms, but it might be important if device is reset
             pass
 
-        elif mode == HWRecorderMode.PIXELCLOCK:
+        elif mode == HWRecorderMode.PIXELCLOCK or HWRecorderMode.PIXELCLOCK_SINGLE_ISO_B:
             ret_val = self._prepare_pixelclock(pixelclock_begin_chn=self._pixelclock_begin_chn,
                                                 pixelclock_click_chn=self._pixelclock_click_chn,
                                                 pixelclock_end_chn=self._pixelclock_end_chn,
                                                 num_meas=params['num_meas'])
-
-        elif mode == HWRecorderMode.PIXELCLOCK_SINGLE_ISO_B:
-            #TODO: make proper conversion of power to mw gain
-            ret_val = self._prepare_pixelclock_single_iso_b(freq=params['mw_frequency'], 
-                                                           power=params['mw_power'])
 
         elif mode == HWRecorderMode.COUNTER:
             ret_val = self._prepare_counter(counting_window=1/params['count_frequency'])
@@ -466,7 +461,7 @@ class TimeTaggerCounter(Base, SlowCounterInterface, RecorderInterface):
         # data format
         # Pixel clock (line methods)
         if meas_type.movement == 'line':
-            if mode == HWRecorderMode.PIXELCLOCK:
+            if mode == HWRecorderMode.PIXELCLOCK or HWRecorderMode.PIXELCLOCK_SINGLE_ISO_B:
                 self._total_pulses = num_meas 
                 self._counted_pulses = 0
 
@@ -535,7 +530,7 @@ class TimeTaggerCounter(Base, SlowCounterInterface, RecorderInterface):
         """
         ret = {'counts':None, 'int_time':None, 'counts2':None, 'counts_diff': None}
         
-        if self._curr_mode == HWRecorderMode.PIXELCLOCK:
+        if self._curr_mode == HWRecorderMode.PIXELCLOCK or HWRecorderMode.PIXELCLOCK_SINGLE_ISO_B:
             while True:
                 if self.recorder.ready():
                     break
@@ -570,7 +565,7 @@ class TimeTaggerCounter(Base, SlowCounterInterface, RecorderInterface):
     def get_available_measurements(self, meas_keys=None):
         ret_list = []
 
-        if self._curr_mode == HWRecorderMode.PIXELCLOCK:
+        if self._curr_mode == HWRecorderMode.PIXELCLOCK or HWRecorderMode.PIXELCLOCK_SINGLE_ISO_B:
             # ['counts', 'int_time', 'counts2', 'counts_diff']
             data = self.recorder.getData()
             ret_list.append(data)
