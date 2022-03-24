@@ -14,7 +14,7 @@
    </rect>
   </property>
   <property name="windowTitle">
-   <string>ProteusQ</string>
+   <string>AttoDRY2200_Pi3 SPM</string>
   </property>
   <widget class="QWidget" name="centralwidget">
    <property name="enabled">
@@ -27,7 +27,7 @@
      <x>0</x>
      <y>0</y>
      <width>1033</width>
-     <height>21</height>
+     <height>22</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuMenu">
@@ -58,6 +58,7 @@
      <string>Measurements</string>
     </property>
     <addaction name="action_Quantitative_Measure"/>
+    <addaction name="actionOpen_Pulsed_Measure"/>
     <addaction name="action_open_optimizer_request"/>
     <addaction name="separator"/>
     <addaction name="action_Immediate_Stop"/>
@@ -87,7 +88,7 @@
    <property name="minimumSize">
     <size>
      <width>260</width>
-     <height>467</height>
+     <height>534</height>
     </size>
    </property>
    <property name="maximumSize">
@@ -459,18 +460,18 @@
           <property name="toolTip">
            <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Start/Stop periodic optimization.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
           </property>
-          <property name="FontSize">
+          <property name="FontSize" stdset="0">
            <number>7</number>
           </property>
          </widget>
         </item>
         <item row="0" column="1">
          <widget class="QCheckBox" name="optimizer_request_autorun_CheckBox">
-          <property name="layoutDirection">
-           <enum>Qt::RightToLeft</enum>
-          </property>
           <property name="toolTip">
            <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Automatically start and stop periodic optimizer when measurement starts or ends.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+          </property>
+          <property name="layoutDirection">
+           <enum>Qt::RightToLeft</enum>
           </property>
           <property name="text">
            <string>Autorun:</string>
@@ -627,7 +628,7 @@
         <item row="2" column="0">
          <widget class="QLineEdit" name="probename_LineEdit">
           <property name="toolTip">
-           <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Type here the name of the Quantilever (also known as the probe) for the ProteusQ.&lt;br/&gt;The data will be saved into this folder.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+           <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Type here the name of the Quantilever (also known as the probe) for the AttoDRY2200_Pi3 SPM.&lt;br/&gt;The data will be saved into this folder.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
           </property>
          </widget>
         </item>
@@ -648,7 +649,7 @@
         <item row="2" column="1">
          <widget class="QLineEdit" name="samplename_LineEdit">
           <property name="toolTip">
-           <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Type here the name of the Sample, which is investigated wit the ProteusQ.&lt;br/&gt;The data will be saved into this folder.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+           <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Type here the name of the Sample, which is investigated with the AttoDRY2200_Pi3 SPM.&lt;br/&gt;The data will be saved into this folder.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
           </property>
          </widget>
         </item>
@@ -884,6 +885,7 @@
    <attribute name="toolBarBreak">
     <bool>false</bool>
    </attribute>
+   <addaction name="actionLock_Obj"/>
    <addaction name="actionGo_To_Obj_pos"/>
    <addaction name="actionStart_Obj_XY_scan"/>
    <addaction name="actionStart_Obj_XZ_scan"/>
@@ -1151,6 +1153,22 @@
     <string>Go to target AFM Position</string>
    </property>
   </action>
+  <action name="actionLock_Obj">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="icon">
+    <iconset>
+     <normaloff>../../artwork/icons/66/unlocked_obj.png</normaloff>
+     <normalon>../../artwork/icons/66/locked_obj.png</normalon>../../artwork/icons/66/unlocked_obj.png</iconset>
+   </property>
+   <property name="text">
+    <string>Lock Obj movement</string>
+   </property>
+   <property name="toolTip">
+    <string>Toggle flag that checks whether objective should be locked or not</string>
+   </property>
+  </action>
   <action name="actionGo_To_Obj_pos">
    <property name="icon">
     <iconset>
@@ -1248,7 +1266,7 @@
     <string>Load Display</string>
    </property>
   </action>
-  <action name="action_Quantitative_Measure">
+   <action name="action_Quantitative_Measure">
    <property name="checkable">
     <bool>true</bool>
    </property>
@@ -1299,6 +1317,14 @@
   <action name="action_Immediate_Stop">
    <property name="text">
     <string>Immediate Stop</string>
+   </property>
+  </action>
+  <action name="actionOpen_Pulsed_Measure">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Open Pulsed Measure</string>
    </property>
   </action>
  </widget>

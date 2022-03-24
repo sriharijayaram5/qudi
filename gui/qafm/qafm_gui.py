@@ -145,7 +145,7 @@ class ProteusQMainWindow(QtWidgets.QMainWindow):
 class ProteusQGUI(GUIBase):
     """ GUI to control the ProteusQ. """
     
-    _modclass = 'ProteusQGUI'
+    _modclass = 'AttoDRY2200_Pi3_GUI'
     _modtype = 'gui'
 
     _LabQversion = 'x.x'      #dynmically assigned
@@ -254,6 +254,8 @@ class ProteusQGUI(GUIBase):
         self._qafm_logic.sigObjLineScanFinished.connect(self._update_obj_data)
         self._qafm_logic.sigObjScanFinished.connect(self.enable_scan_actions)
         self._qafm_logic.sigNewObjPos.connect(self.update_obj_pos)
+        
+        self._mw.actionLock_Obj.toggled.connect(self.lock_obj_toggled)
 
         self._mw.actionStart_QAFM_Scan.triggered.connect(self.start_qafm_scan_clicked)
         self._mw.actionStop_Scan.triggered.connect(self.stop_any_scanning)
@@ -266,6 +268,7 @@ class ProteusQGUI(GUIBase):
         self._qafm_logic.sigOptimizeLineScanFinished.connect(self._update_opti_data)
         self._qafm_logic.sigOptimizeScanFinished.connect(self.enable_optimizer_action)
         self._qafm_logic.sigOptimizeScanFinished.connect(self.update_target_pos)
+        self._qafm_logic.sigOptimizeScanFinished.connect(self.update_opti_crosshair)
 
         self._mw.actionOptimize_Pos.triggered.connect(self.start_optimize_clicked)
 
@@ -279,8 +282,7 @@ class ProteusQGUI(GUIBase):
         self._mw.actionLoad_Display.triggered.connect(self.load_view)
 
         self._mw.actionGo_To_AFM_pos.triggered.connect(self.goto_afm_pos_clicked)
-        self._mw.actionGo_To_Obj_pos.triggered.connect(self.goto_obj_pos_clicked)
-        
+        self._mw.actionGo_To_Obj_pos.triggered.connect(self.goto_obj_pos_clicked)    
 
         self.sigGotoObjpos.connect(self._qafm_logic.set_obj_pos)
         self.sigGotoAFMpos.connect(self._qafm_logic.set_afm_pos)
@@ -310,6 +312,10 @@ class ProteusQGUI(GUIBase):
         self._mw.action_Quantitative_Measure.triggered.connect(self.openQuantiMeas)
         self._mw.action_Quantitative_Measure.setChecked(False)
         self._qm.sigQuantiMeasClose.connect(self.onCloseQuantiMeas)
+        self._qm.scan_dir_fw_bw_RadioButton.setEnabled(False)
+
+        self._mw.actionOpen_Pulsed_Measure.triggered[bool].connect(self.closePulsedMeas)
+        self._mw.actionOpen_Pulsed_Measure.setChecked(False)
 
         # connect Quantitative signals 
         self._qm.Start_QM_PushButton.clicked.connect(self.start_quantitative_measure_clicked)
@@ -354,6 +360,7 @@ class ProteusQGUI(GUIBase):
         """ Deactivate the module properly.
         """
         self.store_status_var()
+        self.saveWindowGeometry(self._mw)
         self._mw.close()
         self._qm.close()
         self._sd.close()
@@ -381,7 +388,14 @@ class ProteusQGUI(GUIBase):
 
     def onCloseQuantiMeas(self):
         self._mw.action_Quantitative_Measure.setChecked(False)
+    
+    def openPulsedMeas(self):
+        self._mw.actionOpen_Pulsed_Measure.setChecked(True)
+        self._qafm_logic._sg_pulsed_measure_operation = True
 
+    def closePulsedMeas(self, checked=False):
+        self._mw.actionOpen_Pulsed_Measure.setChecked(checked)
+        self._qafm_logic._sg_pulsed_measure_operation = checked
 
     def initImmediateStopDialog(self):
         self._is = InitiateImmediateStopDialog()
@@ -400,6 +414,7 @@ class ProteusQGUI(GUIBase):
         Moreover it sets default values.
         """
         self._mw = ProteusQMainWindow()
+        self.restoreWindowPos(self._mw)
 
         ###################################################################
         #               Configuring the dock widgets                      #
@@ -430,6 +445,8 @@ class ProteusQGUI(GUIBase):
 
         self._sd.accepted.connect(self.update_qafm_settings)
         self._sd.rejected.connect(self.keep_former_qafm_settings)
+        self._sd.optimizer_z_res_SpinBox.setMinimum(10)
+        self._sd.optimizer_x_res_SpinBox.setMinimum(10)
         self._sd.buttonBox.button(QtWidgets.QDialogButtonBox.Apply).clicked.connect(self.update_qafm_settings)
 
         self._sd.iso_b_operation_CheckBox.stateChanged.connect(self._mw.dockWidget_isob.setVisible)
@@ -889,7 +906,42 @@ class ProteusQGUI(GUIBase):
         sd['optimizer_int_time'] = self._sd.optimizer_int_time_DoubleSpinBox.value()
         sd['optimizer_period'] = self._sd.optimizer_period_DoubleSpinBox.value()
         sd['iso_b_operation'] = self._sd.iso_b_operation_CheckBox.isChecked()
+
+        ret_val = True
+        x_target = self._mw.obj_target_x_DSpinBox.value()
+        start = x_target-sd['optimizer_x_range']/2
+        stop = x_target+sd['optimizer_x_range']/2
+        if start<0:
+            self.log.warning('X position too low for optimize range')
+            ret_val = False
+
+        x_range = self._qafm_logic._spm.get_objective_scan_range(['X2'])['X2']
+        if stop>x_range:
+            self.log.warning('X position too high for optimize range')
+            ret_val = False
+        
+        if ret_val:
+            sd['optimizer_x_res'] = self._qafm_logic._spm._find_spec_count(start, stop, sd['optimizer_x_res'])
+            self._sd.optimizer_x_res_SpinBox.setValue(sd['optimizer_x_res'])
+
+        z_target = self._mw.obj_target_z_DSpinBox.value()
+        start = z_target-sd['optimizer_z_range']/2
+        stop = z_target+sd['optimizer_z_range']/2
+        if start<0:
+            self.log.warning('Z position too low for optimize range')
+            ret_val = False
+
+        z_range = self._qafm_logic._spm.get_objective_scan_range(['Z2'])['Z2']
+        if stop>z_range:
+            self.log.warning('Z position too high for optimize range')
+            ret_val = False
+        
+        if ret_val:
+            sd['optimizer_z_res'] = self._qafm_logic._spm._find_spec_count(start, stop, sd['optimizer_z_res'], False)
+            self._sd.optimizer_z_res_SpinBox.setValue(sd['optimizer_z_res'])
+
         self._qafm_logic.set_qafm_settings(sd)
+        return ret_val
 
 
     def keep_former_qafm_settings(self):
@@ -1136,14 +1188,24 @@ class ProteusQGUI(GUIBase):
 
         @return pyqtgraph.PlotDataItem: object holding the 1D measurement.
         """
-
+        _pen = pg.mkPen(palette.c1,style=QtCore.Qt.DotLine)
+        _palette = palette.c1
+        _width = 4
+        _symbolSize = 7
+        _symbol = 'o'
+        if 'fit' in name:
+            _pen = pg.mkPen(palette.c2,style=QtCore.Qt.SolidLine)
+            _palette = palette.c2
+            _width = 2
+            _symbol = 'd'
+            _symbolSize = 3
         self._plot_container[name] = pg.PlotDataItem(x=x_axis, y=y_axis,
-                                                     pen=pg.mkPen(palette.c1, 
-                                                                  style=QtCore.Qt.DotLine),
-                                                     symbol='o',
-                                                     symbolPen=palette.c1,
-                                                     symbolBrush=palette.c1,
-                                                     symbolSize=7
+                                                     pen=_pen,
+                                                     symbol=_symbol,
+                                                     symbolPen=_palette,
+                                                     symbolBrush=_palette,
+                                                     symbolSize=_symbolSize,
+                                                     width=_width
                                                     )
         return self._plot_container[name]
 
@@ -1348,6 +1410,11 @@ class ProteusQGUI(GUIBase):
                 plot_item = self._create_plot_item(obj_name, 
                                data_dict[obj_name]['coord0_arr'], 
                                data_dict[obj_name]['data'])
+                dockwidget.graphicsView.addItem(plot_item)
+
+                plot_item = self._create_plot_item(obj_name+'_fit', 
+                               data_dict[obj_name]['coord0_arr'], 
+                               data_dict[obj_name]['data_fit'])
                 dockwidget.graphicsView.addItem(plot_item)
 
             else:
@@ -1947,6 +2014,10 @@ class ProteusQGUI(GUIBase):
                                                    y=opti_data[obj_name]['data'])
 
             self._plot_container[obj_name].getViewBox().updateAutoRange() 
+            self._plot_container[obj_name+'_fit'].setData(x=opti_data[obj_name]['coord0_arr'], 
+                                                   y=opti_data[obj_name]['data_fit'])
+
+            self._plot_container[obj_name+'_fit'].getViewBox().updateAutoRange() 
 
 
     def update_target_pos(self):
@@ -1956,7 +2027,12 @@ class ProteusQGUI(GUIBase):
         self._mw.obj_target_x_DSpinBox.setValue(x_max)
         self._mw.obj_target_y_DSpinBox.setValue(y_max)
         self._mw.obj_target_z_DSpinBox.setValue(z_max)
-
+    
+    def update_opti_crosshair(self):
+        x_max, y_max, c_max, z_max, c_max_z = self._qafm_logic._opt_val
+        vb = self._dockwidget_container['opti_xy']
+        vb.graphicsView_matrix.toggle_crosshair(True)
+        vb.graphicsView_matrix.crosshair.setPos((x_max,y_max))
 
     def _get_scan_cb_range(self, dockwidget_name,data=None):
         """ Determines the cb_min and cb_max values for the xy scan image.
@@ -2082,6 +2158,9 @@ class ProteusQGUI(GUIBase):
         res_x = self._mw.obj_x_num_SpinBox.value()
         res_y = self._mw.obj_y_num_SpinBox.value()
 
+        res_x = self._qafm_logic._spm._find_spec_count(x_start, x_stop, res_x)
+        self._mw.obj_x_num_SpinBox.setValue(res_x)
+
         self._qafm_logic.start_scan_area_obj_by_line(coord0_start=x_start,
                                                       coord0_stop=x_stop,
                                                       coord0_num=res_x,
@@ -2102,6 +2181,9 @@ class ProteusQGUI(GUIBase):
         z_stop = self._mw.obj_z_max_DSpinBox.value()
         res_x = self._mw.obj_x_num_SpinBox.value()
         res_z = self._mw.obj_z_num_SpinBox.value()
+
+        res_x = self._qafm_logic._spm._find_spec_count(x_start, x_stop, res_x)
+        self._mw.obj_x_num_SpinBox.setValue(res_x)
 
         self._qafm_logic.start_scan_area_obj_by_line(coord0_start=x_start,
                                                       coord0_stop=x_stop,
@@ -2125,6 +2207,9 @@ class ProteusQGUI(GUIBase):
         res_y = self._mw.obj_y_num_SpinBox.value()
         res_z = self._mw.obj_z_num_SpinBox.value()
 
+        res_y = self._qafm_logic._spm._find_spec_count(y_start, y_stop, res_y)
+        self._mw.obj_y_num_SpinBox.setValue(res_y)
+
         self._qafm_logic.start_scan_area_obj_by_line(coord0_start=y_start,
                                                       coord0_stop=y_stop,
                                                       coord0_num=res_y,
@@ -2140,20 +2225,27 @@ class ProteusQGUI(GUIBase):
 
         self.disable_scan_actions()
 
-        x_target = self._mw.obj_target_x_DSpinBox.value()
-        y_target = self._mw.obj_target_y_DSpinBox.value()
-        z_target = self._mw.obj_target_z_DSpinBox.value()
+        ret_val = self.update_qafm_settings()
 
-        # settings of optimizer can be set in its setting window
+        if ret_val:
 
-        self._qafm_logic.set_optimizer_target(x_target=x_target, 
-                                              y_target=y_target, 
-                                              z_target=z_target)
+            x_target = self._mw.obj_target_x_DSpinBox.value()
+            y_target = self._mw.obj_target_y_DSpinBox.value()
+            z_target = self._mw.obj_target_z_DSpinBox.value()
 
-        ret_val = self._qafm_logic.set_optimize_request(True)
-        # if the request is valid, then True will be returned, if not False
+            # settings of optimizer can be set in its setting window
 
-        self._mw.actionOptimize_Pos.setEnabled(not ret_val)  
+            self._qafm_logic.set_optimizer_target(x_target=x_target, 
+                                                y_target=y_target, 
+                                                z_target=z_target)
+
+            ret_val = self._qafm_logic.set_optimize_request(True)
+            # if the request is valid, then True will be returned, if not False
+
+            self._mw.actionOptimize_Pos.setEnabled(not ret_val)  
+        else:
+            self._mw.actionOptimize_Pos.setEnabled(True)  
+            self.enable_scan_actions()
 
     def stop_any_scanning(self):
         """ Stop all scanning actions."""
@@ -2174,6 +2266,7 @@ class ProteusQGUI(GUIBase):
         self._mw.actionStart_Obj_YZ_scan.setEnabled(False)
         self._mw.actionGo_To_AFM_pos.setEnabled(False)
         self._mw.actionGo_To_Obj_pos.setEnabled(False)
+        self._mw.actionLock_Obj.setEnabled(False)
         self._mw.actionOptimize_Pos.setEnabled(False)
         self._mw.actionSaveDataQAFM.setEnabled(False)
         self._mw.actionSaveObjData.setEnabled(False)
@@ -2189,6 +2282,7 @@ class ProteusQGUI(GUIBase):
         self._mw.actionStart_Obj_YZ_scan.setEnabled(True)
         self._mw.actionGo_To_AFM_pos.setEnabled(True)
         self._mw.actionGo_To_Obj_pos.setEnabled(True)
+        self._mw.actionLock_Obj.setEnabled(True)
         self._mw.actionOptimize_Pos.setEnabled(True)
         self._mw.actionSaveDataQAFM.setEnabled(True)
         self._mw.actionSaveObjData.setEnabled(True)
@@ -2272,6 +2366,10 @@ class ProteusQGUI(GUIBase):
         self._dockwidget_container['obj_xz'].graphicsView_matrix.set_crosshair_pos((x,z))
         self._dockwidget_container['obj_yz'].graphicsView_matrix.set_crosshair_pos((y,z))
         #self._qafm_logic.start_set_obj_pos()
+
+    def lock_obj_toggled(self):
+        state = self._mw.actionLock_Obj.isChecked()
+        self._qafm_logic._spm.objective_lock = state
 
     def update_targetpos_xy(self, event, xy_pos):
 

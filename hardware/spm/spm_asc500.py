@@ -26,7 +26,6 @@ import numpy as np
 from qtpy import QtCore
 from scipy.interpolate import interp1d
 from hardware.spm.spm_library.ASC500_Python_Control.lib.asc500_device import Device
-import pulsestreamer as ps
 
 from interface.scanner_interface import ScannerInterface, ScannerMode, ScanStyle, \
                                         ScannerState, ScannerConstraints, ScannerMeasurements  
@@ -92,26 +91,41 @@ class SPM_ASC500(Base, ScannerInterface):
         self._dev.base.setParameter(self._dev.base.getConst('ID_GENDAC_LIMIT_RT'), 3e6, 0)
         self._dev.base.setParameter(self._dev.base.getConst('ID_GENDAC_LIMIT_RT'), 3e6, 1)
         self._dev.base.setParameter(self._dev.base.getConst('ID_GENDAC_LIMIT_RT'), 3e6, 2)
+        self._dev.base.setParameter(self._dev.base.getConst('ID_GENDAC_LIMIT_RT'), 3e6, 3)
 
         self._dev.base.setParameter(self._dev.base.getConst('ID_GENDAC_LIMIT_LT'), 7.5e6, 0)
         self._dev.base.setParameter(self._dev.base.getConst('ID_GENDAC_LIMIT_LT'), 7.5e6, 1)
         self._dev.base.setParameter(self._dev.base.getConst('ID_GENDAC_LIMIT_LT'), 7.5e6, 2)
+        self._dev.base.setParameter(self._dev.base.getConst('ID_GENDAC_LIMIT_LT'), 7.5e6, 3)
+
+        self.slew_rates = {'X2':None, 'Y2':None, 'Z2':None}
+        # self.set_obj_slew_rate({'Z2':1})
 
         self._create_scanner_contraints()
         self._create_scanner_measurements()
         self._trig = False
-
-        self._pulser = ps.PulseStreamer('129.69.46.68')
+        self.objective_lock = False
 
         return
 
     def on_deactivate(self):
         """ Clean up and deactivate the spm module. """
-        self._dev.scanner.closeScanner()
-        self._dev.base.stopServer()
+        # self._dev.scanner.closeScanner()
+        # self._dev.base.stopServer()
         self._spm_curr_state = ScannerState.DISCONNECTED
         
         return 
+    
+    def set_obj_slew_rate(self, axis_dict):
+        '''
+        Slew rate given as integers for the axis key. SPM takes rate in units of 466uV/s.
+        '''
+        axes = {'X2':0, 'Y2':1, 'Z2':2} # axes DAC number
+        for key in axis_dict.keys():
+            self._dev.base.setParameter(self._dev.base.getConst('ID_DAC_GEN_STEP'), axis_dict[key], axes[key])
+
+            self.log.info(f'{key} slew rate set to {axis_dict[key]}*466 uV/s')
+            self.slew_rates[key]  = axis_dict[key]
 
     def _create_scanner_contraints(self):
 
@@ -127,6 +141,9 @@ class SPM_ASC500(Base, ScannerInterface):
 
             ScannerMode.OBJECTIVE_YZ:  { 'plane'       : 'Y2Z2', 
                                          'scan_style'  : ScanStyle.LINE },
+            
+            ScannerMode.OBJECTIVE_ZX:  { 'plane'       : 'Z2X2', 
+                                         'scan_style'  : ScanStyle.LINE },                                         
 
             ScannerMode.PROBE_CONTACT: { 'plane'       : 'XY', 
                                          'scan_style'  : ScanStyle.LINE }}
@@ -135,7 +152,8 @@ class SPM_ASC500(Base, ScannerInterface):
         sc.scanner_modes = [ ScannerMode.PROBE_CONTACT,
                              ScannerMode.OBJECTIVE_XY,
                               ScannerMode.OBJECTIVE_XZ,
-                               ScannerMode.OBJECTIVE_YZ
+                               ScannerMode.OBJECTIVE_YZ,
+                               ScannerMode.OBJECTIVE_ZX
                              ]  
 
         sc.scanner_mode_states = { ScannerMode.PROBE_CONTACT: [ ScannerState.IDLE,
@@ -149,6 +167,10 @@ class SPM_ASC500(Base, ScannerInterface):
                                    ScannerMode.OBJECTIVE_XZ: [  ScannerState.IDLE,
                                                                 ScannerState.OBJECTIVE_MOVING,
                                                                 ScannerState.OBJECTIVE_SCANNING],
+                                    
+                                    ScannerMode.OBJECTIVE_ZX: [  ScannerState.IDLE,
+                                                                ScannerState.OBJECTIVE_MOVING,
+                                                                ScannerState.OBJECTIVE_SCANNING],
 
                                    ScannerMode.OBJECTIVE_YZ: [  ScannerState.IDLE,
                                                                 ScannerState.OBJECTIVE_MOVING,
@@ -160,6 +182,7 @@ class SPM_ASC500(Base, ScannerInterface):
         sc.scanner_mode_params = {ScannerMode.PROBE_CONTACT:         { 'line_points': 100 },
                                     ScannerMode.OBJECTIVE_XY:          { 'line_points': 100 },
                                     ScannerMode.OBJECTIVE_XZ:          { 'line_points': 100 },
+                                    ScannerMode.OBJECTIVE_ZX:          { 'line_points': 100 },
                                     ScannerMode.OBJECTIVE_YZ:          { 'line_points': 100 }
                                  }       
 
@@ -167,6 +190,7 @@ class SPM_ASC500(Base, ScannerInterface):
                                    ScannerMode.PROBE_CONTACT:         { 'meas_params': []},
                                    ScannerMode.OBJECTIVE_XY:          { 'meas_params': []},
                                    ScannerMode.OBJECTIVE_XZ:          { 'meas_params': []},
+                                   ScannerMode.OBJECTIVE_ZX:          { 'meas_params': []},
                                    ScannerMode.OBJECTIVE_YZ:          { 'meas_params': []}
                                 }  # to be defined
         
@@ -232,7 +256,19 @@ class SPM_ASC500(Base, ScannerInterface):
         obj_volt_range = np.array([0, u_lim])
         pos_interp_xy = interp1d(obj_volt_range, np.array([0.0 ,piezo_range[0]]), kind='linear')
         pos_interp_z = interp1d(obj_volt_range, np.array([0.0 ,piezo_range[2]]), kind='linear')
-        self._objective_x_volt, self._objective_y_volt, self._objective_z_volt = np.array([self._dev.base.getParameter(self._dev.base.getConst('ID_DAC_VALUE'), 0), self._dev.base.getParameter(self._dev.base.getConst('ID_DAC_VALUE'), 1), self._dev.base.getParameter(self._dev.base.getConst('ID_DAC_VALUE'), 2)]) * 305.2 * 1e-6
+
+        def rounder(x):
+            try:
+                return np.round(x,-1*int(np.ceil(np.log10(x))-4)) * 1e-6
+            except OverflowError:
+                return np.round(x,0) * 1e-6
+            
+        self._objective_x_volt = rounder(self._dev.base.getParameter(self._dev.base.getConst('ID_DAC_VALUE'), 0) * 305.2)
+
+        self._objective_y_volt = rounder(self._dev.base.getParameter(self._dev.base.getConst('ID_DAC_VALUE'), 1) * 305.2)
+
+        self._objective_z_volt = rounder(self._dev.base.getParameter(self._dev.base.getConst('ID_DAC_VALUE'), 2) * 305.2)
+
         return float(pos_interp_xy(self._objective_x_volt)), float(pos_interp_xy(self._objective_y_volt)), float(pos_interp_z(self._objective_z_volt))
 
     def _objective_volt_for_pos(self, pos, xy):
@@ -269,6 +305,7 @@ class SPM_ASC500(Base, ScannerInterface):
         """
         dev_state = self.get_current_device_state()
         self._spm_curr_mode = mode
+        self._spm_curr_sstyle = scan_style
         #curr_mode, curr_params, curr_sstyle = self.get_current_device_config()
 
         # note that here, all methods configure the SPM for "TscanMode.LINE_SCAN"
@@ -281,6 +318,9 @@ class SPM_ASC500(Base, ScannerInterface):
 
             ScannerMode.OBJECTIVE_XZ:  { 'plane'       : 'X2Z2', 
                                          'scan_style'  : ScanStyle.LINE },
+
+            ScannerMode.OBJECTIVE_ZX:  { 'plane'       : 'Z2X2', 
+                                         'scan_style'  : ScanStyle.LINE },                                         
 
             ScannerMode.OBJECTIVE_YZ:  { 'plane'       : 'Y2Z2', 
                                          'scan_style'  : ScanStyle.LINE },
@@ -333,14 +373,22 @@ class SPM_ASC500(Base, ScannerInterface):
         elif mode == ScannerMode.OBJECTIVE_XY:
             # Objective scanning returns no parameters
             self._spm_curr_state =  ScannerState.IDLE
+            self._chn_no = 6 # counter channel
 
         elif mode == ScannerMode.OBJECTIVE_XZ:
             # Objective scanning returns no parameters
             self._spm_curr_state =  ScannerState.IDLE
+            self._chn_no = 6 # counter channel
 
         elif mode == ScannerMode.OBJECTIVE_YZ:
             # Objective scanning returns no parameters
             self._spm_curr_state =  ScannerState.IDLE
+            self._chn_no = 6 # counter channel
+        
+        elif mode == ScannerMode.OBJECTIVE_ZX:
+            # Objective scanning returns no parameters
+            self._spm_curr_state =  ScannerState.IDLE
+            self._chn_no = 6 # counter channel
 
         elif mode == ScannerMode.PROBE_CONTACT:
             # Scanner library specific style is always "LINE_STYLE" 
@@ -348,7 +396,7 @@ class SPM_ASC500(Base, ScannerInterface):
             # For internal "line_style" scan definitions, the additional trigger signal 
             # is activated
             self._spm_curr_state =  ScannerState.IDLE
-            self._chn_no = 8
+            self._chn_no = 2
 
         else:
             self.log.error(f'Error configure_scanner(): mode = "{ScannerMode.name(mode)}"'
@@ -412,17 +460,24 @@ class SPM_ASC500(Base, ScannerInterface):
                     return self.get_sample_pos(list(axis_dict.keys()))
             self.overrange = False
 
-            px=int((abs(line_corr0_stop-line_corr0_start)/self._line_points)*1e11)
+            px=int((abs(line_corr0_stop-line_corr0_start))*1e9)
             sT=time_forward/self._line_points
+            self._dev.base.setParameter(self._dev.base.getConst('ID_SCAN_PSPEED'), px/time_back, 0)
             
             self._configureSamplePath(line_corr0_start, line_corr0_stop, 
                                     line_corr1_start, line_corr1_stop, self._line_points)
             self._polled_data = np.zeros(self._line_points)
             self._configurePathDataBuffering(sampTime=sT)
 
+            if self._spm_curr_sstyle==ScanStyle.POINT:
+                self._dev.base.setParameter(self._dev.base.getConst('ID_SPEC_PATHCTRL'), -1, 0 ) # -1 is grid mode
+                self._dev.scanner.setRelativeOrigin(self.end_coords) # set after path or it will attempt going to origin for some reason
+                self._spm_curr_state =  ScannerState.PROBE_SCANNING
+
             return
         
         elif self._spm_curr_mode == ScannerMode.OBJECTIVE_XY:
+            self.fast_axis = 0
             scan_range = self.get_objective_scan_range(['X2','Y2'])
             axis_dict = {'X2': line_corr0_stop, 'Y2': line_corr1_stop}
             for i in scan_range:
@@ -433,6 +488,7 @@ class SPM_ASC500(Base, ScannerInterface):
             self.overrange = False
         
         elif self._spm_curr_mode == ScannerMode.OBJECTIVE_XZ:
+            self.fast_axis = 0
             scan_range = self.get_objective_scan_range(['X2','Z2'])
             axis_dict = {'X2': line_corr0_stop, 'Z2': line_corr1_stop}
             for i in scan_range:
@@ -442,7 +498,19 @@ class SPM_ASC500(Base, ScannerInterface):
                     return self.get_objective_pos(list(axis_dict.keys()))
             self.overrange = False
         
+        elif self._spm_curr_mode == ScannerMode.OBJECTIVE_ZX:
+            self.fast_axis = 2
+            scan_range = self.get_objective_scan_range(['Z2','X2'])
+            axis_dict = {'Z2': line_corr0_stop, 'X2': line_corr1_stop}
+            for i in scan_range:
+                if axis_dict[i] > scan_range[i]:
+                    self.log.warning(f'Objective scanner {i} to abs. position outside scan range: {axis_dict[i]*1e6:.3f} um')
+                    self.overrange = True
+                    return self.get_objective_pos(list(axis_dict.keys()))
+            self.overrange = False
+        
         elif self._spm_curr_mode == ScannerMode.OBJECTIVE_YZ:
+            self.fast_axis = 1
             scan_range = self.get_objective_scan_range(['Y2','Z2'])
             axis_dict = {'Y2': line_corr0_stop, 'Z2': line_corr1_stop}
             for i in scan_range:
@@ -452,7 +520,10 @@ class SPM_ASC500(Base, ScannerInterface):
                     return self.get_objective_pos(list(axis_dict.keys()))
             self.overrange = False
         self.idle_time = time_back
+        sT=time_forward/self._line_points
         self._create_objective_line(xOffset=line_corr0_start, yOffset=line_corr1_start, pxSize=abs(line_corr0_stop-line_corr0_start)/self._line_points, columns=self._line_points)
+        self._polled_data = np.zeros(self._line_points)
+        self._configurePathDataBuffering(sampTime=sT)
     
     def set_ext_trigger(self, trig=False):
         self._trig = trig
@@ -482,10 +553,19 @@ class SPM_ASC500(Base, ScannerInterface):
             self._dev.base.setParameter(self._dev.base.getConst('ID_PATH_GUI_Y'), int(val[1]/10e-12), index)  # start point is current position
 
         # define number path actions at a point ('ID_PATH_ACTION'), no. of actions, 0 
-        self._dev.base.setParameter(self._dev.base.getConst('ID_PATH_ACTION'), 2 if self._trig else 1, 0)
-        # define which actions specifically ('ID_PATH_ACTION'), 0=manual handshake/2=Spec 1 dummy engine, 1=as the first action if no. of actions>=1 
-        self._dev.base.setParameter(self._dev.base.getConst('ID_PATH_ACTION'), 2, 1)
-        self._dev.base.setParameter(self._dev.base.getConst('ID_PATH_ACTION'), 4, 2)
+        if self._spm_curr_sstyle == ScanStyle.LINE:
+            self._dev.base.setParameter(self._dev.base.getConst('ID_PATH_ACTION'), 2 if self._trig else 1, 0)
+            # define which actions specifically ('ID_PATH_ACTION'), 0=manual handshake/2=Spec 1 dummy engine, 1=as the first action if no. of actions>=1 
+            self._dev.base.setParameter(self._dev.base.getConst('ID_PATH_ACTION'), 2, 1)
+            self._dev.base.setParameter(self._dev.base.getConst('ID_PATH_ACTION'), 4, 2)
+        else:
+            # If the scan mode is ESR then one needs to scan point by point mode. This would be non blocking between each point and therefore the manual
+            # handshake makes sure the tip waits at the next point until logic is ready to proceed
+            self._dev.base.setParameter(self._dev.base.getConst('ID_PATH_ACTION'), 3, 0)
+            # define which actions specifically ('ID_PATH_ACTION'), 0=manual handshake/2=Spec 1 dummy engine, 1=as the first action if no. of actions>=1 
+            self._dev.base.setParameter(self._dev.base.getConst('ID_PATH_ACTION'), 0, 1)
+            self._dev.base.setParameter(self._dev.base.getConst('ID_PATH_ACTION'), 2, 2)
+            self._dev.base.setParameter(self._dev.base.getConst('ID_PATH_ACTION'), 4, 3)
     
     def _create_objective_line(self, xOffset, yOffset, pxSize, columns):
         self.objective_scan_line = {}
@@ -496,6 +576,10 @@ class SPM_ASC500(Base, ScannerInterface):
         elif self._spm_curr_mode == ScannerMode.OBJECTIVE_XZ:
             self.objective_scan_line['X2'] = np.linspace(xOffset, xOffset + pxSize*columns, columns)
             self.objective_scan_line['Z2'] = np.ones(columns)*yOffset
+        
+        elif self._spm_curr_mode == ScannerMode.OBJECTIVE_ZX:
+            self.objective_scan_line['Z2'] = np.linspace(xOffset, xOffset + pxSize*columns, columns)
+            self.objective_scan_line['X2'] = np.ones(columns)*yOffset
         
         elif self._spm_curr_mode == ScannerMode.OBJECTIVE_YZ:
             self.objective_scan_line['Y2'] = np.linspace(xOffset, xOffset + pxSize*columns, columns)
@@ -524,11 +608,12 @@ class SPM_ASC500(Base, ScannerInterface):
                 else:
                     break
             self._dev.base.setParameter(self._dev.base.getConst('ID_SPEC_PATHCTRL'), -1, 0 ) # -1 is grid mode
-            self._dev.scanner.setRelativeOrigin(self.end_coords) # set after path or it will attempt going to origin for some reason
+             # set after path or it will attempt going to origin for some reason
             self._spm_curr_state =  ScannerState.PROBE_SCANNING
             self._poll_path_data()
+            self._dev.scanner.setRelativeOrigin(self.end_coords)
 
-        elif self._spm_curr_mode == ScannerMode.OBJECTIVE_XY or self._spm_curr_mode == ScannerMode.OBJECTIVE_XZ or self._spm_curr_mode == ScannerMode.OBJECTIVE_YZ:
+        elif self._spm_curr_mode == ScannerMode.OBJECTIVE_XY or self._spm_curr_mode == ScannerMode.OBJECTIVE_XZ or self._spm_curr_mode == ScannerMode.OBJECTIVE_YZ or self._spm_curr_mode == ScannerMode.OBJECTIVE_ZX:
             self._spm_curr_state =  ScannerState.OBJECTIVE_SCANNING
             self._scan_objective()
         
@@ -537,17 +622,11 @@ class SPM_ASC500(Base, ScannerInterface):
     def _scan_objective(self):
         axis_dict = {}
         keys = list(self.objective_scan_line.keys())
-        for i in range(self._line_points):
-            axis_dict[keys[0]] = self.objective_scan_line[keys[0]][i]
-            axis_dict[keys[1]] = self.objective_scan_line[keys[1]][i]
-            self.set_objective_pos_abs(axis_dict, self.idle_time)
-            self.sigCollectObjectiveCounts.emit()
-            while True:
-                if not self._pulser.isStreaming():
-                    break
-            while not self._pulser.hasFinished():
-                pass
-
+        axis_dict[keys[0]] = self.objective_scan_line[keys[0]][0]
+        axis_dict[keys[1]] = self.objective_scan_line[keys[1]][0]
+        self.set_objective_pos_abs(axis_dict, self.idle_time)
+        self._dev.base.setParameter(self._dev.base.getConst('ID_SPEC_STATUS'), 1, self.spec_engine_dummy)
+        self._poll_path_data()
 
     def scan_point(self, num_params=None):
         """ Obtain measurments from a point
@@ -573,38 +652,114 @@ class SPM_ASC500(Base, ScannerInterface):
             in given scan-point.
             After scan line ends, need to call next SetupScanLine
         """
-        pass
+        if self.overrange:
+            return 0
+
+        if self._spm_curr_mode == ScannerMode.PROBE_CONTACT:
+            self._dev.base.setParameter(self._dev.base.getConst('ID_SPEC_PATHPROCEED') ,1 ,0)
+            while True:
+                if self._dev.base.getParameter(self._dev.base.getConst('ID_PATH_RUNNING'), 0)==1 or self._dev.base.getParameter(self._dev.base.getConst('ID_SCAN_STATUS'), 0)==2:
+                    pass
+                else:
+                    break
+            
+            self._poll_point_data()
+            return self._polled_data
+            
+        return 0
     
     def _configurePathDataBuffering(self, sampTime):
+        # The channel configuration and GUI element showing the input for the Specs have little do with each other. Multiple channels can be triggered by a spec. If the GUI channel is the same 
+        # as the channel chosen for the custom spec then the GUI elements also update. Things will always work and data is buffered, but the nice spec GUI may not update if the channel is not the same there.
+        # this is simply by order in which in it is added (stupid people attocube outsourced to).
 
-        self.spec_engine_dummy = 1
-        self.spec_count = 469 # this value works because it is not changed after spec engine starts - necessary for correct buffer size
+        if self._spm_curr_mode == ScannerMode.PROBE_CONTACT:
+            self.spec_engine_dummy = 1
+            self.spec_count = 469 # this value works because it is not changed after spec engine starts - necessary for correct buffer size
+            
+            self._dev.base.configureChannel(self._chn_no, # any Number between 0 and 13.
+                                    self._dev.base.getConst(f'CHANCONN_SPEC_{self.spec_engine_dummy}'), # How you want to the data to be triggered - CHANCONN_PERMANENT is time triggered data
+                                    self._dev.base.getConst('CHANADC_AFMAMPL'), # The ADC channel you want to get the data from
+                                    1, # 0/1 -  if you want to switch on averaging
+                                    sampTime) # Scanner sample time [s]
+
+            self._dev.base.setParameter(self._dev.base.getConst('ID_SPEC_DAC_NO'), 3, self.spec_engine_dummy) # index 1 is spec engine 2. Spec engine 0 is Z-Spec. 4 is the 4th DAC which is not used for objective scanning
+            self._dev.base.setParameter(self._dev.base.getConst('ID_SPEC_START_DISP'), 0, self.spec_engine_dummy)
+            self._dev.base.setParameter(self._dev.base.getConst('ID_SPEC_END_DISP'), 1000, self.spec_engine_dummy)
+            self._dev.base.setParameter(self._dev.base.getConst('ID_SPEC_COUNT'), self.spec_count, self.spec_engine_dummy)
+
+            self.spec_count = self._dev.base.getParameter(self._dev.base.getConst('ID_SPEC_COUNT'), self.spec_engine_dummy)
+            self._dev.base.setParameter(self._dev.base.getConst('ID_SPEC_MSPOINTS'), int((sampTime/2.5e-6)/self.spec_count), self.spec_engine_dummy)
+            self._dev.base.configureDataBuffering(self._chn_no, self.spec_count) # chNo = same as above; bufSize = Buffersize.
+        else:
+            self.spec_engine_dummy = 2
+            self.spec_count = self._line_points
+            self._dev.base.setParameter(self._dev.base.getConst('ID_CNT_EXP_TIME'),int(sampTime/2.5e-6), 0)
+            
+            self._dev.base.configureChannel(self._chn_no, # any Number between 0 and 13.
+                                    self._dev.base.getConst(f'CHANCONN_SPEC_{self.spec_engine_dummy}'), # How you want to the data to be triggered - CHANCONN_PERMANENT is time triggered data
+                                    23, # The counter  ADC channel
+                                    1, # 0/1 -  if you want to switch on averaging
+                                    sampTime) # Scanner sample time [s]
+            
+            start_cart = self.objective_scan_line[{0:'X2', 1:'Y2', 2:'Z2'}[self.fast_axis]][0]
+            stop_cart = self.objective_scan_line[{0:'X2', 1:'Y2', 2:'Z2'}[self.fast_axis]][-1]
+            start = self._objective_volt_for_pos(start_cart, True if not self.fast_axis==2 else False)
+            stop = self._objective_volt_for_pos(stop_cart, True if not self.fast_axis==2 else False)
+            self._dev.base.setParameter(self._dev.base.getConst('ID_SPEC_DAC_NO'), self.fast_axis, self.spec_engine_dummy) # index 1 is spec engine 1. Spec engine 0 is Z-Spec. 4 is the 4th DAC which is not used for objective scanning
+            self._dev.base.setParameter(self._dev.base.getConst('ID_SPEC_START_DISP'), start*1e3, self.spec_engine_dummy)
+            self._dev.base.setParameter(self._dev.base.getConst('ID_SPEC_END_DISP'), stop*1e3, self.spec_engine_dummy)
+            self._dev.base.setParameter(self._dev.base.getConst('ID_SPEC_COUNT'), self.spec_count, self.spec_engine_dummy)
+
+            self._dev.base.setParameter(self._dev.base.getConst('ID_SPEC_MSPOINTS'), int(sampTime/2.5e-6), self.spec_engine_dummy)
+            self._dev.base.configureDataBuffering(self._chn_no, self.spec_count) # chNo = same as above; bufSize = Buffersize.
         
-        self._dev.base.configureChannel(self._chn_no, # any Number between 0 and 13.
-                                self._dev.base.getConst('CHANCONN_SPEC_1'), # How you want to the data to be triggered - CHANCONN_PERMANENT is time triggered data
-                                self._dev.base.getConst('CHANADC_AFMAMPL'), # The ADC channel you want to get the data from
-                                1, # 0/1 -  if you want to switch on averaging
-                                sampTime) # Scanner sample time [s]
-
-        self._dev.base.setParameter(self._dev.base.getConst('ID_SPEC_DAC_NO'), 3, self.spec_engine_dummy) # index 1 is spec engine 1. Spec engine 0 is Z-Spec. 4 is the 4th DAC which is not used for objective scanning
-        self._dev.base.setParameter(self._dev.base.getConst('ID_SPEC_START_DISP'), 0, self.spec_engine_dummy)
-        self._dev.base.setParameter(self._dev.base.getConst('ID_SPEC_END_DISP'), 1000, self.spec_engine_dummy)
-        self._dev.base.setParameter(self._dev.base.getConst('ID_SPEC_COUNT'), self.spec_count, self.spec_engine_dummy)
-
-        self.spec_count = self._dev.base.getParameter(self._dev.base.getConst('ID_SPEC_COUNT'), self.spec_engine_dummy)
-        self._dev.base.setParameter(self._dev.base.getConst('ID_SPEC_MSPOINTS'), int((sampTime/(2.5e-6))/self.spec_count), self.spec_engine_dummy)
-        self._dev.base.configureDataBuffering(self._chn_no, self.spec_count) # chNo = same as above; bufSize = Buffersize.
-        
+    def _find_spec_count(self, start_cart, stop_cart, m, xy=True):
+        spec_engine = 2
+        n = 3e6//(305.2*m)
+        spec_count0 = int(np.round(3/(305.2e-6*n)))
+        success = False
+        for i in range(100):
+            k = 1
+            for j in range(2):
+                sc0 = spec_count0+i*(k)
+                k*=-1
+                start = self._objective_volt_for_pos(start_cart, xy)
+                stop = self._objective_volt_for_pos(stop_cart, xy)
+                self._dev.base.setParameter(self._dev.base.getConst('ID_SPEC_START_DISP'), start*1e3, spec_engine)
+                self._dev.base.setParameter(self._dev.base.getConst('ID_SPEC_END_DISP'), stop*1e3, spec_engine)
+                self._dev.base.setParameter(self._dev.base.getConst('ID_SPEC_COUNT'), sc0, spec_engine)
+                self._dev.base.setParameter(self._dev.base.getConst('ID_SPEC_STATUS'), 0, spec_engine)
+                time.sleep(0.1)
+                sc = self._dev.base.getParameter(self._dev.base.getConst('ID_SPEC_COUNT'), spec_engine)
+                if sc==sc0:
+                    return sc
+        return -1
 
     def _poll_path_data(self):
         '''
         Polls the buffer after the spec engine is triggered at each point. _grabASCData is a blocking statement that only passes after buffer is full.
         To implement Dual Pass the Z position will be set at every point inside the for loop
         '''
-        for i in range(self._line_points):
+        n = self._line_points if self._spm_curr_mode == ScannerMode.PROBE_CONTACT else 1
+        
+        for i in range(n):
             self.spec_count = self._dev.base.getParameter(self._dev.base.getConst('ID_SPEC_COUNT'), self.spec_engine_dummy)
             data = self._grabASCData(self.spec_count)
-            self._polled_data[i] = data
+            if self._spm_curr_mode == ScannerMode.PROBE_CONTACT:
+                self._polled_data[i] = np.mean(data)
+            else:
+                self._polled_data = data
+
+    def _poll_point_data(self):
+        '''
+        Polls the buffer after the spec engine is triggered at each point. _grabASCData is a blocking statement that only passes after buffer is full.
+        To implement Dual Pass the Z position will be set at every point inside the for loop
+        '''
+
+        self.spec_count = self._dev.base.getParameter(self._dev.base.getConst('ID_SPEC_COUNT'), self.spec_engine_dummy)
+        data = self._grabASCData(self.spec_count)
+        self._polled_data = np.mean(data)
 
     def _grabASCData(self, bufSize=200):
         while True:
@@ -619,14 +774,10 @@ class SPM_ASC500(Base, ScannerInterface):
         values = buffer[3][:]
         meta = buffer[4]
         phys_vals = []
-        unit = self._dev.base.getUnitVal(meta)
-        scaling = 1
         # TODO do all unit conversions, maybe post polling
-        if 'Milli' in unit:
-            scaling = 1e-3
         for val in values:
-            phys_vals.append(self._dev.base.convValue2Phys(meta, val)*scaling)
-        return np.mean(phys_vals)
+            phys_vals.append(self._dev.base.convValue2Phys(meta, val))
+        return np.array(phys_vals)
 
     def get_measurements(self, reshape=True):
         """ Obtains gathered measurements from scanner
@@ -646,6 +797,9 @@ class SPM_ASC500(Base, ScannerInterface):
 
         phys_vals = np.array([self._polled_data])
         return phys_vals
+    
+    def check_spm_scan_params_by_plane(self, plane, coord0_start, coord0_stop, coord1_start,coord1_stop):
+        return -1 if coord0_start>coord0_stop or coord1_start>coord1_stop else 1
 
     def finish_scan(self):
         """ Request completion of the current scan line 
@@ -672,7 +826,7 @@ class SPM_ASC500(Base, ScannerInterface):
         @return: None
         """    
         self._dev.zcontrol.setPositionZ(0)
-        self._dev.scanner.closeScanner()
+        # self._dev.scanner.closeScanner()
 
     def calibrate_constant_height(self, calib_points, safety_lift):
         """ Calibrate constant height
@@ -884,6 +1038,9 @@ class SPM_ASC500(Base, ScannerInterface):
         """
         
         # if velocity is given, time will be ignored
+        if self.objective_lock:
+            self.log.warning('Objective locked. Cannot move objective right until toggled.')
+            return self.get_objective_pos(list(axis_label_dict.keys()))
         scan_range = self.get_objective_scan_range(list(axis_label_dict.keys()))
         for i in scan_range:
             if axis_label_dict[i] > scan_range[i]:
