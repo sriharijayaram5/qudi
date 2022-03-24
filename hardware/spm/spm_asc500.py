@@ -773,13 +773,9 @@ class SPM_ASC500(Base, ScannerInterface):
         values = buffer[3][:]
         meta = buffer[4]
         phys_vals = []
-        unit = self._dev.base.getUnitVal(meta)
-        scaling = 1
         # TODO do all unit conversions, maybe post polling
-        if 'Milli' in unit:
-            scaling = 1e-3
         for val in values:
-            phys_vals.append(self._dev.base.convValue2Phys(meta, val)*scaling)
+            phys_vals.append(self._dev.base.convValue2Phys(meta, val))
         return np.array(phys_vals)
 
     def get_measurements(self, reshape=True):
