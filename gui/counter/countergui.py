@@ -70,6 +70,7 @@ class CounterGui(GUIBase):
         # Configuring the dock widgets
         # Use the inherited class 'CounterMainWindow' to create the GUI window
         self._mw = CounterMainWindow()
+        self.restoreWindowPos(self._mw)
 
         # Setup dock widgets
         self._mw.centralwidget.hide()
@@ -252,7 +253,8 @@ class CounterGui(GUIBase):
         self._counting_logic.sigSavingStatusChanged.disconnect()
         self._counting_logic.sigCountingModeChanged.disconnect()
         self._counting_logic.sigCountStatusChanged.disconnect()
-
+        
+        self.saveWindowGeometry(self._mw)
         self._mw.close()
         return
 

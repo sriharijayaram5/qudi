@@ -176,6 +176,7 @@ class PulsedMeasurementGui(GUIBase):
         GUI.
         """
         self._mw = PulsedMeasurementMainWindow()
+        self.restoreWindowPos(self._mw)
         self._pa = PulseAnalysisTab()
         self._pg = PulseGeneratorTab()
         self._pe = PulseExtractionTab()
@@ -271,6 +272,7 @@ class PulsedMeasurementGui(GUIBase):
         self.sigPulseGeneratorSettingsUpdated.disconnect()
         self.sigPulseGeneratorRunBenchmark.disconnect()
 
+        self.saveWindowGeometry(self._mw)
         self._mw.close()
         return
 
