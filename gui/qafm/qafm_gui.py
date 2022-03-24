@@ -910,12 +910,9 @@ class ProteusQGUI(GUIBase):
             self.log.warning('X position too high for optimize range')
             ret_val = False
         
-        if not ret_val:
-            return ret_val
-
-        sd['optimizer_x_res'] = self._qafm_logic._spm._find_spec_count(start, stop, sd['optimizer_x_res'])
-        
-        self._sd.optimizer_x_res_SpinBox.setValue(sd['optimizer_x_res'])
+        if ret_val:
+            sd['optimizer_x_res'] = self._qafm_logic._spm._find_spec_count(start, stop, sd['optimizer_x_res'])
+            self._sd.optimizer_x_res_SpinBox.setValue(sd['optimizer_x_res'])
 
         z_target = self._mw.obj_target_z_DSpinBox.value()
         start = z_target-sd['optimizer_z_range']/2
@@ -929,11 +926,9 @@ class ProteusQGUI(GUIBase):
             self.log.warning('Z position too high for optimize range')
             ret_val = False
         
-        if not ret_val:
-            return ret_val
-        sd['optimizer_z_res'] = self._qafm_logic._spm._find_spec_count(start, stop, sd['optimizer_z_res'], False)
-
-        self._sd.optimizer_z_res_SpinBox.setValue(sd['optimizer_z_res'])
+        if ret_val:
+            sd['optimizer_z_res'] = self._qafm_logic._spm._find_spec_count(start, stop, sd['optimizer_z_res'], False)
+            self._sd.optimizer_z_res_SpinBox.setValue(sd['optimizer_z_res'])
 
         self._qafm_logic.set_qafm_settings(sd)
         return ret_val
