@@ -508,6 +508,8 @@ class AFMConfocalLogic(GenericLogic):
     _sg_n_iso_b_n_freq_splits = StatusVar(default=10)    # number of frequency sub splits to use
     _sg_n_iso_b_laser_cooldown_length = StatusVar(default=10e-6) # laser cool down time (s)
 
+    _sg_pulsed_measure_operation = False
+
     # target positions of the optimizer
     _optimizer_x_target_pos = 15e-6
     _optimizer_y_target_pos = 15e-6
@@ -832,6 +834,8 @@ class AFMConfocalLogic(GenericLogic):
         sd['iso_b_autocalibrate_margin'] = self._sg_iso_b_autocalibrate_margin
         sd['n_iso_b_pulse_margin'] = self._sg_n_iso_b_pulse_margin
         sd['n_iso_b_n_freq_splits'] = self._sg_n_iso_b_n_freq_splits
+
+        sd['pulsed_measure_operation'] = self._sg_pulsed_measure_operation
 
         if setting_list is None:
             return sd

@@ -314,6 +314,9 @@ class ProteusQGUI(GUIBase):
         self._qm.sigQuantiMeasClose.connect(self.onCloseQuantiMeas)
         self._qm.scan_dir_fw_bw_RadioButton.setEnabled(False)
 
+        self._mw.actionOpen_Pulsed_Measure.triggered[bool].connect(self.closePulsedMeas)
+        self._mw.actionOpen_Pulsed_Measure.setChecked(False)
+
         # connect Quantitative signals 
         self._qm.Start_QM_PushButton.clicked.connect(self.start_quantitative_measure_clicked)
         self._qm.Continue_QM_PushButton.clicked.connect(self.continue_quantitative_measure_clicked)
@@ -385,7 +388,14 @@ class ProteusQGUI(GUIBase):
 
     def onCloseQuantiMeas(self):
         self._mw.action_Quantitative_Measure.setChecked(False)
+    
+    def openPulsedMeas(self):
+        self._mw.actionOpen_Pulsed_Measure.setChecked(True)
+        self._qafm_logic._sg_pulsed_measure_operation = True
 
+    def closePulsedMeas(self, checked=False):
+        self._mw.actionOpen_Pulsed_Measure.setChecked(checked)
+        self._qafm_logic._sg_pulsed_measure_operation = checked
 
     def initImmediateStopDialog(self):
         self._is = InitiateImmediateStopDialog()

@@ -57,12 +57,7 @@
     <property name="title">
      <string>Measurements</string>
     </property>
-    <widget class="QMenu" name="menuOpen_Quantitative_Measure">
-     <property name="title">
-      <string>Open Quantitative Measure</string>
-     </property>
-    </widget>
-    <addaction name="menuOpen_Quantitative_Measure"/>
+    <addaction name="action_Quantitative_Measure"/>
     <addaction name="actionOpen_Pulsed_Measure"/>
     <addaction name="action_open_optimizer_request"/>
     <addaction name="separator"/>
@@ -1269,6 +1264,17 @@
   <action name="actionLoad_Display">
    <property name="text">
     <string>Load Display</string>
+   </property>
+  </action>
+   <action name="action_Quantitative_Measure">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Open Quantitative Measure</string>
+   </property>
+   <property name="toolTip">
+    <string>Open Quantitative Measurement Window</string>
    </property>
   </action>
   <action name="action_center_pos_to_target">
