@@ -27,7 +27,7 @@
      <x>0</x>
      <y>0</y>
      <width>1033</width>
-     <height>22</height>
+     <height>21</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuMenu">
@@ -58,7 +58,6 @@
      <string>Measurements</string>
     </property>
     <addaction name="action_Quantitative_Measure"/>
-    <addaction name="actionOpen_Pulsed_Measure"/>
     <addaction name="action_open_optimizer_request"/>
     <addaction name="separator"/>
     <addaction name="action_Immediate_Stop"/>
@@ -1266,7 +1265,7 @@
     <string>Load Display</string>
    </property>
   </action>
-   <action name="action_Quantitative_Measure">
+  <action name="action_Quantitative_Measure">
    <property name="checkable">
     <bool>true</bool>
    </property>
