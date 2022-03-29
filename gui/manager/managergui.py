@@ -205,7 +205,7 @@ class ManagerGui(GUIBase):
         self._mw.action_Load_all_modules.triggered.disconnect()
         self._mw.actionAbout_Qt.triggered.disconnect()
         self._mw.actionAbout_Qudi.triggered.disconnect()
-        self.saveWindowPos(self._mw)
+        self.saveWindowGeometry(self._mw)
         self._mw.close()
 
     def show(self):

@@ -34,7 +34,7 @@ class GUIBaseMixin(BaseMixin):
                 'function!')
 
     def saveWindowGeometry(self, window):
-        self._statusVariables[f'window_rect_{window.windowTitle()}'] = window.frameGeometry().getRect()
+        self._statusVariables[f'window_rect_{window.windowTitle()}'] = window.geometry().getRect()
     
     def saveWindowPos(self, window):
         self._statusVariables['pos_x'] = window.pos().x()

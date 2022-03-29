@@ -347,7 +347,7 @@ class TimeTaggerCounter(Base, SlowCounterInterface, RecorderInterface):
         @return int: error code (0:OK, -1:error)
         """
         dev_state = self._curr_state
-        curr_mode = self._curr_mode
+        self._curr_mode = mode
         self._curr_meas_params = params
 
         if (dev_state == RecorderState.BUSY): 
@@ -379,9 +379,9 @@ class TimeTaggerCounter(Base, SlowCounterInterface, RecorderInterface):
             # not sure whether it makes sense to configure the device 
             # deliberately in an unconfigured state, it sounds like a 
             # contradiction in terms, but it might be important if device is reset
-            pass
+            ret_val = -1
 
-        elif mode == HWRecorderMode.PIXELCLOCK or HWRecorderMode.PIXELCLOCK_SINGLE_ISO_B:
+        elif mode == HWRecorderMode.PIXELCLOCK or mode == HWRecorderMode.PIXELCLOCK_SINGLE_ISO_B:
             ret_val = self._prepare_pixelclock(pixelclock_begin_chn=self._pixelclock_begin_chn,
                                                 pixelclock_click_chn=self._pixelclock_click_chn,
                                                 pixelclock_end_chn=self._pixelclock_end_chn,
@@ -397,7 +397,6 @@ class TimeTaggerCounter(Base, SlowCounterInterface, RecorderInterface):
         if ret_val == -1:
             self._curr_mode = HWRecorderMode.UNCONFIGURED
         else:
-            self._curr_mode = mode
             self._curr_state = RecorderState.IDLE
 
         return ret_val
@@ -454,10 +453,6 @@ class TimeTaggerCounter(Base, SlowCounterInterface, RecorderInterface):
 
         num_meas = params['num_meas']
 
-        if arm and meas_type.movement  != 'line':
-            self.log.warning('TimeTagger: attempt to set ARMED state for a continuous measurement mode')
-            return False 
-        
         # data format
         # Pixel clock (line methods)
         if meas_type.movement == 'line':
@@ -475,9 +470,6 @@ class TimeTaggerCounter(Base, SlowCounterInterface, RecorderInterface):
         # Esr, Pulsed (point methods)
         elif meas_type.movement == 'point':
             if mode == HWRecorderMode.ESR:
-                self._meas_esr_res = np.zeros((num_meas, len(self._curr_meas_params['mw_frequency_list'])))
-                self._esr_counter = 0
-                self._current_esr_meas = []
 
                 self.recorder.clear()
 
@@ -517,7 +509,7 @@ class TimeTaggerCounter(Base, SlowCounterInterface, RecorderInterface):
 
         return True 
 
-    def get_measurements(self, meas_keys=None):
+    def get_measurements(self, meas_keys=['counts']):
         """ get measurements
         returns the measurement array in integer format, (blocking, changes state)
 
@@ -543,14 +535,10 @@ class TimeTaggerCounter(Base, SlowCounterInterface, RecorderInterface):
             ret['int_time'] = data/1e12 # returns in ps
         
         if self._curr_mode == HWRecorderMode.ESR:
-            while True:
-                if self.recorder.ready():
-                    break
-
             # ['counts', 'int_time', 'counts2', 'counts_diff']
             data = self.recorder.getData().reshape(self._curr_meas_params['num_meas'], len(self._curr_meas_params['mw_frequency_list']))
             ret['counts'] = data
-
+            
             data = self.recorder.getBinWidths().reshape(self._curr_meas_params['num_meas'], len(self._curr_meas_params['mw_frequency_list']))
             ret['int_time'] = data/1e12 # returns in ps
             ret['counts'] = np.divide(ret['counts'].astype(float), ret['int_time'])

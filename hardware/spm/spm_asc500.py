@@ -131,22 +131,6 @@ class SPM_ASC500(Base, ScannerInterface):
         sc = self._SCANNER_CONSTRAINTS
 
         sc.max_detectors = 1
-        std_config = {
-            ScannerMode.OBJECTIVE_XY:  { 'plane'       : 'X2Y2', 
-                                         'scan_style'  : ScanStyle.LINE },
-
-            ScannerMode.OBJECTIVE_XZ:  { 'plane'       : 'X2Z2', 
-                                         'scan_style'  : ScanStyle.LINE },
-
-            ScannerMode.OBJECTIVE_YZ:  { 'plane'       : 'Y2Z2', 
-                                         'scan_style'  : ScanStyle.LINE },
-            
-            ScannerMode.OBJECTIVE_ZX:  { 'plane'       : 'Z2X2', 
-                                         'scan_style'  : ScanStyle.LINE },                                         
-
-            ScannerMode.PROBE_CONTACT: { 'plane'       : 'XY', 
-                                         'scan_style'  : ScanStyle.LINE }}
-
         # current modes, as implemented.  Enable others when available
         sc.scanner_modes = [ ScannerMode.PROBE_CONTACT,
                              ScannerMode.OBJECTIVE_XY,
@@ -311,24 +295,7 @@ class SPM_ASC500(Base, ScannerInterface):
         # since all measurements are gathered in a line format
         # however, the movement is determined by the ScanStyle, which determines
         # if a trigger signal will be produced for the recorder device 
-        std_config = {
-            ScannerMode.OBJECTIVE_XY:  { 'plane'       : 'X2Y2', 
-                                         'scan_style'  : ScanStyle.LINE },
-
-            ScannerMode.OBJECTIVE_XZ:  { 'plane'       : 'X2Z2', 
-                                         'scan_style'  : ScanStyle.LINE },
-
-            ScannerMode.OBJECTIVE_ZX:  { 'plane'       : 'Z2X2', 
-                                         'scan_style'  : ScanStyle.LINE },                                         
-
-            ScannerMode.OBJECTIVE_YZ:  { 'plane'       : 'Y2Z2', 
-                                         'scan_style'  : ScanStyle.LINE },
-
-            ScannerMode.PROBE_CONTACT: { 'plane'       : 'XY', 
-                                         'scan_style'  : ScanStyle.LINE },
-
-            # other configurations to be defined as they are implemented
-        }
+        # other configurations to be defined as they are implemented
 
         if not ((dev_state == ScannerState.UNCONFIGURED) or (dev_state == ScannerState.IDLE)):
             self.log.error(f'SPM cannot be configured in the '
@@ -462,6 +429,9 @@ class SPM_ASC500(Base, ScannerInterface):
             px=int((abs(line_corr0_stop-line_corr0_start))*1e9)
             sT=time_forward/self._line_points
             self._dev.base.setParameter(self._dev.base.getConst('ID_SCAN_PSPEED'), px/time_back, 0)
+            
+            while self._dev.base.getParameter(self._dev.base.getConst('ID_PATH_RUNNING'), 0)==1 or self._dev.base.getParameter(self._dev.base.getConst('ID_SCAN_STATUS'), 0)==2:
+                pass
             
             self._configureSamplePath(line_corr0_start, line_corr0_stop, 
                                     line_corr1_start, line_corr1_stop, self._line_points)
@@ -655,12 +625,13 @@ class SPM_ASC500(Base, ScannerInterface):
             return 0
 
         if self._spm_curr_mode == ScannerMode.PROBE_CONTACT:
-            self._dev.base.setParameter(self._dev.base.getConst('ID_SPEC_PATHPROCEED') ,1 ,0)
+
             while True:
-                if self._dev.base.getParameter(self._dev.base.getConst('ID_PATH_RUNNING'), 0)==1 or self._dev.base.getParameter(self._dev.base.getConst('ID_SCAN_STATUS'), 0)==2:
-                    pass
-                else:
+                if self._dev.base.getParameter(self._dev.base.getConst('ID_SPEC_PATHMANSTAT'), 0)==1:
+                    self._dev.base.setParameter(self._dev.base.getConst('ID_SPEC_PATHPROCEED') ,1 ,0)
                     break
+                else:
+                    pass
             
             self._poll_point_data()
             return self._polled_data

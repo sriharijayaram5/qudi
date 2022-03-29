@@ -1724,9 +1724,12 @@ class AFMConfocalLogic(GenericLogic):
         ret_val = self._counter.configure_recorder(
             mode=HWRecorderMode.ESR,
             params={'mw_frequency_list': freq_list,
-                    'mw_power': mw_power,
-                    'count_frequency': esr_count_freq,
-                    'num_meas': num_esr_runs})
+                    'num_meas': num_esr_runs } )
+                    
+        self._mw.set_list(freq_list, mw_power)
+                
+        self._pulser.load_swabian_sequence(self._make_pulse_sequence(HWRecorderMode.ESR, 1/esr_count_freq, freq_points, num_esr_runs))
+        self._pulser.pulser_on(trigger=True, n=1)
 
         if ret_val < 0:
             self.sigQuantiScanFinished.emit()
@@ -1826,13 +1829,15 @@ class AFMConfocalLogic(GenericLogic):
                                      line_corr1_stop=scan_coords[3],
                                      time_forward=scan_speed_per_line,
                                      time_back=idle_move_time)
+            
+            self._mw.list_on()
 
             # -1 otherwise it would be more than coord0_num points, since first one is counted too.
             x_step = (scan_coords[1] - scan_coords[0]) / (coord0_num - 1)
 
             self._afm_pos = {'x': scan_coords[0], 'y': scan_coords[2]}
 
-            self._spm.scan_point()  # these are points to throw away
+            # self._spm.scan_point()  # these are points to throw away
             self.sigNewAFMPos.emit(self._afm_pos)
 
             # if len(vals) > 0:
@@ -1845,11 +1850,14 @@ class AFMConfocalLogic(GenericLogic):
                 self._scan_point = np.zeros(num_params) 
 
                 # at first the AFM parameter
-                self._scan_point[2:] = self._spm.scan_point()  
+                # arm recorder
+                self._counter.start_recorder(arm=True)
+
+                self._debug = self._spm.scan_point()
+                self._scan_point[2:] = self._debug 
                 
                 # obtain ESR measurement
-                self._counter.start_recorder()
-                esr_meas = self._counter.get_measurements()[:, 2:]
+                esr_meas = self._counter.get_measurements()[0]
 
                 esr_meas_mean = esr_meas.mean(axis=0)
                 esr_meas_std = esr_meas.std(axis=0)
@@ -1935,6 +1943,7 @@ class AFMConfocalLogic(GenericLogic):
 
                 # emit a signal at every point, so that update can happen in real time.
                 self.sigQAFMLineScanFinished.emit()
+                self._mw.reset_listpos()
 
                 # remove possibility to stop during line scan.
                 if self._stop_request:
@@ -1994,7 +2003,9 @@ class AFMConfocalLogic(GenericLogic):
 
         # clean up the spm
         self._spm.finish_scan()
-        #self.module_state.unlock()
+        self._mw.off()
+        self._counter.stop_measurement()
+        # self.module_state.unlock()
         self.sigQuantiScanFinished.emit()
 
         return self._qafm_scan_array
@@ -2015,20 +2026,20 @@ class AFMConfocalLogic(GenericLogic):
             self.log.error("A measurement is currently running, stop it first!")
             return
            
-        self._health_check.setup(interval=20,                                       # perform check every interval (s)
-                                 default_delta_t=int_time_afm * num_esr_runs *1.5,  # minimum time to expect between updates
-                                 check_function=self._counter._dev.ctrl.isBusy,     # op function to check health 
-                                 connect_start=[],                                  # start triggered manually
-                                 connect_update=[self.sigQuantiLineFinished,        # signals which will trigger update
-                                                 self.sigNewAFMPos],
-                                 connect_stop=[self.sigQuantiScanFinished],         # signal to trigger stop of health check
-                                 connect_opt_start=[self.sigHealthCheckStartSkip],   # signal to note that optimizer has started 
-                                 connect_opt_stop=[self.sigHealthCheckStopSkip],    # signal to note that optimizer has finished
-                                 log=self.log
-                                )
+        # self._health_check.setup(interval=20,                                       # perform check every interval (s)
+        #                          default_delta_t=int_time_afm * num_esr_runs *1.5,  # minimum time to expect between updates
+        #                          check_function=self._counter._dev.ctrl.isBusy,     # op function to check health 
+        #                          connect_start=[],                                  # start triggered manually
+        #                          connect_update=[self.sigQuantiLineFinished,        # signals which will trigger update
+        #                                          self.sigNewAFMPos],
+        #                          connect_stop=[self.sigQuantiScanFinished],         # signal to trigger stop of health check
+        #                          connect_opt_start=[self.sigHealthCheckStartSkip],   # signal to note that optimizer has started 
+        #                          connect_opt_stop=[self.sigHealthCheckStopSkip],    # signal to note that optimizer has finished
+        #                          log=self.log
+        #                         )
 
-        self._health_check.start_timer(arm=True)
-        self.sigHealthCheckStartSkip.emit()
+        # self._health_check.start_timer(arm=True)
+        # self.sigHealthCheckStartSkip.emit()
 
         if self._USE_THREADED:
             self._worker_thread = WorkerThread(target=self.scan_area_quanti_qafm_fw_bw_by_point,
@@ -2211,19 +2222,9 @@ class AFMConfocalLogic(GenericLogic):
             # for a continue measurement event, skip the first measurements
             # until one has reached the desired line, then continue from there.
             if line_num < self._spm_line_num:
-
-                # take care of the proper order of the data
-                # if line_num%2 == 0:
-                #     # i.e. next measurement must be in reversed order
-                #     reverse_meas = True
-                # else:
-                #     reverse_meas = False
                 continue
 
             num_params = len(curr_scan_params)
-
-            self.set_afm_pos({'x': scan_coords[0], 'y': scan_coords[2]})
-            time.sleep(1)
 
             self._spm.configure_line(line_corr0_start=scan_coords[0],
                                      line_corr0_stop=scan_coords[1],
@@ -2260,7 +2261,7 @@ class AFMConfocalLogic(GenericLogic):
                 self._scan_point[2:] = self._debug 
                 
                 # obtain ESR measurement
-                esr_meas = self._counter.get_measurements()[:, 2:]
+                esr_meas = self._counter.get_measurements()[0]
 
                 esr_meas_mean = esr_meas.mean(axis=0)
                 esr_meas_std = esr_meas.std(axis=0)
@@ -2424,20 +2425,20 @@ class AFMConfocalLogic(GenericLogic):
             self.log.error("A measurement is currently running, stop it first!")
             return
         
-        self._health_check.setup(interval=20,                                       # perform check every interval (s)
-                                 default_delta_t=int_time_afm * num_esr_runs *1.5,  # minimum time to expect between updates
-                                 check_function=self._counter._dev.ctrl.isBusy,     # op function to check health 
-                                 connect_start=[],                                  # start triggered manually
-                                 connect_update=[self.sigQuantiLineFinished,        # signals which will trigger update
-                                                 self.sigNewAFMPos],
-                                 connect_stop=[self.sigQuantiScanFinished],         # signal to trigger stop of health check
-                                 connect_opt_start=[self.sigHealthCheckStartSkip],   # signal to note that optimizer has started 
-                                 connect_opt_stop=[self.sigHealthCheckStopSkip],    # signal to note that optimizer has finished
-                                 log=self.log
-                                )
+        # self._health_check.setup(interval=20,                                       # perform check every interval (s)
+        #                          default_delta_t=int_time_afm * num_esr_runs *1.5,  # minimum time to expect between updates
+        #                          check_function=self._counter._dev.ctrl.isBusy,     # op function to check health 
+        #                          connect_start=[],                                  # start triggered manually
+        #                          connect_update=[self.sigQuantiLineFinished,        # signals which will trigger update
+        #                                          self.sigNewAFMPos],
+        #                          connect_stop=[self.sigQuantiScanFinished],         # signal to trigger stop of health check
+        #                          connect_opt_start=[self.sigHealthCheckStartSkip],   # signal to note that optimizer has started 
+        #                          connect_opt_stop=[self.sigHealthCheckStopSkip],    # signal to note that optimizer has finished
+        #                          log=self.log
+        #                         )
 
-        self._health_check.start_timer(arm=True)
-        self.sigHealthCheckStartSkip.emit()
+        # self._health_check.start_timer(arm=True)
+        # self.sigHealthCheckStartSkip.emit()
 
         if self._USE_THREADED:
             self._worker_thread = WorkerThread(target=self.scan_area_quanti_qafm_fw_by_point,
@@ -3499,14 +3500,14 @@ class AFMConfocalLogic(GenericLogic):
 
             d_ch = clear(d_ch)
             d_ch[self._pulser._mw_trig] = True
-            d_ch[self._pulser._laser] = True
+            d_ch[self._pulser._laser_channel] = True
             d_ch[self._pulser._mw_switch] = True
             d_ch[self._pulser._pixel_start] = True
             block_1.append(init_length = int_time, channels = d_ch, repetition = 1)
 
             d_ch = clear(d_ch)
             d_ch[self._pulser._pixel_stop] = True
-            block_1.append(init_length = 1e-6, channels = d_ch, repetition = 1)
+            block_1.append(init_length = 1000e-6, channels = d_ch, repetition = 1)
 
             seq.append([(block_1, freq_points*num_esr_runs)])
 
@@ -3514,7 +3515,7 @@ class AFMConfocalLogic(GenericLogic):
 
             d_ch = clear(d_ch)
             d_ch[self._pulser._sync_in] = True
-            block_2.append(init_length = 1e-6, channels = d_ch, repetition = 1)
+            block_2.append(init_length = 1000e-6, channels = d_ch, repetition = 1)
 
             seq.append([(block_2, 1)])
 
