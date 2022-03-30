@@ -90,6 +90,7 @@ class PulseStreamer(Base, PulserInterface):
         self.__currently_loaded_waveform = ''
         self.current_status = 0
         self._seq = None
+        self.pulsed_trigger = False
 
     def on_deactivate(self):
         self.reset()
@@ -236,7 +237,7 @@ class PulseStreamer(Base, PulserInterface):
         @return int: error code (0:OK, -1:error)
         """
         if self._seq:
-            if trigger:
+            if trigger or self.pulsed_trigger:
                 self.pulse_streamer.setTrigger(start=ps.TriggerStart.HARDWARE_RISING)
             else:
                 self.pulse_streamer.setTrigger(start=ps.TriggerStart.SOFTWARE)
@@ -261,6 +262,7 @@ class PulseStreamer(Base, PulserInterface):
         """
 
         self.__current_status = 0
+        self.pulsed_trigger = False
         self.pulse_streamer.constant(self._laser_mw_on_state)
         return 0
 
