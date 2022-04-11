@@ -181,8 +181,8 @@ class SPM_ASC500(Base, ScannerInterface):
         sm = self._SCANNER_MEASUREMENTS 
 
         sm.scanner_measurements = { 
-            'Height(Dac)' : {'measured_units' : 'm',
-                             'scale_fac': 1,    # multiplication factor to obtain SI units   
+            'Height(Dac)' : {'measured_units' : 'µm',
+                             'scale_fac': 1e-6,    # multiplication factor to obtain SI units   
                              'si_units': 'm', 
                              'nice_name': 'Height'}
 
@@ -201,9 +201,9 @@ class SPM_ASC500(Base, ScannerInterface):
             #                  'si_units': 'Hz', 
             #                  'nice_name': 'Tuning Fork Frequency'},
             
-            ,'counts' :        {'measured_units' : 'arb.', 
+            ,'counts' :        {'measured_units' : 'c/s', 
                              'scale_fac': 1,    
-                             'si_units': 'arb.', 
+                             'si_units': 'c/s', 
                              'nice_name': 'Counts'}
         }
 
@@ -649,7 +649,7 @@ class SPM_ASC500(Base, ScannerInterface):
             
             self._dev.base.configureChannel(self._chn_no, # any Number between 0 and 13.
                                     self._dev.base.getConst(f'CHANCONN_SPEC_{self.spec_engine_dummy}'), # How you want to the data to be triggered - CHANCONN_PERMANENT is time triggered data
-                                    self._dev.base.getConst('CHANADC_AFMAMPL'), # The ADC channel you want to get the data from
+                                    self._dev.base.getConst('CHANADC_ZOUTINV'), # The ADC channel you want to get the data from
                                     1, # 0/1 -  if you want to switch on averaging
                                     sampTime) # Scanner sample time [s]
 
