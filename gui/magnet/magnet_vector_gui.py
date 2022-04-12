@@ -385,8 +385,6 @@ class MagnetGui(GUIBase):
 
         self._mw.align_2d_axis0_name_ComboBox.currentIndexChanged.connect(self._update_limits_axis0)
         self._mw.align_2d_axis1_name_ComboBox.currentIndexChanged.connect(self._update_limits_axis1)
-        self._mw.align_2d_axis0_set_vel_CheckBox.stateChanged.connect(self._set_vel_display_axis0)
-        self._mw.align_2d_axis1_set_vel_CheckBox.stateChanged.connect(self._set_vel_display_axis1)
 
         self._mw.alignment_2d_cb_min_centiles_DSpinBox.valueChanged.connect(self._update_2d_graph_data)
         self._mw.alignment_2d_cb_max_centiles_DSpinBox.valueChanged.connect(self._update_2d_graph_data)
@@ -395,8 +393,6 @@ class MagnetGui(GUIBase):
 
         self._update_limits_axis0()
         self._update_limits_axis1()
-        self._set_vel_display_axis0()
-        self._set_vel_display_axis1()
 
         # self._2d_alignment_ImageItem = ScanImageItem(image=self._magnet_logic.get_2d_data_matrix())
         # self._mw.alignment_2d_GraphicsView.addItem(self._2d_alignment_ImageItem)
@@ -499,8 +495,6 @@ class MagnetGui(GUIBase):
         self._mw.align_2d_axis0_range_DSpinBox.editingFinished.connect(self.update_roi_from_range)
         self._mw.align_2d_axis0_step_DSpinBox.setValue(self._magnet_logic.align_2d_axis0_step)
         self._mw.align_2d_axis0_step_DSpinBox.editingFinished.connect(self.align_2d_axis0_step_changed)
-        self._mw.align_2d_axis0_vel_DSpinBox.setValue(self._magnet_logic.align_2d_axis0_vel)
-        self._mw.align_2d_axis0_vel_DSpinBox.editingFinished.connect(self.align_2d_axis0_vel_changed)
 
         # index = self._mw.align_2d_axis1_name_ComboBox.findText(self._magnet_logic.align_2d_axis1_name)
         # self._mw.align_2d_axis1_name_ComboBox.setCurrentIndex(index)
@@ -510,8 +504,6 @@ class MagnetGui(GUIBase):
         self._mw.align_2d_axis1_range_DSpinBox.editingFinished.connect(self.update_roi_from_range)
         self._mw.align_2d_axis1_step_DSpinBox.setValue(self._magnet_logic.align_2d_axis1_step)
         self._mw.align_2d_axis1_step_DSpinBox.editingFinished.connect(self.align_2d_axis1_step_changed)
-        self._mw.align_2d_axis1_vel_DSpinBox.setValue(self._magnet_logic.align_2d_axis1_vel)
-        self._mw.align_2d_axis1_vel_DSpinBox.editingFinished.connect(self.align_2d_axis1_vel_changed)
 
         # index = self._mw.align_2d_axis2_name_ComboBox.findText(self._magnet_logic.align_2d_axis2_name)
         # self._mw.align_2d_axis2_name_ComboBox.setCurrentIndex(index)
@@ -521,8 +513,6 @@ class MagnetGui(GUIBase):
         self._mw.align_2d_axis2_range_DSpinBox.editingFinished.connect(self.update_roi_from_range)
         self._mw.align_2d_axis2_step_DSpinBox.setValue(self._magnet_logic.align_2d_axis2_step)
         # self._mw.align_2d_axis2_step_DSpinBox.editingFinished.connect(self.align_2d_axis2_step_changed)
-        self._mw.align_2d_axis2_vel_DSpinBox.setValue(self._magnet_logic.align_2d_axis2_vel)
-        # self._mw.align_2d_axis2_vel_DSpinBox.editingFinished.connect(self.align_2d_axis2_vel_changed)
 
         # for fluorescence alignment:
         self._mw.align_2d_fluorescence_optimize_freq_SpinBox.setValue(self._magnet_logic.get_optimize_pos_freq())
@@ -537,12 +527,10 @@ class MagnetGui(GUIBase):
         self._magnet_logic.sig2DAxis0NameChanged.connect(self.update_align_2d_axis0_name)
         self._magnet_logic.sig2DAxis0RangeChanged.connect(self.update_align_2d_axis0_range)
         self._magnet_logic.sig2DAxis0StepChanged.connect(self.update_align_2d_axis0_step)
-        self._magnet_logic.sig2DAxis0VelChanged.connect(self.update_align_2d_axis0_vel)
 
         self._magnet_logic.sig2DAxis1NameChanged.connect(self.update_align_2d_axis1_name)
         self._magnet_logic.sig2DAxis1RangeChanged.connect(self.update_align_2d_axis1_range)
         self._magnet_logic.sig2DAxis1StepChanged.connect(self.update_align_2d_axis1_step)
-        self._magnet_logic.sig2DAxis1VelChanged.connect(self.update_align_2d_axis1_vel)
 
         self._magnet_logic.sigOptPosFreqChanged.connect(self.update_optimize_pos_freq)
         self._magnet_logic.sigFluoIntTimeChanged.connect(self.update_fluorescence_integration_time)
@@ -771,7 +759,7 @@ class MagnetGui(GUIBase):
             dspinbox_ref.setMinimum(constraints[axis_label]['pos_min'])
 
             # dspinbox_ref.setOpts(minStep=constraints[axis_label]['pos_step'])
-            dspinbox_ref.setSingleStep(0.001, dynamic_stepping=False)
+            # dspinbox_ref.setSingleStep(0.001, dynamic_stepping=False)
             dspinbox_ref.setSuffix(constraints[axis_label]['unit'])
 
             self._mw.move_rel_GridLayout.addWidget(dspinbox_ref, index, 1, 1, 1)
@@ -886,7 +874,7 @@ class MagnetGui(GUIBase):
             dspinbox_ref.setMinimum(constraints[axis_label]['pos_min'])
 
             # dspinbox_ref.setOpts(minStep=constraints[axis_label]['pos_step'])
-            dspinbox_ref.setSingleStep(0.001, dynamic_stepping=False)
+            # dspinbox_ref.setSingleStep(0.001, dynamic_stepping=False)
             dspinbox_ref.setSuffix(constraints[axis_label]['unit'])
 
             # set the horizontal size to 100 pixel:
@@ -1163,14 +1151,6 @@ class MagnetGui(GUIBase):
         self._magnet_logic.set_align_2d_axis0_step(step)
         return step
 
-    def align_2d_axis0_vel_changed(self):
-        """ Pass the current GUI value to the logic
-
-        @return float: Passed velocity
-        """
-        vel = self._mw.align_2d_axis0_vel_DSpinBox.value()
-        self._magnet_logic.set_align_2d_axis0_vel(vel)
-        return vel
 
     def align_2d_axis1_name_changed(self):
         """ Pass the current GUI value to the logic
@@ -1199,14 +1179,6 @@ class MagnetGui(GUIBase):
         self._magnet_logic.set_align_2d_axis1_step(step)
         return step
 
-    def align_2d_axis1_vel_changed(self):
-        """ Pass the current GUI value to the logic
-
-        @return float: Passed velocity
-        """
-        vel = self._mw.align_2d_axis1_vel_DSpinBox.value()
-        self._magnet_logic.set_align_2d_axis1_vel(vel)
-        return vel
 
     def optimize_pos_freq_changed(self):
         """ Pass the current GUI value to the logic
@@ -1347,23 +1319,17 @@ class MagnetGui(GUIBase):
         # set the range constraints:
         self._mw.align_2d_axis0_range_DSpinBox.setMinimum(0)
         self._mw.align_2d_axis0_range_DSpinBox.setMaximum(constraints[axis0_name]['pos_max'])
-        self._mw.align_2d_axis0_range_DSpinBox.setSingleStep(constraints[axis0_name]['pos_step'],
-                                                             dynamic_stepping=False)
+        # self._mw.align_2d_axis0_range_DSpinBox.setSingleStep(constraints[axis0_name]['pos_step'],
+        #                                                      dynamic_stepping=False)
         self._mw.align_2d_axis0_range_DSpinBox.setSuffix(constraints[axis0_name]['unit'])
 
         # set the step constraints:
         self._mw.align_2d_axis0_step_DSpinBox.setMinimum(0)
         self._mw.align_2d_axis0_step_DSpinBox.setMaximum(constraints[axis0_name]['pos_max'])
-        self._mw.align_2d_axis0_step_DSpinBox.setSingleStep(constraints[axis0_name]['pos_step'],
-                                                            dynamic_stepping=False)
+        # self._mw.align_2d_axis0_step_DSpinBox.setSingleStep(constraints[axis0_name]['pos_step'],
+        #                                                     dynamic_stepping=False)
         self._mw.align_2d_axis0_step_DSpinBox.setSuffix(constraints[axis0_name]['unit'])
 
-        # set the velocity constraints:
-        self._mw.align_2d_axis0_vel_DSpinBox.setMinimum(constraints[axis0_name]['vel_min'])
-        self._mw.align_2d_axis0_vel_DSpinBox.setMaximum(constraints[axis0_name]['vel_max'])
-        self._mw.align_2d_axis0_vel_DSpinBox.setSingleStep(constraints[axis0_name]['vel_step'],
-                                                           dynamic_stepping=False)
-        self._mw.align_2d_axis0_vel_DSpinBox.setSuffix(constraints[axis0_name]['unit']+'/s')
 
     def _update_limits_axis1(self):
         """ Whenever a new axis name was chosen in axis0 config, the limits of the
@@ -1375,22 +1341,16 @@ class MagnetGui(GUIBase):
 
         self._mw.align_2d_axis1_range_DSpinBox.setMinimum(0)
         self._mw.align_2d_axis1_range_DSpinBox.setMaximum(constraints[axis1_name]['pos_max'])
-        self._mw.align_2d_axis1_range_DSpinBox.setSingleStep(constraints[axis1_name]['pos_step'],
-                                                             dynamic_stepping=False)
+        # self._mw.align_2d_axis1_range_DSpinBox.setSingleStep(constraints[axis1_name]['pos_step'],
+        #                                                      dynamic_stepping=False)
         self._mw.align_2d_axis1_range_DSpinBox.setSuffix(constraints[axis1_name]['unit'])
 
         self._mw.align_2d_axis1_step_DSpinBox.setMinimum(0)
         self._mw.align_2d_axis1_step_DSpinBox.setMaximum(constraints[axis1_name]['pos_max'])
-        self._mw.align_2d_axis1_step_DSpinBox.setSingleStep(constraints[axis1_name]['pos_step'],
-                                                            dynamic_stepping=False)
+        # self._mw.align_2d_axis1_step_DSpinBox.setSingleStep(constraints[axis1_name]['pos_step'],
+        #                                                     dynamic_stepping=False)
         self._mw.align_2d_axis1_step_DSpinBox.setSuffix(constraints[axis1_name]['unit'])
 
-        self._mw.align_2d_axis1_vel_DSpinBox.setMinimum(constraints[axis1_name]['vel_min'])
-        self._mw.align_2d_axis1_vel_DSpinBox.setMaximum(constraints[axis1_name]['vel_max'])
-        self._mw.align_2d_axis1_vel_DSpinBox.setSingleStep(constraints[axis1_name]['vel_step'],
-                                                           dynamic_stepping=False)
-        self._mw.align_2d_axis1_vel_DSpinBox.setSuffix(constraints[axis1_name]['unit']+'/s')
-    
     def _update_limits_axis2(self):
         """ Whenever a new axis name was chosen in axis0 config, the limits of the
             viewboxes will be adjusted.
@@ -1401,37 +1361,15 @@ class MagnetGui(GUIBase):
 
         self._mw.align_2d_axis2_range_DSpinBox.setMinimum(0)
         self._mw.align_2d_axis2_range_DSpinBox.setMaximum(constraints[axis2_name]['pos_max'])
-        self._mw.align_2d_axis2_range_DSpinBox.setSingleStep(constraints[axis2_name]['pos_step'],
-                                                             dynamic_stepping=False)
+        # self._mw.align_2d_axis2_range_DSpinBox.setSingleStep(constraints[axis2_name]['pos_step'],
+        #                                                      dynamic_stepping=False)
         self._mw.align_2d_axis2_range_DSpinBox.setSuffix(constraints[axis2_name]['unit'])
 
         self._mw.align_2d_axis2_step_DSpinBox.setMinimum(0)
         self._mw.align_2d_axis2_step_DSpinBox.setMaximum(constraints[axis2_name]['pos_max'])
-        self._mw.align_2d_axis2_step_DSpinBox.setSingleStep(constraints[axis2_name]['pos_step'],
-                                                            dynamic_stepping=False)
+        # self._mw.align_2d_axis2_step_DSpinBox.setSingleStep(constraints[axis2_name]['pos_step'],
+        #                                                     dynamic_stepping=False)
         self._mw.align_2d_axis2_step_DSpinBox.setSuffix(constraints[axis2_name]['unit'])
-
-        self._mw.align_2d_axis2_vel_DSpinBox.setMinimum(constraints[axis2_name]['vel_min'])
-        self._mw.align_2d_axis2_vel_DSpinBox.setMaximum(constraints[axis2_name]['vel_max'])
-        self._mw.align_2d_axis2_vel_DSpinBox.setSingleStep(constraints[axis2_name]['vel_step'],
-                                                           dynamic_stepping=False)
-        self._mw.align_2d_axis2_vel_DSpinBox.setSuffix(constraints[axis2_name]['unit']+'/s')
-
-    def _set_vel_display_axis0(self):
-        """ Set the visibility of the velocity display for axis 0. """
-
-        if self._mw.align_2d_axis0_set_vel_CheckBox.isChecked():
-            self._mw.align_2d_axis0_vel_DSpinBox.setVisible(True)
-        else:
-            self._mw.align_2d_axis0_vel_DSpinBox.setVisible(False)
-
-    def _set_vel_display_axis1(self):
-        """ Set the visibility of the velocity display for axis 1. """
-
-        if self._mw.align_2d_axis1_set_vel_CheckBox.isChecked():
-            self._mw.align_2d_axis1_vel_DSpinBox.setVisible(True)
-        else:
-            self._mw.align_2d_axis1_vel_DSpinBox.setVisible(False)
 
     def _update_2d_graph_axis(self):
 
@@ -1659,18 +1597,6 @@ class MagnetGui(GUIBase):
         self._mw.align_2d_axis0_step_DSpinBox.blockSignals(False)
         return step
 
-    def update_align_2d_axis0_vel(self,vel):
-        """ The GUT is updated taking vel into account. Thereby no signal is triggered!
-
-        @params float: Velocity to update
-
-        @return float: Velocity to update
-         """
-        self._mw.align_2d_axis0_vel_DSpinBox.blockSignals(True)
-        self._mw.align_2d_axis0_vel_DSpinBox.setValue(vel)
-        self._mw.align_2d_axis0_vel_DSpinBox.blockSignals(False)
-        return vel
-
     def update_align_2d_axis1_name(self, axisname):
         """ The GUT is updated taking axisname into account. Thereby no signal is triggered!
 
@@ -1708,17 +1634,6 @@ class MagnetGui(GUIBase):
         self._mw.align_2d_axis1_step_DSpinBox.blockSignals(False)
         return step
 
-    def update_align_2d_axis1_vel(self,vel):
-        """ The GUT is updated taking vel into account. Thereby no signal is triggered!
-
-        @params float: Velocity to update
-
-        @return float: Velocity to update
-         """
-        self._mw.align_2d_axis1_vel_DSpinBox.blockSignals(True)
-        self._mw.align_2d_axis1_vel_DSpinBox.setValue(vel)
-        self._mw.align_2d_axis1_vel_DSpinBox.blockSignals(False)
-        return vel
 
     def update_optimize_pos_freq(self, freq):
         """ The GUT is updated taking freq into account. Thereby no signal is triggered!
@@ -1826,6 +1741,3 @@ class MagnetGui(GUIBase):
             self._GLView.removeItem(self.vector_item)
             self.vector_item = gl.GLLinePlotItem(pos=np.array([[0,0,0],[curr_pos['x'],curr_pos['y'],curr_pos['z']]]), color=pg.glColor((255, 255, 255, 255)), width=5, antialias=True)
             self._GLView.addItem(self.vector_item)
-
-
-
