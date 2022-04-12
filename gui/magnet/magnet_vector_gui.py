@@ -374,8 +374,8 @@ class MagnetGui(GUIBase):
                 continue
             dspinbox_move_abs_ref = self.get_ref_move_abs_ScienDSpinBox(axis_label)
             dspinbox_move_abs_ref.setValue(curr_pos[axis_label])
-            #slider_move_abs_ref = self.get_ref_move_abs_Slider(axis_label)
-            #slider_move_abs_ref.setValue(curr_pos[axis_label])
+            slider_move_abs_ref = self.get_ref_move_abs_Slider(axis_label)
+            slider_move_abs_ref.setValue(curr_pos[axis_label])
 
         self._magnet_logic.sigPosChanged.connect(self.update_pos)
 
@@ -1234,17 +1234,17 @@ class MagnetGui(GUIBase):
             dspinbox_pos_ref = self.get_ref_curr_pos_ScienDSpinBox(axis_label)
 
             dspinbox_pos_ref.setValue(curr_pos[axis_label])
+            
 
             # update the values also of the absolute movement display:
-            #dspinbox_move_abs_ref = self.get_ref_move_abs_ScienDSpinBox(axis_label)
-            #dspinbox_move_abs_ref.setValue(curr_pos[axis_label])
+            if axis_label not in ['x','y','z']:
+                dspinbox_move_abs_ref = self.get_ref_move_abs_ScienDSpinBox(axis_label)
+                dspinbox_move_abs_ref.setValue(curr_pos[axis_label])
+                # slider_move_abs_ref = self.get_ref_move_abs_Slider(axis_label)
+                # slider_move_abs_ref.setValue(curr_pos[axis_label])
         
         self.update_GLView_vector(curr_pos)
         self.make_new_sphere(radius=curr_pos['rho'])
-
-        # self._mw.alignment_2d_GraphicsView.set_crosshair_pos(
-        #     [curr_pos[self._magnet_logic.align_2d_axis0_name],
-        #      curr_pos[self._magnet_logic.align_2d_axis1_name]])
         return curr_pos
 
     def run_stop_2d_alignment(self, is_checked):
