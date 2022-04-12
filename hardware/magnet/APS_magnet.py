@@ -135,7 +135,7 @@ class APSMagnet(Base, MagnetInterface):
         pos_max_dict = self.rho_pos_max({'rad': coord_list})
 
         # get the constraints for the x axis:
-        axis0 = {'label': self._x_axis.label,
+        axis0 = {'label': 'x',
                  'unit': 'T',
                  'ramp': ['Linear'],
                  'pos_min': -self.x_constr,
@@ -148,7 +148,7 @@ class APSMagnet(Base, MagnetInterface):
                  'acc_max': 0.0,
                  'acc_step': 0.0}
 
-        axis1 = {'label': self._y_axis.label,
+        axis1 = {'label': 'y',
                  'unit': 'T',
                  'ramp': ['Linear'],
                  'pos_min': -self.y_constr,
@@ -161,7 +161,7 @@ class APSMagnet(Base, MagnetInterface):
                  'acc_max': 0.0,
                  'acc_step': 0.0}
 
-        axis2 = {'label': self._z_axis.label,
+        axis2 = {'label': 'z',
                  'unit': 'T',
                  'ramp': ['Linear'],
                  'pos_min': -self.z_constr,
@@ -174,12 +174,12 @@ class APSMagnet(Base, MagnetInterface):
                  'acc_max': 0.0,
                  'acc_step': 0.0}
 
-        axis3 = {'label': self._phi_axis.label,
+        axis3 = {'label': 'phi',
                  'unit': 'rad',
                  'ramp': ['Sinus'],
                  'pos_min': 0,
                  'pos_max': 2*np.pi,
-                 'pos_step': 2*np.pi/1000,
+                 'pos_step': 2*np.pi/100,
                  'vel_min': 0,
                  'vel_max': 1,
                  'vel_step': 1e-6,
@@ -187,7 +187,7 @@ class APSMagnet(Base, MagnetInterface):
                  'acc_max': None,
                  'acc_step': None}
         
-        axis4 = {'label': 'rho', 'unit': 'T', 'pos_min': 0, 'pos_max': self.rho_constr, 'pos_step': 1e-6,
+        axis4 = {'label': 'rho', 'unit': 'T', 'pos_min': 0, 'pos_max': self.rho_constr, 'pos_step': 1e-3,
                  'vel_min': 0, 'vel_max': 1, 'vel_step': 1e-6}
 
         # In fact position constraints for rho is dependent on theta and phi, which would need
@@ -195,7 +195,7 @@ class APSMagnet(Base, MagnetInterface):
         # going to change the return value to a function rho_max_pos which needs the current theta and
         # phi position
         # get the constraints for the x axis:
-        axis5 = {'label': 'theta', 'unit': 'rad', 'pos_min': 0, 'pos_max': 2*np.pi, 'pos_step': 2*np.pi/1000, 'vel_min': 0,
+        axis5 = {'label': 'theta', 'unit': 'rad', 'pos_min': 0, 'pos_max': 2*np.pi, 'pos_step': 2*np.pi/100, 'vel_min': 0,
                  'vel_max': 1, 'vel_step': 1e-6}
 
         # assign the parameter container for x to a name which will identify it
@@ -524,6 +524,7 @@ class APSMagnet(Base, MagnetInterface):
         constr_dict = {mode: {'rad': coord_list}}
         self.log.debug('show new dictionary: {0}'.format(param_dict))
         check_bool = self.check_constraints(constr_dict)
+        self.log.info(f'CheckBool: {check_bool}')
         if check_bool:
             check_1 = self.set_coordinates(param_dict)
             check_2 = self.ramp()
@@ -718,11 +719,11 @@ class APSMagnet(Base, MagnetInterface):
         ask_dict = {'x': "IOUT?\n", 'y': "IOUT?\n", 'z': "IOUT?\n"}
         answ_dict = self.ask(ask_dict)
 
-        answ_dict['x'] = float(answ_dict['x'][:-4])/10
+        answ_dict['x'] = float(answ_dict['x'][:-2])/10
 
-        answ_dict['y'] = float(answ_dict['y'][:-4])/10
+        answ_dict['y'] = float(answ_dict['y'][:-2])/10
 
-        answ_dict['z'] = float(answ_dict['z'][:-4])/10
+        answ_dict['z'] = float(answ_dict['z'][:-2])/10
 
         return answ_dict
 
@@ -964,15 +965,16 @@ class APSMagnet(Base, MagnetInterface):
                     curr_field = self.get_current_field()
                     field_arr = np.array([coord_list,[curr_field['x'],curr_field['y'],curr_field['z']]]).T
                     cart_prod = itertools.product(*field_arr)
-                    flag = False
+
                     for possibility in cart_prod:
                         if np.sqrt(possibility[0]**2 + possibility[1]**2 + possibility[2]**2) > self.rho_constr:
-                            flag = True
-                    return flag
+                            return True, possibility
+                    return False, None
 
-                trans_field_magnitude_large = check_trans_field_magnitude(coord_list)
+                trans_field_magnitude_large, poss = check_trans_field_magnitude(coord_list)
                 if trans_field_magnitude_large:
                     self.log.warning('Vector magnitude may exceed constraint in transition from curr. field to setpoint!')
+                    self.log.warning(f'Possibility that exceeds rho contr.: {poss}')
                     my_boolean = False
 
             elif mode == "z_mode":

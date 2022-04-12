@@ -1223,7 +1223,7 @@ class MagnetGui(GUIBase):
         logic and the display is changed.
         """
         constraints = self._magnet_logic.get_hardware_constraints()
-        curr_pos = self._magnet_logic.get_pos()
+        curr_pos = self._magnet_logic.get_pos(list(constraints.keys()))
         if (param_list is not None) and (type(param_list) is not bool):
             param_list = list(param_list)
             # param_list =list(param_list) # convert for safety to a list
