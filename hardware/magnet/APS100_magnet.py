@@ -167,7 +167,7 @@ class Magnet(Base, MagnetInterface):
         pos_max_dict = self.rho_pos_max({'rad': coord_list})
 
         # get the constraints for the x axis:
-        axis0 = {'label': self._x_axis.label,
+        axis0 = {'label': 'x',
                  'unit': 'T',
                  'ramp': ['Linear'],
                  'pos_min': -self.x_constr,
@@ -180,7 +180,7 @@ class Magnet(Base, MagnetInterface):
                  'acc_max': 0.0,
                  'acc_step': 0.0}
 
-        axis1 = {'label': self._y_axis.label,
+        axis1 = {'label': 'y',
                  'unit': 'T',
                  'ramp': ['Linear'],
                  'pos_min': -self.y_constr,
@@ -193,7 +193,7 @@ class Magnet(Base, MagnetInterface):
                  'acc_max': 0.0,
                  'acc_step': 0.0}
 
-        axis2 = {'label': self._z_axis.label,
+        axis2 = {'label': 'z',
                  'unit': 'T',
                  'ramp': ['Linear'],
                  'pos_min': -self.z_constr,
@@ -205,8 +205,15 @@ class Magnet(Base, MagnetInterface):
                  'acc_min': 0.1e-3,
                  'acc_max': 0.0,
                  'acc_step': 0.0}
+        
+        axis3 = {'label': 'rho', 'unit': 'T', 'pos_min': 0, 'pos_max': self.rho_constr, 'pos_step': 1e-6,
+                 'vel_min': 0, 'vel_max': 1, 'vel_step': 1e-6}
 
-        axis3 = {'label': self._phi_axis.label,
+
+        axis4 = {'label': 'theta', 'unit': 'rad', 'pos_min': 0, 'pos_max': 2*np.pi, 'pos_step': 2*np.pi/1000, 'vel_min': 0,
+                 'vel_max': 1, 'vel_step': 1e-6}
+
+        axis5 = {'label': 'phi',
                  'unit': 'rad',
                  'ramp': ['Sinus'],
                  'pos_min': 0,
@@ -219,16 +226,7 @@ class Magnet(Base, MagnetInterface):
                  'acc_max': None,
                  'acc_step': None}
         
-        axis4 = {'label': 'rho', 'unit': 'T', 'pos_min': 0, 'pos_max': self.rho_constr, 'pos_step': 1e-6,
-                 'vel_min': 0, 'vel_max': 1, 'vel_step': 1e-6}
-
-        # In fact position constraints for rho is dependent on theta and phi, which would need
-        # the use of an additional function to calculate
-        # going to change the return value to a function rho_max_pos which needs the current theta and
-        # phi position
-        # get the constraints for the x axis:
-        axis5 = {'label': 'theta', 'unit': 'rad', 'pos_min': 0, 'pos_max': 2*np.pi, 'pos_step': 2*np.pi/1000, 'vel_min': 0,
-                 'vel_max': 1, 'vel_step': 1e-6}
+        
 
         # assign the parameter container for x to a name which will identify it
 
@@ -236,9 +234,9 @@ class Magnet(Base, MagnetInterface):
         constraints[axis0['label']] = axis0
         constraints[axis1['label']] = axis1
         constraints[axis2['label']] = axis2
+        constraints[axis3['label']] = axis3
         constraints[axis4['label']] = axis4
         constraints[axis5['label']] = axis5
-        constraints[axis3['label']] = axis3
 
         return constraints
 
