@@ -949,7 +949,7 @@ class MagnetLogic(GenericLogic):
         axes = list(self._magnet_device.get_constraints().keys())
         state = self._magnet_device.get_status()
 
-        return (state[axes[0]] and state[axes[1]] and state[axes[2]]) is 1
+        return not (state[axes[0]] and state[axes[1]] and state[axes[2]])
 
     def _set_meas_point(self, meas_val, add_meas_val, pathway_index, back_map):
 
