@@ -209,7 +209,7 @@ class MagnetLogic(GenericLogic):
             axes = list(self._magnet_device.get_constraints())
             self.align_2d_axis2_name = axes[2]
 
-        self.sigTest.connect(self._do_premeasurement_proc)
+        # self.sigTest.connect(self._do_premeasurement_proc)
 
         if '_1D_add_data_matrix' in self._statusVariables:
             self._1D_add_data_matrix = self._statusVariables['_1D_add_data_matrix']
@@ -769,7 +769,7 @@ class MagnetLogic(GenericLogic):
             self._end_alignment_procedure()
             return
 
-        self._do_premeasurement_proc()
+        # self._do_premeasurement_proc()
         pos = self._magnet_device.get_pos()
         end_pos = self._pathway[self._pathway_index]
         self.log.debug('end_pos {0}'.format(end_pos))
@@ -814,7 +814,7 @@ class MagnetLogic(GenericLogic):
         if self._pathway_index < len(self._pathway):
 
             #
-            self._do_postmeasurement_proc()
+            # self._do_postmeasurement_proc()
             move_dict_vel, \
             move_dict_abs, \
             move_dict_rel = self._move_to_index(self._pathway_index, self._pathway)
@@ -946,10 +946,10 @@ class MagnetLogic(GenericLogic):
         @return bool: True indicates the magnet is moving, False the magnet stopped movement
         """
         # get axis names
-        axes = [i for i in self._magnet_device.get_constraints()]
+        axes = list(self._magnet_device.get_constraints().keys())
         state = self._magnet_device.get_status()
 
-        return (state[axes[0]] or state[axes[1]] or state[axes[2]]) is (1 or -1)
+        return (state[axes[0]] and state[axes[1]] and state[axes[2]]) is 1
 
     def _set_meas_point(self, meas_val, add_meas_val, pathway_index, back_map):
 
