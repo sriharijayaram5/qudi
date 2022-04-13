@@ -366,7 +366,7 @@ class APSMagnet(Base, MagnetInterface):
             return -1
 
         new_coord = [field_dict['x'], field_dict['y'], field_dict['z']]
-        check_var = self.check_constraints({mode: {'cart': new_coord}})
+        check_var = not self.check_constraints({mode: {'cart': new_coord}})
         if np.sqrt(new_coord[0]**2 + new_coord[1]**2 + new_coord[2]**2)>self.rho_constr: #T
             return -1
         # everything in kG. Conversion could be done here from Tesla
