@@ -323,6 +323,7 @@ class MagnetGui(GUIBase):
         self._create_axis_pos_disp()
         self._create_move_rel_control()
         self._create_move_abs_control()
+        self.last_pos = {'rho':0.0}
 
         self._create_meas_type_RadioButtons()
 
@@ -412,13 +413,13 @@ class MagnetGui(GUIBase):
 
         # Set initial position for the crosshair, default is current magnet position
         current_position = self._magnet_logic.get_pos()
-        current_2d_array = self._magnet_logic.get_2d_axis_arrays()
+        # _,current_2d_array = self._magnet_logic.get_2d_axis_arrays()
         # ini_pos_x_crosshair = current_position[self._magnet_logic.align_2d_axis0_name]
         # ini_pos_y_crosshair = current_position[self._magnet_logic.align_2d_axis1_name]
 
-        ini_width_crosshair = [
-            (current_2d_array[0][-1] - current_2d_array[0][0]) / len(current_2d_array[0]),
-            (current_2d_array[1][-1] - current_2d_array[1][0]) / len(current_2d_array[0])]
+        # ini_width_crosshair = [
+        #     (current_2d_array[0][-1] - current_2d_array[0][0]) / len(current_2d_array[0]),
+        #     (current_2d_array[1][-1] - current_2d_array[1][0]) / len(current_2d_array[0])]
         # self._mw.alignment_2d_GraphicsView.toggle_crosshair(True, movable=True)
         # self._mw.alignment_2d_GraphicsView.set_crosshair_pos((ini_pos_x_crosshair, ini_pos_y_crosshair))
         # self._mw.alignment_2d_GraphicsView.set_crosshair_size(ini_width_crosshair)
@@ -1224,6 +1225,7 @@ class MagnetGui(GUIBase):
         """
         constraints = self._magnet_logic.get_hardware_constraints()
         curr_pos = self._magnet_logic.get_pos(list(constraints.keys()))
+        self.last_pos = curr_pos
         if (param_list is not None) and (type(param_list) is not bool):
             param_list = list(param_list)
             # param_list =list(param_list) # convert for safety to a list
@@ -1389,7 +1391,7 @@ class MagnetGui(GUIBase):
             self._3D_axis.del_items()
 
         # self._3D_axis = _3DAxisItem(rho=self._magnet_logic.get_pos(['rho'])['rho'], thetas=axis0_array, phis=axis1_array, n_ticks=5, view=self._GLView, axis=False)
-        self._3D_axis = _3DAxisItem(rho=1, thetas=axis0_array, phis=axis1_array, n_ticks=5, view=self._GLView, axis=False)
+        self._3D_axis = _3DAxisItem(rho=self.last_pos['rho'], thetas=axis0_array, phis=axis1_array, n_ticks=5, view=self._GLView, axis=False)
         # self._2d_alignment_ImageItem.set_image_extent([[axis0_array[0]-step0/2, axis0_array[-1]+step0/2],
         #                                                [axis1_array[0]-step1/2, axis1_array[-1]+step1/2]])
 
@@ -1466,7 +1468,7 @@ class MagnetGui(GUIBase):
             self._2d_alignment_ImageItem.del_items()
             
         # self._3d_alignment_ImageItem = _3DAlignmentImageItem(rho=self._magnet_logic.get_pos(['rho'])['rho'], thetas=axis0_array, phis=axis1_array, view=self._GLView)
-        self._2d_alignment_ImageItem = _3DAlignmentImageItem(rho=1, thetas=axis0_array, phis=axis1_array, view=self._GLView)
+        self._2d_alignment_ImageItem = _3DAlignmentImageItem(rho=self.last_pos['rho'], thetas=axis0_array, phis=axis1_array, view=self._GLView)
         self._2d_alignment_ImageItem.setImage(matrix=matrix_data, levels=(cb_min, cb_max))
         self._update_2d_graph_axis()
 

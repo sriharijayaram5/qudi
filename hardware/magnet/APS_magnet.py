@@ -130,9 +130,6 @@ class APSMagnet(Base, MagnetInterface):
         hardware files to get an impression.
         """
         constraints = OrderedDict()
-        pos_dict = self.get_pos()
-        coord_list = [pos_dict['rho'], pos_dict['theta'], pos_dict['phi']]
-        pos_max_dict = self.rho_pos_max({'rad': coord_list})
 
         # get the constraints for the x axis:
         axis0 = {'label': 'x',
@@ -321,9 +318,9 @@ class APSMagnet(Base, MagnetInterface):
             status_plural = self.ask_status()
         status_dict = {}
         for axes in status_plural:
-            curr_I = float(status_plural[axes][:-4])
-            set_I = float(field_dict[axes][:-4])
-            translated_status = 1 if np.isclose([curr_I],[set_I], atol=1e-4) else 0
+            set_I = float(status_plural[axes][:-2])/10
+            curr_I = float(field_dict[axes])
+            translated_status = np.isclose([curr_I],[set_I], atol=1e-4)
             status_dict[axes] = translated_status
 
         return status_dict
@@ -375,17 +372,17 @@ class APSMagnet(Base, MagnetInterface):
         if check_var:
             self.log.info(f'Setting in kG: {param_dict}')
             if param_dict.get('x') is not None:
-                lim = 'U' if old_dict['x']<field_dict['x'] else 'L'
+                lim = 'U' if old_dict['x']<=field_dict['x'] else 'L'
                 self.x_dir = 'UP' if lim=='U' else 'DOWN'
                 cmd = f"{lim}LIM {param_dict['x']:.5f}"
                 self.tell({'x':f'{cmd}'})
             if param_dict.get('y') is not None:
-                lim = 'U' if old_dict['y']<field_dict['y'] else 'L'
+                lim = 'U' if old_dict['y']<=field_dict['y'] else 'L'
                 self.y_dir = 'UP' if lim=='U' else 'DOWN'
                 cmd = f"{lim}LIM {param_dict['y']:.5f}"
                 self.tell({'y':f'{cmd}'})
             if param_dict.get('z') is not None:
-                lim = 'U' if old_dict['z']<field_dict['z'] else 'L'
+                lim = 'U' if old_dict['z']<=field_dict['z'] else 'L'
                 self.z_dir = 'UP' if lim=='U' else 'DOWN'
                 cmd = f"{lim}LIM {param_dict['z']:.5f}"
                 self.tell({'z':f'{cmd}'})
@@ -790,7 +787,7 @@ class APSMagnet(Base, MagnetInterface):
         return ab
 
     def ask_status(self, param_list = None):
-        """ Function that returns the status of the coils ('x','y' and 'z') given in the
+        """ Function that returns the set current of the coils ('x','y' and 'z') given in the
             param_dict
 
             @param list param_list: string (elements allowed  'x', 'y' and 'z')
@@ -803,15 +800,19 @@ class APSMagnet(Base, MagnetInterface):
             For further information on the meaning of the numbers see
             translated_get_status()
             """
+        temp_dict = {}
         ask_dict = {}
+        temp_dict['x'] = "ULIM?\n" if self.x_dir == 'UP' else "LLIM?\n"
+        temp_dict['y'] = "ULIM?\n" if self.y_dir == 'UP' else "LLIM?\n"
+        temp_dict['z'] = "ULIM?\n" if self.z_dir == 'UP' else "LLIM?\n"
 
         if not param_list:
-            ask_dict['x'] = "IOUT?\n"
-            ask_dict['y'] = "IOUT?\n"
-            ask_dict['z'] = "IOUT?\n"
+            ask_dict['x'] = temp_dict['x']
+            ask_dict['y'] = temp_dict['y']
+            ask_dict['z'] = temp_dict['z']
         else:
             for axis in param_list:
-                ask_dict[axis] = "IOUT?\n"
+                ask_dict[axis] = temp_dict[axis]
 
         answer_dict = self.ask(ask_dict)
 
