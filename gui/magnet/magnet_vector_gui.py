@@ -21,6 +21,7 @@ top-level directory of this distribution and at <https://github.com/Ulm-IQO/qudi
 """
 
 import datetime
+from hashlib import new
 import numpy as np
 import os
 import pyqtgraph as pg
@@ -32,7 +33,7 @@ from matplotlib import cm
 import pyqtgraph.opengl as gl
 from core.connector import Connector
 from core.statusvariable import StatusVar
-from gui.colordefs import ColorScaleInferno
+from gui.colordefs import ColorScaleViridis
 from gui.guibase import GUIBase
 from gui.guiutils import ColorBar
 from qtpy import QtCore, QtGui
@@ -82,7 +83,6 @@ class _3DAlignmentImageItem():
             try:
                 self.parent_view.removeItem(item)
             except:
-                print('No items to remove')
                 return
     
     def make_face(self, index):
@@ -180,7 +180,6 @@ class _3DAxisItem():
             try:
                 self.parent_view.removeItem(item)
             except:
-                print('No items to remove')
                 return
                 
     def make_axis(self):
@@ -315,6 +314,8 @@ class MagnetGui(GUIBase):
         self._GLView = None
         self._3D_axis = None
         self._2d_alignment_ImageItem = None
+        self.new_vector_item = None
+        self.opt_vector_item = None
 
         # create all the needed control elements. They will manage the
         # connection with each other themselves. Note some buttons are also
@@ -379,6 +380,7 @@ class MagnetGui(GUIBase):
             slider_move_abs_ref.setValue(curr_pos[axis_label])
 
         self._magnet_logic.sigPosChanged.connect(self.update_pos)
+        self._magnet_logic.sigFitFinished.connect(self.give_pos_to_update_GLView_new_vector)
 
         # Connect alignment GUI elements:
 
@@ -408,11 +410,11 @@ class MagnetGui(GUIBase):
         layout.addWidget(self._GLView)
         self._mw.frame.setLayout(layout)
         
-        my_colors = ColorScaleInferno()
+        my_colors = ColorScaleViridis()
         # self._2d_alignment_ImageItem.setLookupTable(my_colors.lut)
 
         # Set initial position for the crosshair, default is current magnet position
-        current_position = self._magnet_logic.get_pos()
+        # current_position = self._magnet_logic.get_pos()
         # _,current_2d_array = self._magnet_logic.get_2d_axis_arrays()
         # ini_pos_x_crosshair = current_position[self._magnet_logic.align_2d_axis0_name]
         # ini_pos_y_crosshair = current_position[self._magnet_logic.align_2d_axis1_name]
@@ -458,6 +460,7 @@ class MagnetGui(GUIBase):
         self._3D_axis.del_items()
         self._2d_alignment_ImageItem.del_items()
         self._init_GLView()
+        self._mw.alignment_2d_cb_high_centiles_DSpinBox.setValue(100)
 
 
         # Add save file tag input box
@@ -484,7 +487,11 @@ class MagnetGui(GUIBase):
                 continue
             self.get_ref_move_rel_ScienDSpinBox(axis_label).setValue(self._magnet_logic.move_rel_dict[axis_label])
             self.get_ref_move_rel_ScienDSpinBox(axis_label).editingFinished.connect(self.move_rel_para_changed)
-            #print('self.get_ref_move_rel_ScienDSpinBox('+axis_label+').valueChanged.connect(lambda: self.move_rel_changed('+axis_label+'))')
+
+            dspinbox_move_abs_ref = self.get_ref_move_abs_ScienDSpinBox(axis_label)
+            dspinbox_move_abs_ref.editingFinished.connect(self.give_pos_to_update_GLView_new_vector)
+            slider_move_abs_ref = self.get_ref_move_abs_Slider(axis_label)
+            slider_move_abs_ref.sliderReleased.connect(self.give_pos_to_update_GLView_new_vector)
 
         # General 2d alignment:
         # index = self._mw.align_2d_axis0_name_ComboBox.findText(self._magnet_logic.align_2d_axis0_name)
@@ -536,6 +543,7 @@ class MagnetGui(GUIBase):
         self._magnet_logic.sigOptPosFreqChanged.connect(self.update_optimize_pos_freq)
         self._magnet_logic.sigFluoIntTimeChanged.connect(self.update_fluorescence_integration_time)
 
+        self.restoreWindowPos(self._mw)
         return 0
 
     def _activate_magnet_settings(self):
@@ -575,7 +583,7 @@ class MagnetGui(GUIBase):
         self._statusVariables['measurement_type'] = self.measurement_type
         self._alignment_2d_cb_label =  self._mw.alignment_2d_cb_GraphicsView.plotItem.axes['right']['item'].labelText
         self._alignment_2d_cb_units = self._mw.alignment_2d_cb_GraphicsView.plotItem.axes['right']['item'].labelUnits
-
+        self.saveWindowGeometry(self._mw)
         self._mw.close()
 
     def show(self):
@@ -1239,9 +1247,9 @@ class MagnetGui(GUIBase):
             
 
             # update the values also of the absolute movement display:
-            if axis_label not in ['x','y','z']:
-                dspinbox_move_abs_ref = self.get_ref_move_abs_ScienDSpinBox(axis_label)
-                dspinbox_move_abs_ref.setValue(curr_pos[axis_label])
+            # if axis_label not in ['x','y','z']:
+            #     dspinbox_move_abs_ref = self.get_ref_move_abs_ScienDSpinBox(axis_label)
+            #     dspinbox_move_abs_ref.setValue(curr_pos[axis_label])
                 # slider_move_abs_ref = self.get_ref_move_abs_Slider(axis_label)
                 # slider_move_abs_ref.setValue(curr_pos[axis_label])
         
@@ -1429,8 +1437,8 @@ class MagnetGui(GUIBase):
         else:
             cb_min = self._mw.alignment_2d_cb_min_centiles_DSpinBox.value()
             cb_max = self._mw.alignment_2d_cb_max_centiles_DSpinBox.value()
-
-        cb_min, cb_max = 0, 100
+        
+        cb_min = 0 if cb_min>cb_max else cb_min
 
         self._2d_alignment_cb.refresh_colorbar(cb_min, cb_max)
         self._mw.alignment_2d_cb_GraphicsView.update()
@@ -1466,6 +1474,8 @@ class MagnetGui(GUIBase):
 
         if self._2d_alignment_ImageItem:
             self._2d_alignment_ImageItem.del_items()
+
+        cb_min = 0 if cb_min>cb_max else cb_min
             
         # self._3d_alignment_ImageItem = _3DAlignmentImageItem(rho=self._magnet_logic.get_pos(['rho'])['rho'], thetas=axis0_array, phis=axis1_array, view=self._GLView)
         self._2d_alignment_ImageItem = _3DAlignmentImageItem(rho=self.last_pos['rho'], thetas=axis0_array, phis=axis1_array, view=self._GLView)
@@ -1743,3 +1753,38 @@ class MagnetGui(GUIBase):
             self._GLView.removeItem(self.vector_item)
             self.vector_item = gl.GLLinePlotItem(pos=np.array([[0,0,0],[curr_pos['x'],curr_pos['y'],curr_pos['z']]]), color=pg.glColor((255, 255, 255, 255)), width=5, antialias=True)
             self._GLView.addItem(self.vector_item)
+    
+    def update_GLView_new_vector(self, new_pos):
+        if self._GLView:
+            if self.new_vector_item:
+                self._GLView.removeItem(self.new_vector_item)
+            self.new_vector_item = gl.GLLinePlotItem(pos=np.array([[0,0,0],[new_pos['x'],new_pos['y'],new_pos['z']]]), color=pg.glColor((142, 199, 210, 255)), width=5, antialias=True)
+            self._GLView.addItem(self.new_vector_item)
+    
+    def update_GLView_opt_vector(self, new_pos):
+        if self._GLView:
+            if self.opt_vector_item:
+                self._GLView.removeItem(self.opt_vector_item)
+            self.opt_vector_item = gl.GLLinePlotItem(pos=np.array([[0,0,0],[new_pos['x'],new_pos['y'],new_pos['z']]]), color=pg.glColor((255, 195, 0, 255)), width=5, antialias=True)
+            self._GLView.addItem(self.opt_vector_item)
+    
+    def give_pos_to_update_GLView_new_vector(self):
+        constraints=self._magnet_logic.get_hardware_constraints()
+        new_pos_dict = {}
+        for axis_label in list(constraints):
+            if axis_label in ['x','y','z']:
+                continue
+            dspinbox_move_abs_ref = self.get_ref_move_abs_ScienDSpinBox(axis_label)
+            new_pos_dict[axis_label] = dspinbox_move_abs_ref.value()
+        new_pos = {}
+        new_pos['x'] = new_pos_dict['rho'] * np.sin(new_pos_dict['theta']) * np.cos(new_pos_dict['phi'])
+        new_pos['y'] = new_pos_dict['rho'] * np.sin(new_pos_dict['theta']) * np.sin(new_pos_dict['phi'])
+        new_pos['z'] = new_pos_dict['rho'] * np.cos(new_pos_dict['theta'])
+        self.update_GLView_new_vector(new_pos)
+    
+    def give_pos_to_update_GLView_new_vector(self, new_pos_dict):
+        new_pos = {}
+        new_pos['x'] = new_pos_dict['rho'] * np.sin(new_pos_dict['theta']) * np.cos(new_pos_dict['phi'])
+        new_pos['y'] = new_pos_dict['rho'] * np.sin(new_pos_dict['theta']) * np.sin(new_pos_dict['phi'])
+        new_pos['z'] = new_pos_dict['rho'] * np.cos(new_pos_dict['theta'])
+        self.update_GLView_opt_vector(new_pos)

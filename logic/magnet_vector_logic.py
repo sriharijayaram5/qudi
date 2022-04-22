@@ -30,6 +30,8 @@ from core.statusvariable import StatusVar
 from logic.generic_logic import GenericLogic
 from qtpy import QtCore
 from interface.slow_counter_interface import CountingMode
+import matplotlib as mpl
+import matplotlib.pyplot as plt
 
 
 class MagnetLogic(GenericLogic):
@@ -68,6 +70,7 @@ class MagnetLogic(GenericLogic):
     magnetstage = Connector(interface='MagnetInterface')
     counterlogic = Connector(interface='CounterLogic')
     savelogic = Connector(interface='SaveLogic')
+    fitlogic = Connector(interface='FitLogic')
 
     align_2d_axis0_name = StatusVar('align_2d_axis0_name', 'theta')
     align_2d_axis1_name = StatusVar('align_2d_axis1_name', 'phi')
@@ -147,6 +150,7 @@ class MagnetLogic(GenericLogic):
     # signals for fluorescence alignment
     sigFluoIntTimeChanged = QtCore.Signal(float)
     sigOptPosFreqChanged = QtCore.Signal(float)
+    sigFitFinished = QtCore.Signal(dict)
 
     sigTest = QtCore.Signal()
 
@@ -160,6 +164,7 @@ class MagnetLogic(GenericLogic):
         """
         self._magnet_device = self.magnetstage()
         self._save_logic = self.savelogic()
+        self._fit_logic = self.fitlogic()
 
         # FIXME: THAT IS JUST A TEMPORARY SOLUTION! Implement the access on the
         #       needed methods via the TaskRunner!
@@ -644,8 +649,8 @@ class MagnetLogic(GenericLogic):
 
         self._stop_measure = False
 
-        # self._axis0_name = axis0_name
-        # self._axis1_name = axis1_name
+        # self.align_2d_axis0_name = axis0_name
+        # self.align_2d_axis1_name = axis1_name
 
         # get name of other axis to control their values
         self._control_dict = {}
@@ -1163,6 +1168,38 @@ class MagnetLogic(GenericLogic):
 
         self.log.debug('Magnet 2D data saved to:\n{0}'.format(filepath))
 
+        figure_data = matrix_data['Alignment Matrix']
+        
+        image_extent = [self._2D_axis0_data.min(),
+                        self._2D_axis0_data.max(),
+                        self._2D_axis1_data.min(),
+                        self._2D_axis1_data.max()]
+        axes = ['theta', 'phi']
+
+        figs = self.draw_figure(data=figure_data,
+                                     image_extent=image_extent,
+                                     scan_axis=axes,
+                                     cbar_range=None,
+                                     percentile_range=None,
+                                     crosshair_pos=None)
+
+        # Save the image data and figure
+        image_data = OrderedDict()
+        image_data['Alignment image data without axis.\n'
+            'The upper left entry represents the signal at the upper left pixel position.\n'
+            'A pixel-line in the image corresponds to a row '
+            'of entries where the Signal is in counts/s:'] = figure_data
+
+        filelabel = 'alignment_image'
+        self._save_logic.save_data(image_data,
+                                    filepath=filepath,
+                                    timestamp=timestamp,
+                                    parameters=parameters,
+                                    filelabel=filelabel,
+                                    fmt='%.6e',
+                                    delimiter='\t',
+                                    plotfig=figs)
+
         # prepare the data in a dict or in an OrderedDict:
         add_data = OrderedDict()
         axis0_data = np.zeros(len(self._backmap))
@@ -1170,17 +1207,17 @@ class MagnetLogic(GenericLogic):
         param_data = np.zeros(len(self._backmap), dtype='object')
 
         for backmap_index in self._backmap:
-            axis0_data[backmap_index] = self._backmap[backmap_index][self._axis0_name]
-            axis1_data[backmap_index] = self._backmap[backmap_index][self._axis1_name]
+            axis0_data[backmap_index] = self._backmap[backmap_index][self.align_2d_axis0_name]
+            axis1_data[backmap_index] = self._backmap[backmap_index][self.align_2d_axis1_name]
             param_data[backmap_index] = str(self._2D_add_data_matrix[self._backmap[backmap_index]['index']])
 
         constr = self.get_hardware_constraints()
-        units_axis0 = constr[self._axis0_name]['unit']
-        units_axis1 = constr[self._axis1_name]['unit']
+        units_axis0 = constr[self.align_2d_axis0_name]['unit']
+        units_axis1 = constr[self.align_2d_axis1_name]['unit']
 
-        add_data['{0} values ({1})'.format(self._axis0_name, units_axis0)] = axis0_data
-        add_data['{0} values ({1})'.format(self._axis1_name, units_axis1)] = axis1_data
-        add_data['all measured additional parameter'] = param_data
+        add_data['{0} values ({1})'.format(self.align_2d_axis0_name, units_axis0)] = axis0_data
+        add_data['{0} values ({1})'.format(self.align_2d_axis1_name, units_axis1)] = axis1_data
+        # add_data['all measured additional parameter'] = param_data
 
         self._save_logic.save_data(add_data, filepath=filepath, filelabel=filelabel2,
                                    timestamp=timestamp)
@@ -1190,8 +1227,8 @@ class MagnetLogic(GenericLogic):
         x_val = self._2D_axis0_data
         y_val = self._2D_axis1_data
         save_dict = OrderedDict()
-        axis0_key = '{0} values ({1})'.format(self._axis0_name, units_axis0)
-        axis1_key = '{0} values ({1})'.format(self._axis1_name, units_axis1)
+        axis0_key = '{0} values ({1})'.format(self.align_2d_axis0_name, units_axis0)
+        axis1_key = '{0} values ({1})'.format(self.align_2d_axis1_name, units_axis1)
         counts_key = 'counts (c/s)'
         save_dict[axis0_key] = []
         save_dict[axis1_key] = []
@@ -1234,6 +1271,143 @@ class MagnetLogic(GenericLogic):
         self._save_logic.save_data(error, filepath=filepath, filelabel=filelabel6,
                                    timestamp=timestamp)
 
+    def draw_figure(self, data, image_extent, scan_axis=None, cbar_range=None, percentile_range=None,  crosshair_pos=None):
+        """ Create a 2-D color map figure of the scan image.
+
+        @param: array data: The NxM array of count values from a scan with NxM pixels.
+
+        @param: list image_extent: The scan range in the form [hor_min, hor_max, ver_min, ver_max]
+
+        @param: list axes: Names of the horizontal and vertical axes in the image
+
+        @param: list cbar_range: (optional) [color_scale_min, color_scale_max].  If not supplied then a default of
+                                 data_min to data_max will be used.
+
+        @param: list percentile_range: (optional) Percentile range of the chosen cbar_range.
+
+        @param: list crosshair_pos: (optional) crosshair position as [hor, vert] in the chosen image axes.
+
+        @return: fig fig: a matplotlib figure object to be saved to file.
+        """
+        if scan_axis is None:
+            scan_axis = ['X', 'Y']
+
+        # If no colorbar range was given, take full range of data
+        if cbar_range is None:
+            cbar_range = [np.min(data), np.max(data)]
+
+        # Scale color values using SI prefix
+        prefix = ['', 'k', 'M', 'G']
+        prefix_count = 0
+        image_data = data
+        draw_cb_range = np.array(cbar_range)
+        image_dimension = image_extent.copy()
+
+        while draw_cb_range[1] > 1000:
+            image_data = image_data/1000
+            draw_cb_range = draw_cb_range/1000
+            prefix_count = prefix_count + 1
+
+        c_prefix = prefix[prefix_count]
+
+
+        # Scale axes values using SI prefix
+        axes_prefix = ['', 'm', r'$\mathrm{\mu}$', 'n']
+        x_prefix_count = 0
+        y_prefix_count = 0
+
+        while np.abs(image_dimension[1]-image_dimension[0]) < 1:
+            image_dimension[0] = image_dimension[0] * 1000.
+            image_dimension[1] = image_dimension[1] * 1000.
+            x_prefix_count = x_prefix_count + 1
+
+        while np.abs(image_dimension[3] - image_dimension[2]) < 1:
+            image_dimension[2] = image_dimension[2] * 1000.
+            image_dimension[3] = image_dimension[3] * 1000.
+            y_prefix_count = y_prefix_count + 1
+
+        x_prefix = axes_prefix[x_prefix_count]
+        y_prefix = axes_prefix[y_prefix_count]
+
+        # Use qudi style
+        plt.style.use(self._save_logic.mpl_qd_style)
+
+        # Create figure
+        fig, ax = plt.subplots()
+
+        # Create image plot
+        cfimage = ax.imshow(image_data,
+                            cmap=plt.get_cmap('viridis'), # reference the right place in qd
+                            origin="lower",
+                            vmin=draw_cb_range[0],
+                            vmax=draw_cb_range[1],
+                            interpolation='none',
+                            extent=image_dimension
+                            )
+
+        ax.set_aspect(1)
+        ax.set_xlabel(scan_axis[0] + ' (' + x_prefix + 'rad)')
+        ax.set_ylabel(scan_axis[1] + ' (' + y_prefix + 'rad)')
+        ax.spines['bottom'].set_position(('outward', 10))
+        ax.spines['left'].set_position(('outward', 10))
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+        ax.get_xaxis().tick_bottom()
+        ax.get_yaxis().tick_left()
+
+        # draw the crosshair position if defined
+        if crosshair_pos is not None:
+            trans_xmark = mpl.transforms.blended_transform_factory(
+                ax.transData,
+                ax.transAxes)
+
+            trans_ymark = mpl.transforms.blended_transform_factory(
+                ax.transAxes,
+                ax.transData)
+
+            ax.annotate('', xy=(crosshair_pos[0]*np.power(1000,x_prefix_count), 0),
+                        xytext=(crosshair_pos[0]*np.power(1000,x_prefix_count), -0.01), xycoords=trans_xmark,
+                        arrowprops=dict(facecolor='#17becf', shrink=0.05),
+                        )
+
+            ax.annotate('', xy=(0, crosshair_pos[1]*np.power(1000,y_prefix_count)),
+                        xytext=(-0.01, crosshair_pos[1]*np.power(1000,y_prefix_count)), xycoords=trans_ymark,
+                        arrowprops=dict(facecolor='#17becf', shrink=0.05),
+                        )
+
+        # Draw the colorbar
+        cbar = plt.colorbar(cfimage, shrink=0.8)#, fraction=0.046, pad=0.08, shrink=0.75)
+        cbar.set_label('Fluorescence (' + c_prefix + 'c/s)')
+
+        # remove ticks from colorbar for cleaner image
+        cbar.ax.tick_params(which=u'both', length=0)
+
+        # If we have percentile information, draw that to the figure
+        if percentile_range is not None:
+            cbar.ax.annotate(str(percentile_range[0]),
+                             xy=(-0.3, 0.0),
+                             xycoords='axes fraction',
+                             horizontalalignment='right',
+                             verticalalignment='center',
+                             rotation=90
+                             )
+            cbar.ax.annotate(str(percentile_range[1]),
+                             xy=(-0.3, 1.0),
+                             xycoords='axes fraction',
+                             horizontalalignment='right',
+                             verticalalignment='center',
+                             rotation=90
+                             )
+            cbar.ax.annotate('(percentile)',
+                             xy=(-0.3, 0.5),
+                             xycoords='axes fraction',
+                             horizontalalignment='right',
+                             verticalalignment='center',
+                             rotation=90
+                             )
+
+        return fig
+
     def _move_to_index(self, pathway_index, pathway):
 
         # make here the move and set also for the move the velocity, if
@@ -1265,6 +1439,44 @@ class MagnetLogic(GenericLogic):
                              'the passed value "{0}" is either zero or negative!\n'
                              'Choose a proper checktime value in seconds, the old '
                              'value will be kept!')
+    
+    def _set_optimized_xy_from_fit(self):
+        """Fit the completed xy optimizer scan and set the optimized xy position."""
+        fit_x, fit_y = np.meshgrid(self._2D_axis0_data, self._2D_axis1_data)
+        xy_fit_data = self._2D_data_matrix.ravel()
+        axes = np.empty((len(self._2D_axis0_data) * len(self._2D_axis1_data), 2))
+        axes = (fit_x.flatten(), fit_y.flatten())
+        result_2D_gaus = self._fit_logic.make_twoDgaussian_fit(
+            xy_axes=axes,
+            data=xy_fit_data,
+            estimator=self._fit_logic.estimate_twoDgaussian_MLE
+        )
+        # print(result_2D_gaus.fit_report())
+        curr_pos = self.get_pos()
+        self._initial_pos_x, self._initial_pos_y = curr_pos['theta'], curr_pos['phi']
+        if result_2D_gaus.success is False:
+            self.log.error('Error: 2D Gaussian Fit was not successfull!.')
+            print('2D gaussian fit not successfull')
+            self.optim_pos_x = self._initial_pos_x
+            self.optim_pos_y = self._initial_pos_y
+            self.optim_sigma_x = 0.
+            self.optim_sigma_y = 0.
+        else:
+            if result_2D_gaus.best_values['center_x']>2*np.pi:
+                result_2D_gaus.best_values['center_x'] -= 2*np.pi
+            if result_2D_gaus.best_values['center_y']>2*np.pi:
+                result_2D_gaus.best_values['center_y'] -= 2*np.pi
+            if result_2D_gaus.best_values['center_x']<2*np.pi:
+                result_2D_gaus.best_values['center_x'] += 2*np.pi
+            if result_2D_gaus.best_values['center_y']<2*np.pi:
+                result_2D_gaus.best_values['center_y'] += 2*np.pi
+            self.optim_pos_x = result_2D_gaus.best_values['center_x']
+            self.optim_pos_y = result_2D_gaus.best_values['center_y']
+            self.optim_sigma_x = result_2D_gaus.best_values['sigma_x']
+            self.optim_sigma_y = result_2D_gaus.best_values['sigma_y']
+
+        # emit image updated signal so crosshair can be updated from this fit
+        self.sigFitFinished.emit({'rho':curr_pos['rho'], 'theta':self.optim_pos_x, 'phi':self.optim_pos_y})
 
     def get_2d_data_matrix(self):
         return self._2D_data_matrix

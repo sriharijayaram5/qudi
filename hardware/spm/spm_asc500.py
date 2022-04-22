@@ -258,6 +258,11 @@ class SPM_ASC500(Base, ScannerInterface):
         piezo_range = self._objective_piezo_act_range()
         u_lim = self._dev.base.getParameter(self._dev.base.getConst('ID_GENDAC_LIMIT_CT'), 0)/1e6  
         obj_volt_range = np.array([0, u_lim])
+        check_range = np.array([0.0 ,piezo_range[0]]) if xy else np.array([0.0 ,piezo_range[2]])
+        if not (pos>=check_range.min() and pos<=check_range.max()):
+            new_pos = piezo_range[0]/2 if xy else piezo_range[2]/2
+            self.log.warning(f'Position {pos} is outside range of piezo somehow. Setting to {new_pos}')
+            pos = new_pos
         pos_interp_xy = interp1d(np.array([0.0 ,piezo_range[0]]), obj_volt_range, kind='linear')
         pos_interp_z = interp1d(np.array([0.0 ,piezo_range[2]]), obj_volt_range, kind='linear')
         return pos_interp_xy(pos) if xy else pos_interp_z(pos)

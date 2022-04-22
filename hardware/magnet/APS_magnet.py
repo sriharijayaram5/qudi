@@ -367,24 +367,24 @@ class APSMagnet(Base, MagnetInterface):
         if np.sqrt(new_coord[0]**2 + new_coord[1]**2 + new_coord[2]**2)>self.rho_constr: #T
             return -1
         # everything in kG. Conversion could be done here from Tesla
-        param_dict = {i:np.round(param_dict[i]*10,5) for i in param_dict.keys()}
+        param_dict = {i:np.round(param_dict[i]*10,6) for i in param_dict.keys()}
 
         if check_var:
             self.log.info(f'Setting in kG: {param_dict}')
             if param_dict.get('x') is not None:
                 lim = 'U' if old_dict['x']<=field_dict['x'] else 'L'
                 self.x_dir = 'UP' if lim=='U' else 'DOWN'
-                cmd = f"{lim}LIM {param_dict['x']:.5f}"
+                cmd = f"{lim}LIM {param_dict['x']:.6f}"
                 self.tell({'x':f'{cmd}'})
             if param_dict.get('y') is not None:
                 lim = 'U' if old_dict['y']<=field_dict['y'] else 'L'
                 self.y_dir = 'UP' if lim=='U' else 'DOWN'
-                cmd = f"{lim}LIM {param_dict['y']:.5f}"
+                cmd = f"{lim}LIM {param_dict['y']:.6f}"
                 self.tell({'y':f'{cmd}'})
             if param_dict.get('z') is not None:
                 lim = 'U' if old_dict['z']<=field_dict['z'] else 'L'
                 self.z_dir = 'UP' if lim=='U' else 'DOWN'
-                cmd = f"{lim}LIM {param_dict['z']:.5f}"
+                cmd = f"{lim}LIM {param_dict['z']:.6f}"
                 self.tell({'z':f'{cmd}'})
 
         else:
