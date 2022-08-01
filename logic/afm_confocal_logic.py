@@ -2738,7 +2738,7 @@ class AFMConfocalLogic(GenericLogic):
 
                     # remove possibility to stop during line scan.
                     if self._stop_request:
-                    break
+                        break
 
                 # self.log.info(f'Line number {line_num} completed.')
                 self.log.info(f'Line number {line_num} completed.')
@@ -2801,65 +2801,65 @@ class AFMConfocalLogic(GenericLogic):
 
             return self._qafm_scan_array
 
-        def start_scan_area_pulsed_qafm_fw_bw_by_point(self, coord0_start, coord0_stop,
-                                                coord0_num, coord1_start, coord1_stop,
-                                                coord1_num, int_time_afm=0.1,
-                                                idle_move_time=0.1, freq_start=2.77e9,
-                                                freq_stop=2.97e9, freq_points=100,
-                                                esr_count_freq=200,
-                                                mw_power=-25, num_esr_runs=30,
-                                                optimize_period=100,
-                                                meas_params=['Height(Dac)'],
-                                                single_res=True,
-                                                continue_meas=False):
+    def start_scan_area_pulsed_qafm_fw_bw_by_point(self, coord0_start, coord0_stop,
+                                            coord0_num, coord1_start, coord1_stop,
+                                            coord1_num, int_time_afm=0.1,
+                                            idle_move_time=0.1, freq_start=2.77e9,
+                                            freq_stop=2.97e9, freq_points=100,
+                                            esr_count_freq=200,
+                                            mw_power=-25, num_esr_runs=30,
+                                            optimize_period=100,
+                                            meas_params=['Height(Dac)'],
+                                            single_res=True,
+                                            continue_meas=False):
 
-            if self.check_thread_active():
-                self.log.error("A measurement is currently running, stop it first!")
-                return
-            
-            # self._health_check.setup(interval=20,                                       # perform check every interval (s)
-            #                          default_delta_t=int_time_afm * num_esr_runs *1.5,  # minimum time to expect between updates
-            #                          check_function=self._counter._dev.ctrl.isBusy,     # op function to check health 
-            #                          connect_start=[],                                  # start triggered manually
-            #                          connect_update=[self.sigQuantiLineFinished,        # signals which will trigger update
-            #                                          self.sigNewAFMPos],
-            #                          connect_stop=[self.sigQuantiScanFinished],         # signal to trigger stop of health check
-            #                          connect_opt_start=[self.sigHealthCheckStartSkip],   # signal to note that optimizer has started 
-            #                          connect_opt_stop=[self.sigHealthCheckStopSkip],    # signal to note that optimizer has finished
-            #                          log=self.log
-            #                         )
+        if self.check_thread_active():
+            self.log.error("A measurement is currently running, stop it first!")
+            return
+        
+        # self._health_check.setup(interval=20,                                       # perform check every interval (s)
+        #                          default_delta_t=int_time_afm * num_esr_runs *1.5,  # minimum time to expect between updates
+        #                          check_function=self._counter._dev.ctrl.isBusy,     # op function to check health 
+        #                          connect_start=[],                                  # start triggered manually
+        #                          connect_update=[self.sigQuantiLineFinished,        # signals which will trigger update
+        #                                          self.sigNewAFMPos],
+        #                          connect_stop=[self.sigQuantiScanFinished],         # signal to trigger stop of health check
+        #                          connect_opt_start=[self.sigHealthCheckStartSkip],   # signal to note that optimizer has started 
+        #                          connect_opt_stop=[self.sigHealthCheckStopSkip],    # signal to note that optimizer has finished
+        #                          log=self.log
+        #                         )
 
-            # self._health_check.start_timer(arm=True)
-            # self.sigHealthCheckStartSkip.emit()
+        # self._health_check.start_timer(arm=True)
+        # self.sigHealthCheckStartSkip.emit()
 
-            if self._USE_THREADED:
-                self._worker_thread = WorkerThread(target=self.scan_area_pulsed_qafm_fw_bw_by_point,
-                                                args=(coord0_start, coord0_stop,
-                                                        coord0_num, coord1_start, coord1_stop,
-                                                        coord1_num, int_time_afm,
-                                                        idle_move_time, freq_start,
-                                                        freq_stop, freq_points,
-                                                        esr_count_freq,
-                                                        mw_power, num_esr_runs,
-                                                        optimize_period,
-                                                        meas_params,
-                                                        single_res,
-                                                        continue_meas),
-                                                name='quanti_thread')
-                self.threadpool.start(self._worker_thread)
+        if self._USE_THREADED:
+            self._worker_thread = WorkerThread(target=self.scan_area_pulsed_qafm_fw_bw_by_point,
+                                            args=(coord0_start, coord0_stop,
+                                                    coord0_num, coord1_start, coord1_stop,
+                                                    coord1_num, int_time_afm,
+                                                    idle_move_time, freq_start,
+                                                    freq_stop, freq_points,
+                                                    esr_count_freq,
+                                                    mw_power, num_esr_runs,
+                                                    optimize_period,
+                                                    meas_params,
+                                                    single_res,
+                                                    continue_meas),
+                                            name='quanti_thread')
+            self.threadpool.start(self._worker_thread)
 
-            else:
-                self.scan_area_pulsed_qafm_fw_bw_by_point(coord0_start, coord0_stop,
-                                                        coord0_num, coord1_start, coord1_stop,
-                                                        coord1_num, int_time_afm,
-                                                        idle_move_time, freq_start,
-                                                        freq_stop, freq_points,
-                                                        esr_count_freq,
-                                                        mw_power, num_esr_runs,
-                                                        optimize_period,
-                                                        meas_params,
-                                                        single_res,
-                                                        continue_meas)
+        else:
+            self.scan_area_pulsed_qafm_fw_bw_by_point(coord0_start, coord0_stop,
+                                                    coord0_num, coord1_start, coord1_stop,
+                                                    coord1_num, int_time_afm,
+                                                    idle_move_time, freq_start,
+                                                    freq_stop, freq_points,
+                                                    esr_count_freq,
+                                                    mw_power, num_esr_runs,
+                                                    optimize_period,
+                                                    meas_params,
+                                                    single_res,
+                                                    continue_meas)
 
 # ==============================================================================
 # pure optical measurement, by line
@@ -3865,6 +3865,7 @@ class AFMConfocalLogic(GenericLogic):
             
             d_ch = clear(d_ch)
             d_ch[self._pulser._pixel_start] = True
+            d_ch[self._pulser._mw_switch] = True
             block_1.append(init_length = 1e-6, channels = d_ch, repetition = 1)
 
             d_ch = clear(d_ch)
@@ -3873,6 +3874,7 @@ class AFMConfocalLogic(GenericLogic):
 
             d_ch = clear(d_ch)
             d_ch[self._pulser._pixel_stop] = True
+            d_ch[self._pulser._mw_switch] = True
             d_ch[self._pulser._sync_in] = True
             block_1.append(init_length = 1e-6, channels = d_ch, repetition = 1)
 
@@ -3895,6 +3897,7 @@ class AFMConfocalLogic(GenericLogic):
 
             d_ch = clear(d_ch)
             d_ch[self._pulser._pixel_stop] = True
+            d_ch[self._pulser._mw_switch] = True
             block_1.append(init_length = 1000e-6, channels = d_ch, repetition = 1)
 
             seq.append([(block_1, freq_points*num_esr_runs)])
@@ -3903,6 +3906,7 @@ class AFMConfocalLogic(GenericLogic):
 
             d_ch = clear(d_ch)
             d_ch[self._pulser._sync_in] = True
+            d_ch[self._pulser._mw_switch] = True
             block_2.append(init_length = 1000e-6, channels = d_ch, repetition = 1)
 
             seq.append([(block_2, 1)])

@@ -123,7 +123,7 @@ class SPM_ASC500(Base, ScannerInterface):
         for key in axis_dict.keys():
             self._dev.base.setParameter(self._dev.base.getConst('ID_DAC_GEN_STEP'), axis_dict[key], axes[key])
 
-            self.log.info(f'{key} slew rate set to {axis_dict[key]}*466 uV/s')
+            self.log.info(f'{key} slew rate set to {axis_dict[key]*466/1e6} V/s')
             self.slew_rates[key]  = axis_dict[key]
 
     def _create_scanner_contraints(self):

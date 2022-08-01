@@ -24,6 +24,9 @@ from gui.color_schemes.color_schemes import ColorScaleGen
 
 from gui.guibase import GUIBase
 
+from PyQt5.QtGui import QKeySequence
+from PyQt5.QtWidgets import QShortcut
+
 """
 Implementation Steps/TODOs:
 - add default saveview as a file, which should be saved in the gui.
@@ -271,6 +274,8 @@ class ProteusQGUI(GUIBase):
         self._qafm_logic.sigOptimizeScanFinished.connect(self.update_opti_crosshair)
 
         self._mw.actionOptimize_Pos.triggered.connect(self.start_optimize_clicked)
+        self.shortcut_opti = QShortcut(QKeySequence(('Alt+R')), self._mw)
+        self.shortcut_opti.activated.connect(self.start_optimize_clicked)
 
         self._qafm_logic.sigObjTargetReached.connect(self.enable_scan_actions)
         self._qafm_logic.sigAFMTargetReached.connect(self.enable_scan_actions)
@@ -2157,6 +2162,10 @@ class ProteusQGUI(GUIBase):
         res_x = self._qafm_logic._spm._find_spec_count(x_start, x_stop, res_x)
         self._mw.obj_x_num_SpinBox.setValue(res_x)
 
+        # vb = self._dockwidget_container['obj_xy']
+        # new_range = ((x_start, x_stop), (y_start, y_stop))
+        # vb.graphicsView_matrix.set_crosshair_range(new_range)
+
         self._qafm_logic.start_scan_area_obj_by_line(coord0_start=x_start,
                                                       coord0_stop=x_stop,
                                                       coord0_num=res_x,
@@ -2180,6 +2189,10 @@ class ProteusQGUI(GUIBase):
 
         res_x = self._qafm_logic._spm._find_spec_count(x_start, x_stop, res_x)
         self._mw.obj_x_num_SpinBox.setValue(res_x)
+
+        # vb = self._dockwidget_container['obj_xz']
+        # new_range = ((x_start, x_stop), (z_start, z_stop))
+        # vb.graphicsView_matrix.set_crosshair_range(new_range)
 
         self._qafm_logic.start_scan_area_obj_by_line(coord0_start=x_start,
                                                       coord0_stop=x_stop,
@@ -2205,6 +2218,10 @@ class ProteusQGUI(GUIBase):
 
         res_y = self._qafm_logic._spm._find_spec_count(y_start, y_stop, res_y)
         self._mw.obj_y_num_SpinBox.setValue(res_y)
+
+        # vb = self._dockwidget_container['obj_yz']
+        # new_range = ((y_start, y_stop), (z_start, z_stop))
+        # vb.graphicsView_matrix.set_crosshair_range(new_range)
 
         self._qafm_logic.start_scan_area_obj_by_line(coord0_start=y_start,
                                                       coord0_stop=y_stop,

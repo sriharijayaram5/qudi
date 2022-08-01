@@ -71,6 +71,7 @@ class MagnetLogic(GenericLogic):
     counterlogic = Connector(interface='CounterLogic')
     savelogic = Connector(interface='SaveLogic')
     fitlogic = Connector(interface='FitLogic')
+    qafmlogic = Connector(interface='GenericLogic')
 
     align_2d_axis0_name = StatusVar('align_2d_axis0_name', 'theta')
     align_2d_axis1_name = StatusVar('align_2d_axis1_name', 'phi')
@@ -165,6 +166,7 @@ class MagnetLogic(GenericLogic):
         self._magnet_device = self.magnetstage()
         self._save_logic = self.savelogic()
         self._fit_logic = self.fitlogic()
+        self._qafm_logic = self.qafmlogic()
 
         # FIXME: THAT IS JUST A TEMPORARY SOLUTION! Implement the access on the
         #       needed methods via the TaskRunner!
@@ -774,7 +776,7 @@ class MagnetLogic(GenericLogic):
             self._end_alignment_procedure()
             return
 
-        # self._do_premeasurement_proc()
+        self._do_premeasurement_proc()
         pos = self._magnet_device.get_pos()
         end_pos = self._pathway[self._pathway_index]
         self.log.debug('end_pos {0}'.format(end_pos))
@@ -819,7 +821,7 @@ class MagnetLogic(GenericLogic):
         if self._pathway_index < len(self._pathway):
 
             #
-            # self._do_postmeasurement_proc()
+            self._do_premeasurement_proc()
             move_dict_vel, \
             move_dict_abs, \
             move_dict_rel = self._move_to_index(self._pathway_index, self._pathway)
@@ -1019,6 +1021,10 @@ class MagnetLogic(GenericLogic):
 
         # If frequency is 0, then no refocus will happen at all, which is intended.
         return
+    
+    def _do_optimize_pos(self):
+        self._qafm_logic.default_optimize(run_in_thread=False)
+        return 0
 
 
     def _do_alignment_measurement(self):
@@ -1174,7 +1180,7 @@ class MagnetLogic(GenericLogic):
                         self._2D_axis0_data.max(),
                         self._2D_axis1_data.min(),
                         self._2D_axis1_data.max()]
-        axes = ['theta', 'phi']
+        axes = ['phi', 'theta']
 
         figs = self.draw_figure(data=figure_data,
                                      image_extent=image_extent,
@@ -1451,6 +1457,7 @@ class MagnetLogic(GenericLogic):
             data=xy_fit_data,
             estimator=self._fit_logic.estimate_twoDgaussian_MLE
         )
+        self.fit_result = result_2D_gaus
         # print(result_2D_gaus.fit_report())
         curr_pos = self.get_pos()
         self._initial_pos_x, self._initial_pos_y = curr_pos['theta'], curr_pos['phi']
@@ -1476,7 +1483,7 @@ class MagnetLogic(GenericLogic):
             self.optim_sigma_y = result_2D_gaus.best_values['sigma_y']
 
         # emit image updated signal so crosshair can be updated from this fit
-        self.sigFitFinished.emit({'rho':curr_pos['rho'], 'theta':self.optim_pos_x, 'phi':self.optim_pos_y})
+        self.sigFitFinished.emit({'rho':curr_pos['rho'], 'theta':self.optim_pos_x, 'phi':self.optim_pos_y, 'fit_result':result_2D_gaus.fit_report(show_correl=False)})
 
     def get_2d_data_matrix(self):
         return self._2D_data_matrix

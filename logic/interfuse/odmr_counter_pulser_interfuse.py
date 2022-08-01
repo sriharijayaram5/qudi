@@ -111,6 +111,8 @@ class ODMRCounterInterfuse(GenericLogic, ODMRCounterInterface):
         block_1.append(init_length = 1/clock_frequency, channels = d_ch, repetition = 1)
 
         d_ch = clear(d_ch)
+        d_ch[self._pulser._laser_channel] = True
+        d_ch[self._pulser._mw_switch] = True
         d_ch[self._pulser._pixel_stop] = True
         block_1.append(init_length = 1e-3, channels = d_ch, repetition = 1)
 
@@ -163,7 +165,7 @@ class ODMRCounterInterfuse(GenericLogic, ODMRCounterInterface):
         """
         self._sc_device.start_recorder()
 
-        self._pulser.pulser_on(n=length+1) # not sure why n=length fails
+        self._pulser.pulser_on(n=length+2) # not sure why n=length fails
         counts = self._sc_device.get_measurements(['counts'])[0]
     
         return False, counts

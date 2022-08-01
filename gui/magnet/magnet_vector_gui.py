@@ -380,7 +380,8 @@ class MagnetGui(GUIBase):
             slider_move_abs_ref.setValue(curr_pos[axis_label])
 
         self._magnet_logic.sigPosChanged.connect(self.update_pos)
-        self._magnet_logic.sigFitFinished.connect(self.give_pos_to_update_GLView_new_vector)
+        self._mw.fitFluorescence_pushButton.clicked.connect(self._magnet_logic._set_optimized_xy_from_fit)
+        self._magnet_logic.sigFitFinished.connect(self.give_pos_to_update_GLView_opt_vector)
 
         # Connect alignment GUI elements:
 
@@ -1782,9 +1783,10 @@ class MagnetGui(GUIBase):
         new_pos['z'] = new_pos_dict['rho'] * np.cos(new_pos_dict['theta'])
         self.update_GLView_new_vector(new_pos)
     
-    def give_pos_to_update_GLView_new_vector(self, new_pos_dict):
+    def give_pos_to_update_GLView_opt_vector(self, new_pos_dict):
         new_pos = {}
         new_pos['x'] = new_pos_dict['rho'] * np.sin(new_pos_dict['theta']) * np.cos(new_pos_dict['phi'])
         new_pos['y'] = new_pos_dict['rho'] * np.sin(new_pos_dict['theta']) * np.sin(new_pos_dict['phi'])
         new_pos['z'] = new_pos_dict['rho'] * np.cos(new_pos_dict['theta'])
+        self._mw.fitResult_textBrowser.setText(new_pos_dict['fit_result'])
         self.update_GLView_opt_vector(new_pos)
