@@ -849,6 +849,25 @@
     </layout>
    </widget>
   </widget>
+  <widget class="QToolBar" name="ToolBar_extra_func">
+   <property name="windowTitle">
+    <string>toolBar</string>
+   </property>
+   <property name="iconSize">
+    <size>
+     <width>28</width>
+     <height>30</height>
+    </size>
+   </property>
+   <attribute name="toolBarArea">
+    <enum>TopToolBarArea</enum>
+   </attribute>
+   <attribute name="toolBarBreak">
+    <bool>false</bool>
+   </attribute>
+   <addaction name="actionTemperatureUpdate"/>
+   <addaction name="actionEnableZoom"/>
+  </widget>
   <widget class="QToolBar" name="ToolBar_optimizer">
    <property name="windowTitle">
     <string>toolBar</string>
@@ -1178,6 +1197,33 @@
    </property>
    <property name="toolTip">
     <string>Go to target Objective position</string>
+   </property>
+  </action>
+  <action name="actionTemperatureUpdate">
+   <property name="icon">
+    <iconset>
+     <normaloff>../../artwork/icons/66/temp.png</normaloff>../../artwork/icons/66/temp.png</iconset>
+   </property>
+   <property name="text">
+    <string>TemperatureUpdate</string>
+   </property>
+   <property name="toolTip">
+    <string>Notifies qAFM GUI about the new temperature and scan limits</string>
+   </property>
+  </action>
+  <action name="actionEnableZoom">
+   <property name="icon">
+    <iconset>
+     <normaloff>../../artwork/icons/66/zoom-select.png</normaloff>../../artwork/icons/66/zoom-select.png</iconset>
+   </property>
+   <property name="text">
+    <string>ToggleScanZoom</string>
+   </property>
+   <property name="toolTip">
+    <string>Enables the setting of scan range by dragging over the scanned micrograph</string>
+   </property>
+   <property name="checkable">
+    <bool>true</bool>
    </property>
   </action>
   <action name="actionOptimize_Pos">

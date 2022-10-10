@@ -237,8 +237,8 @@ class SPM_ASC500(Base, ScannerInterface):
         piezo_range = self._objective_piezo_act_range()
         u_lim = self._dev.base.getParameter(self._dev.base.getConst('ID_GENDAC_LIMIT_CT'), 0)/1e6  
         obj_volt_range = np.array([0, u_lim])
-        pos_interp_xy = interp1d(obj_volt_range, np.array([0.0 ,piezo_range[0]]), kind='linear')
-        pos_interp_z = interp1d(obj_volt_range, np.array([0.0 ,piezo_range[2]]), kind='linear')
+        pos_interp_xy = interp1d(obj_volt_range, np.array([0.0 ,piezo_range[0]]), kind='linear', fill_value="extrapolate")
+        pos_interp_z = interp1d(obj_volt_range, np.array([0.0 ,piezo_range[2]]), kind='linear', fill_value="extrapolate")
 
         def rounder(x):
             try:
@@ -529,14 +529,14 @@ class SPM_ASC500(Base, ScannerInterface):
         # define number path actions at a point ('ID_PATH_ACTION'), no. of actions, 0 
         if self._spm_curr_sstyle == ScanStyle.LINE:
             self._dev.base.setParameter(self._dev.base.getConst('ID_PATH_ACTION'), 2 if self._trig else 1, 0)
-            # define which actions specifically ('ID_PATH_ACTION'), 0=manual handshake/2=Spec 1 dummy engine, 1=as the first action if no. of actions>=1 
+            # define which actions specifically ('ID_PATH_ACTION'), 0=manual handshake/2=Spec 1 dummy engine/4=external handshake, 1=as the first action if no. of actions>=1 
             self._dev.base.setParameter(self._dev.base.getConst('ID_PATH_ACTION'), 2, 1)
             self._dev.base.setParameter(self._dev.base.getConst('ID_PATH_ACTION'), 4, 2)
         else:
             # If the scan mode is ESR then one needs to scan point by point mode. This would be non blocking between each point and therefore the manual
             # handshake makes sure the tip waits at the next point until logic is ready to proceed
             self._dev.base.setParameter(self._dev.base.getConst('ID_PATH_ACTION'), 3, 0)
-            # define which actions specifically ('ID_PATH_ACTION'), 0=manual handshake/2=Spec 1 dummy engine, 1=as the first action if no. of actions>=1 
+            # define which actions specifically ('ID_PATH_ACTION'), 0=manual handshake/2=Spec 1 dummy engine/4=external handshake, 1=as the first action if no. of actions>=1 
             self._dev.base.setParameter(self._dev.base.getConst('ID_PATH_ACTION'), 0, 1)
             self._dev.base.setParameter(self._dev.base.getConst('ID_PATH_ACTION'), 2, 2)
             self._dev.base.setParameter(self._dev.base.getConst('ID_PATH_ACTION'), 4, 3)

@@ -146,7 +146,7 @@ class ProteusQMainWindow(QtWidgets.QMainWindow):
         self.show()
 
 class ProteusQGUI(GUIBase):
-    """ GUI to control the ProteusQ. """
+    """ GUI to control the qAFM Scan. """
     
     _modclass = 'AttoDRY2200_Pi3_GUI'
     _modtype = 'gui'
@@ -273,6 +273,9 @@ class ProteusQGUI(GUIBase):
         self._qafm_logic.sigOptimizeScanFinished.connect(self.update_target_pos)
         self._qafm_logic.sigOptimizeScanFinished.connect(self.update_opti_crosshair)
 
+        self._mw.actionTemperatureUpdate.triggered.connect(self.update_temperature)
+        self._mw.actionEnableZoom.toggled.connect(self.zoom_clicked)
+        
         self._mw.actionOptimize_Pos.triggered.connect(self.start_optimize_clicked)
         self.shortcut_opti = QShortcut(QKeySequence(('Alt+R')), self._mw)
         self.shortcut_opti.activated.connect(self.start_optimize_clicked)
@@ -339,6 +342,7 @@ class ProteusQGUI(GUIBase):
 
         # initialize the settings stuff
         self.initSettingsUI()
+        self.update_temperature()
 
         # Initialize iso b parameter
         self._mw.use_single_isob_RadioButton.toggled.connect(self._set_iso_b_single_mode)
@@ -364,6 +368,7 @@ class ProteusQGUI(GUIBase):
 
         self.initAboutUI()     # provide version number and hardware status
         self.retrieve_status_var()
+        self.load_view()
 
     def on_deactivate(self):
         """ Deactivate the module properly.
@@ -1218,92 +1223,92 @@ class ProteusQGUI(GUIBase):
     def _initialize_inputs(self):
 
         # set constraints
-        self._mw.obj_x_min_DSpinBox.setRange(0.0, 37e-6)
+        self._mw.obj_x_min_DSpinBox.setRange(0.0e-6, 37e-6)
         self._mw.obj_x_min_DSpinBox.setSuffix('m')
         self._mw.obj_x_min_DSpinBox.setMinimalStep(0.1e-6)
 
-        self._mw.obj_x_max_DSpinBox.setRange(0.0, 37e-6)
+        self._mw.obj_x_max_DSpinBox.setRange(0.0e-6, 37e-6)
         self._mw.obj_x_max_DSpinBox.setSuffix('m')
         self._mw.obj_x_max_DSpinBox.setMinimalStep(0.1e-6)
 
         self._mw.obj_x_num_SpinBox.setRange(2, 10000)
 
-        self._mw.obj_y_min_DSpinBox.setRange(0.0, 37e-6)
+        self._mw.obj_y_min_DSpinBox.setRange(0.0e-6, 37e-6)
         self._mw.obj_y_min_DSpinBox.setSuffix('m')
         self._mw.obj_y_min_DSpinBox.setMinimalStep(0.1e-6)
 
-        self._mw.obj_y_max_DSpinBox.setRange(0.0, 37e-6)
+        self._mw.obj_y_max_DSpinBox.setRange(0.0e-6, 37e-6)
         self._mw.obj_y_max_DSpinBox.setSuffix('m')
         self._mw.obj_y_max_DSpinBox.setMinimalStep(0.1e-6)
 
         self._mw.obj_y_num_SpinBox.setRange(2, 10000)
 
-        self._mw.obj_z_min_DSpinBox.setRange(0.0, 3.5e-6)
+        self._mw.obj_z_min_DSpinBox.setRange(0.0e-6, 3.5e-6)
         self._mw.obj_z_min_DSpinBox.setSuffix('m')
         self._mw.obj_z_min_DSpinBox.setMinimalStep(0.1e-6)
 
-        self._mw.obj_z_max_DSpinBox.setRange(0.0, 3.5e-6)
+        self._mw.obj_z_max_DSpinBox.setRange(0.0e-6, 3.5e-6)
         self._mw.obj_z_max_DSpinBox.setSuffix('m')
         self._mw.obj_z_max_DSpinBox.setMinimalStep(0.1e-6)
 
         self._mw.obj_z_num_SpinBox.setRange(2, 10000)
 
-        self._mw.obj_target_x_DSpinBox.setRange(0.0, 37e-6)
+        self._mw.obj_target_x_DSpinBox.setRange(0.0e-6, 37e-6)
         self._mw.obj_target_x_DSpinBox.setSuffix('m')
         self._mw.obj_target_x_DSpinBox.setMinimalStep(0.1e-6)
         self._mw.obj_target_x_DSpinBox.setValue(0)
 
-        self._mw.obj_target_y_DSpinBox.setRange(0.0, 37e-6)
+        self._mw.obj_target_y_DSpinBox.setRange(0.0e-6, 37e-6)
         self._mw.obj_target_y_DSpinBox.setSuffix('m')
         self._mw.obj_target_y_DSpinBox.setMinimalStep(0.1e-6)
         self._mw.obj_target_y_DSpinBox.setValue(0)
 
-        self._mw.obj_target_z_DSpinBox.setRange(0.0, 3.5e-6)
+        self._mw.obj_target_z_DSpinBox.setRange(0.0e-6, 3.5e-6)
         self._mw.obj_target_z_DSpinBox.setSuffix('m')
         self._mw.obj_target_z_DSpinBox.setMinimalStep(0.1e-6)
         self._mw.obj_target_z_DSpinBox.setValue(0)
 
-        self._mw.afm_x_min_DSpinBox.setRange(0.0, 37e-6)
+        self._mw.afm_x_min_DSpinBox.setRange(0.0e-6, 37e-6)
         self._mw.afm_x_min_DSpinBox.setSuffix('m')
         self._mw.afm_x_min_DSpinBox.setMinimalStep(0.1e-6)
 
-        self._mw.afm_x_max_DSpinBox.setRange(0.0, 37e-6)
+        self._mw.afm_x_max_DSpinBox.setRange(0.0e-6, 37e-6)
         self._mw.afm_x_max_DSpinBox.setSuffix('m')
         self._mw.afm_x_max_DSpinBox.setMinimalStep(0.1e-6)
 
         self._mw.afm_x_num_SpinBox.setRange(2, 10000)
 
-        self._mw.afm_y_min_DSpinBox.setRange(0.0, 37e-6)
+        self._mw.afm_y_min_DSpinBox.setRange(0.0e-6, 37e-6)
         self._mw.afm_y_min_DSpinBox.setSuffix('m')
         self._mw.afm_y_min_DSpinBox.setMinimalStep(0.1e-6)
 
-        self._mw.afm_y_max_DSpinBox.setRange(0.0, 37e-6)
+        self._mw.afm_y_max_DSpinBox.setRange(0.0e-6, 37e-6)
         self._mw.afm_y_max_DSpinBox.setSuffix('m')
         self._mw.afm_y_max_DSpinBox.setMinimalStep(0.1e-6)
 
         self._mw.afm_y_num_SpinBox.setRange(2, 10000)
 
 
-        self._mw.afm_target_x_DSpinBox.setRange(0.0, 37e-6)
+        self._mw.afm_target_x_DSpinBox.setRange(0.0e-6, 37e-6)
         self._mw.afm_target_x_DSpinBox.setSuffix('m')
         self._mw.afm_target_x_DSpinBox.setMinimalStep(0.1e-6)
 
-        self._mw.afm_target_y_DSpinBox.setRange(0.0, 37e-6)
+        self._mw.afm_target_y_DSpinBox.setRange(0.0e-6, 37e-6)
         self._mw.afm_target_y_DSpinBox.setSuffix('m')
         self._mw.afm_target_y_DSpinBox.setMinimalStep(0.1e-6)
 
         self._mw.obj_cur_x_DSpinBox.setSuffix('m')
-        self._mw.obj_cur_x_DSpinBox.setRange(0.0, 37e-6)
+        self._mw.obj_cur_x_DSpinBox.setRange(0.0e-6, 37e-6)
         self._mw.obj_cur_y_DSpinBox.setSuffix('m')
-        self._mw.obj_cur_y_DSpinBox.setRange(0.0, 37e-6)
+        self._mw.obj_cur_y_DSpinBox.setRange(0.0e-6, 37e-6)
         self._mw.obj_cur_z_DSpinBox.setSuffix('m')
-        self._mw.obj_cur_z_DSpinBox.setRange(0.0, 3.5e-6)
+        self._mw.obj_cur_z_DSpinBox.setRange(0.0e-6, 3.5e-6)
 
         self._mw.afm_curr_x_DSpinBox.setSuffix('m')
-        self._mw.afm_curr_x_DSpinBox.setRange(0.0, 37e-6)
+        self._mw.afm_curr_x_DSpinBox.setRange(0.0e-6, 37e-6)
         self._mw.afm_curr_x_DSpinBox.setDecimals(3, dynamic_precision=False)
         self._mw.afm_curr_y_DSpinBox.setSuffix('m')
-        self._mw.afm_curr_y_DSpinBox.setRange(0.0, 37e-6)
+        self._mw.afm_curr_y_DSpinBox.setRange(0.0e-6, 37e-6)
         self._mw.afm_curr_y_DSpinBox.setDecimals(3, dynamic_precision=False)
 
         # set initial values:
@@ -1455,11 +1460,15 @@ class ProteusQGUI(GUIBase):
 
                 dockwidget.graphicsView_matrix.toggle_crosshair(True)
                 dockwidget.graphicsView_matrix.set_crosshair_size((0.5e-6,0.5e-6))
+                
                 if 'xy' in obj_name:
+                    dockwidget.graphicsView_matrix.sigMouseAreaSelected.connect(lambda area: self.zoom_scan(area, 'xy'))
                     dockwidget.graphicsView_matrix.sigCrosshairDraggedPosChanged.connect(functools.partial(self.update_from_crosshair, 'xy'))
                 elif 'xz' in obj_name:
+                    dockwidget.graphicsView_matrix.sigMouseAreaSelected.connect(lambda area: self.zoom_scan(area, 'xz'))
                     dockwidget.graphicsView_matrix.sigCrosshairDraggedPosChanged.connect(functools.partial(self.update_from_crosshair, 'xz'))
                 elif 'yz' in obj_name:
+                    dockwidget.graphicsView_matrix.sigMouseAreaSelected.connect(lambda area: self.zoom_scan(area, 'yz'))
                     dockwidget.graphicsView_matrix.sigCrosshairDraggedPosChanged.connect(functools.partial(self.update_from_crosshair, 'yz'))                    
 
             if 'opti_z' in obj_name:
@@ -2028,6 +2037,7 @@ class ProteusQGUI(GUIBase):
         self._mw.obj_target_x_DSpinBox.setValue(x_max)
         self._mw.obj_target_y_DSpinBox.setValue(y_max)
         self._mw.obj_target_z_DSpinBox.setValue(z_max)
+        self.update_to_crosshair()
     
     def update_opti_crosshair(self):
         x_max, y_max, c_max, z_max, c_max_z = self._qafm_logic._opt_val
@@ -2109,6 +2119,46 @@ class ProteusQGUI(GUIBase):
         self._mw.obj_target_y_DSpinBox.setValue(15e-6)
         self._mw.obj_target_z_DSpinBox.setValue(5e-6)
 
+    def zoom_clicked(self, is_checked):
+        """
+        Activates the zoom mode in the xy and depth scan images.
+
+        @param bool is_checked: pass the state of the zoom button (checked or not).
+        """
+        for obj in ['obj_xy', 'obj_yz', 'obj_xz']:
+            dw = self._dockwidget_container[obj].graphicsView_matrix
+            dw.toggle_selection(is_checked)
+            dw.toggle_zoom_by_selection(is_checked)
+        return
+    
+    def zoom_scan(self, rect, obj_name):
+        """
+        @param QtCore.QRectF rect: Rectangular area of the new zoomed image in physical coordinates.
+        """
+        self.log.info(f'{rect}')
+        self.log.info(obj_name)
+        a_bounds = (rect.left(), rect.right())
+        b_bounds = (rect.bottom(), rect.top())
+
+        # set the values to the InputWidgets and update them
+        if 'xy' in obj_name:
+            self._mw.obj_x_min_DSpinBox.setValue(min(a_bounds))
+            self._mw.obj_x_max_DSpinBox.setValue(max(a_bounds))
+            self._mw.obj_y_min_DSpinBox.setValue(min(b_bounds))
+            self._mw.obj_y_max_DSpinBox.setValue(max(b_bounds))
+        elif 'xz' in obj_name:
+            self._mw.obj_x_min_DSpinBox.setValue(min(a_bounds))
+            self._mw.obj_x_max_DSpinBox.setValue(max(a_bounds))
+            self._mw.obj_z_min_DSpinBox.setValue(min(b_bounds))
+            self._mw.obj_z_max_DSpinBox.setValue(max(b_bounds))
+        elif 'yz' in obj_name:
+            self._mw.obj_y_min_DSpinBox.setValue(min(a_bounds))
+            self._mw.obj_y_max_DSpinBox.setValue(max(a_bounds))
+            self._mw.obj_z_min_DSpinBox.setValue(min(b_bounds))
+            self._mw.obj_z_max_DSpinBox.setValue(max(b_bounds))
+        self._mw.actionEnableZoom.setChecked(False)
+        return
+
     def start_qafm_scan_clicked(self):
         """ Manages what happens if the xy qafm scan is started. """
 
@@ -2159,6 +2209,11 @@ class ProteusQGUI(GUIBase):
         res_x = self._mw.obj_x_num_SpinBox.value()
         res_y = self._mw.obj_y_num_SpinBox.value()
 
+        self._mw.obj_target_x_DSpinBox.setValue(x_start)
+        self._mw.obj_target_y_DSpinBox.setValue(y_start)
+        # self._mw.obj_target_z_DSpinBox.setValue(z_max)
+        self.update_to_crosshair()
+
         res_x = self._qafm_logic._spm._find_spec_count(x_start, x_stop, res_x)
         self._mw.obj_x_num_SpinBox.setValue(res_x)
 
@@ -2186,6 +2241,11 @@ class ProteusQGUI(GUIBase):
         z_stop = self._mw.obj_z_max_DSpinBox.value()
         res_x = self._mw.obj_x_num_SpinBox.value()
         res_z = self._mw.obj_z_num_SpinBox.value()
+
+        self._mw.obj_target_x_DSpinBox.setValue(x_start)
+        # self._mw.obj_target_y_DSpinBox.setValue(y_start)
+        self._mw.obj_target_z_DSpinBox.setValue(z_start)
+        self.update_to_crosshair()
 
         res_x = self._qafm_logic._spm._find_spec_count(x_start, x_stop, res_x)
         self._mw.obj_x_num_SpinBox.setValue(res_x)
@@ -2215,6 +2275,11 @@ class ProteusQGUI(GUIBase):
         z_stop = self._mw.obj_z_max_DSpinBox.value()
         res_y = self._mw.obj_y_num_SpinBox.value()
         res_z = self._mw.obj_z_num_SpinBox.value()
+
+        # self._mw.obj_target_x_DSpinBox.setValue(x_start)
+        self._mw.obj_target_y_DSpinBox.setValue(y_start)
+        self._mw.obj_target_z_DSpinBox.setValue(z_start)
+        self.update_to_crosshair()
 
         res_y = self._qafm_logic._spm._find_spec_count(y_start, y_stop, res_y)
         self._mw.obj_y_num_SpinBox.setValue(res_y)
@@ -2280,6 +2345,7 @@ class ProteusQGUI(GUIBase):
         self._mw.actionGo_To_AFM_pos.setEnabled(False)
         self._mw.actionGo_To_Obj_pos.setEnabled(False)
         self._mw.actionLock_Obj.setEnabled(False)
+        self._mw.actionTemperatureUpdate.setEnabled(False)
         self._mw.actionOptimize_Pos.setEnabled(False)
         self._mw.actionSaveDataQAFM.setEnabled(False)
         self._mw.actionSaveObjData.setEnabled(False)
@@ -2296,6 +2362,7 @@ class ProteusQGUI(GUIBase):
         self._mw.actionGo_To_AFM_pos.setEnabled(True)
         self._mw.actionGo_To_Obj_pos.setEnabled(True)
         self._mw.actionLock_Obj.setEnabled(True)
+        self._mw.actionTemperatureUpdate.setEnabled(True)
         self._mw.actionOptimize_Pos.setEnabled(True)
         self._mw.actionSaveDataQAFM.setEnabled(True)
         self._mw.actionSaveObjData.setEnabled(True)
@@ -2338,6 +2405,14 @@ class ProteusQGUI(GUIBase):
             self._mw.obj_target_y_DSpinBox.setValue(coords[0])
             self._mw.obj_target_z_DSpinBox.setValue(coords[1])
         self.goto_obj_pos_clicked() 
+    
+    def update_to_crosshair(self):
+        x = self._mw.obj_target_x_DSpinBox.value()
+        y = self._mw.obj_target_y_DSpinBox.value()
+        z = self._mw.obj_target_z_DSpinBox.value()
+        self._dockwidget_container[f'obj_xy'].graphicsView_matrix.set_crosshair_pos((x,y))
+        self._dockwidget_container[f'obj_yz'].graphicsView_matrix.set_crosshair_pos((y,z))
+        self._dockwidget_container[f'obj_xz'].graphicsView_matrix.set_crosshair_pos((x,z))
 
     @QtCore.Slot(dict)
     def update_obj_pos(self, pos_dict):
@@ -2614,3 +2689,33 @@ class ProteusQGUI(GUIBase):
         data_o[:n_row] = data_v - (C[0]*xv + C[1]*yv + C[2])
 
         return data_o
+
+    def update_temperature(self):
+        ranges = self._qafm_logic._spm.get_sample_scan_range()
+
+        self._obj_range_x_max = ranges['X']
+        self._obj_range_y_max = ranges['Y']
+        self._obj_range_z_max = ranges['Z']
+
+        self._afm_range_x_max = ranges['X']
+        self._afm_range_y_max = ranges['Y']
+
+        self._mw.obj_x_max_DSpinBox.setRange(0.0e-6, self._obj_range_x_max)
+        self._mw.obj_y_max_DSpinBox.setRange(0.0e-6, self._obj_range_y_max)
+        self._mw.obj_z_max_DSpinBox.setRange(0.0e-6, self._obj_range_z_max)
+
+        self._mw.afm_x_max_DSpinBox.setRange(0.0e-6, self._afm_range_x_max)
+        self._mw.afm_y_max_DSpinBox.setRange(0.0e-6, self._afm_range_y_max)
+
+        vb = self._dockwidget_container['obj_xy']
+        new_range = ((0, ranges['X']), (0, ranges['Y']))
+        vb.graphicsView_matrix.set_crosshair_range(new_range)
+
+        vb = self._dockwidget_container['obj_xz']
+        new_range = ((0, ranges['X']), (0, ranges['Z']))
+        vb.graphicsView_matrix.set_crosshair_range(new_range)
+
+        vb = self._dockwidget_container['obj_yz']
+        new_range = ((0, ranges['Y']), (0, ranges['Z']))
+        vb.graphicsView_matrix.set_crosshair_range(new_range)
+        self.log.info('Scan range updated')
