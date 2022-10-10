@@ -2135,8 +2135,6 @@ class ProteusQGUI(GUIBase):
         """
         @param QtCore.QRectF rect: Rectangular area of the new zoomed image in physical coordinates.
         """
-        self.log.info(f'{rect}')
-        self.log.info(obj_name)
         a_bounds = (rect.left(), rect.right())
         b_bounds = (rect.bottom(), rect.top())
 
