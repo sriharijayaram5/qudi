@@ -1014,7 +1014,7 @@ class SPM_ASC500(Base, ScannerInterface):
         
         # if velocity is given, time will be ignored
         if self.objective_lock:
-            self.log.warning('Objective locked. Cannot move objective right until toggled.')
+            self.log.warning('Objective locked. Cannot move objective until toggled.')
             return self.get_objective_pos(list(axis_label_dict.keys()))
         scan_range = self.get_objective_scan_range(list(axis_label_dict.keys()))
         for i in scan_range:

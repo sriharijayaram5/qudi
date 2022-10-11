@@ -2352,6 +2352,13 @@ class ProteusQGUI(GUIBase):
         self._dockwidget_container[f'obj_xz'].graphicsView_matrix.toggle_crosshair(False)
         self._dockwidget_container[f'obj_yz'].graphicsView_matrix.toggle_crosshair(False)
 
+    def toggle_obj_actions(self, toggle):
+        self._mw.actionStart_Obj_XY_scan.setEnabled(toggle)
+        self._mw.actionStart_Obj_XZ_scan.setEnabled(toggle)
+        self._mw.actionStart_Obj_YZ_scan.setEnabled(toggle)
+        self._mw.actionGo_To_Obj_pos.setEnabled(toggle)
+        self._mw.actionOptimize_Pos.setEnabled(toggle)
+
     def enable_scan_actions(self):
         self._mw.actionStart_QAFM_Scan.setEnabled(True)
         self._mw.actionStart_Obj_XY_scan.setEnabled(True)
@@ -2456,6 +2463,8 @@ class ProteusQGUI(GUIBase):
     def lock_obj_toggled(self):
         state = self._mw.actionLock_Obj.isChecked()
         self._qafm_logic._spm.objective_lock = state
+        self.toggle_obj_actions(not state)
+
 
     def update_targetpos_xy(self, event, xy_pos):
 
