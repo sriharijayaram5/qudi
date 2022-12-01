@@ -2680,6 +2680,8 @@ class AFMConfocalLogic(GenericLogic):
 
                     # at first the AFM parameter
                     # arm recorder
+                    #TODO
+                    #this will be pulser on toggle and not measurement toggle
                     self._pulsed_master.toggle_pulsed_measurement(start=True, stash_raw_data_tag='qafm')
 
                     self._debug = self._spm.scan_point()
@@ -2687,6 +2689,9 @@ class AFMConfocalLogic(GenericLogic):
                     
                     # obtain ESR measurement
                     esr_meas = self._counter.get_measurements()[0]
+
+                    self._pulsed_master.toggle_pulsed_measurement(start=False, stash_raw_data_tag='qafm')
+                    #TODO update the pulsed extraction gui with the time trace using a signal to the gui.
 
                     esr_meas_mean = esr_meas.mean(axis=0)
                     esr_meas_std = esr_meas.std(axis=0)
@@ -3844,12 +3849,15 @@ class AFMConfocalLogic(GenericLogic):
             
             d_ch = clear(d_ch)
             d_ch[self._pulser._pixel_start] = True
+            d_ch[self._pulser._laser_channel] = True
             block_1.append(init_length = 1e-6, channels = d_ch, repetition = 1)
 
             d_ch = clear(d_ch)
+            d_ch[self._pulser._laser_channel] = True
             block_1.append(init_length = int_time, channels = d_ch, repetition = 1)
 
             d_ch = clear(d_ch)
+            d_ch[self._pulser._laser_channel] = True
             d_ch[self._pulser._pixel_stop] = True
             d_ch[self._pulser._sync_in] = True
             block_1.append(init_length = 1e-6, channels = d_ch, repetition = 1)
@@ -3864,15 +3872,18 @@ class AFMConfocalLogic(GenericLogic):
             block_1 = PulseBlock()
             
             d_ch = clear(d_ch)
+            d_ch[self._pulser._laser_channel] = True
             d_ch[self._pulser._pixel_start] = True
             d_ch[self._pulser._mw_switch] = True
             block_1.append(init_length = 1e-6, channels = d_ch, repetition = 1)
 
             d_ch = clear(d_ch)
             d_ch[self._pulser._mw_switch] = True
+            d_ch[self._pulser._laser_channel] = True
             block_1.append(init_length = int_time, channels = d_ch, repetition = 1)
 
             d_ch = clear(d_ch)
+            d_ch[self._pulser._laser_channel] = True
             d_ch[self._pulser._pixel_stop] = True
             d_ch[self._pulser._mw_switch] = True
             d_ch[self._pulser._sync_in] = True
@@ -4828,7 +4839,7 @@ class AFMConfocalLogic(GenericLogic):
 
 
     def save_qafm_data(self, tag=None, probe_name=None, sample_name=None,
-                       use_qudi_savescheme=False, root_path=None, 
+                       use_qudi_savescheme=True, root_path=None, 
                        daily_folder=True, timestamp=None):
 
         scan_params = self.get_curr_scan_params()
@@ -5220,7 +5231,7 @@ class AFMConfocalLogic(GenericLogic):
     #       then, uncomment the part of the code labeled with UNCOMMENT.
     @deprecated("Current method is not maintained, use 'save_qafm_data' method instead.")
     def save_all_qafm_figures(self, tag=None, probe_name=None, sample_name=None,
-                       use_qudi_savescheme=False, root_path=None, 
+                       use_qudi_savescheme=True, root_path=None, 
                        daily_folder=True):
 
         scan_params = self.get_curr_scan_params()

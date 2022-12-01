@@ -278,8 +278,8 @@ class ProteusQGUI(GUIBase):
         
         self._mw.actionOptimize_Pos.triggered.connect(self.start_optimize_clicked)
         self.shortcut_opti = QShortcut(QKeySequence(('Alt+R')), self._mw)
-        self.shortcut_opti.activated.connect(self.start_optimize_clicked)
-
+        self.shortcut_opti.activated.connect(self.start_optimize_shortcut_press)
+        
         self._qafm_logic.sigObjTargetReached.connect(self.enable_scan_actions)
         self._qafm_logic.sigAFMTargetReached.connect(self.enable_scan_actions)
 
@@ -1445,6 +1445,10 @@ class ProteusQGUI(GUIBase):
             # cover now the special adaptations:
             if ('Height(Dac)' in obj_name) or ('Height(Sen)' in obj_name):
                 dockwidget.checkBox_tilt_corr.setVisible(True)
+                dockwidget.graphicsView_matrix.sigMouseAreaSelected.connect(lambda area: self.zoom_scan(area, 'Height(Dac)'))
+
+            if ('counts' in obj_name):
+                dockwidget.graphicsView_matrix.sigMouseAreaSelected.connect(lambda area: self.zoom_scan(area, 'counts'))
 
             if ('fw' in obj_name) or ('bw' in obj_name) or ('opti_xy' in obj_name):
 
@@ -2125,7 +2129,7 @@ class ProteusQGUI(GUIBase):
 
         @param bool is_checked: pass the state of the zoom button (checked or not).
         """
-        for obj in ['obj_xy', 'obj_yz', 'obj_xz']:
+        for obj in ['obj_xy', 'obj_yz', 'obj_xz','Height(Dac)_bw','Height(Dac)_fw','counts_bw','counts_fw']:
             dw = self._dockwidget_container[obj].graphicsView_matrix
             dw.toggle_selection(is_checked)
             dw.toggle_zoom_by_selection(is_checked)
@@ -2154,6 +2158,12 @@ class ProteusQGUI(GUIBase):
             self._mw.obj_y_max_DSpinBox.setValue(max(a_bounds))
             self._mw.obj_z_min_DSpinBox.setValue(min(b_bounds))
             self._mw.obj_z_max_DSpinBox.setValue(max(b_bounds))
+        elif ('Height(Dac)' in obj_name) or ('counts' in obj_name):
+            self._mw.afm_x_min_DSpinBox.setValue(min(a_bounds))
+            self._mw.afm_x_max_DSpinBox.setValue(max(a_bounds))
+            self._mw.afm_y_min_DSpinBox.setValue(min(b_bounds))
+            self._mw.afm_y_max_DSpinBox.setValue(max(b_bounds))
+
         self._mw.actionEnableZoom.setChecked(False)
         return
 
@@ -2294,7 +2304,11 @@ class ProteusQGUI(GUIBase):
                                                       coord1_num=res_z,
                                                       plane='Y2Z2', 
                                                       continue_meas=False)
+    def start_optimize_shortcut_press(self):
+        """ Start optimizer scan if the shortcut is pressed and the system is idle."""
+        if self._qafm_logic.module_state() == 'idle':
 
+            self.start_optimize_clicked()
 
     def start_optimize_clicked(self):
         """ Start optimizer scan."""
@@ -2358,23 +2372,27 @@ class ProteusQGUI(GUIBase):
         self._mw.actionStart_Obj_YZ_scan.setEnabled(toggle)
         self._mw.actionGo_To_Obj_pos.setEnabled(toggle)
         self._mw.actionOptimize_Pos.setEnabled(toggle)
+        self._dockwidget_container[f'obj_xy'].graphicsView_matrix.toggle_crosshair(toggle)
+        self._dockwidget_container[f'obj_xz'].graphicsView_matrix.toggle_crosshair(toggle)
+        self._dockwidget_container[f'obj_yz'].graphicsView_matrix.toggle_crosshair(toggle)
 
     def enable_scan_actions(self):
+        toggle = not self._mw.actionLock_Obj.isChecked()
         self._mw.actionStart_QAFM_Scan.setEnabled(True)
-        self._mw.actionStart_Obj_XY_scan.setEnabled(True)
-        self._mw.actionStart_Obj_XZ_scan.setEnabled(True)
-        self._mw.actionStart_Obj_YZ_scan.setEnabled(True)
+        self._mw.actionStart_Obj_XY_scan.setEnabled(toggle)
+        self._mw.actionStart_Obj_XZ_scan.setEnabled(toggle)
+        self._mw.actionStart_Obj_YZ_scan.setEnabled(toggle)
         self._mw.actionGo_To_AFM_pos.setEnabled(True)
-        self._mw.actionGo_To_Obj_pos.setEnabled(True)
+        self._mw.actionGo_To_Obj_pos.setEnabled(toggle)
         self._mw.actionLock_Obj.setEnabled(True)
         self._mw.actionTemperatureUpdate.setEnabled(True)
-        self._mw.actionOptimize_Pos.setEnabled(True)
+        self._mw.actionOptimize_Pos.setEnabled(toggle)
         self._mw.actionSaveDataQAFM.setEnabled(True)
         self._mw.actionSaveObjData.setEnabled(True)
         self._mw.actionSaveOptiData.setEnabled(True)
-        self._dockwidget_container[f'obj_xy'].graphicsView_matrix.toggle_crosshair(True)
-        self._dockwidget_container[f'obj_xz'].graphicsView_matrix.toggle_crosshair(True)
-        self._dockwidget_container[f'obj_yz'].graphicsView_matrix.toggle_crosshair(True)
+        self._dockwidget_container[f'obj_xy'].graphicsView_matrix.toggle_crosshair(toggle)
+        self._dockwidget_container[f'obj_xz'].graphicsView_matrix.toggle_crosshair(toggle)
+        self._dockwidget_container[f'obj_yz'].graphicsView_matrix.toggle_crosshair(toggle)
 
     def enable_optimizer_action(self):
         self._mw.actionOptimize_Pos.setEnabled(True)
@@ -2491,7 +2509,7 @@ class ProteusQGUI(GUIBase):
         daily_folder = self._mw.daily_folder_CheckBox.isChecked()
 
         self._qafm_logic.save_obj_data(obj_name_list, tag, probe_name, sample_name,
-                                        use_qudi_savescheme=False,
+                                        use_qudi_savescheme=True,
                                         daily_folder=daily_folder)
 
     def enable_obj_save_button(self):
@@ -2511,7 +2529,7 @@ class ProteusQGUI(GUIBase):
         daily_folder = self._mw.daily_folder_CheckBox.isChecked()
 
         self._qafm_logic.save_qafm_data(tag, probe_name, sample_name,
-                                        use_qudi_savescheme=False,
+                                        use_qudi_savescheme=True,
                                         daily_folder=daily_folder)
 
 
@@ -2536,7 +2554,7 @@ class ProteusQGUI(GUIBase):
         daily_folder = self._mw.daily_folder_CheckBox.isChecked()
 
         self._qafm_logic.save_qafm_data(tag, probe_name, sample_name,
-                                        use_qudi_savescheme=False,
+                                        use_qudi_savescheme=True,
                                         daily_folder=daily_folder)        
 
 
@@ -2556,7 +2574,7 @@ class ProteusQGUI(GUIBase):
         daily_folder = self._mw.daily_folder_CheckBox.isChecked()
 
         self._qafm_logic.save_optimizer_data(tag, probe_name, sample_name, 
-                                            use_qudi_savescheme=False, 
+                                            use_qudi_savescheme=True, 
                                             daily_folder=daily_folder)
 
     def enable_opti_save_button(self):
