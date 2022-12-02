@@ -521,12 +521,11 @@ class TimeTaggerCounter(Base, SlowCounterInterface, RecorderInterface):
                            current mode setting
         """
         ret = {'counts':None, 'int_time':None, 'counts2':None, 'counts_diff': None}
-        
-        if self._curr_mode == HWRecorderMode.PIXELCLOCK or HWRecorderMode.PIXELCLOCK_SINGLE_ISO_B:
-            while True:
-                if self.recorder.ready():
-                    break
+        while True:
+            if self.recorder.ready():
+                break
 
+        if self._curr_mode == HWRecorderMode.PIXELCLOCK or HWRecorderMode.PIXELCLOCK_SINGLE_ISO_B:
             # ['counts', 'int_time', 'counts2', 'counts_diff']
             data = self.recorder.getData()
             ret['counts'] = data

@@ -48,6 +48,7 @@ class PulseStreamer(Base, PulserInterface):
 
     _pulsestreamer_ip = ConfigOption('pulsestreamer_ip', '192.168.1.100', missing='warn')
     _laser_channel = ConfigOption('laser_channel', 1, missing='warn')
+    _laser_analog_channel = ConfigOption('laser_analog_channel', 0, missing='warn')
     _uw_x_channel = ConfigOption('uw_x_channel', 3, missing='warn')
 
     _pixel_start = ConfigOption('pixel_start', 1, missing='warn')
@@ -63,6 +64,7 @@ class PulseStreamer(Base, PulserInterface):
     __current_waveform = StatusVar(name='current_waveform', default={})
     __current_waveform_name = StatusVar(name='current_waveform_name', default='')
     __sample_rate = StatusVar(name='sample_rate', default=1e9)
+    _laser_power_voltage = StatusVar(name='laser_power_voltage', default=0.5)
 
 
     def __init__(self, config, **kwargs):
@@ -243,12 +245,13 @@ class PulseStreamer(Base, PulserInterface):
                 self.pulse_streamer.setTrigger(start=ps.TriggerStart.SOFTWARE)
             if rearm:
                 self.pulse_streamer.setTrigger(start=ps.TriggerStart.HARDWARE_RISING, rearm=ps.TriggerRearm.MANUAL)
-            self.pulse_streamer.stream(self._seq, n_runs = n, final = final)
+            self.pulse_streamer.stream(self._seq, n_runs = n, final = ps.OutputState([self._laser_channel], self._laser_power_voltage, 0))
+            # self.pulse_streamer.stream(self._seq, n_runs = n, final = final)
             self.pulse_streamer.startNow()
             self.__current_status = 1
             return 0
         elif laser:
-            self.pulse_streamer.constant(ps.OutputState([self._laser_channel], 0, 0))
+            self.pulse_streamer.constant(ps.OutputState([self._laser_channel], self._laser_power_voltage, 0))
         else:
             self.log.error('no sequence/pulse pattern prepared for the pulse streamer')
             self.pulser_off()
@@ -788,8 +791,12 @@ class PulseStreamer(Base, PulserInterface):
         return False
     
     def load_swabian_sequence(self, seq):
+        """ Upload a pattern to a sequence and the sequence to the pulsetreamer in a simple native way.
+        """
         self._seq = self.pulse_streamer.createSequence()
-
         for key in seq.keys():
             if seq[key]:
-                self._seq.setDigital(key, seq[key])
+                if 'd' in key:
+                    self._seq.setDigital(int(key[-1]), seq[key])    
+                else:
+                    self._seq.setAnalog(int(key[-1]),seq[key])

@@ -267,7 +267,7 @@ class PulseSequence:
     as well and multiple can be added.
     '''
     def __init__(self):
-        self.pulse_dict = {0:[], 1:[], 2:[], 3:[], 4:[], 5:[], 6:[], 7:[]}
+        self.pulse_dict = {'d0':[], 'd1':[], 'd2':[], 'd3':[], 'd4':[], 'd5':[], 'd6':[], 'd7':[], 'a0':[], 'a1':[]}
 
     def append(self, block_list):
         '''
@@ -285,17 +285,16 @@ class PulseBlock:
     Small repeating pulse blocks that can be appended to a PulseSequence instance
     '''
     def __init__(self):
-        self.block_dict = {0:[], 1:[], 2:[], 3:[], 4:[], 5:[], 6:[], 7:[]}
+        self.block_dict = {'d0':[], 'd1':[], 'd2':[], 'd3':[], 'd4':[], 'd5':[], 'd6':[], 'd7':[], 'a0':[], 'a1':[]}
     
     def append(self, init_length, channels, repetition):
         '''
         init_length in s; will be converted by sequence class to ns
         channels are digital channels of PS in swabian language
         '''
-        tf = {True:1, False:0}
         for i in range(repetition):
             for chn in channels.keys():
-                self.block_dict[chn].extend([(init_length/1e-9, tf[channels[chn]])])    
+                self.block_dict[chn].extend([(init_length/1e-9, channels[chn])])    
 
 
 class AFMConfocalLogic(GenericLogic):
@@ -308,6 +307,7 @@ class AFMConfocalLogic(GenericLogic):
     __version__ = '0.1.5' # version number 
 
     _meas_path = ConfigOption('meas_path', default='', missing='warn')
+    _mw_mode = ConfigOption('mw_mode', default='SWEEP', missing='warn')
 
     # declare connectors. It is either a connector to be connected to another
     # logic or another hardware. Hence the interface variable will take either 
@@ -1057,31 +1057,6 @@ class AFMConfocalLogic(GenericLogic):
             
         return arr  
 
-
-    @deprecated('Current function is no longer in use')
-    def create_scan_snake(self, x_start, x_stop, y_start, y_stop, res_y):
-        """ Create a snake like movement within the scan."""
-        # it is assumed that a line scan is performed and fast axis is the x axis.
-        y = np.linspace(y_start, y_stop, res_y)
-        
-        reverse = False
-        arr = []
-        for y_val in y:
-            scan_line = []
-            if reverse:
-                scan_line.extend((x_stop, x_start))
-                reverse = False
-
-            else:
-                scan_line.extend((x_start, x_stop))
-                reverse = True
-                
-            scan_line.extend((y_val, y_val))
-            arr.append(scan_line)
-
-        return arr
-
-
 # ==============================================================================
 #           QAFM area scan functions
 # ==============================================================================
@@ -1750,16 +1725,22 @@ class AFMConfocalLogic(GenericLogic):
         self._stop_request = False
 
         self._optimize_period = optimize_period
-
-        # make the counter for esr ready
-        freq_list = np.linspace(freq_start, freq_stop, freq_points, endpoint=True)
-
-        ret_val = self._counter.configure_recorder(
-            mode=HWRecorderMode.ESR,
-            params={'mw_frequency_list': freq_list,
-                    'num_meas': num_esr_runs } )
                     
-        self._mw.set_list(freq_list, mw_power)
+        if self._mw_mode == 'LIST':
+            # make the counter for esr ready
+            freq_list = np.linspace(freq_start, freq_stop, freq_points, endpoint=True)
+            ret_val = self._counter.configure_recorder(
+                mode=HWRecorderMode.ESR,
+                params={'mw_frequency_list': freq_list,
+                        'num_meas': num_esr_runs } )
+            self._mw.set_list(freq_list, mw_power)
+        else:
+            freq_list = np.linspace(freq_start, freq_stop, freq_points)
+            freqs = self._mw.set_sweep(freq_start, freq_stop, freq_list[1]-freq_list[0], mw_power)
+            ret_val = self._counter.configure_recorder(
+                mode=HWRecorderMode.ESR,
+                params={'mw_frequency_list': freq_list,
+                        'num_meas': num_esr_runs } )
                 
         self._pulser.load_swabian_sequence(self._make_pulse_sequence(HWRecorderMode.ESR, 1/esr_count_freq, freq_points, num_esr_runs))
         self._pulser.pulser_on(trigger=True, n=1)
@@ -1863,7 +1844,10 @@ class AFMConfocalLogic(GenericLogic):
                                      time_forward=scan_speed_per_line,
                                      time_back=idle_move_time)
             
-            self._mw.list_on()
+            if self._mw_mode == 'LIST':
+                self._mw.list_on()
+            elif self._mw_mode == 'SWEEP':
+                self._mw.sweep_on()
 
             # -1 otherwise it would be more than coord0_num points, since first one is counted too.
             x_step = (scan_coords[1] - scan_coords[0]) / (coord0_num - 1)
@@ -1976,8 +1960,10 @@ class AFMConfocalLogic(GenericLogic):
 
                 # emit a signal at every point, so that update can happen in real time.
                 self.sigQAFMLineScanFinished.emit()
-                self._mw.reset_listpos()
-
+                if self._mw_mode == 'LIST':
+                        self._mw.reset_listpos()
+                else:
+                    self._mw.reset_sweeppos()
                 # remove possibility to stop during line scan.
                 if self._stop_request:
                    break
@@ -2143,13 +2129,6 @@ class AFMConfocalLogic(GenericLogic):
 
         @return 2D_array: measurement results in a two dimensional list.
         """
-
-        # self.log.info('forwards scan started.')
-        # self.log.info(f'{coord0_start, coord0_stop, coord0_num, coord1_start, coord1_stop, coord1_num, int_time_afm, idle_move_time, freq_start, freq_stop, freq_points, esr_count_freq, mw_power, num_esr_runs, optimize_period, meas_params, single_res, continue_meas}')
-        # time.sleep(3)
-        # self.sigQuantiScanFinished.emit()
-        # return
-
         # self.module_state.lock()
         self.sigQuantiScanStarted.emit()
         plane = 'XY'
@@ -2158,17 +2137,24 @@ class AFMConfocalLogic(GenericLogic):
         ## reverse_meas = False
         self._stop_request = False
 
-        self._optimize_period = optimize_period
+        # self._optimize_period = optimize_period
 
-        # make the counter for esr ready
-        freq_list = np.linspace(freq_start, freq_stop, freq_points, endpoint=True)
-        
-        ret_val = self._counter.configure_recorder(
-            mode=HWRecorderMode.ESR,
-            params={'mw_frequency_list': freq_list,
-                    'num_meas': num_esr_runs } )
-                    
-        self._mw.set_list(freq_list, mw_power)
+        # make the counter for esr ready                   
+        if self._mw_mode == 'LIST':
+            freq_list = np.linspace(freq_start, freq_stop, freq_points, endpoint=True)
+            ret_val = self._counter.configure_recorder(
+                mode=HWRecorderMode.ESR,
+                params={'mw_frequency_list': freq_list,
+                        'num_meas': num_esr_runs } )
+            self._mw.set_list(freq_list, mw_power)
+
+        elif self._mw_mode == 'SWEEP':
+            freq_list = np.linspace(freq_start, freq_stop, freq_points)
+            self._mw.set_sweep(freq_start, freq_stop, freq_list[1]-freq_list[0], mw_power)
+            ret_val = self._counter.configure_recorder(
+                mode=HWRecorderMode.ESR,
+                params={'mw_frequency_list': freq_list,
+                        'num_meas': num_esr_runs } )
                 
         self._pulser.load_swabian_sequence(self._make_pulse_sequence(HWRecorderMode.ESR, 1/esr_count_freq, freq_points, num_esr_runs))
         self._pulser.pulser_on(trigger=True, n=1)
@@ -2181,18 +2167,16 @@ class AFMConfocalLogic(GenericLogic):
         self.sigHealthCheckStopSkip.emit()
 
         # scan_speed_per_line = 0.01  # in seconds
+        #FIXME
         scan_speed_per_line = int_time_afm
 
         scan_arr = self.create_scan_leftright(coord0_start, coord0_stop,
                                               coord1_start, coord1_stop, coord1_num)
-        # scan_arr = self._spm.create_scan_snake(coord0_start, coord0_stop,
-        #                                        coord1_start, coord1_stop, coord1_num)
 
-        ret_val, _, curr_scan_params = \
-            self._spm.configure_scanner(mode=ScannerMode.PROBE_CONTACT,
-                                        params= {'line_points': coord0_num,
-                                                 'meas_params': meas_params},
-                                        scan_style=ScanStyle.POINT) 
+        ret_val, _, curr_scan_params = self._spm.configure_scanner(mode=ScannerMode.PROBE_CONTACT,
+                                                                    params= {'line_points': coord0_num,
+                                                                            'meas_params': meas_params},
+                                                                    scan_style=ScanStyle.POINT) 
 
         curr_scan_params.insert(0, 'b_field')  # insert the fluorescence parameter
         curr_scan_params.insert(0, 'counts')  # insert the fluorescence parameter
@@ -2266,7 +2250,10 @@ class AFMConfocalLogic(GenericLogic):
                                      time_forward=scan_speed_per_line,
                                      time_back=idle_move_time)
             
-            self._mw.list_on()
+            if self._mw_mode == 'LIST':
+                self._mw.list_on()
+            elif self._mw_mode == 'SWEEP':
+                self._mw.sweep_on()
 
             # -1 otherwise it would be more than coord0_num points, since first one is counted too.
             x_step = (scan_coords[1] - scan_coords[0]) / (coord0_num - 1)
@@ -2298,6 +2285,10 @@ class AFMConfocalLogic(GenericLogic):
 
                 esr_meas_mean = esr_meas.mean(axis=0)
                 esr_meas_std = esr_meas.std(axis=0)
+
+                # Fake data
+                fx = freq_list
+                esr_meas_mean = self.physical_lorentzian(x=fx, center=fx[int(len(fx)/(line_num+1))-1], sigma=fx[0]/1e3, amp=-1200, offset=120e3)
                 
                 mag_field = 0.0
                 fluorescence = 0.0
@@ -2371,8 +2362,10 @@ class AFMConfocalLogic(GenericLogic):
 
                 # emit a signal at every point, so that update can happen in real time.
                 self.sigQAFMLineScanFinished.emit()
-                self._mw.reset_listpos()
-
+                if self._mw_mode == 'LIST':
+                        self._mw.reset_listpos()
+                else:
+                    self._mw.reset_sweeppos()
                 # possibility to stop during line scan.
                 if self._stop_request:
                     break
@@ -2388,37 +2381,6 @@ class AFMConfocalLogic(GenericLogic):
 
             if self._stop_request:
                 break
-
-            # perform optimization always after line finishes
-            if self.get_optimize_request():
-
-                self.log.info('Enter optimization.')
-                self.sigHealthCheckStartSkip.emit()
-                time.sleep(2)
-
-                self._counter.configure_recorder(mode=HWRecorderMode.PIXELCLOCK,
-                                                 params={'mw_frequency': self._freq1_iso_b_frequency,
-                                                         'num_meas': coord0_num})
-                self._spm.finish_scan()
-
-                time.sleep(1)
-
-                self.default_optimize()
-                _, _, _ = self._spm.configure_scanner(mode=ScannerMode.PROBE_CONTACT,
-                                                      params= {'line_points': coord0_num,
-                                                               'meas_params': meas_params},
-                                                      scan_style=ScanStyle.LINE) 
-
-                self._counter.configure_recorder(
-                    mode=HWRecorderMode.ESR,
-                    params={'mw_frequency_list': freq_list,
-                            'mw_power': mw_power,
-                            'count_frequency': esr_count_freq,
-                            'num_meas': num_esr_runs } )
-                time.sleep(2)
-                self.sigHealthCheckStopSkip.emit()
-
-            self.log.info('Pass optimization.')
 
         stop_time_afm_scan = datetime.datetime.now()
         self._afm_meas_duration = self._afm_meas_duration + (
@@ -2442,6 +2404,18 @@ class AFMConfocalLogic(GenericLogic):
 
         return self._qafm_scan_array
 
+    def physical_lorentzian(self, x, center, sigma, amp, offset):
+        """ Function of a Lorentzian with unit height at center.
+
+        @param numpy.array x: independent variable - e.g. frequency
+        @param float center: center around which the distributions will be
+        @param float sigma: half length at half maximum
+
+        @return: numpy.array with length equals to input x and with the values
+                of a lorentzian.
+        """
+        return (np.power(sigma, 2) / (np.power((center - x), 2) + np.power(sigma, 2))) * amp + offset
+
     def start_scan_area_quanti_qafm_fw_by_point(self, coord0_start, coord0_stop,
                                                    coord0_num, coord1_start, coord1_stop,
                                                    coord1_num, int_time_afm=0.1,
@@ -2458,21 +2432,6 @@ class AFMConfocalLogic(GenericLogic):
             self.log.error("A measurement is currently running, stop it first!")
             return
         
-        # self._health_check.setup(interval=20,                                       # perform check every interval (s)
-        #                          default_delta_t=int_time_afm * num_esr_runs *1.5,  # minimum time to expect between updates
-        #                          check_function=self._counter._dev.ctrl.isBusy,     # op function to check health 
-        #                          connect_start=[],                                  # start triggered manually
-        #                          connect_update=[self.sigQuantiLineFinished,        # signals which will trigger update
-        #                                          self.sigNewAFMPos],
-        #                          connect_stop=[self.sigQuantiScanFinished],         # signal to trigger stop of health check
-        #                          connect_opt_start=[self.sigHealthCheckStartSkip],   # signal to note that optimizer has started 
-        #                          connect_opt_stop=[self.sigHealthCheckStopSkip],    # signal to note that optimizer has finished
-        #                          log=self.log
-        #                         )
-
-        # self._health_check.start_timer(arm=True)
-        # self.sigHealthCheckStartSkip.emit()
-
         if self._USE_THREADED:
             self._worker_thread = WorkerThread(target=self.scan_area_quanti_qafm_fw_by_point,
                                                args=(coord0_start, coord0_stop,
@@ -2561,11 +2520,28 @@ class AFMConfocalLogic(GenericLogic):
             fast_counter_measurement.setMaxCounts(num_runs) #set max number of histogram rollover 
                     
             if mw_var:
-                self._mw.set_list(var_list, mw_power)
-                self._mw.list_on()
-            else:
-                self._mw.set_cw(mw_freq, mw_power)
-                self._mw.cw_on()
+                if self._mw_mode == 'LIST':
+                    # make the counter for esr ready
+                    freq_list = np.linspace(freq_start, freq_stop, freq_points, endpoint=True)
+                    ret_val = self._counter.configure_recorder(
+                        mode=HWRecorderMode.ESR,
+                        params={'mw_frequency_list': freq_list,
+                                'num_meas': num_esr_runs } )
+                    self._mw.set_list(freq_list, mw_power)
+                else:
+                    freq_list = np.linspace(freq_start, freq_stop, freq_points)
+                    freqs = self._mw.set_sweep(freq_start, freq_stop, freq_list[1]-freq_list[0], mw_power)
+                    ret_val = self._counter.configure_recorder(
+                        mode=HWRecorderMode.ESR,
+                        params={'mw_frequency_list': freq_list,
+                                'num_meas': num_esr_runs } )
+                if self._mw_mode == 'LIST':
+                    self._mw.list_on()
+                elif self._mw_mode == 'SWEEP':
+                    self._mw.sweep_on()
+                else:
+                    self._mw.set_cw(mw_freq, mw_power)
+                    self._mw.cw_on()
 
             self._pulser.pulsed_trigger = True
 
@@ -2739,7 +2715,10 @@ class AFMConfocalLogic(GenericLogic):
 
                     # emit a signal at every point, so that update can happen in real time.
                     self.sigQAFMLineScanFinished.emit()
-                    self._mw.reset_listpos()
+                    if self._mw_mode == 'LIST':
+                        self._mw.reset_listpos()
+                    else:
+                        self._mw.reset_sweeppos()
 
                     # remove possibility to stop during line scan.
                     if self._stop_request:
@@ -3561,248 +3540,6 @@ class AFMConfocalLogic(GenericLogic):
                                            name='optimizer')
         self.threadpool.start(self._worker_thread)
 
-
-# ==============================================================================
-# QAFM measurement with optimization possibility:
-# ==============================================================================
-
-    #FIXME: This methods needs to be checked!!
-    @deprecated("This method seems not to be used")
-    def measure_point_optimized(self, x_start_afm=48*1e-6, x_stop_afm=53*1e-6, 
-                                y_start_afm=47*1e-6, y_stop_afm=52*1e-6, 
-                                res_x_afm=40, res_y_afm=40, integration_time_afm=0.02, 
-                                plane_afm='XY',
-                                meas_params=['Phase', 'Height(Dac)', 'Height(Sen)'],
-                                continue_meas=False, optimize_int=60,
-                                res_x_obj=25, res_y_obj=25, res_z_obj=25, 
-                                int_time_xy_obj=0.01, int_time_z_obj=0.02):
-
-        self._stop_request_all = False
-        self._afm_meas_optimize_interval = optimize_int
-
-        self.start_measure_point(x_start_afm, x_stop_afm, y_start_afm, y_stop_afm, 
-                                 res_x_afm, res_y_afm, 
-                                 integration_time_afm, plane_afm, meas_params, 
-                                 continue_meas)
-
-        # just safety wait
-        time.sleep(0.1)
-
-        time_start =  time.time()
-
-        while not self._stop_request_all:
-            time.sleep(1)
-
-            if (time.time() - time_start) > self._afm_meas_optimize_interval:
-                self.stop_measure()
-
-                timeout = 60
-                counter = 0
-                # make a timeout for waiting
-                while self.module_state() != 'idle':
-                    time.sleep(1)
-                    counter += 1
-
-                    if counter > timeout:
-                        self.log.warning('Timeout reached! Abort optimize and quit.')
-                        return
-
-                x_start = self._opt_val[0] - 0.5*1e-6
-                x_stop = self._opt_val[0] + 0.5*1e-6
-                y_start = self._opt_val[1] - 0.5*1e-6
-                y_stop = self._opt_val[1] + 0.5*1e-6
-                z_start = 0*1e-6
-                z_stop = 8*1e-6
-                self.optimize_pos(x_start=x_start, x_stop=x_stop, 
-                                  y_start=y_start, y_stop=y_stop, 
-                                  z_start=z_start, z_stop=z_stop, 
-                                  res_x=res_x_obj, res_y=res_y_obj, res_z=res_z_obj, 
-                                  int_time_xy=int_time_xy_obj, 
-                                  int_time_z=int_time_z_obj)
-
-
-                time_start = time.time()
-
-                self.start_measure_point(x_start_afm, x_stop_afm, y_start_afm, 
-                                         y_stop_afm, res_x_afm, res_y_afm, 
-                                         integration_time_afm, plane_afm, 
-                                         meas_params, True)
-                time.sleep(0.1)
-
-
-            if self.module_state() == 'idle':
-                break
-
-
-        self.log.info("Measurement completely finished, yeehaa!")
-
-
-    @deprecated("This method seems not to be used")
-    def start_measure_point_optimized(self, x_start_afm=48*1e-6, x_stop_afm=53*1e-6, 
-                                      y_start_afm=47*1e-6, y_stop_afm=52*1e-6, 
-                                      res_x_afm=40, res_y_afm=40, 
-                                      integration_time_afm=0.02, plane_afm='XY',
-                                      meas_params=['Phase', 'Height(Dac)', 'Height(Sen)'],
-                                      continue_meas=False, optimize_int=60,
-                                      res_x_obj=25, res_y_obj=25, res_z_obj=25, 
-                                      int_time_xy_obj=0.01, int_time_z_obj=0.02):
-
-        if self.check_meas_opt_run():
-            self.log.error("A measurement is currently running, stop it first!")
-            return
-
-        self.meas_thread_opt = threading.Thread(target=self.measure_point_optimized, 
-                                            args=(x_start_afm, x_stop_afm, 
-                                                  y_start_afm, y_stop_afm, 
-                                                  res_x_afm, res_y_afm, 
-                                                  integration_time_afm, plane_afm,
-                                                  meas_params, continue_meas,
-                                                  optimize_int, res_x_obj, 
-                                                  res_y_obj, res_z_obj, 
-                                                  int_time_xy_obj, int_time_z_obj), 
-                                            name='meas_thread_opt')
-        self.meas_thread_opt.start()
-
-
-# ==============================================================================
-#           Method to measure just one line instead of whole area point
-# ==============================================================================
-    @deprecated("This method seems not to be used")
-    def scan_line_by_point(self, coord0_start, coord0_stop, coord1_start, coord1_stop, res, 
-                           integration_time, plane='XY', meas_params=['Height(Dac)'],
-                           wait_first_point=False, continue_meas=False):
-
-        """ Measurement method for a scan by point.
-        
-        @param float coord0_start: start coordinate in um
-        @param float coord0_stop: start coordinate in um
-        @param float coord1_start: start coordinate in um
-        @param float coord1_stop: start coordinate in um
-        @param int res_x: number of points in x direction
-        @param int res_y: number of points in y direction
-        @param float integration_time: time for the optical integration in s
-        @param str plane: Name of the plane to be scanned. Possible options are
-                            'XY', 'YZ', 'XZ', 'X2Y2', 'Y2Z2', 'X2Z2'
-        @param list meas_params: list of possible strings of the measurement 
-                                 parameter. Have a look at MEAS_PARAMS to see 
-                                 the available parameters.
-
-        @return 2D_array: measurement results in a two dimensional list. 
-        """
-
-
-        self._start = time.time()
-
-        if not np.isclose(self._counterlogic.get_count_frequency(), 1/integration_time):
-            self._counterlogic.set_count_frequency(frequency=1/integration_time)
-        self._counterlogic.startCount()
-
-        # set up the spm device:
-        reverse_meas = False
-        self._stop_request = False
-        #scan_speed_per_line = 0.01  # in seconds
-        scan_speed_per_line = integration_time
-        scan_arr = [[coord0_start, coord0_stop, coord1_start, coord1_stop]]
-
-        #FIXME: check whether the number of parameters are required and whether they are set correctly.
-        # self._spm._params_per_point = len(names_buffers)
-        ret_val, _, curr_scan_params = \
-            self._spm.configure_scanner(mode=ScannerMode.PROBE_CONTACT,
-                                        params= {'line_points': res,
-                                                 'meas_params': meas_params},
-                                        scan_style=ScanStyle.LINE) 
-
-        # AFM signal
-        self._meas_array_scan = np.zeros(len(meas_params)*res)
-
-        # APD signal
-        self._apd_array_scan = np.zeros(res)
-
-        # check input values
-        ret_val |= self._spm.check_spm_scan_params_by_plane(plane, coord0_start, coord0_stop, coord1_start, coord1_stop)   
-
-        if ret_val < 1:
-            return self._apd_array_scan, self._meas_array_scan
-
-        self._scan_counter = 0
-
-        for line_num, scan_coords in enumerate(scan_arr):
-            
-            # AFM signal
-            self._meas_line_scan = np.zeros(len(curr_scan_params)*res)
-            # APD signal
-            self._apd_line_scan = np.zeros(res)
-            
-            self._spm.configure_line(line_corr0_start=scan_coords[0], 
-                                     line_corr0_stop=scan_coords[1], 
-                                     line_corr1_start=scan_coords[2], 
-                                     line_corr1_stop=scan_coords[3], 
-                                     time_forward=scan_speed_per_line, 
-                                     time_back=scan_speed_per_line)
-            
-            vals = self._spm.scan_point()  # these are points to throw away
-
-            if wait_first_point and (self._scan_counter == 0):
-                time.sleep(2)
-
-            #if len(vals) > 0:
-            #    self.log.error("The scanner range was not correctly set up!")
-
-            for index in range(res):
-
-                #Important: Get first counts, then the SPM signal!
-                #self._apd_line_scan[index] = self._counter.get_counter(1)[0][0]
-                self._apd_line_scan[index] = self._counterlogic.get_last_counts(1)[0][0]
-
-                self._meas_line_scan[index*len(curr_scan_params):(index+1)*len(curr_scan_params)] = self._spm.scan_point()
-                
-                self._scan_counter += 1
-                if self._stop_request:
-                    break
-
-                self._meas_array_scan = self._meas_line_scan
-                self._apd_array_scan = self._apd_line_scan
-
-            if self._stop_request:
-                break
-
-            #self.log.info(f'Line number {line_num} completed.')
-            print(f'Line number {line_num} completed.')
-                
-        self._stop = time.time() - self._start
-        self.log.info(f'Scan finished after {int(self._stop)}s. Yeehaa!')
-
-        # clean up the counter:
-        #self._counter.close_counter()
-        #self._counter.close_clock()
-        
-        # clean up the spm
-        self._spm.finish_scan()
-        
-        return self._apd_array_scan, self._meas_array_scan
-
-    @deprecated("This method seems not to be used")
-    def start_measure_line_point(self, coord0_start=0*1e-6, coord0_stop=0*1e-6, 
-                                 coord1_start=0*1e-6, coord1_stop=10*1e-6, 
-                                 res=100, integration_time=0.02, plane='XY',
-                                 meas_params=['Phase', 'Height(Dac)', 'Height(Sen)'],
-                                 wait_first_point=False):
-
-        if self.check_meas_run():
-            self.log.error("A measurement is currently running, stop it first!")
-            return
-
-        self.meas_thread = threading.Thread(target=self.scan_line_by_point, 
-                                            args=(coord0_start, coord0_stop, 
-                                                  coord1_start, coord1_stop, 
-                                                  res, 
-                                                  integration_time,
-                                                  plane,
-                                                  meas_params, wait_first_point), 
-                                            name='meas_thread')
-
-        self.meas_thread.start()
-
 # ==============================================================================
 #        General stop routine, to stop the current running measurement
 # ==============================================================================
@@ -3839,28 +3576,32 @@ class AFMConfocalLogic(GenericLogic):
 # ==============================================================================
     def _make_pulse_sequence(self, mode, int_time, freq_points=1, num_esr_runs=1):
 
-        d_ch = {0: False , 1: False , 2: False , 3: False , 4: False , 5: False , 6: False , 7: False }
-        clear = lambda x: {i:False for i in x.keys()}
+        channels = {'d0': 0.0 , 'd1': 0.0 , 'd2': 0.0 , 'd3': 0.0 , 'd4': 0.0 , 'd5': 0.0 , 'd6': 0.0 , 'd7': 0.0 , 'a0': 0.0, 'a1': 0.0}
+        clear = lambda x: {i:0.0 for i in x.keys()}
+        d_ch = lambda x: f'd{x}'
+        a_ch = lambda x: f'a{x}'
         
         if mode == HWRecorderMode.PIXELCLOCK:
             seq = PulseSequence()
-            
             block_1 = PulseBlock()
             
-            d_ch = clear(d_ch)
-            d_ch[self._pulser._pixel_start] = True
-            d_ch[self._pulser._laser_channel] = True
-            block_1.append(init_length = 1e-6, channels = d_ch, repetition = 1)
+            channels = clear(channels)
+            channels[d_ch(self._pulser._pixel_start)] = 1.0
+            channels[d_ch(self._pulser._laser_channel)] = 1.0
+            channels[a_ch(self._pulser._laser_analog_channel)] = self._pulser._laser_power_voltage
+            block_1.append(init_length = 1e-6, channels = channels, repetition = 1)
 
-            d_ch = clear(d_ch)
-            d_ch[self._pulser._laser_channel] = True
-            block_1.append(init_length = int_time, channels = d_ch, repetition = 1)
+            channels = clear(channels)
+            channels[d_ch(self._pulser._laser_channel)] = 1.0
+            channels[a_ch(self._pulser._laser_analog_channel)] = self._pulser._laser_power_voltage
+            block_1.append(init_length = int_time, channels = channels, repetition = 1)
 
-            d_ch = clear(d_ch)
-            d_ch[self._pulser._laser_channel] = True
-            d_ch[self._pulser._pixel_stop] = True
-            d_ch[self._pulser._sync_in] = True
-            block_1.append(init_length = 1e-6, channels = d_ch, repetition = 1)
+            channels = clear(channels)
+            channels[d_ch(self._pulser._laser_channel)] = 1.0
+            channels[a_ch(self._pulser._laser_analog_channel)] = self._pulser._laser_power_voltage
+            channels[d_ch(self._pulser._pixel_stop)] = 1.0
+            channels[d_ch(self._pulser._sync_in)] = 1.0
+            block_1.append(init_length = 1e-6, channels = channels, repetition = 1)
 
             seq.append([(block_1, 1)])
 
@@ -3868,57 +3609,58 @@ class AFMConfocalLogic(GenericLogic):
         
         elif mode == HWRecorderMode.PIXELCLOCK_SINGLE_ISO_B:
             seq = PulseSequence()
-            
             block_1 = PulseBlock()
             
-            d_ch = clear(d_ch)
-            d_ch[self._pulser._laser_channel] = True
-            d_ch[self._pulser._pixel_start] = True
-            d_ch[self._pulser._mw_switch] = True
-            block_1.append(init_length = 1e-6, channels = d_ch, repetition = 1)
+            channels = clear(channels)
+            channels[d_ch(self._pulser._laser_channel)] = 1.0
+            channels[a_ch(self._pulser._laser_analog_channel)] = self._pulser._laser_power_voltage
+            channels[d_ch(self._pulser._pixel_start)] = 1.0
+            channels[d_ch(self._pulser._mw_switch)] = 1.0
+            block_1.append(init_length = 1e-6, channels = channels, repetition = 1)
 
-            d_ch = clear(d_ch)
-            d_ch[self._pulser._mw_switch] = True
-            d_ch[self._pulser._laser_channel] = True
-            block_1.append(init_length = int_time, channels = d_ch, repetition = 1)
+            channels = clear(channels)
+            channels[d_ch(self._pulser._laser_channel)] = 1.0
+            channels[a_ch(self._pulser._laser_analog_channel)] = self._pulser._laser_power_voltage
+            channels[d_ch(self._pulser._mw_switch)] = 1.0
+            block_1.append(init_length = int_time, channels = channels, repetition = 1)
 
-            d_ch = clear(d_ch)
-            d_ch[self._pulser._laser_channel] = True
-            d_ch[self._pulser._pixel_stop] = True
-            d_ch[self._pulser._mw_switch] = True
-            d_ch[self._pulser._sync_in] = True
-            block_1.append(init_length = 1e-6, channels = d_ch, repetition = 1)
+            channels = clear(channels)
+            channels[d_ch(self._pulser._laser_channel)] = 1.0
+            channels[a_ch(self._pulser._laser_analog_channel)] = self._pulser._laser_power_voltage
+            channels[d_ch(self._pulser._pixel_stop)] = 1.0
+            channels[d_ch(self._pulser._mw_switch)] = 1.0
+            channels[d_ch(self._pulser._sync_in)] = 1.0
+            block_1.append(init_length = 1e-6, channels = channels, repetition = 1)
 
             seq.append([(block_1, 1)])
 
             pulse_dict = seq.pulse_dict
 
         elif mode == HWRecorderMode.ESR:
-
             seq = PulseSequence()
-            
             block_1 = PulseBlock()
 
-            d_ch = clear(d_ch)
-            d_ch[self._pulser._mw_trig] = True
-            d_ch[self._pulser._laser_channel] = True
-            d_ch[self._pulser._mw_switch] = True
-            d_ch[self._pulser._pixel_start] = True
-            block_1.append(init_length = int_time, channels = d_ch, repetition = 1)
+            channels = clear(channels)
+            channels[d_ch(self._pulser._mw_trig)] = 1.0
+            channels[d_ch(self._pulser._laser_channel)] = 1.0
+            channels[a_ch(self._pulser._laser_analog_channel)] = self._pulser._laser_power_voltage
+            channels[d_ch(self._pulser._mw_switch)] = 1.0
+            channels[d_ch(self._pulser._pixel_start)] = 1.0
+            block_1.append(init_length = int_time, channels = channels, repetition = 1)
 
-            d_ch = clear(d_ch)
-            d_ch[self._pulser._pixel_stop] = True
-            d_ch[self._pulser._mw_switch] = True
-            block_1.append(init_length = 1000e-6, channels = d_ch, repetition = 1)
+            channels = clear(channels)
+            channels[d_ch(self._pulser._pixel_stop)] = 1.0
+            channels[d_ch(self._pulser._mw_switch)] = 1.0
+            block_1.append(init_length = 1000e-6, channels = channels, repetition = 1)
 
             seq.append([(block_1, freq_points*num_esr_runs)])
 
             block_2 = PulseBlock()
 
-            d_ch = clear(d_ch)
-            d_ch[self._pulser._sync_in] = True
-            d_ch[self._pulser._mw_switch] = True
-            block_2.append(init_length = 1000e-6, channels = d_ch, repetition = 1)
+            channels = clear(channels)
+            channels[d_ch(self._pulser._sync_in)] = 1.0
+            channels[d_ch(self._pulser._mw_switch)] = 1.0
+            block_2.append(init_length = 1000e-6, channels = channels, repetition = 1)
 
             seq.append([(block_2, 1)])
 
@@ -4030,394 +3772,6 @@ class AFMConfocalLogic(GenericLogic):
         z_max = res.params['center'].value
 
         return z_max, c_max, res
-
-
-    @deprecated("This method seems not to be used")
-    def start_measure_opt_pos(self, x_start, x_stop, y_start, y_stop, z_start, z_stop, 
-                              res_x, res_y, res_z, int_time_xy, int_time_z):
-
-        if self.check_meas_run():
-            self.log.error("A measurement is currently running, stop it first!")
-            return
-
-        self.meas_thread = threading.Thread(target=self.optimize_pos, 
-                                            args=(x_start, x_stop, 
-                                                  y_start, y_stop,
-                                                  z_start, z_stop, 
-                                                  res_x, res_y, res_z,
-                                                  int_time_xy, int_time_z), 
-                                            name='meas_thread')
-        self.meas_thread.start()
-
-# ==============================================================================
-#        Perform a scan just in one direction
-# ==============================================================================
-
-    @deprecated('Current function no longer in use; currently it will not work')
-    def scan_area_by_line(self, x_start, x_stop, y_start, y_stop, res_x, res_y, 
-                          time_forward=1, time_back=1, meas_params=['Height(Dac)']):
-        """ Measurement method for a scan by line. An XY area is scanned.
-        
-        @param float x_start: start coordinate in um
-        @param float x_stop: start coordinate in um
-        @param float y_start: start coordinate in um
-        @param float y_stop: start coordinate in um
-        @param int res_x: number of points in x direction
-        @param int res_y: number of points in y direction
-        @param float time_forward: time forward during the scan
-        @param float time_back: time backward after the scan
-        @param list meas_params: list of possible strings of the measurement 
-                                 parameter. Have a look at MEAS_PARAMS to see 
-                                 the available parameters.
-
-        @return 2D_array: measurement results in a two dimensional list. 
-        """
-        
-        reverse_meas = False
-        self._stop_request = False
-        self._meas_array_scan = []
-        self._scan_counter = 0
-        self._line_counter = 0
-
-        # check input values
-        ret_val = self._spm._check_spm_scan_params(x_afm_start=x_start, x_afm_stop=x_stop,
-                                              y_afm_start=y_start, y_afm_stop=y_stop)
-        if ret_val:
-            return self._meas_array_scan
-        
-        scan_arr = self.create_scan_leftright2(x_start, x_stop, y_start, y_stop, res_y)
-        
-        ret_val, _, _ = self._spm.configure_scanner(mode=ScannerMode.PROBE_CONTACT,
-                                                    params= {'line_points': res_x,
-                                                             'meas_params': meas_params},
-                                                    scan_style=ScanStyle.LINE) 
-
-        if ret_val < 1:
-            return self._meas_array_scan
-
-        for scan_coords in scan_arr:
-
-            self._spm.configure_line(line_corr0_start=scan_coords[0], 
-                                     line_corr0_stop=scan_coords[1], 
-                                     line_corr1_start=scan_coords[2], 
-                                     line_corr1_stop=scan_coords[3], 
-                                     time_forward=time_forward, 
-                                     time_back=time_back)
-            self.scan_line()
-
-            # this method will wait until the line was measured.
-            scan_line = self._spm.get_measurements(reshape=False)
-
-            if reverse_meas:
-                self._meas_array_scan.append(list(reversed(scan_line)))
-                reverse_meas = False
-            else:
-                self._meas_array_scan.append(scan_line)
-                reverse_meas = True
-                
-            self._scan_counter += 1
-            #self.send_log_message('Line complete.')
-
-            if self._stop_request:
-                break
-
-        self.log.info('Scan finished. Yeehaa!')
-        print('Scan finished. Yeehaa!')
-        self._spm._dev.finish_scan()
-        
-        return self._meas_array_scan
-
-
-    @deprecated('Current function no longer in use')
-    def start_measure_line(self, coord0_start=48*1e-6, coord0_stop=53*1e-6, 
-                           coord1_start=47*1e-6, coord1_stop=52*1e-6, 
-                           res_x=40, res_y=40, time_forward=1.5, time_back=1.5,
-                           meas_params=['Phase', 'Height(Dac)', 'Height(Sen)']):
-
-        self.meas_thread = threading.Thread(target=self.scan_area_by_line, 
-                                            args=(coord0_start, coord0_stop, 
-                                                  coord1_start, coord1_stop, 
-                                                  res_x, res_y, 
-                                                  time_forward, time_back,
-                                                  meas_params), 
-                                            name='meas_thread')
-
-        if self._spm.check_meas_run():
-            self.log.error("A measurement is currently running, stop it first!")
-        else:
-            self.meas_thread.start()
-
-    @deprecated("This method seems not to be used")
-    def scan_by_point_single_line(self, coord0_start, coord0_stop, 
-                                  coord1_start, coord1_stop, 
-                                  res_x, res_y, integration_time, plane='XY', 
-                                  meas_params=['Height(Dac)'], 
-                                  wait_first_point=False):
-
-        """ Measurement method for a scan by point, with just one linescan
-        
-        @param float coord0_start: start coordinate in um
-        @param float coord0_stop: start coordinate in um
-        @param float coord1_start: start coordinate in um
-        @param float coord1_stop: start coordinate in um
-        @param int res_x: number of points in x direction
-        @param int res_y: number of points in y direction
-        @param float integration_time: time for the optical integration in s
-        @param str plane: Name of the plane to be scanned. Possible options are
-                            'XY', 'YZ', 'XZ', 'X2Y2', 'Y2Z2', 'X2Z2'
-        @param list meas_params: list of possible strings of the measurement 
-                                 parameter. Have a look at MEAS_PARAMS to see 
-                                 the available parameters.
-
-        @return 2D_array: measurement results in a two dimensional list. 
-        """
-
-        self._start = time.time()
-
-        if not np.isclose(self._counterlogic.get_count_frequency(), 1/integration_time):
-            self._counterlogic.set_count_frequency(frequency=1/integration_time)
-        self._counterlogic.startCount()
-
-        # set up the spm device:
-        self._stop_request = False
-        #scan_speed_per_line = 0.01  # in seconds
-        scan_speed_per_line = integration_time
-        scan_arr = self.create_scan_leftright(coord0_start, coord0_stop, 
-                                              coord1_start, coord1_stop, res_y)
-
-        ret_val, _, curr_scan_params = \
-            self._spm.configure_scanner(mode=ScannerMode.PROBE_CONTACT,
-                                        params= {'line_points': res_x,
-                                                 'meas_params': meas_params},
-                                        scan_style=ScanStyle.LINE) 
-
-        # AFM signal
-        self._meas_array_scan = np.zeros((res_y, len(curr_scan_params)*res_x))
-        # APD signal
-        self._apd_array_scan = np.zeros((res_y, res_x))
-
-        # check input values
-        ret_val |= self._spm.check_spm_scan_params_by_plane(plane, coord0_start, coord0_stop, coord1_start, coord1_stop)   
-
-        if ret_val < 1:
-            return (self._apd_array_scan, self._meas_array_scan)
-
-        self._scan_counter = 0
-        for line_num, scan_coords in enumerate(scan_arr):
-            
-            # AFM signal
-            self._meas_line_scan = np.zeros(len(curr_scan_params)*res_x)
-            # APD signal
-            self._apd_line_scan = np.zeros(res_x)
-            
-            self._spm.configure_line(line_corr0_start=scan_coords[0], 
-                                     line_corr0_stop=scan_coords[1], 
-                                     line_corr1_start=scan_coords[2], 
-                                     line_corr1_stop=scan_coords[3], 
-                                     time_forward=scan_speed_per_line, 
-                                     time_back=scan_speed_per_line)
-            
-            vals = self._spm.scan_point()  # these are points to throw away
-
-            # wait a bit before starting to count the first value.
-            if wait_first_point and (self._scan_counter == 0):
-                time.sleep(2)
-
-            #if len(vals) > 0:
-            #    self.log.error("The scanner range was not correctly set up!")
-
-            for index in range(res_x):
-
-                #Important: Get first counts, then the SPM signal!
-                self._apd_line_scan[index] = self._counter.get_counter(1)[0][0]
-                self._meas_line_scan[index*len(curr_scan_params):(index+1)*len(curr_scan_params)] = self._spm.scan_point()
-                
-                self._scan_counter += 1
-                if self._stop_request:
-                    break
-
-            self._meas_array_scan[line_num] = self._meas_line_scan
-            self._apd_array_scan[line_num] = self._apd_line_scan
-
-            if self._stop_request:
-                break
-
-            #self.log.info(f'Line number {line_num} completed.')
-            print(f'Line number {line_num} completed.')
-                
-        self._stop = time.time() - self._start
-        self.log.info(f'Scan finished after {int(self._stop)}s. Yeehaa!')
-
-        # clean up the counter:
-        # self._counter.close_counter()
-        # self._counter.close_clock()
-        
-        # clean up the spm
-        self._spm.finish_scan()
-        
-        return (self._apd_array_scan, self._meas_array_scan)
-
-
-    @deprecated("This method seems not to be used")
-    def start_measure_scan_by_point_single_line(self, coord0_start=0*1e-6, coord0_stop=0*1e-6, 
-                                                coord1_start=0*1e-6, coord1_stop=10*1e-6, 
-                                                res_x=100, res_y=100, integration_time=0.02, 
-                                                plane='XY',
-                                                meas_params=['Phase', 'Height(Dac)', 'Height(Sen)']):
-        if self.check_meas_run():
-            self.log.error("A measurement is currently running, stop it first!")
-            return
-
-        self.meas_thread = threading.Thread(target=self.scan_by_point_single_line, 
-                                            args=(coord0_start, coord0_stop, 
-                                                  coord1_start, coord1_stop, 
-                                                  res_x, res_y,
-                                                  integration_time,
-                                                  plane,
-                                                  meas_params), 
-                                            name='meas_thread')
-        self.meas_thread.start()
-
-# ==============================================================================
-#        Perform a scan in a snake line way
-# ==============================================================================
-
-    @deprecated("This method seems not to be used")
-    def scan_area_by_point_snakeline(self, coord0_start, coord0_stop, 
-                                     coord1_start, coord1_stop, res_x, res_y, 
-                                     integration_time, plane='XY', 
-                                     meas_params=['Height(Dac)']):
-
-        """ Measurement method for a scan by point.
-        
-        @param float coord0_start: start coordinate in um
-        @param float coord0_stop: start coordinate in um
-        @param float coord1_start: start coordinate in um
-        @param float coord1_stop: start coordinate in um
-        @param int res_x: number of points in x direction
-        @param int res_y: number of points in y direction
-        @param float integration_time: time for the optical integration in s
-        @param str plane: Name of the plane to be scanned. Possible options are
-                            'XY', 'YZ', 'XZ', 'X2Y2', 'Y2Z2', 'X2Z2'
-        @param list meas_params: list of possible strings of the measurement 
-                                 parameter. Have a look at MEAS_PARAMS to see 
-                                 the available parameters.
-
-        @return 2D_array: measurement results in a two dimensional list. 
-        """
-
-        self._start = time.time()
-
-        if not np.isclose(self._counterlogic.get_count_frequency(), 1/integration_time):
-            self._counterlogic.set_count_frequency(frequency=1/integration_time)
-        self._counterlogic.startCount()
-
-        # set up the spm device:
-        reverse_meas = False
-        self._stop_request = False
-        #scan_speed_per_line = 0.01  # in seconds
-        scan_speed_per_line = integration_time
-        scan_arr = self.create_scan_snake(coord0_start, coord0_stop, 
-                                               coord1_start, coord1_stop, res_y)
-
-        ret_val, _, curr_scan_params = \
-            self._spm.configure_scanner(mode=ScannerMode.PROBE_CONTACT,
-                                        params= {'line_points': res_x,
-                                                 'meas_params': meas_params},
-                                        scan_style=ScanStyle.LINE) 
-
-        # AFM signal
-        self._meas_array_scan = np.zeros((res_y, len(curr_scan_params)*res_x))
-        # APD signal
-        self._apd_array_scan = np.zeros((res_y, res_x))
-
-        # check input values
-        ret_val |= self._spm.check_spm_scan_params_by_plane(plane, coord0_start, coord0_stop, 
-                                                            coord1_start, coord1_stop)   
-
-        if ret_val < 1:
-            return (self._apd_array_scan, self._meas_array_scan)
-
-        self._scan_counter = 0
-
-        for line_num, scan_coords in enumerate(scan_arr):
-            
-            # AFM signal
-            self._meas_line_scan = np.zeros(len(curr_scan_params)*res_x)
-            # APD signal
-            self._apd_line_scan = np.zeros(res_x)
-            
-            self._spm.configure_line(line_corr0_start=scan_coords[0], 
-                                     line_corr0_stop=scan_coords[1], 
-                                     line_corr1_start=scan_coords[2], 
-                                     line_corr1_stop=scan_coords[3], 
-                                     time_forward=scan_speed_per_line, 
-                                     time_back=scan_speed_per_line)
-            
-            vals = self._spm.scan_point()  # these are points to throw away
-
-            #if len(vals) > 0:
-            #    self.log.error("The scanner range was not correctly set up!")
-
-            for index in range(res_x):
-
-                #Important: Get first counts, then the SPM signal!
-                self._apd_line_scan[index] = self._counter.get_counter(1)[0][0]
-                self._meas_line_scan[index*len(curr_scan_params):(index+1)*len(curr_scan_params)] = self._spm.scan_point()
-                
-                self._scan_counter += 1
-                if self._stop_request:
-                    break
-
-            if reverse_meas:
-                self._meas_array_scan[line_num] = self._meas_line_scan[::-1]
-                self._apd_array_scan[line_num] = self._apd_line_scan[::-1]
-                reverse_meas = False
-            else:
-                self._meas_array_scan[line_num] = self._meas_line_scan
-                self._apd_array_scan[line_num] = self._apd_line_scan
-                reverse_meas = True
-
-            if self._stop_request:
-                break
-
-            #self.log.info(f'Line number {line_num} completed.')
-            print(f'Line number {line_num} completed.')
-                
-        self._stop = time.time() - self._start
-        self.log.info(f'Scan finished after {int(self._stop)}s. Yeehaa!')
-
-        # clean up the counter:
-        # self._counter.close_counter()
-        # self._counter.close_clock()
-        
-        # clean up the spm
-        self._spm.finish_scan()
-        
-        return (self._apd_array_scan, self._meas_array_scan)
-
-
-    @deprecated("This method seems not to be used")
-    def start_measure_scan_area_by_point_snakeline(self, coord0_start=0*1e-6, coord0_stop=0*1e-6, 
-                                                   coord1_start=0*1e-6, coord1_stop=10*1e-6, 
-                                                   res_x=100, res_y=100, integration_time=0.02, 
-                                                   plane='XY',
-                                                   meas_params=['Phase', 'Height(Dac)', 'Height(Sen)']):
-
-        if self.check_meas_run():
-            self.log.error("A measurement is currently running, stop it first!")
-            return
-
-        self.meas_thread = threading.Thread(target=self.scan_area_by_point_snakeline, 
-                                            args=(coord0_start, coord0_stop, 
-                                                  coord1_start, coord1_stop, 
-                                                  res_x, res_y, 
-                                                  integration_time,
-                                                  plane,
-                                                  meas_params), 
-                                            name='meas_thread')
-        self.meas_thread.start()
-
 # ==============================================================================
 #        Optimize objective scanner and track the maximal fluorescence level
 # ==============================================================================
@@ -4463,106 +3817,6 @@ class AFMConfocalLogic(GenericLogic):
 
     def get_optimize_request(self):
         return self._optimize_request
-
-    @deprecated("This method seems not be used")
-    def track_optimal_pos(self, x_start, x_stop, y_start, y_stop, z_start,z_stop, 
-                          res_x, res_y, res_z, int_time_xy, int_time_z, wait_inbetween=60):
-
-        self._stop_request = False
-        self._opt_pos = {}
-
-        counter = 0
-        sleep_counter = 0
-
-
-
-        while not self._stop_request:
-
-            x_max, y_max, c_max, z_max, c_max_z = self.optimize_pos(x_start, x_stop, 
-                                                                    y_start, y_stop, 
-                                                                    z_start,z_stop, 
-                                                                    res_x, res_y, res_z, 
-                                                                    int_time_xy, int_time_z)
-
-            # sleep for 1 minute
-            while sleep_counter < wait_inbetween and not self._stop_request:
-                time.sleep(1)
-                sleep_counter += 1
-
-            counts = self._counter.get_counter(100)[0].mean()
-            self._opt_pos[counter] = [time.time(), x_max, y_max, c_max, z_max, c_max_z, counts]
-
-            counter += 1
-            sleep_counter = 0
-
-            x_start = x_max - 0.5 *1e-6
-            x_stop = x_max + 0.5 *1e-6
-            y_start = y_max - 0.5 *1e-6
-            y_stop = y_max + 0.5 *1e-6
-
-        return self._opt_pos
-
-    @deprecated("This method seems not to be used")
-    def start_track_optimal_pos(self, x_start=14*1e-6, x_stop=15*1e-6, y_start=14*1e-6, y_stop=15*1e-6, 
-                                z_start=0*1e-6, z_stop=10*1e-6, res_x=25, res_y=25, res_z=500, 
-                                int_time_xy=0.05, int_time_z=0.05, wait_inbetween=60):
-
-        if self.check_meas_run():
-            self.log.error("A measurement is currently running, stop it first!")
-            return
-
-        self.meas_thread = threading.Thread(target=self.track_optimal_pos, 
-                                            args=(x_start, x_stop, 
-                                                  y_start, y_stop, 
-                                                  z_start,z_stop, 
-                                                  res_x, res_y, res_z, 
-                                                  int_time_xy, int_time_z,
-                                                  wait_inbetween), 
-                                            name='meas_thread')
-        self.meas_thread.start()
-
-# ==============================================================================
-#        Record fluorescence as a function of time at fixed objective position
-# ==============================================================================
-
-    @deprecated("This method seems not to be used")
-    def record_fluorescence(self, timeinterval=10, average_time=1, count_freq=50):
-        """ Record the fluorescence signal over a certain time interval.
-
-        @param float timeinterval: wait time between measurements
-        @param float average_time: time over which to average counts
-        @param float count_freq: count frequency of the fluorescence counter
-        """
-
-        # the fluorescence track arrays
-        self._f_track_time = []
-        self._f_track_counts = []
-
-        if not np.isclose(self._counterlogic.get_count_frequency(), count_freq):
-            self._counterlogic.set_count_frequency(frequency=count_freq)
-        self._counterlogic.startCount()
-
-        while not self._stop_request:
-            time.sleep(timeinterval)
-            samples = int(average_time*count_freq)
-            self._f_track_counts.append(self._counter.get_counter(samples)[0].mean())
-            self._f_track_time.append(time.time())
-
-        return (self._f_track_time, self._f_track_counts)
-
-    @deprecated("This method seems not to be used")
-    def start_record_fluorescence(self, timeinterval=10, average_time=1, count_freq=50):
-
-        if self.check_meas_run():
-            self.log.error("A measurement is currently running, stop it first!")
-            return
-
-        self.meas_thread = threading.Thread(target=self.record_fluorescence, 
-                                        args=(timeinterval, average_time,
-                                              count_freq), 
-                                        name='meas_thread')
-        self.meas_thread.start()
-
 
     def check_thread_active(self):
         """ Check whether current worker thread is running. """
@@ -5226,106 +4480,6 @@ class AFMConfocalLogic(GenericLogic):
 
     def get_save_counter(self):
         return self.__data_to_be_saved
-
-    #FIXME: update the savelogic with the new method 'save_figure' to make this work
-    #       then, uncomment the part of the code labeled with UNCOMMENT.
-    @deprecated("Current method is not maintained, use 'save_qafm_data' method instead.")
-    def save_all_qafm_figures(self, tag=None, probe_name=None, sample_name=None,
-                       use_qudi_savescheme=True, root_path=None, 
-                       daily_folder=True):
-
-        scan_params = self.get_curr_scan_params()
-        
-        #scan_params = ['counts_fw','counts_bw','Height(Sen)_fw','Height(Sen)_bw'] #Tests for data obtained from .dat file
-
-        if scan_params == []:
-            self.log.warning('Nothing measured to be saved for the QAFM measurement. Save routine skipped.')
-            self.sigQAFMDataSaved.emit()
-            return
-
-        save_path =  self.get_qafm_save_directory(use_qudi_savescheme=use_qudi_savescheme,
-                                             root_path=root_path,
-                                             daily_folder=daily_folder,
-                                             probe_name=probe_name,
-                                             sample_name=sample_name)
-
-        data = {}
-        for entry in scan_params:
-            data[entry] = self.get_qafm_data()[entry]
-
-        timestamp = datetime.datetime.now()
-
-        fig = self.draw_all_qafm_figures(data)
-
-        # save only total figure here
-        # UNCOMMENT THIS:
-        # filelabel = f'{tag}_QAFM'
-        # self._save_logic.save_figure(fig, 
-        #                              filepath=save_path, 
-        #                              timestamp=timestamp,
-        #                              filelabel=filelabel)
-
-        for entry in scan_params:
-            parameters = {}
-            parameters.update(data[entry]['params'])
-            nice_name = data[entry]['nice_name']
-            unit = data[entry]['si_units']
-
-            parameters['Name of measured signal'] = nice_name
-            parameters['Units of measured signal'] = unit
-
-            figure_data = data[entry]['data']
-            image_extent = [data[entry]['coord0_arr'][0],
-                            data[entry]['coord0_arr'][-1],
-                            data[entry]['coord1_arr'][0],
-                            data[entry]['coord1_arr'][-1]]
-
-            axes = ['X', 'Y']
-
-            cbar_range = data[entry]['display_range']
-
-            parameters['display_range'] = cbar_range
-
-            image_data = {}
-            image_data[f'QAFM XY scan image of a {nice_name} measurement without axis.\n'
-                       'The upper left entry represents the signal at the upper left pixel position.\n'
-                       'A pixel-line in the image corresponds to a row '
-                       f'of entries where the Signal is in {unit}:'] = figure_data
-
-            filelabel = f'QAFM_{entry}'
-
-            if tag is not None:
-                filelabel = f'{tag}_{filelabel}'
-
-            fig = self._save_logic.save_data(image_data,
-                                       filepath=save_path,
-                                       timestamp=timestamp,
-                                       parameters=parameters,
-                                       filelabel=filelabel,
-                                       fmt='%.6e',
-                                       delimiter='\t')
-
-            # prepare the full raw data in an OrderedDict:
-
-            signal_name = data[entry]['nice_name']
-            units_signal = data[entry]['si_units']
-
-            raw_data = {}
-            raw_data['X position (m)'] = np.tile(data[entry]['coord0_arr'], len(data[entry]['coord0_arr']))
-            raw_data['Y position (m)'] = np.repeat(data[entry]['coord1_arr'], len(data[entry]['coord1_arr']))
-            raw_data[f'{signal_name} ({units_signal})'] = data[entry]['data'].flatten()
-
-            filelabel = filelabel + '_raw'
-
-            self._save_logic.save_data(raw_data,
-                                       filepath=save_path,
-                                       timestamp=timestamp,
-                                       parameters=parameters,
-                                       filelabel=filelabel,
-                                       fmt='%.6e',
-                                       delimiter='\t')
-            self.increase_save_counter()
-
 
     def draw_all_qafm_figures(self, qafm_data, scan_axis=None, cbar_range=None,
                     percentile_range=None, signal_name='', signal_unit=''):

@@ -294,13 +294,6 @@ class SPM_ASC500(Base, ScannerInterface):
         dev_state = self.get_current_device_state()
         self._spm_curr_mode = mode
         self._spm_curr_sstyle = scan_style
-        #curr_mode, curr_params, curr_sstyle = self.get_current_device_config()
-
-        # note that here, all methods configure the SPM for "TscanMode.LINE_SCAN"
-        # since all measurements are gathered in a line format
-        # however, the movement is determined by the ScanStyle, which determines
-        # if a trigger signal will be produced for the recorder device 
-        # other configurations to be defined as they are implemented
 
         if not ((dev_state == ScannerState.UNCONFIGURED) or (dev_state == ScannerState.IDLE)):
             self.log.error(f'SPM cannot be configured in the '
@@ -326,11 +319,6 @@ class SPM_ASC500(Base, ScannerInterface):
         
         sc_defaults = limits.scanner_mode_params_defaults[mode]
         params = { **params, **{k:sc_defaults[k] for k in sc_defaults.keys() - params.keys()}}
-        # is_ok = self._check_params_for_mode(mode, params)
-        # if not is_ok: 
-        #     self.log.error(f'Parameters are not correct for mode "{ScannerMode.name(mode)}". '
-        #                    f'Configuration stopped.')
-        #     return -1
         
         ret_val = 1
 
@@ -433,6 +421,8 @@ class SPM_ASC500(Base, ScannerInterface):
 
             px=int((abs(line_corr0_stop-line_corr0_start))*1e9)
             sT=time_forward/self._line_points
+            # Here the time_back coming from idle_time will set how was the sample scanner moves around
+            # time_forward is set by integration time and will determine time spend at each point. Currently weirdly divided between all points in a line.
             self._dev.base.setParameter(self._dev.base.getConst('ID_SCAN_PSPEED'), px/time_back, 0)
             
             while self._dev.base.getParameter(self._dev.base.getConst('ID_PATH_RUNNING'), 0)==1 or self._dev.base.getParameter(self._dev.base.getConst('ID_SCAN_STATUS'), 0)==2:
@@ -630,7 +620,6 @@ class SPM_ASC500(Base, ScannerInterface):
             return 0
 
         if self._spm_curr_mode == ScannerMode.PROBE_CONTACT:
-
             while True:
                 if self._dev.base.getParameter(self._dev.base.getConst('ID_SPEC_PATHMANSTAT'), 0)==1:
                     self._dev.base.setParameter(self._dev.base.getConst('ID_SPEC_PATHPROCEED') ,1 ,0)
@@ -673,7 +662,7 @@ class SPM_ASC500(Base, ScannerInterface):
             
             self._dev.base.configureChannel(self._chn_no, # any Number between 0 and 13.
                                     self._dev.base.getConst(f'CHANCONN_SPEC_{self.spec_engine_dummy}'), # How you want to the data to be triggered - CHANCONN_PERMANENT is time triggered data
-                                    23, # The counter  ADC channel
+                                    self._dev.base.getConst('CHANADC_COUNTER'), # The counter  ADC channel
                                     1, # 0/1 -  if you want to switch on averaging
                                     sampTime) # Scanner sample time [s]
             
