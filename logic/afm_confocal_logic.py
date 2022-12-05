@@ -2282,13 +2282,13 @@ class AFMConfocalLogic(GenericLogic):
                 
                 # obtain ESR measurement
                 esr_meas = self._counter.get_measurements()[0]
-
+                # self.debug_check = esr_meas
                 esr_meas_mean = esr_meas.mean(axis=0)
                 esr_meas_std = esr_meas.std(axis=0)
 
-                # Fake data
-                fx = freq_list
-                esr_meas_mean = self.physical_lorentzian(x=fx, center=fx[int(len(fx)/(line_num+1))-1], sigma=fx[0]/1e3, amp=-1200, offset=120e3)
+                # # Fake data
+                # fx = freq_list
+                # esr_meas_mean = self.physical_lorentzian(x=fx, center=fx[int(len(fx)/(line_num+1))-1], sigma=fx[0]/1e3, amp=-1200, offset=120e3)
                 
                 mag_field = 0.0
                 fluorescence = 0.0
