@@ -104,7 +104,7 @@ class MicrowaveSmbv(Base, MicrowaveInterface):
         limits.supported_modes = (MicrowaveMode.CW, MicrowaveMode.SWEEP)
 
         # values for SMBV100A
-        limits.min_power = -145
+        limits.min_power = -20
         limits.max_power = 0
 
         limits.min_frequency = 100e3

@@ -94,6 +94,8 @@ class TimeTaggerCounter(Base, SlowCounterInterface, RecorderInterface):
     _pixelclock_begin_chn = ConfigOption('pixelclock_begin_chn', 2, missing='error')
     _pixelclock_click_chn = ConfigOption('pixelclock_click_chn', 1, missing='error')
     _pixelclock_end_chn = ConfigOption('pixelclock_end_chn', 3, missing='error')
+    _channel_detect = ConfigOption('timetagger_channel_detect', 2, missing='error')
+    _channel_next = ConfigOption('timetagger_channel_next', 3, missing='error')
     _recorder_constraints = RecorderConstraints()
 
     def on_activate(self):
@@ -308,6 +310,24 @@ class TimeTaggerCounter(Base, SlowCounterInterface, RecorderInterface):
         # configure measurement method
         rc.recorder_mode_measurements[HWRecorderMode.ESR] = TimeTaggerMeasurementMode.ESR
 
+        # For SPM pulsed
+        rc.recorder_modes.append(HWRecorderMode.GENERAL_PULSED)
+        
+        # configure possible states in a mode
+        rc.recorder_mode_states[HWRecorderMode.GENERAL_PULSED] = [RecorderState.IDLE, RecorderState.BUSY]
+
+        # configure required paramaters for a mode
+        rc.recorder_mode_params[HWRecorderMode.GENERAL_PULSED] = {'laser_pulses': 10,
+                        'bin_width_s': 1e-9,
+                        'record_length_s': 3e-6,
+                        'max_counts': 10}
+
+        # configure defaults for mode
+        rc.recorder_mode_params_defaults[HWRecorderMode.GENERAL_PULSED] = {}     # no defaults
+
+        # configure measurement method
+        rc.recorder_mode_measurements[HWRecorderMode.GENERAL_PULSED] = TimeTaggerMeasurementMode.GENERAL_PULSED
+
         # feature set 16 = 'Pixel Clock'
         rc.recorder_modes.append(HWRecorderMode.PIXELCLOCK)
         rc.recorder_modes.append(HWRecorderMode.PIXELCLOCK_SINGLE_ISO_B)
@@ -393,6 +413,12 @@ class TimeTaggerCounter(Base, SlowCounterInterface, RecorderInterface):
         elif mode == HWRecorderMode.ESR:
             ret_val = self._prepare_cw_esr(freq_list=params['mw_frequency_list'], 
                                           num_esr_runs=params['num_meas'])
+                                        
+        elif mode == HWRecorderMode.GENERAL_PULSED:
+            ret_val = self._prepare_general_pulsed(number_of_gates=params['laser_pulses'],
+                                                    bin_width_s=params['bin_width_s'],
+                                                    record_length_s=params['record_length_s'],
+                                                    max_counts=params['max_counts'])
 
         if ret_val == -1:
             self._curr_mode = HWRecorderMode.UNCONFIGURED
@@ -423,6 +449,25 @@ class TimeTaggerCounter(Base, SlowCounterInterface, RecorderInterface):
 
         self.recorder = self.cbm_counter
         return 0
+    
+    def _prepare_general_pulsed(self, number_of_gates, bin_width_s, record_length_s, max_counts):
+        self._number_of_gates = number_of_gates
+        self._bin_width = bin_width_s * 1e9
+        self._record_length = 1 + int(record_length_s / bin_width_s)
+
+        self.pulsed = tt.TimeDifferences(
+            tagger=self._tagger,
+            click_channel=self._channel_apd,
+            start_channel=self._channel_detect,
+            next_channel=self._channel_next,
+            sync_channel=tt.CHANNEL_UNUSED,
+            binwidth=int(np.round(self._bin_width * 1000)),
+            n_bins=int(self._record_length),
+            n_histograms=number_of_gates)
+
+        self.pulsed.setMaxCounts(max_counts)
+        self.recorder = self.pulsed
+        return 0
 
     def start_recorder(self, arm=False):
         """ Start recorder 
@@ -451,12 +496,11 @@ class TimeTaggerCounter(Base, SlowCounterInterface, RecorderInterface):
             self.log.warning('TimeTagger is not in Idle mode to start the measurement.')
             return False 
 
-        num_meas = params['num_meas']
-
         # data format
         # Pixel clock (line methods)
         if meas_type.movement == 'line':
-            if mode == HWRecorderMode.PIXELCLOCK or HWRecorderMode.PIXELCLOCK_SINGLE_ISO_B:
+            if mode == HWRecorderMode.PIXELCLOCK or mode == HWRecorderMode.PIXELCLOCK_SINGLE_ISO_B:
+                num_meas = params['num_meas']
                 self._total_pulses = num_meas 
                 self._counted_pulses = 0
 
@@ -464,27 +508,17 @@ class TimeTaggerCounter(Base, SlowCounterInterface, RecorderInterface):
                 self._meas_res = np.zeros((num_meas))
                 
                 self.recorder.clear()
-
                 self._curr_state = RecorderState.ARMED
 
         # Esr, Pulsed (point methods)
         elif meas_type.movement == 'point':
             if mode == HWRecorderMode.ESR:
-
                 self.recorder.clear()
-
                 self._curr_state = RecorderState.ARMED
 
             elif mode == HWRecorderMode.GENERAL_PULSED:
-                #self._meas_pulsed_res = None    # method for indeterminate size arrays
-
-                self._meas_pulsed_res = np.zeros((num_meas, self._meas_length_pulse + 1),  #include frame_num
-                                                  dtype='<i4')
-                self._total_pulses = num_meas 
-
-                self._dev.ctrl.measurementLength.set(self._meas_length_pulse - 1)
-                self._pulsed_counter = 0
-                self._current_pulsed_meas = []
+                self.recorder.clear()
+                self._curr_state = RecorderState.ARMED
 
             else:
                 self.log.error('TimeTagger configuration error; inconsistent modality')
@@ -496,17 +530,8 @@ class TimeTaggerCounter(Base, SlowCounterInterface, RecorderInterface):
 
         self.skip_data = False
 
-        # Pulsed method
-        if mode == HWRecorderMode.GENERAL_PULSED:
-            # General pulsed mode operates through ddr4 controller
-            # number of measurments set in configure_recorder method
-            pass
-
-        else:
-            # all other methods
-            self.recorder.start()
-            self.is_measurement_running = True
-
+        self.recorder.start()
+        self.is_measurement_running = True
         return True 
 
     def get_measurements(self, meas_keys=['counts']):
@@ -525,8 +550,7 @@ class TimeTaggerCounter(Base, SlowCounterInterface, RecorderInterface):
             if self.recorder.ready():
                 break
 
-        if self._curr_mode == HWRecorderMode.PIXELCLOCK or HWRecorderMode.PIXELCLOCK_SINGLE_ISO_B:
-            # ['counts', 'int_time', 'counts2', 'counts_diff']
+        if self._curr_mode == HWRecorderMode.PIXELCLOCK or self._curr_mode == HWRecorderMode.PIXELCLOCK_SINGLE_ISO_B:
             data = self.recorder.getData()
             ret['counts'] = data
 
@@ -534,14 +558,16 @@ class TimeTaggerCounter(Base, SlowCounterInterface, RecorderInterface):
             ret['int_time'] = data/1e12 # returns in ps
         
         if self._curr_mode == HWRecorderMode.ESR:
-            # ['counts', 'int_time', 'counts2', 'counts_diff']
             data = self.recorder.getData().reshape(self._curr_meas_params['num_meas'], len(self._curr_meas_params['mw_frequency_list']))
             ret['counts'] = data
             
             data = self.recorder.getBinWidths().reshape(self._curr_meas_params['num_meas'], len(self._curr_meas_params['mw_frequency_list']))
             ret['int_time'] = data/1e12 # returns in ps
             ret['counts'] = np.divide(ret['counts'].astype(float), ret['int_time'])
-            
+        
+        if self._curr_mode == HWRecorderMode.GENERAL_PULSED:
+            data = self.recorder.getData()
+            ret['counts'] = data          
 
         # released
         self._curr_state = RecorderState.IDLE
@@ -552,7 +578,7 @@ class TimeTaggerCounter(Base, SlowCounterInterface, RecorderInterface):
     def get_available_measurements(self, meas_keys=None):
         ret_list = []
 
-        if self._curr_mode == HWRecorderMode.PIXELCLOCK or HWRecorderMode.PIXELCLOCK_SINGLE_ISO_B:
+        if self._curr_mode == HWRecorderMode.PIXELCLOCK or self._curr_mode == HWRecorderMode.PIXELCLOCK_SINGLE_ISO_B:
             # ['counts', 'int_time', 'counts2', 'counts_diff']
             data = self.recorder.getData()
             ret_list.append(data)

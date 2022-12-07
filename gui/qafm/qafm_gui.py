@@ -339,6 +339,10 @@ class ProteusQGUI(GUIBase):
         self._qafm_logic.sigQuantiScanFinished.connect(self.enable_scan_actions_quanti)
         self._qafm_logic.sigQuantiScanFinished.connect(self.autosave_quantitative_measurement)
 
+        # Pulsed signals
+        self._qafm_logic.pulsed_master().sigLoadedAssetUpdated.connect(self._update_pulsed_asset)
+        self._update_pulsed_asset(*self._qafm_logic.pulsed_master().loaded_asset)
+
 
         # initialize the settings stuff
         self.initSettingsUI()
@@ -1041,7 +1045,6 @@ class ProteusQGUI(GUIBase):
         self._qm.esr_count_freq_DoubleSpinBox.setValue(self._qm_esr_count_freq)
         self._qm.esr_mw_power_DoubleSpinBox.setValue(self._qm_esr_mw_power)
         self._qm.esr_runs_SpinBox.setValue(self._qm_esr_runs)
-        self._qm.optimizer_period_DoubleSpinBox.setValue(self._qm_optimizer_period)
 
     def store_status_var(self):
         """ Store all those variables to file. """
@@ -1091,7 +1094,6 @@ class ProteusQGUI(GUIBase):
         self._qm_esr_count_freq = self._qm.esr_count_freq_DoubleSpinBox.value()
         self._qm_esr_mw_power = self._qm.esr_mw_power_DoubleSpinBox.value()
         self._qm_esr_runs = self._qm.esr_runs_SpinBox.value()
-        self._qm_optimizer_period = self._qm.optimizer_period_DoubleSpinBox.value()
 
     def get_all_data_matrices(self):
         """ more of a helper method to get all the data matrices. """
@@ -1102,6 +1104,9 @@ class ProteusQGUI(GUIBase):
         data_dict.update(self._qafm_logic.get_opti_data())
 
         return data_dict
+    
+    def _update_pulsed_asset(self, asset_name, asset_type):
+        self._qm.loaded_sequence_label.setText(asset_name)
 
     def _create_colorbar(self, name, colorscale):
         """ Helper method to create Colorbar. 
@@ -2610,9 +2615,6 @@ class ProteusQGUI(GUIBase):
             if self._checkbox_container[entry].isChecked():
                 meas_params.append(entry)
 
-        # check only one button, this is sufficient
-        fw_scan = self._qm.scan_dir_fw_RadioButton.isChecked()
-
         afm_int_time = self._qm.afm_int_time_DoubleSpinBox.value()
         idle_move_time = self._qm.idle_move_time_QDoubleSpinBox.value()
         esr_freq_start = self._qm.esr_freq_start_DoubleSpinBox.value()
@@ -2622,34 +2624,16 @@ class ProteusQGUI(GUIBase):
         esr_mw_power = self._qm.esr_mw_power_DoubleSpinBox.value()
         esr_runs = self._qm.esr_runs_SpinBox.value()
         single_res = self._qm.esr_single_res_RadioButton.isChecked() 
-        optimize_period = self._qm.optimizer_period_DoubleSpinBox.value()
 
-        # update from quanti settings to periodic optimizer
-        self.set_optimizer_period(optimize_period)  
-
-        if fw_scan:
-            self._qafm_logic.start_scan_area_quanti_qafm_fw_by_point(
-                coord0_start=x_start, coord0_stop=x_stop, coord0_num=res_x, 
-                coord1_start=y_start, coord1_stop=y_stop, coord1_num=res_y, 
-                int_time_afm=afm_int_time, idle_move_time=idle_move_time, 
-                freq_start=esr_freq_start, freq_stop=esr_freq_stop, 
-                freq_points=esr_freq_num, esr_count_freq=esr_count_freq,
-                mw_power=esr_mw_power, num_esr_runs=esr_runs, 
-                optimize_period=optimize_period, meas_params=meas_params,
-                single_res=single_res, continue_meas=continue_meas)
-
-        else:
-
-            self._qafm_logic.start_scan_area_quanti_qafm_fw_bw_by_point(
-                coord0_start=x_start, coord0_stop=x_stop, coord0_num=res_x, 
-                coord1_start=y_start, coord1_stop=y_stop, coord1_num=res_y, 
-                int_time_afm=afm_int_time, idle_move_time=idle_move_time, 
-                freq_start=esr_freq_start, freq_stop=esr_freq_stop, 
-                freq_points=esr_freq_num, esr_count_freq=esr_count_freq,
-                mw_power=esr_mw_power, num_esr_runs=esr_runs, 
-                optimize_period=optimize_period, meas_params=meas_params,
-                single_res=single_res, continue_meas=continue_meas)
-
+        self._qafm_logic.start_scan_area_quanti_qafm_fw_by_point(
+            coord0_start=x_start, coord0_stop=x_stop, coord0_num=res_x, 
+            coord1_start=y_start, coord1_stop=y_stop, coord1_num=res_y, 
+            int_time_afm=afm_int_time, idle_move_time=idle_move_time, 
+            freq_start=esr_freq_start, freq_stop=esr_freq_stop, 
+            freq_points=esr_freq_num, esr_count_freq=esr_count_freq,
+            mw_power=esr_mw_power, num_esr_runs=esr_runs, 
+            optimize_period=None, meas_params=meas_params,
+            single_res=single_res, continue_meas=continue_meas)
 
     def continue_quantitative_measure_clicked(self):
         self.start_quantitative_measure_clicked(continue_meas=True)
@@ -2667,22 +2651,33 @@ class ProteusQGUI(GUIBase):
         res_x = self._mw.afm_x_num_SpinBox.value()
         res_y = self._mw.afm_y_num_SpinBox.value()
 
-        meas_params = ['counts']
-        
-        # check only one button, this is sufficient
-        fw_scan = self._qm.scan_dir_fw_RadioButton_2.isChecked()
+        meas_params = ['counts', 'pulsed_param']
+        for entry in self._checkbox_container:
+            if self._checkbox_container[entry].isChecked():
+                meas_params.append(entry)
 
         afm_int_time = self._qm.afm_int_time_DoubleSpinBox_2.value()
         idle_move_time = self._qm.idle_move_time_QDoubleSpinBox_2.value()
 
-        esr_freq_start = self._qm.esr_freq_start_DoubleSpinBox_2.value()
-        esr_freq_stop = self._qm.esr_freq_stop_DoubleSpinBox_2.value()
-        esr_freq_num = self._qm.esr_freq_num_SpinBox_2.value()
-        esr_count_freq = self._qm.esr_count_freq_DoubleSpinBox.value()
         esr_mw_power = self._qm.esr_mw_power_DoubleSpinBox.value()
         mw_list_mode = self._qm.mw_list_mode_RadioButton.isChecked()
 
-        pass
+        esr_freq_start = self._qm.esr_freq_start_DoubleSpinBox_2.value()
+        esr_freq_stop = self._qm.esr_freq_stop_DoubleSpinBox_2.value()
+        esr_freq_num = self._qm.esr_freq_num_SpinBox_2.value()
+
+        esr_mw_cw_freq = self._qm.cw_freq_DoubleSpinBox.value()
+
+        pulse_repetition = self._qm.pulse_repetition_spinBox.value()
+
+        self._qafm_logic.start_scan_area_pulsed_qafm_fw_by_point(
+            coord0_start=x_start, coord0_stop=x_stop, coord0_num=res_x, 
+            coord1_start=y_start, coord1_stop=y_stop, coord1_num=res_y, 
+            int_time_afm=afm_int_time, idle_move_time=idle_move_time, 
+            freq_start=esr_freq_start, freq_stop=esr_freq_stop, 
+            freq_points=esr_freq_num, mw_power=esr_mw_power, 
+            mw_cw_freq=esr_mw_cw_freq, mw_list_mode=mw_list_mode, num_runs=pulse_repetition, 
+            optimize_period=None, meas_params=meas_params)
 
 
     def continue_pulsed_measure_clicked(self):
