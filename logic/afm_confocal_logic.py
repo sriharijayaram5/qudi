@@ -758,7 +758,7 @@ class AFMConfocalLogic(GenericLogic):
         esr_num = len( np.arange(var_start, var_stop, var_incr))
 
         for entry in meas_dir:
-            name = f'esr_{entry}'
+            name = f'pulsed_{entry}'
 
             meas_dict[name] = {'data': np.zeros((num_rows, num_columns, esr_num)),
                                'data_std': np.zeros((num_rows, num_columns, esr_num)),
@@ -2205,6 +2205,10 @@ class AFMConfocalLogic(GenericLogic):
                                                                     coord1_stop, 
                                                                     coord1_num)
 
+                self._pulsed_scan_array['pulsed_fw']['params']['ensemble_name'] = self.pulsed_SPM_ensemble.uploaded_ensemble_name
+                blocks, ensemble = self.save_loaded_ensemble_block()
+                # self._pulsed_scan_array['pulsed_fw']['params']['ensemble'] = {'blocks': blocks, 'ensemble': ensemble} # TODO figure out the pickling that should happen at the save function
+
                 # check input values
             ret_val |= self._spm.check_spm_scan_params_by_plane(plane, coord0_start, coord0_stop,
                                                                 coord1_start, coord1_stop)
@@ -2259,7 +2263,7 @@ class AFMConfocalLogic(GenericLogic):
                                         line_corr1_stop=scan_coords[3],
                                         time_forward=scan_speed_per_line,
                                         time_back=idle_move_time)
-                #FIXME
+
                 if mw_list_mode:
                     if self._mw_mode == 'LIST':
                         self._mw.list_on()  
@@ -2282,38 +2286,35 @@ class AFMConfocalLogic(GenericLogic):
                     # first two entries are counts and b_field, remaining entries are the scan parameter
                     self._scan_point = np.zeros(num_params) 
 
-                    # at first the AFM parameter
                     # arm recorder
-                    #TODO
                     self._counter.start_recorder(arm=True)
 
                     self._debug = self._spm.scan_point()
-                    self._scan_point[2] = self._debug 
+                    self._scan_point[0] = self._debug 
                     
-                    # obtain ESR measurement
+                    # obtain pulsed measurement
                     pulsed_meas = self._counter.get_measurements()[0]
                     pulsed_data, pulsed_err = self.analyse_pulsed_meas(analysis_settings, pulsed_meas)
                     self._debug = pulsed_data
-
-                    mag_field = 0.0
+                    # self.set_pulsed_gui_plots(pulsed_data, pulsed_err)
 
                     # here the fit parameter can be saved
                     self._scan_point[0] = 0
-                    # here the b_field is saved:
-                    self._scan_point[1] = mag_field
+                    # here the counts can be saved:
+                    self._scan_point[1] = 0
 
-                    # for param_index, param_name in enumerate(curr_scan_params):
-                    #     name = f'{param_name}_fw'
+                    for param_index, param_name in enumerate(curr_scan_params):
+                        name = f'{param_name}_fw'
 
-                    #     self._qafm_scan_array[name]['data'][line_num // 2][index] = self._scan_point[param_index] * self._qafm_scan_array[name]['scale_fac']
+                        self._qafm_scan_array[name]['data'][line_num][index] = self._scan_point[param_index] * self._qafm_scan_array[name]['scale_fac']
 
-                    # self._esr_scan_array['esr_fw']['data'][line_num//2][index] = esr_meas_mean
-                    # self._esr_scan_array['esr_fw']['data_std'][line_num//2][index] = esr_meas_std
+                    self._pulsed_scan_array['pulsed_fw']['data'][line_num][index] = pulsed_data
+                    self._pulsed_scan_array['pulsed_fw']['data_std'][line_num][index] = pulsed_err
 
-                    # self._esr_scan_array['esr_fw']['data_fit'][line_num//2][coord0_num-index-1] = esr_data_fit
+                    self._pulsed_scan_array['pulsed_fw']['data_fit'][line_num][coord0_num-index-1] = pulsed_data
 
 
-                    self.log.info(f'Point: {line_num * coord0_num + index + 1} out of {coord0_num*coord1_num*2}, {(line_num * coord0_num + index +1)/(coord0_num*coord1_num*2) * 100:.2f}% finished.')
+                    self.log.info(f'Point: {line_num * coord0_num + index + 1} out of {coord0_num*coord1_num}, {(line_num * coord0_num + index +1)/(coord0_num*coord1_num) * 100:.2f}% finished.')
 
                     if index != last_elem:
                         self._afm_pos['x'] += x_step
@@ -2386,6 +2387,46 @@ class AFMConfocalLogic(GenericLogic):
         data, err = analysis_method(*args)
 
         return data, err
+    
+    def save_loaded_ensemble_block(self):
+        uploded_ensemble_name = self._pulsed_master.loaded_asset[0]
+        ensemble = self._pulsed_master.saved_pulse_block_ensembles[uploded_ensemble_name]
+        blocks = []
+        for b in ensemble.block_list:
+            blocks.append(self._pulsed_master.saved_pulse_blocks[b[0]])
+        return blocks, ensemble
+    
+    def reupload_ensemble(self, blocks, ensemble):
+        for b in blocks:
+            self._pulsed_master.sequencegeneratorlogic().save_block(b)
+        ens = po.PulseBlockEnsemble('save')
+        ensemble = ens.ensemble_from_dict(ensemble.get_dict_representation())
+        self._pulsed_master.sequencegeneratorlogic().save_ensemble(ensemble)
+        self._pulsed_master.sequencegeneratorlogic().sample_pulse_block_ensemble(ensemble.name)
+        self._pulsed_master.sequencegeneratorlogic().load_ensemble(ensemble.name)
+
+    # def set_pulsed_gui_plots(self, signal_data, measurement_error):
+    #     tmp_array = signal_data[0, 1:] - signal_data[0, :-1]
+    #     if len(tmp_array) > 0:
+    #         beamwidth = tmp_array.min() if tmp_array.min() > 0 else tmp_array.max()
+    #     else:
+    #         beamwidth = 0
+    #     del tmp_array
+    #     beamwidth /= 3
+    #     self.signal_image_error_bars.setData(x=signal_data[0],
+    #                                         y=signal_data[1],
+    #                                         top=measurement_error[1],
+    #                                         bottom=measurement_error[1],
+    #                                         beam=beamwidth)
+    #     if signal_data.shape[0] > 2 and measurement_error.shape[0] > 2:
+    #         self.signal_image_error_bars2.setData(x=signal_data[0],
+    #                                             y=signal_data[2],
+    #                                             top=measurement_error[2],
+    #                                             bottom=measurement_error[2],
+    #                                             beam=beamwidth)
+
+    #     # dealing with the actual signal plot
+    #     self.signal_image.setData(x=signal_data[0], y=signal_data[1])
 
     def start_scan_area_pulsed_qafm_fw_by_point(self, coord0_start, coord0_stop,
                                             coord0_num, coord1_start, coord1_stop,
