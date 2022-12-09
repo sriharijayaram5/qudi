@@ -218,6 +218,11 @@ class PulseStreamer(Base, PulserInterface):
         constraints.d_ch_high.step = 0.0
         constraints.d_ch_high.default = 3.3
 
+        constraints.a_ch_amplitude.min = 0
+        constraints.a_ch_amplitude.max = 1
+        constraints.a_ch_amplitude.step = 0.0001
+        constraints.a_ch_amplitude.default = 0
+
         # sample file length max is not well-defined for PulseStreamer, which collates sequential identical pulses into
         # one. Total number of not-sequentially-identical pulses which can be stored: 1 M.
         constraints.waveform_length.min = 1
@@ -229,7 +234,7 @@ class PulseStreamer(Base, PulserInterface):
         # channels. Here all possible channel configurations are stated, where only the generic
         # names should be used. The names for the different configurations can be customary chosen.
         activation_config = OrderedDict()
-        activation_config['all'] = frozenset({'d_ch1', 'd_ch2', 'd_ch3', 'd_ch4', 'd_ch5', 'd_ch6', 'd_ch7', 'd_ch8'})
+        activation_config['all'] = frozenset({'d_ch1', 'd_ch2', 'd_ch3', 'd_ch4', 'd_ch5', 'd_ch6', 'd_ch7', 'd_ch8', 'a_ch1', 'a_ch2'})
         constraints.activation_config = activation_config
 
         return constraints
@@ -330,9 +335,11 @@ class PulseStreamer(Base, PulserInterface):
 
         self._seq = self.pulse_streamer.createSequence()
         for channel_number, pulse_pattern in self.__current_waveform.items():
-            #print(pulse_pattern)
             swabian_channel_number = int(channel_number[-1])-1
-            self._seq.setDigital(swabian_channel_number,pulse_pattern)
+            if 'a_ch' in channel_number:
+                self._seq.setAnalog(swabian_channel_number,pulse_pattern)
+            else:
+                self._seq.setDigital(swabian_channel_number,pulse_pattern)                
 
         self.__currently_loaded_waveform = self.__current_waveform_name
         return self.get_loaded_assets()[0]
@@ -351,7 +358,7 @@ class PulseStreamer(Base, PulserInterface):
                              string describing the asset type ('waveform' or 'sequence')
         """
         asset_type = 'waveform' if self.__currently_loaded_waveform else None
-        asset_dict = {chnl_num: self.__currently_loaded_waveform for chnl_num in range(1, 9)}
+        asset_dict = {chnl_num: self.__currently_loaded_waveform for chnl_num in self.get_active_channels().keys()}
         return asset_dict, asset_type
 
 
@@ -432,7 +439,7 @@ class PulseStreamer(Base, PulserInterface):
         return self.__sample_rate
 
     
-    def get_analog_level(self, amplitude=None, offset=None):
+    def get_analog_level(self, amplitude=[], offset=[]):
         """ Retrieve the analog amplitude and offset of the provided channels.
 
         @param list amplitude: optional, if the amplitude value (in Volt peak to peak, i.e. the
@@ -455,7 +462,19 @@ class PulseStreamer(Base, PulserInterface):
         to obtain the amplitude of channel 1 and 4 and the offset of all channels
             {'a_ch1': -0.5, 'a_ch4': 2.0} {'a_ch1': 0.0, 'a_ch2': 0.0, 'a_ch3': 1.0, 'a_ch4': 0.0}
         """
-        return {},{}
+        amplitude_dict = {}
+        offset_dict = {}
+        if amplitude or offset:
+            for channel in amplitude:
+                amplitude_dict[channel] = 0.0
+            for channel in offset:
+                offset_dict[channel] = 0.0
+        else:
+            for channel in self.get_active_channels():
+                if 'a_ch' in channel:
+                    amplitude_dict[channel] = 0.0
+                    offset_dict[channel] = 0.0
+        return amplitude_dict, offset_dict
 
     
     def set_analog_level(self, amplitude=None, offset=None):
@@ -477,10 +496,11 @@ class PulseStreamer(Base, PulserInterface):
         Note: After setting the amplitude and/or offset values of the device, use the actual set
               return values for further processing.
         """
-        return {},{}
+        self.log.warning('PulseStreamer level cannot be adjusted!')
+        return self.get_analog_level()
 
     
-    def get_digital_level(self, low=None, high=None):
+    def get_digital_level(self, low=[], high=[]):
         """ Retrieve the digital low and high level of the provided channels.
 
         @param list low: optional, if a specific low value (in Volt) of a
@@ -515,21 +535,18 @@ class PulseStreamer(Base, PulserInterface):
         In general there is no bijective correspondence between
         (amplitude, offset) and (value high, value low)!
         """
-        if low is None:
-            low = []
-        if high is None:
-            high = []
         low_dict = {}
         high_dict = {}
-        if low is [] and high is []:
-            for channel in range(8):
-                low_dict[channel] = 0.0
-                high_dict[channel] = 3.3
-        else:
+        if low or high:
             for channel in low:
                 low_dict[channel] = 0.0
             for channel in high:
                 high_dict[channel] = 3.3
+        else:
+            for channel in self.get_active_channels():
+                if 'd_ch' in channel:
+                    low_dict[channel] = 0.0
+                    high_dict[channel] = 3.3
         return low_dict, high_dict
 
     def set_digital_level(self, low=None, high=None):
@@ -583,16 +600,24 @@ class PulseStreamer(Base, PulserInterface):
 
         If no parameter (or None) is passed to this method all channel states will be returned.
         """
-        if ch is None:
-            ch = {}
-        d_ch_dict = {}
-        if len(ch) < 1:
-            for chnl in range(1, 9):
-                d_ch_dict['d_ch{0}'.format(chnl)] = True
+        d_ch_dict = {
+            'd_ch1': True,
+            'd_ch2': True,
+            'd_ch3': True,
+            'd_ch4': True,
+            'd_ch5': True,
+            'd_ch6': True,
+            'd_ch7': True,
+            'd_ch8': True,
+            'a_ch1': True,
+            'a_ch2': True}
+        if ch:
+            ret = {}
+            for chnl in ch:
+                ret[chnl] = d_ch_dict[chnl]
         else:
-            for channel in ch:
-                d_ch_dict[channel] = True
-        return d_ch_dict
+            ret = d_ch_dict
+        return ret
 
     
     def set_active_channels(self, ch=None):
@@ -633,7 +658,9 @@ class PulseStreamer(Base, PulserInterface):
             'd_ch5': True,
             'd_ch6': True,
             'd_ch7': True,
-            'd_ch8': True}
+            'd_ch8': True,
+            'a_ch1': True,
+            'a_ch2': True}
         return d_ch_dict
 
     
@@ -664,33 +691,47 @@ class PulseStreamer(Base, PulserInterface):
         @return (int, list): Number of samples written (-1 indicates failed process) and list of
                              created waveform names
         """
-
-        if analog_samples:
-            self.log.debug('Analog not yet implemented for pulse streamer')
-            return -1, list()
-
-        if is_first_chunk:
+        if is_first_chunk:  
             self.__current_waveform_name = name
             self.__samples_written = 0
             # initalise to a dict of lists that describe pulse pattern in swabian language
-            self.__current_waveform = {key:[] for key in digital_samples.keys()}
+            self.__current_waveform = {key:[] for key in {**analog_samples, **digital_samples}.keys()}
+        
+        if analog_samples:
+            for channel_number, samples in analog_samples.items():
+                new_channel_indices = np.where(samples[:-1] != samples[1:])[0]
+                new_channel_indices = np.unique(new_channel_indices)
 
-        for channel_number, samples in digital_samples.items():
-            new_channel_indices = np.where(samples[:-1] != samples[1:])[0]
-            new_channel_indices = np.unique(new_channel_indices)
+                # add in indices for the start and end of the sequence to simplify iteration
+                new_channel_indices = np.insert(new_channel_indices, 0, [-1])
+                new_channel_indices = np.insert(new_channel_indices, new_channel_indices.size, [samples.shape[0] - 1])
+                pulses = []
+                for new_channel_index in range(1, new_channel_indices.size):
+                    pulse = [new_channel_indices[new_channel_index] - new_channel_indices[new_channel_index - 1],
+                            samples[new_channel_indices[new_channel_index - 1] + 1]]
+                    pulses.append(pulse)
 
-            # add in indices for the start and end of the sequence to simplify iteration
-            new_channel_indices = np.insert(new_channel_indices, 0, [-1])
-            new_channel_indices = np.insert(new_channel_indices, new_channel_indices.size, [samples.shape[0] - 1])
-            pulses = []
-            for new_channel_index in range(1, new_channel_indices.size):
-                pulse = [new_channel_indices[new_channel_index] - new_channel_indices[new_channel_index - 1],
-                         samples[new_channel_indices[new_channel_index - 1] + 1].astype(np.byte)]
-                pulses.append(pulse)
+                # extend (as opposed to rewrite) for chunky business
+                #print(pulses)
+                self.__current_waveform[channel_number].extend(pulses)
+            
+        if digital_samples:
+            for channel_number, samples in digital_samples.items():
+                new_channel_indices = np.where(samples[:-1] != samples[1:])[0]
+                new_channel_indices = np.unique(new_channel_indices)
 
-            # extend (as opposed to rewrite) for chunky business
-            #print(pulses)
-            self.__current_waveform[channel_number].extend(pulses)
+                # add in indices for the start and end of the sequence to simplify iteration
+                new_channel_indices = np.insert(new_channel_indices, 0, [-1])
+                new_channel_indices = np.insert(new_channel_indices, new_channel_indices.size, [samples.shape[0] - 1])
+                pulses = []
+                for new_channel_index in range(1, new_channel_indices.size):
+                    pulse = [new_channel_indices[new_channel_index] - new_channel_indices[new_channel_index - 1],
+                            samples[new_channel_indices[new_channel_index - 1] + 1].astype(np.byte)]
+                    pulses.append(pulse)
+
+                # extend (as opposed to rewrite) for chunky business
+                #print(pulses)
+                self.__current_waveform[channel_number].extend(pulses)
 
         return len(samples), [self.__current_waveform_name]
 

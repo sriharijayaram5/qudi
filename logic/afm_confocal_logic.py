@@ -2137,6 +2137,8 @@ class AFMConfocalLogic(GenericLogic):
                         'max_counts': num_runs-1} )
 
             self._pulser.prepare_SPM_ensemble()
+            self._pulser.upload_SPM_ensemble(sync=False)
+            self._pulser.pulser_on(trigger=True, n=num_runs, final=self._pulser._sync_final_state)
 
             # return to normal operation
             self.sigHealthCheckStopSkip.emit()
@@ -2265,18 +2267,12 @@ class AFMConfocalLogic(GenericLogic):
 
                     # arm recorder
                     self._counter.start_recorder(arm=True)
-
-                    self._pulser.upload_SPM_ensemble(sync=False)
-                    self._pulser.pulser_on(trigger=True, rearm=True, n=num_runs)
                     
                     self._debug = self._spm.scan_point()
                     self._scan_point[0] = self._debug 
                     
                     # obtain pulsed measurement
                     pulsed_meas = self._counter.get_measurements()[0]
-
-                    self._pulser.upload_SPM_ensemble(sync=True)
-                    self._pulser.pulser_on(trigger=False, n=1)
 
                     pulsed_data, pulsed_err = self.analyse_pulsed_meas(analysis_settings, pulsed_meas)
                     self._debug = pulsed_data
