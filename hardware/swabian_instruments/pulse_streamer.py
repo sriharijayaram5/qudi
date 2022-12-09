@@ -93,6 +93,7 @@ class PulseStreamer(Base, PulserInterface):
         self.current_status = 0
         self._seq = None
         self.pulsed_trigger = False
+        self._regular_seq = None
 
     def on_deactivate(self):
         self.reset()
@@ -233,7 +234,7 @@ class PulseStreamer(Base, PulserInterface):
 
         return constraints
 
-    def pulser_on(self, trigger=False,  n=-1, rearm=False, final=ps.OutputState([], 0, 0), laser=False):
+    def pulser_on(self, trigger=False,  n=-1, rearm=False, final=None, laser=False):
         """ Switches the pulsing device on.
 
         @return int: error code (0:OK, -1:error)
@@ -245,8 +246,11 @@ class PulseStreamer(Base, PulserInterface):
                 self.pulse_streamer.setTrigger(start=ps.TriggerStart.SOFTWARE)
             if rearm:
                 self.pulse_streamer.setTrigger(start=ps.TriggerStart.HARDWARE_RISING, rearm=ps.TriggerRearm.MANUAL)
-            self.pulse_streamer.stream(self._seq, n_runs = n, final = ps.OutputState([self._laser_channel], self._laser_power_voltage, 0))
-            # self.pulse_streamer.stream(self._seq, n_runs = n, final = final)
+            if final:
+                final_state = final
+            else:
+                final_state = ps.OutputState([self._laser_channel], self._laser_power_voltage, 0)
+            self.pulse_streamer.stream(self._seq, n_runs = n, final = final_state)
             self.pulse_streamer.startNow()
             self.__current_status = 1
             return 0
@@ -800,3 +804,17 @@ class PulseStreamer(Base, PulserInterface):
                     self._seq.setDigital(int(key[-1]), seq[key])    
                 else:
                     self._seq.setAnalog(int(key[-1]),seq[key])
+
+    def _make_sync(self):
+        sync = self.pulse_streamer.createSequence()
+        sync_patt = [(1e+6,1)]
+        sync.setDigital(self._sync_in, sync_patt)
+        return sync
+
+    def prepare_SPM_ensemble(self):
+        self._pre_SPM_seq = self._seq
+        self._sync_seq = self._make_sync()
+        self._sync_final_state = ps.OutputState([self._laser_channel,self._sync_in], self._laser_power_voltage, 0)
+    
+    def upload_SPM_ensemble(self, sync=False):
+        self._seq = self._sync_seq if sync else self._pre_SPM_seq

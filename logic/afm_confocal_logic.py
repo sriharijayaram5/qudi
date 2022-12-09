@@ -297,46 +297,6 @@ class PulseBlock:
             for chn in channels.keys():
                 self.block_dict[chn].extend([(init_length/1e-9, channels[chn])])    
 
-class SPMPulsed:
-    def __init__(self, n_runs, afm_scanner_logic, pulsedmasterlogic):
-        self.afml = afm_scanner_logic
-        self.pm = pulsedmasterlogic
-        self.upload_SPM_ensemble(n_runs)
-        
-    def make_sync(self):
-        ele = [] 
-        sync_channel = f'd_ch{self.afml._pulser._sync_in + 1}'
-        d_ch = {'d_ch1': False, 'd_ch2': False, 'd_ch4': False, 'd_ch3': False, 'd_ch5': False, 'd_ch6': False, 'd_ch7': False, 'd_ch8': False}
-        d_ch[sync_channel] = True
-        ele.append(po.PulseBlockElement(init_length_s=1e-3, increment_s=0, pulse_function=None, digital_high=d_ch, laser_on=False))
-        pulse_block = po.PulseBlock(name='sync_in', element_list=ele)
-        self.pm.sequencegeneratorlogic().save_block(pulse_block)
-
-        return pulse_block
-
-    def make_SPM_ensemble(self, n_runs):
-        block_list = []
-
-        self.uploaded_ensemble_name = self.pm.loaded_asset[0]
-        uploaded_block_list = self.pm.saved_pulse_block_ensembles[self.uploaded_ensemble_name].block_list
-        for i in range(n_runs):
-            block_list.extend(uploaded_block_list)
-        block_list.append((self.make_sync().name, 0))
-
-        return block_list
-
-    def upload_SPM_ensemble(self, n_runs):
-        bl = self.make_SPM_ensemble(n_runs)
-        SPM_ensemble = po.PulseBlockEnsemble(name=f'SPMQuanti', block_list=bl, rotating_frame=False)
-
-        self.pm.sequencegeneratorlogic().save_ensemble(SPM_ensemble)
-        self.pm.sequencegeneratorlogic().sample_pulse_block_ensemble(SPM_ensemble.name)
-        self.pm.sequencegeneratorlogic().load_ensemble(SPM_ensemble.name)
-    
-    def reupload_Pulsed_ensemble(self):
-        self.pm.sequencegeneratorlogic().sample_pulse_block_ensemble(self.uploaded_ensemble_name)
-        self.pm.sequencegeneratorlogic().load_ensemble(self.uploaded_ensemble_name)
-
 class AFMConfocalLogic(GenericLogic):
     """ Main AFM logic class providing advanced measurement control. """
 
@@ -418,6 +378,7 @@ class AFMConfocalLogic(GenericLogic):
     _qafm_scan_array = {} # all qafm data are stored here
     _opti_scan_array = {} # all optimizer data are stored here
     _esr_scan_array = {} # all the esr data from a scan are stored here
+    _pulsed_scan_array = {} # all the esr data from a scan are stored here
 
     #FIXME: Implement for this the methods:
     _esr_line_array = {} # the current esr scan and its matrix is stored here
@@ -613,6 +574,14 @@ class AFMConfocalLogic(GenericLogic):
 
         self._opti_scan_array = self.initialize_opti_z_scan_array(0, 10e-6, 30)
 
+        # self._esr_scan_array = self.initialize_esr_scan_array(2.8e9, 2.94e9, 50,
+        #                                                         0, 100e-6, 10, 
+        #                                                         0, 100e-6, 10)
+
+        # self._pulsed_scan_array = self.initialize_pulsed_scan_array(10e-9, 2e-6, 100e-9,
+        #                                                         0, 100e-6, 10, 
+        #                                                         0, 100e-6, 10)
+
         self.sigNewObjPos.emit(self.get_obj_pos())
         self.sigNewAFMPos.emit(self.get_afm_pos())
 
@@ -688,6 +657,10 @@ class AFMConfocalLogic(GenericLogic):
                                               'scale_fac': 1,    # multiplication factor to obtain SI units
                                               'si_units': 'G',
                                               'nice_name': 'Magnetic field '},
+                            'fit_param':      {'measured_units' : 'arb.u.',
+                                              'scale_fac': 1,    # multiplication factor to obtain SI units
+                                              'si_units': 'arb.u.',
+                                              'nice_name': 'Fit Parameter'}
                             }
         meas_params_units.update(self.get_afm_meas_params())
 
@@ -722,8 +695,8 @@ class AFMConfocalLogic(GenericLogic):
         The dimensions are not the same for the ESR data, it is a 3 dimensional
         tensor rather then a 2 dimentional matrix. """
 
-
-        meas_dir = ['fw', 'bw']
+        name = 'esr'
+        meas_dir = ['fw']
         meas_dict = {}
 
         for entry in meas_dir:
@@ -742,10 +715,10 @@ class AFMConfocalLogic(GenericLogic):
                                'params': {},  # !!! here are all the measurement parameter saved
                                'display_range': None,
                                }
-
+        self._esr_scan_array[name] = meas_dict
         return meas_dict
     
-    def initialize_pulsed_scan_array(self, var_start, var_stop, var_incr,
+    def initialize_pulsed_scan_array(self, var_start, var_stop, var_incr, laser_pulses, bin_width_s, record_length_s,
                                   coord0_start, coord0_stop, num_columns,
                                   coord1_start, coord1_stop, num_rows):
         """ Initialize the ESR scan array data.
@@ -753,16 +726,19 @@ class AFMConfocalLogic(GenericLogic):
         tensor rather then a 2 dimentional matrix. """
 
 
-        meas_dir = ['fw', 'bw']
+        name = 'pulsed'
+        meas_dir = ['fw']
         meas_dict = {}
-        esr_num = len( np.arange(var_start, var_stop, var_incr))
+        n_var = laser_pulses
+        n_bins = int(record_length_s/bin_width_s)
 
         for entry in meas_dir:
             name = f'pulsed_{entry}'
 
-            meas_dict[name] = {'data': np.zeros((num_rows, num_columns, esr_num)),
-                               'data_std': np.zeros((num_rows, num_columns, esr_num)),
-                               'data_fit': np.zeros((num_rows, num_columns, esr_num)),
+            meas_dict[name] = {'data': np.zeros((num_rows, num_columns, n_var)),
+                               'data_std': np.zeros((num_rows, num_columns, n_var)),
+                               'data_fit': np.zeros((num_rows, num_columns, n_var)),
+                               'data_raw': np.zeros((num_rows, num_columns, n_var, n_bins)),
                                'coord0_arr': np.linspace(coord0_start, coord0_stop, num_columns, endpoint=True),
                                'coord1_arr': np.linspace(coord1_start, coord1_stop, num_rows, endpoint=True),
                                'coord2_arr': np.arange(var_start, var_stop, var_incr),
@@ -773,7 +749,7 @@ class AFMConfocalLogic(GenericLogic):
                                'params': {},  # !!! here are all the measurement parameter saved
                                'display_range': None,
                                }
-
+        self._pulsed_scan_array[name] = meas_dict
         return meas_dict
 
 
@@ -1802,20 +1778,20 @@ class AFMConfocalLogic(GenericLogic):
         curr_scan_params.insert(0, 'counts')  # insert the fluorescence parameter
 
         # this case is for starting a new measurement:
-        if (self._spm_line_num == 0) or (not continue_meas):
-            self._spm_line_num = 0
-            self._afm_meas_duration = 0
+        # if (self._spm_line_num == 0) or (not continue_meas):
+        self._spm_line_num = 0
+        self._afm_meas_duration = 0
 
-            # AFM signal
-            self._qafm_scan_array = self.initialize_qafm_scan_array(coord0_start, coord0_stop, coord0_num,
-                                                                    coord1_start, coord1_stop, coord1_num)
-            self._scan_counter = 0
+        # AFM signal
+        self._qafm_scan_array = self.initialize_qafm_scan_array(coord0_start, coord0_stop, coord0_num,
+                                                                coord1_start, coord1_stop, coord1_num)
+        self._scan_counter = 0
 
-            self._esr_scan_array = self.initialize_esr_scan_array(freq_start, freq_stop, freq_points,
-                                                                  coord0_start, coord0_stop, 
-                                                                  coord0_num,
-                                                                  coord1_start, coord1_stop, 
-                                                                  coord1_num)
+        self._esr_scan_array = self.initialize_esr_scan_array(freq_start, freq_stop, freq_points,
+                                                                coord0_start, coord0_stop, 
+                                                                coord0_num,
+                                                                coord1_start, coord1_stop, 
+                                                                coord1_num)
 
         # check input values
         ret_val |= self._spm.check_spm_scan_params_by_plane(plane, coord0_start, coord0_stop,
@@ -1858,8 +1834,8 @@ class AFMConfocalLogic(GenericLogic):
 
             # for a continue measurement event, skip the first measurements
             # until one has reached the desired line, then continue from there.
-            if line_num < self._spm_line_num:
-                continue
+            # if line_num < self._spm_line_num:
+            #     continue
 
             num_params = len(curr_scan_params)
 
@@ -2158,11 +2134,9 @@ class AFMConfocalLogic(GenericLogic):
                 params={'laser_pulses': laser_pulses,
                         'bin_width_s': bin_width_s,
                         'record_length_s': record_length_s,
-                        'max_counts': num_runs} )
+                        'max_counts': num_runs-1} )
 
-
-            self.pulsed_SPM_ensemble = SPMPulsed(num_runs, self, self._pulsed_master)
-            self._pulser.pulser_on(trigger=True, n=num_runs)
+            self._pulser.prepare_SPM_ensemble()
 
             # return to normal operation
             self.sigHealthCheckStopSkip.emit()
@@ -2182,40 +2156,43 @@ class AFMConfocalLogic(GenericLogic):
             curr_scan_params.insert(0, 'counts')  # insert the fluorescence parameter
 
             # this case is for starting a new measurement:
-            if (self._spm_line_num == 0):
-                self._spm_line_num = 0
-                self._afm_meas_duration = 0
+            # if (self._spm_line_num == 0):
+            self._spm_line_num = 0
+            self._afm_meas_duration = 0
 
-                # AFM signal
-                self._qafm_scan_array = self.initialize_qafm_scan_array(coord0_start, 
-                                                                        coord0_stop, 
-                                                                        coord0_num,
-                                                                        coord1_start, 
-                                                                        coord1_stop, 
-                                                                        coord1_num)
-                self._scan_counter = 0
-
-                self._pulsed_scan_array = self.initialize_pulsed_scan_array(var_start, 
-                                                                    var_stop, 
-                                                                    var_incr,
-                                                                    coord0_start, 
+            # AFM signal
+            self._qafm_scan_array = self.initialize_qafm_scan_array(coord0_start, 
                                                                     coord0_stop, 
                                                                     coord0_num,
                                                                     coord1_start, 
                                                                     coord1_stop, 
                                                                     coord1_num)
+            self._scan_counter = 0
 
-                self._pulsed_scan_array['pulsed_fw']['params']['ensemble_name'] = self.pulsed_SPM_ensemble.uploaded_ensemble_name
-                blocks, ensemble = self.save_loaded_ensemble_block()
-                # self._pulsed_scan_array['pulsed_fw']['params']['ensemble'] = {'blocks': blocks, 'ensemble': ensemble} # TODO figure out the pickling that should happen at the save function
+            self._pulsed_scan_array = self.initialize_pulsed_scan_array(var_start, 
+                                                                var_stop, 
+                                                                var_incr,
+                                                                laser_pulses,
+                                                                bin_width_s,
+                                                                record_length_s,
+                                                                coord0_start, 
+                                                                coord0_stop, 
+                                                                coord0_num,
+                                                                coord1_start, 
+                                                                coord1_stop, 
+                                                                coord1_num)
 
-                # check input values
+            # self._pulsed_scan_array['pulsed_fw']['params']['ensemble_name'] = self.pulsed_SPM_ensemble.uploaded_ensemble_name
+            # blocks, ensemble = self.save_loaded_ensemble_block()
+            # self._pulsed_scan_array['pulsed_fw']['params']['ensemble'] = {'blocks': blocks, 'ensemble': ensemble} # TODO figure out the pickling that should happen at the save function
+
+            # check input values
             ret_val |= self._spm.check_spm_scan_params_by_plane(plane, coord0_start, coord0_stop,
                                                                 coord1_start, coord1_stop)
             if ret_val < 1:
                 self.sigQuantiScanFinished.emit()
                 self._pulser.pulser_off()
-                self.pulsed_SPM_ensemble.reupload_Pulsed_ensemble()
+                self._pulser.upload_SPM_ensemble(sync=False)
                 
                 return self._qafm_scan_array
 
@@ -2252,8 +2229,8 @@ class AFMConfocalLogic(GenericLogic):
 
                 # for a continue measurement event, skip the first measurements
                 # until one has reached the desired line, then continue from there.
-                if line_num < self._spm_line_num:
-                    continue
+                # if line_num < self._spm_line_num:
+                #     continue
 
                 num_params = len(curr_scan_params)
 
@@ -2289,11 +2266,18 @@ class AFMConfocalLogic(GenericLogic):
                     # arm recorder
                     self._counter.start_recorder(arm=True)
 
+                    self._pulser.upload_SPM_ensemble(sync=False)
+                    self._pulser.pulser_on(trigger=True, rearm=True, n=num_runs)
+                    
                     self._debug = self._spm.scan_point()
                     self._scan_point[0] = self._debug 
                     
                     # obtain pulsed measurement
                     pulsed_meas = self._counter.get_measurements()[0]
+
+                    self._pulser.upload_SPM_ensemble(sync=True)
+                    self._pulser.pulser_on(trigger=False, n=1)
+
                     pulsed_data, pulsed_err = self.analyse_pulsed_meas(analysis_settings, pulsed_meas)
                     self._debug = pulsed_data
                     # self.set_pulsed_gui_plots(pulsed_data, pulsed_err)
@@ -2310,8 +2294,8 @@ class AFMConfocalLogic(GenericLogic):
 
                     self._pulsed_scan_array['pulsed_fw']['data'][line_num][index] = pulsed_data
                     self._pulsed_scan_array['pulsed_fw']['data_std'][line_num][index] = pulsed_err
-
-                    self._pulsed_scan_array['pulsed_fw']['data_fit'][line_num][coord0_num-index-1] = pulsed_data
+                    self._pulsed_scan_array['pulsed_fw']['data_fit'][line_num][index] = pulsed_data
+                    self._pulsed_scan_array['pulsed_fw']['data_raw'][line_num][index] = pulsed_meas
 
 
                     self.log.info(f'Point: {line_num * coord0_num + index + 1} out of {coord0_num*coord1_num}, {(line_num * coord0_num + index +1)/(coord0_num*coord1_num) * 100:.2f}% finished.')
@@ -2362,7 +2346,7 @@ class AFMConfocalLogic(GenericLogic):
             self._mw.off()
             self._counter.stop_measurement()
             self._pulser.pulser_off()
-            self.pulsed_SPM_ensemble.reupload_Pulsed_ensemble()
+            self._pulser.upload_SPM_ensemble(sync=False)
             
             # self.module_state.unlock()
             self.sigQuantiScanFinished.emit()
@@ -3468,6 +3452,9 @@ class AFMConfocalLogic(GenericLogic):
 
     def get_esr_data(self):
         return self._esr_scan_array
+    
+    def get_pulsed_data(self):
+        return self._pulsed_scan_array
 
     def get_obj_pos(self, pos_list=['x', 'y', 'z']):
         """ Get objective position.

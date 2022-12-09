@@ -343,6 +343,14 @@ class ProteusQGUI(GUIBase):
         self._qafm_logic.pulsed_master().sigLoadedAssetUpdated.connect(self._update_pulsed_asset)
         self._update_pulsed_asset(*self._qafm_logic.pulsed_master().loaded_asset)
 
+        # set MW and other device limits
+        mw_limits = (self._qafm_logic._mw.get_limits().min_power, self._qafm_logic._mw.get_limits().max_power)
+        self._qm.esr_mw_power_DoubleSpinBox.setMinimum(mw_limits[0])
+        self._qm.esr_mw_power_DoubleSpinBox.setMaximum(mw_limits[1])
+
+        self._qm.pulsed_mw_power_DoubleSpinBox.setMinimum(mw_limits[0])
+        self._qm.pulsed_mw_power_DoubleSpinBox.setMaximum(mw_limits[1])
+
 
         # initialize the settings stuff
         self.initSettingsUI()
@@ -1102,6 +1110,8 @@ class ProteusQGUI(GUIBase):
         data_dict.update(self._qafm_logic.get_qafm_data())
         data_dict.update(self._qafm_logic.get_obj_data())
         data_dict.update(self._qafm_logic.get_opti_data())
+        data_dict.update(self._qafm_logic.get_esr_data())
+        data_dict.update(self._qafm_logic.get_pulsed_data())
 
         return data_dict
     
@@ -1483,6 +1493,46 @@ class ProteusQGUI(GUIBase):
             if 'opti_z' in obj_name:
                 dockwidget.graphicsView.setLabel('bottom', 'Z position', units='m')
                 dockwidget.graphicsView.setLabel('left', 'Fluorescence', units='c/s') 
+
+        # # for ESR and CW plots
+        # for obj_name in ['pulsed_fw', 'esr_fw']:
+        #     dockwidget = QtWidgets.QDockWidget(self._mw.centralwidget)
+
+        #     self._dockwidget_container[obj_name] = dockwidget
+        #     setattr(self._mw,  f'dockWidget_{obj_name}', dockwidget)
+        #     dockwidget.name = obj_name # store the original name. 
+
+        #     skip_colorcontrol = False
+            
+        #     self._create_internal_line_widgets(dockwidget)
+        #     dockwidget.setWindowTitle(obj_name)
+        #     dockwidget.setObjectName(f'dockWidget_{obj_name}')
+
+        #     # set size policy for dock widget
+        #     sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Expanding,
+        #                                         QtWidgets.QSizePolicy.Preferred)
+        #     sizePolicy.setHorizontalStretch(0)
+        #     sizePolicy.setVerticalStretch(0)
+        #     sizePolicy.setHeightForWidth(dockwidget.sizePolicy().hasHeightForWidth())
+        #     dockwidget.setSizePolicy(sizePolicy)
+
+        #     self._mw.addDockWidget(QtCore.Qt.DockWidgetArea(4), dockwidget)
+        #     self._mw.tabifyDockWidget(ref_last_dockwidget, dockwidget)
+
+
+        #     plot_item = self._create_plot_item(obj_name, 
+        #                     data_dict[obj_name]['coord0_arr'], 
+        #                     data_dict[obj_name]['data'])
+        #     dockwidget.graphicsView.addItem(plot_item)
+
+        #     plot_item = self._create_plot_item(obj_name+'_fit', 
+        #                     data_dict[obj_name]['coord0_arr'], 
+        #                     data_dict[obj_name]['data_fit'])
+        #     dockwidget.graphicsView.addItem(plot_item)
+
+        #     ref_last_dockwidget = dockwidget
+        #     dockwidget.graphicsView.setLabel('bottom', 'X', units='arb.u.')
+        #     dockwidget.graphicsView.setLabel('left', 'Signal', units='counts') 
 
         self.adjust_qafm_image()
         self.adjust_all_obj_images()
@@ -2656,15 +2706,15 @@ class ProteusQGUI(GUIBase):
             if self._checkbox_container[entry].isChecked():
                 meas_params.append(entry)
 
-        afm_int_time = self._qm.afm_int_time_DoubleSpinBox_2.value()
-        idle_move_time = self._qm.idle_move_time_QDoubleSpinBox_2.value()
+        afm_int_time = self._qm.pulsed_afm_int_time_DoubleSpinBox.value()
+        idle_move_time = self._qm.pulsed_idle_move_time_QDoubleSpinBox.value()
 
-        esr_mw_power = self._qm.esr_mw_power_DoubleSpinBox.value()
+        esr_mw_power = self._qm.pulsed_mw_power_DoubleSpinBox.value()
         mw_list_mode = self._qm.mw_list_mode_RadioButton.isChecked()
 
-        esr_freq_start = self._qm.esr_freq_start_DoubleSpinBox_2.value()
-        esr_freq_stop = self._qm.esr_freq_stop_DoubleSpinBox_2.value()
-        esr_freq_num = self._qm.esr_freq_num_SpinBox_2.value()
+        esr_freq_start = self._qm.pulsed_freq_start_DoubleSpinBox.value()
+        esr_freq_stop = self._qm.pulsed_freq_stop_DoubleSpinBox.value()
+        esr_freq_num = self._qm.pulsed_freq_num_SpinBox.value()
 
         esr_mw_cw_freq = self._qm.cw_freq_DoubleSpinBox.value()
 

@@ -453,7 +453,7 @@ class TimeTaggerCounter(Base, SlowCounterInterface, RecorderInterface):
     def _prepare_general_pulsed(self, number_of_gates, bin_width_s, record_length_s, max_counts):
         self._number_of_gates = number_of_gates
         self._bin_width = bin_width_s * 1e9
-        self._record_length = 1 + int(record_length_s / bin_width_s)
+        self._record_length = int(record_length_s / bin_width_s) # removed weird 1 + expected length from here
 
         self.pulsed = tt.TimeDifferences(
             tagger=self._tagger,

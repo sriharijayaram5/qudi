@@ -96,27 +96,13 @@ class ScannerMeasurements:
 
     def __init__(self):
         # measurement variables returned from SPM
-        self.scanner_measurements = { # 'Height(Sen)' : {
-                                      #                  'measured_units' : 'nm',
-                                      #                  'scale_fac'      : 1e-9,  # multiplication factor to SI unit
-                                      #                  'si_units'       : 'm',
-                                      #                  'nice_name'      : 'Height (from Sensor)'
-                                      #                  }
-                                    }
+        self.scanner_measurements = {}
 
-        self.scanner_axes = { # 'SAMPLE_AXES' :    [ 'X',  'x',   'Y',  'y',  'Z',  'z', 
-                              #                      'X1', 'x1 ', 'Y1', 'y1', 'Z1', 'z1'] 
-                              # 
-                              # 'OBJECTIVE_AXES' : [ 'X2', 'x2', 'Y2', 'y2', 'Z2', 'z2']
-                              # 
-                            }
+        self.scanner_axes = {}
     
-        self.scanner_planes =  [ # 'X2', 'x2', 'Y2', 'y2', 'Z2', 'z2'
-                               ]
+        self.scanner_planes =  []
 
-        self.scanner_sensors = { # 'SENS_PARAMS_AFM' : ['SenX', 'SenY', 'SenZ'],   # AFM sensor parameter
-                                 # 'SENS_PARAMS_OBJ' : ['SenX2', 'SenY2', 'SenZ2'] 
-                               }
+        self.scanner_sensors = {}
 
 class ScannerInterface(metaclass=InterfaceMetaclass):
     """ Define the controls for a Scanner device."""
