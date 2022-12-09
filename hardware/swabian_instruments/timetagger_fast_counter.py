@@ -215,8 +215,8 @@ class TimeTaggerFastCounter(Base, FastCounterInterface):
         care of in this hardware class. A possible overflow of the histogram
         bins must be caught here and taken care of.
         """
-        info_dict = {'elapsed_sweeps': None,
-                     'elapsed_time': None}  # TODO : implement that according to hardware capabilities
+        info_dict = {'elapsed_sweeps': self.pulsed.getCounts(),
+                     'elapsed_time': None}  
         return np.array(self.pulsed.getData(), dtype='int64'), info_dict
 
 
