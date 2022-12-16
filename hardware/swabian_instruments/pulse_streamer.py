@@ -74,7 +74,6 @@ class PulseStreamer(Base, PulserInterface):
         self.__currently_loaded_waveform = ''  # loaded and armed waveform name
         self.__samples_written = 0
         self._trigger = ps.TriggerStart.SOFTWARE
-        self._laser_mw_on_state = ps.OutputState([], 0, 0)
 
     def on_activate(self):
         """ Establish connection to pulse streamer and tell it to cancel all operations """
@@ -94,6 +93,8 @@ class PulseStreamer(Base, PulserInterface):
         self._seq = None
         self.pulsed_trigger = False
         self._regular_seq = None
+        self._sync_final_state = ps.OutputState([self._laser_channel,self._sync_in], self._laser_power_voltage, 0)
+        self._final_state = ps.OutputState([self._laser_channel], self._laser_power_voltage, 0)
 
     def on_deactivate(self):
         self.reset()
@@ -252,14 +253,15 @@ class PulseStreamer(Base, PulserInterface):
             if rearm:
                 self.pulse_streamer.setTrigger(start=ps.TriggerStart.HARDWARE_RISING, rearm=ps.TriggerRearm.MANUAL)
             if final:
-                final_state = final
+                self._final_state = final
             else:
-                final_state = ps.OutputState([self._laser_channel], self._laser_power_voltage, 0)
-            self.pulse_streamer.stream(self._seq, n_runs = n, final = final_state)
+                self._final_state = ps.OutputState([self._laser_channel], self._laser_power_voltage, 0)
+            self.pulse_streamer.stream(self._seq, n_runs = n, final = self._final_state)
             self.pulse_streamer.startNow()
             self.__current_status = 1
             return 0
         elif laser:
+            self._final_state = None
             self.pulse_streamer.constant(ps.OutputState([self._laser_channel], self._laser_power_voltage, 0))
         else:
             self.log.error('no sequence/pulse pattern prepared for the pulse streamer')
@@ -275,7 +277,7 @@ class PulseStreamer(Base, PulserInterface):
 
         self.__current_status = 0
         self.pulsed_trigger = False
-        self.pulse_streamer.constant(self._laser_mw_on_state)
+        self.pulse_streamer.constant(self._final_state)
         return 0
 
     

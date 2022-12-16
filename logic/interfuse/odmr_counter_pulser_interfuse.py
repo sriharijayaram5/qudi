@@ -23,6 +23,7 @@ from hardware.timetagger_counter import HWRecorderMode
 from core.connector import Connector
 from logic.generic_logic import GenericLogic
 from interface.odmr_counter_interface import ODMRCounterInterface
+import time
 
 class PulseSequence:
     '''
@@ -30,7 +31,7 @@ class PulseSequence:
     as well and multiple can be added.
     '''
     def __init__(self):
-        self.pulse_dict = {0:[], 1:[], 2:[], 3:[], 4:[], 5:[], 6:[], 7:[]}
+        self.pulse_dict = {'d0':[], 'd1':[], 'd2':[], 'd3':[], 'd4':[], 'd5':[], 'd6':[], 'd7':[], 'a0':[], 'a1':[]}
 
     def append(self, block_list):
         '''
@@ -48,17 +49,16 @@ class PulseBlock:
     Small repeating pulse blocks that can be appended to a PulseSequence instance
     '''
     def __init__(self):
-        self.block_dict = {0:[], 1:[], 2:[], 3:[], 4:[], 5:[], 6:[], 7:[]}
+        self.block_dict = {'d0':[], 'd1':[], 'd2':[], 'd3':[], 'd4':[], 'd5':[], 'd6':[], 'd7':[], 'a0':[], 'a1':[]}
     
     def append(self, init_length, channels, repetition):
         '''
         init_length in s; will be converted by sequence class to ns
         channels are digital channels of PS in swabian language
         '''
-        tf = {True:1, False:0}
         for i in range(repetition):
             for chn in channels.keys():
-                self.block_dict[chn].extend([(init_length/1e-9, tf[channels[chn]])])    
+                self.block_dict[chn].extend([(init_length/1e-9, channels[chn])])
 
 class ODMRCounterInterfuse(GenericLogic, ODMRCounterInterface):
     """ This is the Interfuse class supplies the controls for a simple ODMR with counter and pulser."""
@@ -95,26 +95,28 @@ class ODMRCounterInterfuse(GenericLogic, ODMRCounterInterface):
 
         @return int: error code (0:OK, -1:error)
         """
+        channels = {'d0': 0.0 , 'd1': 0.0 , 'd2': 0.0 , 'd3': 0.0 , 'd4': 0.0 , 'd5': 0.0 , 'd6': 0.0 , 'd7': 0.0 , 'a0': 0.0, 'a1': 0.0}
+        clear = lambda x: {i:0.0 for i in x.keys()}
+        d_ch = lambda x: f'd{x}'
+        a_ch = lambda x: f'a{x}'
 
-        d_ch = {0: False , 1: False , 2: False , 3: False , 4: False , 5: False , 6: False , 7: False }
-        clear = lambda x: {i:False for i in x.keys()}
-        
         seq = PulseSequence()
-            
         block_1 = PulseBlock()
 
-        d_ch = clear(d_ch)
-        d_ch[self._pulser._mw_trig] = True
-        d_ch[self._pulser._laser_channel] = True
-        d_ch[self._pulser._mw_switch] = True
-        d_ch[self._pulser._pixel_start] = True
-        block_1.append(init_length = 1/clock_frequency, channels = d_ch, repetition = 1)
+        channels = clear(channels)
+        channels[d_ch(self._pulser._mw_trig)] = 1.0
+        channels[d_ch(self._pulser._laser_channel)] = 1.0
+        channels[a_ch(self._pulser._laser_analog_channel)] = self._pulser._laser_power_voltage
+        channels[d_ch(self._pulser._mw_switch)] = 1.0
+        channels[d_ch(self._pulser._pixel_start)] = 1.0
+        block_1.append(init_length = 1/clock_frequency, channels = channels, repetition = 1)
 
-        d_ch = clear(d_ch)
-        d_ch[self._pulser._laser_channel] = True
-        d_ch[self._pulser._mw_switch] = True
-        d_ch[self._pulser._pixel_stop] = True
-        block_1.append(init_length = 1e-3, channels = d_ch, repetition = 1)
+        channels = clear(channels)
+        channels[d_ch(self._pulser._laser_channel)] = 1.0
+        channels[a_ch(self._pulser._laser_analog_channel)] = self._pulser._laser_power_voltage
+        channels[d_ch(self._pulser._mw_switch)] = 0.0
+        channels[d_ch(self._pulser._pixel_stop)] = 1.0
+        block_1.append(init_length = 1e-3, channels = channels, repetition = 1)
 
         seq.append([(block_1, 1)])
 
@@ -163,10 +165,10 @@ class ODMRCounterInterfuse(GenericLogic, ODMRCounterInterface):
 
         @return float[]: the photon counts per second
         """
-        self._sc_device.start_recorder()
 
-        self._pulser.pulser_on(n=length+2) # not sure why n=length fails
+        self._pulser.pulser_on(n=self._odmr_length) # not sure why n=length fails
         counts = self._sc_device.get_measurements(['counts'])[0]
+        self._sc_device.start_recorder()
     
         return False, counts
 
