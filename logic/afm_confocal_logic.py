@@ -1752,8 +1752,8 @@ class AFMConfocalLogic(GenericLogic):
                 params={'mw_frequency_list': freq_list,
                         'num_meas': num_esr_runs } )
                 
-        self._pulser.load_swabian_sequence(self._make_pulse_sequence(HWRecorderMode.ESR, 1/esr_count_freq, freq_points, num_esr_runs))
-        self._pulser.pulser_on(trigger=True, n=1)
+        self._pulser.load_swabian_sequence(self._make_pulse_sequence(HWRecorderMode.ESR, 1/esr_count_freq, freq_points))
+        self._pulser.pulser_on(trigger=True, n=num_esr_runs, final=self._pulser._sync_final_state)
 
         if ret_val < 0:
             self.sigQuantiScanFinished.emit()
@@ -1802,6 +1802,7 @@ class AFMConfocalLogic(GenericLogic):
 
         start_time_afm_scan = datetime.datetime.now()
         self._curr_scan_params = curr_scan_params
+        self._esr_debug = {}
 
         # save the measurement parameter
         for entry in self._qafm_scan_array:
@@ -1870,14 +1871,15 @@ class AFMConfocalLogic(GenericLogic):
                 self._scan_point = np.zeros(num_params) 
 
                 # at first the AFM parameter
-                # arm recorder
-                self._counter.start_recorder(arm=True)
 
                 self._debug = self._spm.scan_point()
                 self._scan_point[2:] = self._debug 
                 
                 # obtain ESR measurement
                 esr_meas = self._counter.get_measurements()[0]
+                self._esr_debug[f'{line_num},{index}'] = esr_meas
+                # arm recorder
+                self._counter.start_recorder() # mostly does recoreder.clear() and can give issues if put earlier. better here
                 # self.debug_check = esr_meas
                 esr_meas_mean = esr_meas.mean(axis=0)
                 esr_meas_std = esr_meas.std(axis=0)
@@ -3249,20 +3251,13 @@ class AFMConfocalLogic(GenericLogic):
             block_1.append(init_length = int_time, channels = channels, repetition = 1)
 
             channels = clear(channels)
+            channels[d_ch(self._pulser._laser_channel)] = 1.0
+            channels[a_ch(self._pulser._laser_analog_channel)] = self._pulser._laser_power_voltage
             channels[d_ch(self._pulser._pixel_stop)] = 1.0
-            channels[d_ch(self._pulser._mw_switch)] = 1.0
+            channels[d_ch(self._pulser._mw_switch)] = 0.0
             block_1.append(init_length = 1000e-6, channels = channels, repetition = 1)
 
-            seq.append([(block_1, freq_points*num_esr_runs)])
-
-            block_2 = PulseBlock()
-
-            channels = clear(channels)
-            channels[d_ch(self._pulser._sync_in)] = 1.0
-            channels[d_ch(self._pulser._mw_switch)] = 1.0
-            block_2.append(init_length = 1000e-6, channels = channels, repetition = 1)
-
-            seq.append([(block_2, 1)])
+            seq.append([(block_1, freq_points)])
 
             pulse_dict = seq.pulse_dict
         

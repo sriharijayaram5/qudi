@@ -33,3 +33,5 @@
 *.log
 *.log.*
 notebooks/APS100.ipynb
+.ipynb
+.json
