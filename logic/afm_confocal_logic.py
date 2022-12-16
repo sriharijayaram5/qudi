@@ -718,7 +718,7 @@ class AFMConfocalLogic(GenericLogic):
         self._esr_scan_array[name] = meas_dict
         return meas_dict
     
-    def initialize_pulsed_scan_array(self, var_start, var_stop, var_incr, laser_pulses, bin_width_s, record_length_s,
+    def initialize_pulsed_scan_array(self, var_list, laser_pulses, bin_width_s, record_length_s,
                                   coord0_start, coord0_stop, num_columns,
                                   coord1_start, coord1_stop, num_rows):
         """ Initialize the ESR scan array data.
@@ -741,7 +741,7 @@ class AFMConfocalLogic(GenericLogic):
                                'data_raw': np.zeros((num_rows, num_columns, n_var, n_bins)),
                                'coord0_arr': np.linspace(coord0_start, coord0_stop, num_columns, endpoint=True),
                                'coord1_arr': np.linspace(coord1_start, coord1_stop, num_rows, endpoint=True),
-                               'coord2_arr': np.arange(var_start, var_stop, var_incr),
+                               'coord2_arr': var_list,
                                'measured_units': 'Norm. signal',
                                'scale_fac': 1,  # multiplication factor to obtain SI units
                                'si_units': 'c/s',
@@ -835,8 +835,11 @@ class AFMConfocalLogic(GenericLogic):
         scan_param = []
 
         for entry in self._curr_scan_params:
-            scan_param.append(f'{entry}_fw')
-            scan_param.append(f'{entry}_bw')
+            if self.scan_dir is None:
+                scan_param.append(f'{entry}_fw')
+                scan_param.append(f'{entry}_bw')
+            else:
+                scan_param.append(f'{entry}_{self.scan_dir}')
 
         return scan_param
 
@@ -1272,6 +1275,7 @@ class AFMConfocalLogic(GenericLogic):
 
         start_time_afm_scan = datetime.datetime.now()
         self._curr_scan_params = curr_scan_params
+        self.scan_dir = None
 
         num_params = len(curr_scan_params)
 
@@ -1774,6 +1778,7 @@ class AFMConfocalLogic(GenericLogic):
                                                                             'meas_params': meas_params},
                                                                     scan_style=ScanStyle.POINT) 
 
+        # 'Height(Dac)' inserted by SPM
         curr_scan_params.insert(0, 'b_field')  # insert the fluorescence parameter
         curr_scan_params.insert(0, 'counts')  # insert the fluorescence parameter
 
@@ -1802,6 +1807,7 @@ class AFMConfocalLogic(GenericLogic):
 
         start_time_afm_scan = datetime.datetime.now()
         self._curr_scan_params = curr_scan_params
+        self.scan_dir = 'fw'
         self._esr_debug = {}
 
         # save the measurement parameter
@@ -2122,7 +2128,7 @@ class AFMConfocalLogic(GenericLogic):
             analysis_settings = self._pulsed_master.analysis_settings
 
             # make the counter for esr ready
-            var_list = np.arange(var_start, var_stop, var_incr)
+            var_list = np.linspace(var_start, var_stop, laser_pulses, endpoint=True)
 
             if self._mw_mode == 'LIST' and mw_list_mode:
                 self._mw.set_list(var_list, mw_power)
@@ -2173,9 +2179,7 @@ class AFMConfocalLogic(GenericLogic):
                                                                     coord1_num)
             self._scan_counter = 0
 
-            self._pulsed_scan_array = self.initialize_pulsed_scan_array(var_start, 
-                                                                var_stop, 
-                                                                var_incr,
+            self._pulsed_scan_array = self.initialize_pulsed_scan_array(var_list,
                                                                 laser_pulses,
                                                                 bin_width_s,
                                                                 record_length_s,
@@ -2202,6 +2206,7 @@ class AFMConfocalLogic(GenericLogic):
 
             start_time_afm_scan = datetime.datetime.now()
             self._curr_scan_params = curr_scan_params
+            self.scan_dir = 'fw'
 
             # save the measurement parameter
             for entry in self._qafm_scan_array:
@@ -3701,9 +3706,6 @@ class AFMConfocalLogic(GenericLogic):
             self.sigQAFMDataSaved.emit()
             return
 
-        #scan_params = ['counts_fw','counts_bw','Height(Sen)_fw','Height(Sen)_bw','Mag_fw','Mag_bw','Phase_fw','Phase_bw',
-        #                'Freq_fw','Freq_bw'] #Tests for data obtained from .dat file
-
         save_path =  self.get_qafm_save_directory(use_qudi_savescheme=use_qudi_savescheme,
                                              root_path=root_path,
                                              daily_folder=daily_folder,
@@ -3936,111 +3938,44 @@ class AFMConfocalLogic(GenericLogic):
             std_err_data = data[entry]['data_std']
             fit_data = data[entry]['data_fit']
 
-
             # check whether figure has only zeros as data, skip this then
             if not np.any(figure_data):
                 self.log.debug(f'The data array "{entry}" contains only zeros and will be not saved.')
                 continue
-
-            # parameters['Data arrangement note'] =  'The save data contain directly the fluorescence\n'\
-            #                                        f'signals of the esr spectrum in {unit}. Each i-th spectrum\n' \
-            #                                        'was taken at position (x_i, y_k), where the top\n' \
-            #                                        'most data correspond to (x_0, y_0) position \n' \
-            #                                        '(the left lower corner of the image). For the\n'\
-            #                                        'next spectrum the x_i index will be incremented\n'\
-            #                                        'until it reaches the end of the line. Then y_k\n' \
-            #                                        'is incremented and x_i starts again from the \n' \
-            #                                        'beginning.'
-
             rows, columns, entries = figure_data.shape
 
+            for item in ['data', 'data_std', 'data_fit']:
+            
+                image_data = {}
+                # reshape the image before sending out to save logic.
+                image_data[f'ESR scan {item} measurements with {nice_name} signal without axis.\n'
+                            'The save data contain directly the fluorescence\n'
+                        f'signals of the esr spectrum in {unit}. Each i-th spectrum\n'
+                            'was taken at position (x_i, y_k), where the top\n' 
+                            'most data correspond to (x_0, y_0) position \n'
+                            '(the left lower corner of the image). For the\n'
+                            'next spectrum the x_i index will be incremented\n'
+                            'until it reaches the end of the line. Then y_k\n'
+                            'is incremented and x_i starts again from the \n'
+                            'beginning.'] = data[entry][item].reshape(rows*columns, entries)
 
-            image_data = {}
-            # reshape the image before sending out to save logic.
-            image_data[f'ESR scan measurements with {nice_name} signal without axis.\n'
-                        'The save data contain directly the fluorescence\n'
-                       f'signals of the esr spectrum in {unit}. Each i-th spectrum\n'
-                        'was taken at position (x_i, y_k), where the top\n' 
-                        'most data correspond to (x_0, y_0) position \n'
-                        '(the left lower corner of the image). For the\n'
-                        'next spectrum the x_i index will be incremented\n'
-                        'until it reaches the end of the line. Then y_k\n'
-                        'is incremented and x_i starts again from the \n'
-                        'beginning.'] = figure_data.reshape(rows*columns, entries)
+                filelabel = f'{item}_{entry}'
 
-            filelabel = f'esr_data_{entry}'
+                if tag is not None:
+                    filelabel = f'{tag}_{filelabel}'
 
-            if tag is not None:
-                filelabel = f'{tag}_{filelabel}'
+                fig = self._save_logic.save_data(image_data,
+                                        filepath=save_path,
+                                        timestamp=timestamp,
+                                        parameters=parameters,
+                                        filelabel=filelabel,
+                                        fmt='%.6e',
+                                        delimiter='\t',
+                                        plotfig=None)
 
-            fig = self._save_logic.save_data(image_data,
-                                       filepath=save_path,
-                                       timestamp=timestamp,
-                                       parameters=parameters,
-                                       filelabel=filelabel,
-                                       fmt='%.6e',
-                                       delimiter='\t',
-                                       plotfig=None)
+                self.increase_save_counter()
 
-            self.increase_save_counter()
-
-            image_data = {}
-            # reshape the image before sending out to save logic.
-            image_data[f'ESR scan std measurements with {nice_name} signal without axis.\n'
-                        'The save data contain directly the fluorescence\n'
-                       f'signals of the esr spectrum in {unit}. Each i-th spectrum\n'
-                        'was taken at position (x_i, y_k), where the top\n' 
-                        'most data correspond to (x_0, y_0) position \n'
-                        '(the left lower corner of the image). For the\n'
-                        'next spectrum the x_i index will be incremented\n'
-                        'until it reaches the end of the line. Then y_k\n'
-                        'is incremented and x_i starts again from the \n'
-                        'beginning.'] = std_err_data.reshape(rows*columns, entries)
-
-            filelabel = f'esr_data_std_{entry}'
-
-            if tag is not None:
-                filelabel = f'{tag}_{filelabel}'
-
-            fig = self._save_logic.save_data(image_data,
-                                       filepath=save_path,
-                                       timestamp=timestamp,
-                                       parameters=parameters,
-                                       filelabel=filelabel,
-                                       fmt='%.6e',
-                                       delimiter='\t',
-                                       plotfig=None)
-
-            self.increase_save_counter()
-
-            image_data = {}
-            # reshape the image before sending out to save logic.
-            image_data[f'ESR scan fits with {nice_name} signal without axis.\n'
-                        'The save data contain directly the fluorescence\n'
-                       f'signals of the esr spectrum in {unit}. Each i-th spectrum\n'
-                        'was taken at position (x_i, y_k), where the top\n' 
-                        'most data correspond to (x_0, y_0) position \n'
-                        '(the left lower corner of the image). For the\n'
-                        'next spectrum the x_i index will be incremented\n'
-                        'until it reaches the end of the line. Then y_k\n'
-                        'is incremented and x_i starts again from the \n'
-                        'beginning.'] = fit_data.reshape(rows*columns, entries)
-
-            filelabel = f'esr_data_fit_{entry}'
-
-            if tag is not None:
-                filelabel = f'{tag}_{filelabel}'
-
-            fig = self._save_logic.save_data(image_data,
-                                       filepath=save_path,
-                                       timestamp=timestamp,
-                                       parameters=parameters,
-                                       filelabel=filelabel,
-                                       fmt='%.6e',
-                                       delimiter='\t',
-                                       plotfig=None)
-            self.increase_save_counter()
-
+            
             if self._sg_save_to_gwyddion:
                 filename_pfx = timestamp.strftime('%Y%m%d-%H%M-%S' + '_' + tag ) 
                 self.start_save_to_gwyddion(dataobj=data[entry], gwyobjtype='esr',
