@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>410</width>
-    <height>474</height>
+    <height>500</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -337,7 +337,7 @@
              <double>0.100000000000000</double>
             </property>
             <property name="value">
-             <double>0.100000000000000</double>
+             <double>1.000000000000000</double>
             </property>
            </widget>
           </item>
@@ -356,7 +356,7 @@
              <double>0.100000000000000</double>
             </property>
             <property name="value">
-             <double>0.500000000000000</double>
+             <double>5.000000000000000</double>
             </property>
            </widget>
           </item>
@@ -418,7 +418,7 @@
              <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;It is expected that only one resonance peak of the NV is measured.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
             </property>
             <property name="text">
-             <string>MW List Mode</string>
+             <string>MW PODMR  List Mode</string>
             </property>
             <property name="checked">
              <bool>true</bool>
@@ -543,7 +543,7 @@
                <double>0.010000000000000</double>
               </property>
               <property name="value">
-               <double>2780000000.000000000000000</double>
+               <double>2870000000.000000000000000</double>
               </property>
              </widget>
             </item>
@@ -557,36 +557,32 @@
          <property name="title">
           <string>Pulsed Parameters</string>
          </property>
-         <layout class="QGridLayout" name="gridLayout">
+         <layout class="QFormLayout" name="formLayout">
           <item row="0" column="0">
-           <layout class="QFormLayout" name="formLayout">
-            <item row="0" column="0">
-             <widget class="QLabel" name="label_19">
-              <property name="text">
-               <string>Pulse seq.</string>
-              </property>
-             </widget>
-            </item>
-            <item row="0" column="1">
-             <widget class="QLabel" name="loaded_sequence_label">
-              <property name="font">
-               <font>
-                <family>Segoe UI</family>
-                <weight>75</weight>
-                <bold>true</bold>
-               </font>
-              </property>
-              <property name="text">
-               <string>PulsedModule_Loaded_Sequence</string>
-              </property>
-              <property name="alignment">
-               <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
-              </property>
-             </widget>
-            </item>
-           </layout>
+           <widget class="QLabel" name="label_19">
+            <property name="text">
+             <string>Pulse seq.</string>
+            </property>
+           </widget>
           </item>
-          <item row="1" column="0">
+          <item row="0" column="1">
+           <widget class="QLabel" name="loaded_sequence_label">
+            <property name="font">
+             <font>
+              <family>Segoe UI</family>
+              <weight>75</weight>
+              <bold>true</bold>
+             </font>
+            </property>
+            <property name="text">
+             <string>PulsedModule_Loaded_Sequence</string>
+            </property>
+            <property name="alignment">
+             <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+            </property>
+           </widget>
+          </item>
+          <item row="1" column="0" colspan="2">
            <layout class="QHBoxLayout" name="horizontalLayout_2">
             <item>
              <widget class="QLabel" name="label_18">

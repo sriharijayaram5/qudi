@@ -2122,13 +2122,17 @@ class AFMConfocalLogic(GenericLogic):
             var_start = var[0]
             var_stop = var[-1]
             var_incr = var[1]-var[0]
+            if mw_list_mode:
+                var_start = freq_start
+                var_stop = freq_stop
+                var_incr = (freq_stop-freq_start)/freq_points
             bin_width_s = self._pulsed_master.fast_counter_settings['bin_width']
             record_length_s = self._pulsed_master.fast_counter_settings['record_length']
             laser_pulses = self._pulsed_master.measurement_settings['number_of_lasers']
             analysis_settings = self._pulsed_master.analysis_settings
 
             # make the counter for esr ready
-            var_list = np.linspace(var_start, var_stop, laser_pulses, endpoint=True)
+            var_list = np.linspace(var_start, var_stop, laser_pulses if not mw_list_mode else freq_points, endpoint=True)
 
             if self._mw_mode == 'LIST' and mw_list_mode:
                 self._mw.set_list(var_list, mw_power)
@@ -2139,14 +2143,19 @@ class AFMConfocalLogic(GenericLogic):
 
             ret_val = self._counter.configure_recorder(
                 mode=HWRecorderMode.GENERAL_PULSED,
-                params={'laser_pulses': laser_pulses,
+                params={'laser_pulses': laser_pulses if not mw_list_mode else freq_points,
                         'bin_width_s': bin_width_s,
                         'record_length_s': record_length_s,
-                        'max_counts': num_runs-1} )
+                        'max_counts': (num_runs-1) if not mw_list_mode else 1} )
 
-            self._pulser.prepare_SPM_ensemble()
-            self._pulser.upload_SPM_ensemble(sync=False)
-            self._pulser.pulser_on(trigger=True, n=num_runs, final=self._pulser._sync_final_state)
+            if not mw_list_mode:
+                self._pulser.prepare_SPM_ensemble()
+                self._pulser.upload_SPM_ensemble(sync=False)
+                self._pulser.pulser_on(trigger=True, n=num_runs, final=self._pulser._sync_final_state)
+            else:
+                self._podmr_seq = self._pulser._seq
+                self._pulser.load_swabian_sequence(self._make_pulse_sequence('NextTrigger'))
+                self._next_trigger_seq = self._pulser._seq
 
             # return to normal operation
             self.sigHealthCheckStopSkip.emit()
@@ -2180,7 +2189,7 @@ class AFMConfocalLogic(GenericLogic):
             self._scan_counter = 0
 
             self._pulsed_scan_array = self.initialize_pulsed_scan_array(var_list,
-                                                                laser_pulses,
+                                                                laser_pulses if not mw_list_mode else freq_points,
                                                                 bin_width_s,
                                                                 record_length_s,
                                                                 coord0_start, 
@@ -2197,10 +2206,15 @@ class AFMConfocalLogic(GenericLogic):
             # check input values
             ret_val |= self._spm.check_spm_scan_params_by_plane(plane, coord0_start, coord0_stop,
                                                                 coord1_start, coord1_stop)
+            if not self._pulsed_master.loaded_asset[0] == 'podmr' and mw_list_mode:
+                ret_val=0
+                self.log.warning('Pulsed ODMR single step not uploaded in Pulsed Measurements module or currently sampled sequence not named "podmr".')
+
             if ret_val < 1:
                 self.sigQuantiScanFinished.emit()
                 self._pulser.pulser_off()
-                self._pulser.upload_SPM_ensemble(sync=False)
+                if not mw_list_mode:
+                    self._pulser.upload_SPM_ensemble(sync=False)
                 
                 return self._qafm_scan_array
 
@@ -2234,6 +2248,14 @@ class AFMConfocalLogic(GenericLogic):
                 self._qafm_scan_array[entry]['params']['Measurement parameter list'] = str(curr_scan_params)
                 self._qafm_scan_array[entry]['params']['Measurement start'] = start_time_afm_scan.isoformat()
 
+            if mw_list_mode:
+                if self._mw_mode == 'LIST':
+                    self._mw.list_on()  
+                elif self._mw_mode == 'SWEEP':
+                    self._mw.sweep_on()
+            else:
+                self._mw.cw_on()
+
             for line_num, scan_coords in enumerate(scan_arr):
 
                 # for a continue measurement event, skip the first measurements
@@ -2250,13 +2272,6 @@ class AFMConfocalLogic(GenericLogic):
                                         time_forward=scan_speed_per_line,
                                         time_back=idle_move_time)
 
-                if mw_list_mode:
-                    if self._mw_mode == 'LIST':
-                        self._mw.list_on()  
-                    elif self._mw_mode == 'SWEEP':
-                        self._mw.sweep_on()
-                else:
-                    self._mw.cw_on()
 
                 # -1 otherwise it would be more than coord0_num points, since first one is counted too.
                 x_step = (scan_coords[1] - scan_coords[0]) / (coord0_num - 1)
@@ -2274,9 +2289,29 @@ class AFMConfocalLogic(GenericLogic):
 
                     # arm recorder
                     self._counter.start_recorder(arm=True)
+
+                    if mw_list_mode:
+                        self._pulser._seq = self._next_trigger_seq
+                        self._pulser.pulser_on(n=2)
+                        time.sleep(0.001)
+                        self._pulser._seq = self._podmr_seq
+                        self._pulser.pulser_on(trigger=True, n=num_runs, final=self._pulser._mw_trig_final_state)
                     
                     self._debug = self._spm.scan_point()
                     self._scan_point[0] = self._debug 
+
+                    if mw_list_mode:
+                        while True:
+                            if self._counter.recorder.getHistogramIndex() > 0:
+                                time.sleep(0.001)
+                                break
+                        for i in range(1, freq_points-1):
+                            self._pulser.pulser_on(n=num_runs, final=self._pulser._mw_trig_final_state)
+                            while True:
+                                if self._counter.recorder.getHistogramIndex() > i:
+                                    time.sleep(0.001)
+                                    break
+                        self._pulser.pulser_on(n=num_runs, final=self._pulser._mw_trig_sync_final_state)
                     
                     # obtain pulsed measurement
                     pulsed_meas = self._counter.get_measurements()[0]
@@ -2349,7 +2384,8 @@ class AFMConfocalLogic(GenericLogic):
             self._mw.off()
             self._counter.stop_measurement()
             self._pulser.pulser_off()
-            self._pulser.upload_SPM_ensemble(sync=False)
+            if not mw_list_mode:
+                self._pulser.upload_SPM_ensemble(sync=False)
             
             # self.module_state.unlock()
             self.sigQuantiScanFinished.emit()
@@ -2375,22 +2411,22 @@ class AFMConfocalLogic(GenericLogic):
 
         return data, err
     
-    def save_loaded_ensemble_block(self):
-        uploded_ensemble_name = self._pulsed_master.loaded_asset[0]
-        ensemble = self._pulsed_master.saved_pulse_block_ensembles[uploded_ensemble_name]
-        blocks = []
-        for b in ensemble.block_list:
-            blocks.append(self._pulsed_master.saved_pulse_blocks[b[0]])
-        return blocks, ensemble
+    # def save_loaded_ensemble_block(self):
+    #     uploded_ensemble_name = self._pulsed_master.loaded_asset[0]
+    #     ensemble = self._pulsed_master.saved_pulse_block_ensembles[uploded_ensemble_name]
+    #     blocks = []
+    #     for b in ensemble.block_list:
+    #         blocks.append(self._pulsed_master.saved_pulse_blocks[b[0]])
+    #     return blocks, ensemble
     
-    def reupload_ensemble(self, blocks, ensemble):
-        for b in blocks:
-            self._pulsed_master.sequencegeneratorlogic().save_block(b)
-        ens = po.PulseBlockEnsemble('save')
-        ensemble = ens.ensemble_from_dict(ensemble.get_dict_representation())
-        self._pulsed_master.sequencegeneratorlogic().save_ensemble(ensemble)
-        self._pulsed_master.sequencegeneratorlogic().sample_pulse_block_ensemble(ensemble.name)
-        self._pulsed_master.sequencegeneratorlogic().load_ensemble(ensemble.name)
+    # def reupload_ensemble(self, blocks, ensemble):
+    #     for b in blocks:
+    #         self._pulsed_master.sequencegeneratorlogic().save_block(b)
+    #     ens = po.PulseBlockEnsemble('save')
+    #     ensemble = ens.ensemble_from_dict(ensemble.get_dict_representation())
+    #     self._pulsed_master.sequencegeneratorlogic().save_ensemble(ensemble)
+    #     self._pulsed_master.sequencegeneratorlogic().sample_pulse_block_ensemble(ensemble.name)
+    #     self._pulsed_master.sequencegeneratorlogic().load_ensemble(ensemble.name)
 
     # def set_pulsed_gui_plots(self, signal_data, measurement_error):
     #     tmp_array = signal_data[0, 1:] - signal_data[0, :-1]
@@ -3181,7 +3217,7 @@ class AFMConfocalLogic(GenericLogic):
 # ==============================================================================
 #        Pulser configuration
 # ==============================================================================
-    def _make_pulse_sequence(self, mode, int_time, freq_points=1, num_esr_runs=1):
+    def _make_pulse_sequence(self, mode=None, int_time=1e-6, freq_points=1, num_esr_runs=1, pi_pulse=100e-9):
 
         channels = {'d0': 0.0 , 'd1': 0.0 , 'd2': 0.0 , 'd3': 0.0 , 'd4': 0.0 , 'd5': 0.0 , 'd6': 0.0 , 'd7': 0.0 , 'a0': 0.0, 'a1': 0.0}
         clear = lambda x: {i:0.0 for i in x.keys()}
@@ -3265,6 +3301,54 @@ class AFMConfocalLogic(GenericLogic):
             seq.append([(block_1, freq_points)])
 
             pulse_dict = seq.pulse_dict
+        
+        elif mode == 'PODMR':
+            seq = PulseSequence()
+            block_1 = PulseBlock()
+
+            channels = clear(channels)
+            channels[a_ch(self._pulser._laser_analog_channel)] = self._pulser._laser_power_voltage
+            channels[d_ch(self._pulser._mw_switch)] = 1.0
+            block_1.append(init_length = pi_pulse, channels = channels, repetition = 1)
+            
+            channels = clear(channels)
+            channels[a_ch(self._pulser._laser_analog_channel)] = self._pulser._laser_power_voltage
+            block_1.append(init_length = 1e-6, channels = channels, repetition = 1)
+            
+            channels = clear(channels)
+            channels[d_ch(self._pulser._laser_channel)] = 1.0
+            channels[a_ch(self._pulser._laser_analog_channel)] = self._pulser._laser_power_voltage
+            channels[d_ch(self._pulser._pixel_start)] = 1.0 # pulse to TT channel detect
+            block_1.append(init_length = 3e-6, channels = channels, repetition = 1)
+            
+            channels = clear(channels)
+            channels[a_ch(self._pulser._laser_analog_channel)] = self._pulser._laser_power_voltage
+            block_1.append(init_length = 1.5e-6, channels = channels, repetition = 1)
+
+            seq.append([(block_1, 1)])
+
+            pulse_dict = seq.pulse_dict
+        
+        elif mode == 'NextTrigger':
+            seq = PulseSequence()
+            block_1 = PulseBlock()
+
+            channels = clear(channels)
+            channels[a_ch(self._pulser._laser_analog_channel)] = self._pulser._laser_power_voltage
+            channels[d_ch(self._pulser._pixel_stop)] = 1.0
+            block_1.append(init_length = 1e-3, channels = channels, repetition = 1)
+            
+            channels = clear(channels)
+            channels[a_ch(self._pulser._laser_analog_channel)] = self._pulser._laser_power_voltage
+            block_1.append(init_length = 1e-3, channels = channels, repetition = 1)
+            
+            seq.append([(block_1, 1)])
+
+            pulse_dict = seq.pulse_dict
+        
+        else:
+            self.log.warning('No valid mode for making pulse sequence')
+            return 0
         
         return pulse_dict
 
