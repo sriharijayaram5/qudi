@@ -279,6 +279,7 @@ class PulseStreamer(Base, PulserInterface):
 
         self.__current_status = 0
         self.pulsed_trigger = False
+        self.pulse_streamer.forceFinal()
         self.pulse_streamer.constant(self._final_state)
         return 0
 

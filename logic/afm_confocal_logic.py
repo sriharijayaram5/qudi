@@ -718,7 +718,7 @@ class AFMConfocalLogic(GenericLogic):
         self._esr_scan_array[name] = meas_dict
         return meas_dict
     
-    def initialize_pulsed_scan_array(self, var_list, laser_pulses, bin_width_s, record_length_s,
+    def initialize_pulsed_scan_array(self, var_list, alternating, laser_pulses, bin_width_s, record_length_s,
                                   coord0_start, coord0_stop, num_columns,
                                   coord1_start, coord1_stop, num_rows):
         """ Initialize the ESR scan array data.
@@ -735,9 +735,13 @@ class AFMConfocalLogic(GenericLogic):
         for entry in meas_dir:
             name = f'pulsed_{entry}'
 
-            meas_dict[name] = {'data': np.zeros((num_rows, num_columns, n_var)),
-                               'data_std': np.zeros((num_rows, num_columns, n_var)),
-                               'data_fit': np.zeros((num_rows, num_columns, n_var)),
+            meas_dict[name] = {'data': np.zeros((num_rows, num_columns, int(n_var/2) if alternating else n_var)),
+                               'data_alternating': np.zeros((num_rows, num_columns, int(n_var/2) if alternating else n_var)),
+                               'data_std': np.zeros((num_rows, num_columns, int(n_var/2) if alternating else n_var)),
+                               'data_alternating_std': np.zeros((num_rows, num_columns, int(n_var/2) if alternating else n_var)),
+                               'data_fit': np.zeros((num_rows, num_columns, int(n_var/2) if alternating else n_var)),
+                               'data_alternating_fit': np.zeros((num_rows, num_columns, int(n_var/2) if alternating else n_var)),
+                               'data_delta': np.zeros((num_rows, num_columns, int(n_var/2) if alternating else n_var)),
                                'data_raw': np.zeros((num_rows, num_columns, n_var, n_bins)),
                                'coord0_arr': np.linspace(coord0_start, coord0_stop, num_columns, endpoint=True),
                                'coord1_arr': np.linspace(coord1_start, coord1_stop, num_rows, endpoint=True),
@@ -2118,6 +2122,7 @@ class AFMConfocalLogic(GenericLogic):
             # self._optimize_period = optimize_period
 
             #Get parameters for the pulsed measurmeent
+            alternating = self._pulsed_master.measurement_settings['alternating']
             var = self._pulsed_master.measurement_settings['controlled_variable']
             var_start = var[0]
             var_stop = var[-1]
@@ -2128,11 +2133,14 @@ class AFMConfocalLogic(GenericLogic):
                 var_incr = (freq_stop-freq_start)/freq_points
             bin_width_s = self._pulsed_master.fast_counter_settings['bin_width']
             record_length_s = self._pulsed_master.fast_counter_settings['record_length']
-            laser_pulses = self._pulsed_master.measurement_settings['number_of_lasers']
+            laser_pulses = self._pulsed_master.measurement_settings['number_of_lasers'] 
             analysis_settings = self._pulsed_master.analysis_settings
 
             # make the counter for esr ready
-            var_list = np.linspace(var_start, var_stop, laser_pulses if not mw_list_mode else freq_points, endpoint=True)
+            if not mw_list_mode:
+                var_list = np.linspace(var_start, var_stop, int(laser_pulses/2) if alternating else laser_pulses, endpoint=True)
+            else:
+                var_list = np.linspace(var_start, var_stop, freq_points, endpoint=True)
 
             if self._mw_mode == 'LIST' and mw_list_mode:
                 self._mw.set_list(var_list, mw_power)
@@ -2188,7 +2196,7 @@ class AFMConfocalLogic(GenericLogic):
                                                                     coord1_num)
             self._scan_counter = 0
 
-            self._pulsed_scan_array = self.initialize_pulsed_scan_array(var_list,
+            self._pulsed_scan_array = self.initialize_pulsed_scan_array(var_list, alternating,
                                                                 laser_pulses if not mw_list_mode else freq_points,
                                                                 bin_width_s,
                                                                 record_length_s,
@@ -2316,9 +2324,9 @@ class AFMConfocalLogic(GenericLogic):
                     # obtain pulsed measurement
                     pulsed_meas = self._counter.get_measurements()[0]
 
-                    pulsed_data, pulsed_err = self.analyse_pulsed_meas(analysis_settings, pulsed_meas)
-                    self._debug = pulsed_data
-                    # self.set_pulsed_gui_plots(pulsed_data, pulsed_err)
+                    pulsed_ret0, pulsed_ret1 = self.analyse_pulsed_meas(analysis_settings, pulsed_meas, alternating)
+                    self._debug = pulsed_ret0
+                    # self.set_pulsed_gui_plots(pulsed_ret0, pulsed_ret1)
 
                     # here the fit parameter can be saved
                     self._scan_point[0] = 0
@@ -2330,9 +2338,14 @@ class AFMConfocalLogic(GenericLogic):
 
                         self._qafm_scan_array[name]['data'][line_num][index] = self._scan_point[param_index] * self._qafm_scan_array[name]['scale_fac']
 
-                    self._pulsed_scan_array['pulsed_fw']['data'][line_num][index] = pulsed_data
-                    self._pulsed_scan_array['pulsed_fw']['data_std'][line_num][index] = pulsed_err
-                    self._pulsed_scan_array['pulsed_fw']['data_fit'][line_num][index] = pulsed_data
+                    self._pulsed_scan_array['pulsed_fw']['data'][line_num][index] = pulsed_ret0 if not alternating else pulsed_ret0[0]
+                    self._pulsed_scan_array['pulsed_fw']['data_std'][line_num][index] = pulsed_ret1 if not alternating else pulsed_ret0[1]
+                    if alternating:
+                        self._pulsed_scan_array['pulsed_fw']['data_alternating'][line_num][index] = pulsed_ret1[0]
+                        self._pulsed_scan_array['pulsed_fw']['data_alternating_std'][line_num][index] = pulsed_ret1[1]
+                        self._pulsed_scan_array['pulsed_fw']['data_delta'][line_num][index] = pulsed_ret0[0] - pulsed_ret1[0]
+                        
+                    # self._pulsed_scan_array['pulsed_fw']['data_fit'][line_num][index] = pulsed_ret0
                     self._pulsed_scan_array['pulsed_fw']['data_raw'][line_num][index] = pulsed_meas
 
 
@@ -2392,24 +2405,46 @@ class AFMConfocalLogic(GenericLogic):
 
             return self._qafm_scan_array
 
-    def analyse_pulsed_meas(self, analysis_settings, pulsed_meas):
+    def analyse_pulsed_meas(self, analysis_settings, pulsed_meas, alternating=False):
 
         method = analysis_settings['method']
 
         analysis_method = self._pulsed_master.analysis_methods[method]
+        if alternating:
+            pulsed_meas_full = pulsed_meas.copy()
+            pulsed_meas0 = pulsed_meas_full[::2,:]
+            pulsed_meas1 = pulsed_meas_full[1::2,:]
         if method == 'mean':
             args = [pulsed_meas, analysis_settings['signal_start'], analysis_settings['signal_end']]
+            if alternating:
+                args0 = [pulsed_meas0, analysis_settings['signal_start'], analysis_settings['signal_end']]
+                args1 = [pulsed_meas1, analysis_settings['signal_start'], analysis_settings['signal_end']]
         elif method == 'mean_norm':
             args = [pulsed_meas, analysis_settings['signal_start'], analysis_settings['signal_end'], analysis_settings['norm_start'], analysis_settings['norm_end']]
+            if alternating:
+                args0 = [pulsed_meas0, analysis_settings['signal_start'], analysis_settings['signal_end'], analysis_settings['norm_start'], analysis_settings['norm_end']]
+                args1 = [pulsed_meas1, analysis_settings['signal_start'], analysis_settings['signal_end'], analysis_settings['norm_start'], analysis_settings['norm_end']]
         elif method == 'mean_reference':
             args = [pulsed_meas, analysis_settings['signal_start'], analysis_settings['signal_end'], analysis_settings['norm_start'], analysis_settings['norm_end']]
+            if alternating:
+                args0 = [pulsed_meas0, analysis_settings['signal_start'], analysis_settings['signal_end'], analysis_settings['norm_start'], analysis_settings['norm_end']]
+                args1 = [pulsed_meas1, analysis_settings['signal_start'], analysis_settings['signal_end'], analysis_settings['norm_start'], analysis_settings['norm_end']]
         elif method == 'passthrough':
             args = [pulsed_meas]
+            if alternating:
+                args0 = [pulsed_meas0]
+                args1 = [pulsed_meas1]
         elif method == 'sum':
             args = [pulsed_meas, analysis_settings['signal_start'], analysis_settings['signal_end']]
+            if alternating:
+                args0 = [pulsed_meas0, analysis_settings['signal_start'], analysis_settings['signal_end']]
+                args1 = [pulsed_meas1, analysis_settings['signal_start'], analysis_settings['signal_end']]
         data, err = analysis_method(*args)
+        if alternating:
+            data0, err0 = analysis_method(*args0)
+            data1, err1 = analysis_method(*args1)
 
-        return data, err
+        return (data, err) if not alternating else ((data0, err0), (data1, err1))
     
     # def save_loaded_ensemble_block(self):
     #     uploded_ensemble_name = self._pulsed_master.loaded_asset[0]
@@ -3883,6 +3918,10 @@ class AFMConfocalLogic(GenericLogic):
                                     use_qudi_savescheme=use_qudi_savescheme, root_path=root_path, 
                                     daily_folder=daily_folder, timestamp=timestamp)
 
+        self.save_pulsed_data(tag=tag, probe_name=probe_name, sample_name=sample_name,
+                                    use_qudi_savescheme=use_qudi_savescheme, root_path=root_path, 
+                                    daily_folder=daily_folder, timestamp=timestamp)
+
         if self._sg_save_to_gwyddion:
             filename = timestamp.strftime('%Y%m%d-%H%M-%S' + '_' + tag + '_QAFM.gwy') 
 
@@ -3993,6 +4032,90 @@ class AFMConfocalLogic(GenericLogic):
         return fig
 
 
+    def save_pulsed_data(self, tag=None, probe_name=None, sample_name=None,
+                               use_qudi_savescheme=False, root_path=None, 
+                               daily_folder=True, timestamp=None):
+
+        save_path =  self.get_qafm_save_directory(use_qudi_savescheme=use_qudi_savescheme,
+                                                  root_path=root_path,
+                                                  daily_folder=daily_folder,
+                                                  probe_name=probe_name,
+                                                  sample_name=sample_name)
+
+        if timestamp is None:
+            timestamp = datetime.datetime.now()
+
+        data = self.get_pulsed_data()
+
+        # go basically through the esr_fw and esr_bw scans.
+        for entry in data:
+            tmp = 0
+            for alt in ['', '_alternating']:
+                parameters = {}
+                parameters.update(data[entry]['params'])
+                nice_name = data[entry]['nice_name']
+                unit = data[entry]['si_units']
+
+                parameters['Name of measured signal'] = nice_name
+                parameters['Units of measured signal'] = unit
+
+                figure_data = data[entry][f'data{alt}']
+                std_err_data = data[entry][f'data{alt}_std']
+                fit_data = data[entry][f'data{alt}_fit']
+                delta_data = data[entry][f'data_delta']
+                raw_data = data[entry][f'data_raw']
+
+                # check whether figure has only zeros as data, skip this then
+                save_list = [f'data{alt}', f'data{alt}_std', f'data{alt}_fit', 'data_raw']
+
+                if not np.any(figure_data):
+                    self.log.debug(f'The data array "{entry}" contains only zeros and will be not saved.')
+                    continue
+                rows, columns, entries = figure_data.shape
+                if tmp == 1:
+                    save_list[-1] = 'data_delta'
+                tmp += 1
+                for item in save_list:
+
+                    if item is 'data_raw' or 'fit' in item:
+                        continue
+                
+                    image_data = {}
+                    # reshape the image before sending out to save logic.
+                    image_data[f'ESR scan {item} measurements with {nice_name} signal without axis.\n'
+                                'The save data contain directly the fluorescence\n'
+                            f'signals of the esr spectrum in {unit}. Each i-th spectrum\n'
+                                'was taken at position (x_i, y_k), where the top\n' 
+                                'most data correspond to (x_0, y_0) position \n'
+                                '(the left lower corner of the image). For the\n'
+                                'next spectrum the x_i index will be incremented\n'
+                                'until it reaches the end of the line. Then y_k\n'
+                                'is incremented and x_i starts again from the \n'
+                                'beginning.'] = data[entry][item].reshape(rows*columns, entries)
+
+                    filelabel = f'{item}_{entry}'
+
+                    if tag is not None:
+                        filelabel = f'{tag}_{filelabel}'
+
+                    fig = self._save_logic.save_data(image_data,
+                                            filepath=save_path,
+                                            timestamp=timestamp,
+                                            parameters=parameters,
+                                            filelabel=filelabel,
+                                            fmt='%.6e',
+                                            delimiter='\t',
+                                            plotfig=None)
+
+                    self.increase_save_counter()
+
+                
+                if self._sg_save_to_gwyddion:
+                    filename_pfx = timestamp.strftime('%Y%m%d-%H%M-%S' + '_' + tag ) 
+                    self.start_save_to_gwyddion(dataobj=data[entry], gwyobjtype='esr',
+                                                filename=os.path.join(save_path,f"{filename_pfx}_{entry}.gwy"))
+                    self.increase_save_counter()
+    
     def save_quantitative_data(self, tag=None, probe_name=None, sample_name=None,
                                use_qudi_savescheme=False, root_path=None, 
                                daily_folder=True, timestamp=None):
