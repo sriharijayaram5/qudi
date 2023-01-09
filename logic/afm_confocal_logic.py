@@ -315,8 +315,7 @@ class AFMConfocalLogic(GenericLogic):
     # which is implemented in a hardware instrument (for a hardware connection)
     spm_device = Connector(interface='ScannerInterface') # hardware example
     savelogic = Connector(interface='SaveLogic')  # logic example
-    counter_device = Connector(interface='SlowCounterInterface')
-    counter_logic = Connector(interface='CounterLogic')
+    counter_device = Connector(interface='RecorderInterface')
     fitlogic = Connector(interface='FitLogic')
     pulser = Connector(interface='PulserInterface')
     microwave = Connector(interface='MicrowaveInterface')
@@ -550,7 +549,6 @@ class AFMConfocalLogic(GenericLogic):
         self._save_logic = self.savelogic()
         self._counter = self.counter_device()   # temporarily disable
         #self._counter = MicrowaveQ()           # uncomment to get language server's help
-        self._counterlogic = self.counter_logic()
         self._fitlogic = self.fitlogic()
         self._pulser = self.pulser()
         self._mw = self.microwave()

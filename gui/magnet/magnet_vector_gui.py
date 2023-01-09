@@ -1232,19 +1232,23 @@ class MagnetGui(GUIBase):
         If no value is passed, the current position is retrieved from the
         logic and the display is changed.
         """
-        constraints = self._magnet_logic.get_hardware_constraints()
-        curr_pos = self._magnet_logic.get_pos(list(constraints.keys()))
-        self.last_pos = curr_pos
-        if (param_list is not None) and (type(param_list) is not bool):
-            param_list = list(param_list)
-            # param_list =list(param_list) # convert for safety to a list
-            curr_pos =  self._magnet_logic.get_pos(param_list)
+        
+        if not type(param_list) is dict:
+            constraints = self._magnet_logic.get_hardware_constraints()
+            curr_pos = self._magnet_logic.get_pos(list(constraints.keys()))
+            self.last_pos = curr_pos
+        else:
+            curr_pos = param_list
+            self.last_pos = curr_pos
 
         for axis_label in curr_pos:
             # update the values of the current position viewboxes:
-            dspinbox_pos_ref = self.get_ref_curr_pos_ScienDSpinBox(axis_label)
+            try:
+                dspinbox_pos_ref = self.get_ref_curr_pos_ScienDSpinBox(axis_label)
 
-            dspinbox_pos_ref.setValue(curr_pos[axis_label])
+                dspinbox_pos_ref.setValue(curr_pos[axis_label])
+            except:
+                pass
             
 
             # update the values also of the absolute movement display:

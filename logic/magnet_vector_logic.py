@@ -87,7 +87,7 @@ class MagnetLogic(GenericLogic):
     align_2d_axis2_vel = StatusVar('align_2d_axis2_vel', 10e-6)
     curr_2d_pathway_mode = StatusVar('curr_2d_pathway_mode', 'snake-wise')
 
-    _checktime = StatusVar('_checktime', 2.5)
+    _checktime = StatusVar('_checktime', 0.1)
     _1D_axis0_data = StatusVar('_1D_axis0_data', default=np.arange(3))
     _2D_axis0_data = StatusVar('_2D_axis0_data', default=np.arange(3))
     _2D_axis1_data = StatusVar('_2D_axis1_data', default=np.arange(2))
@@ -835,6 +835,9 @@ class MagnetLogic(GenericLogic):
                 self.log.debug("Went into while loop in stepwise_loop_body")
 
             self.log.debug("stepwise_loop_body reports magnet moving ? {0}".format(self._check_is_moving()))
+            self.log.info(f'Position: {self._pathway_index+1}/{len(self._pathway)} ({(self._pathway_index+1)/len(self._pathway)*100:.0f}%)')
+            curr_pos = self.get_pos(['x','y','z',self.align_2d_axis0_name, self.align_2d_axis1_name, self.align_2d_axis2_name])
+            self.sigPosChanged.emit(curr_pos)
 
             # this function will return to this function if position is reached:
             start_pos = dict()
@@ -880,10 +883,13 @@ class MagnetLogic(GenericLogic):
         constraints = self.get_hardware_constraints()
 
         last_pos = dict()
-        for axis_name in self._saved_pos_before_align:
-            last_pos[axis_name] = self._backmap[self._pathway_index - 1][axis_name]
+        try:
+            for axis_name in self._saved_pos_before_align:
+                last_pos[axis_name] = self._backmap[self._pathway_index - 1][axis_name]
 
-        self._magnet_device.move_abs(self._saved_pos_before_align)
+            self._magnet_device.move_abs(self._saved_pos_before_align)
+        except:
+            self.log.debug('Stopped too quick. Missed something here.')
 
         while self._check_is_moving():
             time.sleep(self._checktime)
@@ -897,55 +903,55 @@ class MagnetLogic(GenericLogic):
 
         pass
 
-    def _check_position_reached_loop(self, start_pos_dict, end_pos_dict):
-        """ Perform just a while loop, which checks everytime the conditions
+    # def _check_position_reached_loop(self, start_pos_dict, end_pos_dict):
+    #     """ Perform just a while loop, which checks everytime the conditions
 
-        @param dict start_pos_dict: the position in this dictionary must be
-                                    absolute positions!
-        @param dict end_pos_dict:
-        @param float checktime: the checktime in seconds
+    #     @param dict start_pos_dict: the position in this dictionary must be
+    #                                 absolute positions!
+    #     @param dict end_pos_dict:
+    #     @param float checktime: the checktime in seconds
 
-        @return:
+    #     @return:
 
-        Whenever the magnet has passed 95% of the way, the method will return.
+    #     Whenever the magnet has passed 95% of the way, the method will return.
 
-        Check also whether the difference in position increases again, and if so
-        stop the measurement and raise an error, since either the velocity was
-        too fast or the magnet does not move further.
-        """
+    #     Check also whether the difference in position increases again, and if so
+    #     stop the measurement and raise an error, since either the velocity was
+    #     too fast or the magnet does not move further.
+    #     """
 
-        distance_init = 0.0
-        constraints = self.get_hardware_constraints()
-        minimal_distance = 0.0
-        for axis_label in start_pos_dict:
-            distance_init = (end_pos_dict[axis_label] - start_pos_dict[axis_label]) ** 2
-            minimal_distance = minimal_distance + (constraints[axis_label]['pos_step']) ** 2
-        distance_init = np.sqrt(distance_init)
-        minimal_distance = np.sqrt(minimal_distance)
+    #     distance_init = 0.0
+    #     constraints = self.get_hardware_constraints()
+    #     minimal_distance = 0.0
+    #     for axis_label in start_pos_dict:
+    #         distance_init = (end_pos_dict[axis_label] - start_pos_dict[axis_label]) ** 2
+    #         minimal_distance = minimal_distance + (constraints[axis_label]['pos_step']) ** 2
+    #     distance_init = np.sqrt(distance_init)
+    #     minimal_distance = np.sqrt(minimal_distance)
 
-        # take 97% distance tolerance:
-        distance_tolerance = 0.03 * distance_init
+    #     # take 97% distance tolerance:
+    #     distance_tolerance = 0.03 * distance_init
 
-        current_dist = 0.0
+    #     current_dist = 0.0
 
-        while True:
-            time.sleep(self._checktime)
+    #     while True:
+    #         time.sleep(self._checktime)
 
-            curr_pos = self.get_pos(list(end_pos_dict))
+    #         curr_pos = self.get_pos(list(end_pos_dict))
 
-            for axis_label in start_pos_dict:
-                current_dist = (end_pos_dict[axis_label] - curr_pos[axis_label]) ** 2
+    #         for axis_label in start_pos_dict:
+    #             current_dist = (end_pos_dict[axis_label] - curr_pos[axis_label]) ** 2
 
-            current_dist = np.sqrt(current_dist)
+    #         current_dist = np.sqrt(current_dist)
 
-            self.sigPosChanged.emit(curr_pos)
+    #         self.sigPosChanged.emit(curr_pos)
 
-            if (current_dist <= distance_tolerance) or (current_dist <= minimal_distance) or self._stop_measure:
-                self.sigPosReached.emit()
+    #         if (current_dist <= distance_tolerance) or (current_dist <= minimal_distance) or self._stop_measure:
+    #             self.sigPosReached.emit()
 
-                break
+    #             break
 
-                # return either pos reached signal of check position
+    #             # return either pos reached signal of check position
 
     def _check_is_moving(self):
         """
@@ -1054,58 +1060,20 @@ class MagnetLogic(GenericLogic):
 
         if self.curr_alignment_method == '2d_fluorescence':
             data, add_data = self._perform_fluorescence_measure()
-
-        # data, add_data = self._perform_odmr_measure(11100e6, 1e6, 11200e6, 5, 10, 'Lorentzian', False,'')
-
-
+        
         return data, add_data
 
     def _perform_fluorescence_measure(self):
 
-        # FIXME: that should be run through the TaskRunner! Implement the call
-        #       by not using this connection!
-
-        if self._counter_logic.get_counting_mode() != CountingMode.CONTINUOUS:
-            self._counter_logic.set_counting_mode(mode=CountingMode.CONTINUOUS)
-
-        self._counter_logic.start_saving()
-        time.sleep(self._fluorescence_integration_time)
-        data_array, parameters = self._counter_logic.save_data(to_file=False)
-
-        data_array = np.array(data_array)[:, 1]
-
-        return data_array.mean(), parameters
-
-   
-    def _run_gated_counter(self):
-
-        self._gc_logic.startCount()
-        time.sleep(2)
-
-        # wait until the gated counter is done
-        while self._gc_logic.module_state() != 'idle' and not self._stop_measure:
-            # print('in SSR measure')
-            time.sleep(1)
-
-    def _pulser_on(self):
-        """ Switch on the pulser output. """
-
-        self._set_channel_activation(active=True, apply_to_device=True)
-        self._seq_gen_logic.pulser_on()
-
-    def _pulser_off(self):
-        """ Switch off the pulser output. """
-
-        self._set_channel_activation(active=False, apply_to_device=False)
-        self._seq_gen_logic.pulser_off()
-
-
-    def save_1d_data(self):
-
-        # save also all kinds of data, which are the results during the
-        # alignment measurements
-
-        pass
+        measurement = self._counter_logic._counting_device.countrate
+        measurement.startFor(int(self._fluorescence_integration_time*1e12)) # using timetaggers inbuilt start for particular duration function. cant be bothered to make it work for all counting devices
+                
+        while True:
+            if not measurement.isRunning():
+                break
+        
+        data_array = measurement.getData()
+        return data_array.mean(), {'Integration time (s)' : self._fluorescence_integration_time}
 
     def save_2d_data(self, tag=None, timestamp=None):
         """ Save the data of the  """
@@ -1174,13 +1142,13 @@ class MagnetLogic(GenericLogic):
 
         self.log.debug('Magnet 2D data saved to:\n{0}'.format(filepath))
 
-        figure_data = matrix_data['Alignment Matrix']
+        figure_data = np.flip(matrix_data['Alignment Matrix'], axis=0)
         
-        image_extent = [self._2D_axis0_data.min(),
-                        self._2D_axis0_data.max(),
-                        self._2D_axis1_data.min(),
-                        self._2D_axis1_data.max()]
-        axes = ['phi', 'theta']
+        image_extent = [self._2D_axis1_data.min(),
+                        self._2D_axis1_data.max(),
+                        self._2D_axis0_data.min(),
+                        self._2D_axis0_data.max()]
+        axes = ['theta', 'phi']
 
         figs = self.draw_figure(data=figure_data,
                                      image_extent=image_extent,
@@ -1300,7 +1268,7 @@ class MagnetLogic(GenericLogic):
 
         # If no colorbar range was given, take full range of data
         if cbar_range is None:
-            cbar_range = [np.min(data), np.max(data)]
+            cbar_range = [np.min(data)-np.min(data)*0.005, np.max(data)+np.max(data)*0.005]
 
         # Scale color values using SI prefix
         prefix = ['', 'k', 'M', 'G']
@@ -1420,6 +1388,7 @@ class MagnetLogic(GenericLogic):
         # specified!
 
         move_commmands = pathway[pathway_index]
+        move_commmands[self.align_2d_axis2_name] = {'move_abs' : self._control_dict[self.align_2d_axis2_name], 'move_vel' : 1e-5}
 
         move_dict_abs = dict()
         move_dict_rel = dict()
@@ -1448,9 +1417,9 @@ class MagnetLogic(GenericLogic):
     
     def _set_optimized_xy_from_fit(self):
         """Fit the completed xy optimizer scan and set the optimized xy position."""
-        fit_x, fit_y = np.meshgrid(self._2D_axis0_data, self._2D_axis1_data)
+        fit_x, fit_y = np.meshgrid(self._2D_axis1_data, self._2D_axis0_data)
         xy_fit_data = self._2D_data_matrix.ravel()
-        axes = np.empty((len(self._2D_axis0_data) * len(self._2D_axis1_data), 2))
+
         axes = (fit_x.flatten(), fit_y.flatten())
         result_2D_gaus = self._fit_logic.make_twoDgaussian_fit(
             xy_axes=axes,
@@ -1469,18 +1438,18 @@ class MagnetLogic(GenericLogic):
             self.optim_sigma_x = 0.
             self.optim_sigma_y = 0.
         else:
-            if result_2D_gaus.best_values['center_x']>2*np.pi:
-                result_2D_gaus.best_values['center_x'] -= 2*np.pi
-            if result_2D_gaus.best_values['center_y']>2*np.pi:
-                result_2D_gaus.best_values['center_y'] -= 2*np.pi
-            if result_2D_gaus.best_values['center_x']<2*np.pi:
-                result_2D_gaus.best_values['center_x'] += 2*np.pi
-            if result_2D_gaus.best_values['center_y']<2*np.pi:
-                result_2D_gaus.best_values['center_y'] += 2*np.pi
-            self.optim_pos_x = result_2D_gaus.best_values['center_x']
-            self.optim_pos_y = result_2D_gaus.best_values['center_y']
-            self.optim_sigma_x = result_2D_gaus.best_values['sigma_x']
-            self.optim_sigma_y = result_2D_gaus.best_values['sigma_y']
+        #     if result_2D_gaus.best_values['center_x']>2*np.pi:
+        #         result_2D_gaus.best_values['center_x'] -= 2*np.pi
+        #     if result_2D_gaus.best_values['center_y']>2*np.pi:
+        #         result_2D_gaus.best_values['center_y'] -= 2*np.pi
+        #     if result_2D_gaus.best_values['center_x']<0:
+        #         result_2D_gaus.best_values['center_x'] += 2*np.pi
+        #     if result_2D_gaus.best_values['center_y']<0:
+        #         result_2D_gaus.best_values['center_y'] += 2*np.pi
+            self.optim_pos_x = result_2D_gaus.best_values['center_y']
+            self.optim_pos_y = result_2D_gaus.best_values['center_x']
+            self.optim_sigma_x = result_2D_gaus.best_values['sigma_y']
+            self.optim_sigma_y = result_2D_gaus.best_values['sigma_x']
 
         # emit image updated signal so crosshair can be updated from this fit
         self.sigFitFinished.emit({'rho':curr_pos['rho'], 'theta':self.optim_pos_x, 'phi':self.optim_pos_y, 'fit_result':result_2D_gaus.fit_report(show_correl=False)})

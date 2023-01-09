@@ -318,10 +318,14 @@ class APSMagnet(Base, MagnetInterface):
             status_plural = self.ask_status()
         status_dict = {}
         for axes in status_plural:
-            set_I = float(status_plural[axes][:-2])/10
-            curr_I = float(field_dict[axes])
-            translated_status = np.isclose([curr_I],[set_I], atol=1e-4)
-            status_dict[axes] = translated_status
+            try:
+                set_I = float(status_plural[axes][:-2])/10
+                curr_I = float(field_dict[axes])
+                translated_status = np.isclose([curr_I],[set_I], atol=1e-4)
+                status_dict[axes] = translated_status
+            except:
+                translated_status = False
+                status_dict[axes] = translated_status
 
         return status_dict
 
@@ -521,7 +525,7 @@ class APSMagnet(Base, MagnetInterface):
         constr_dict = {mode: {'rad': coord_list}}
         self.log.debug('show new dictionary: {0}'.format(param_dict))
         check_bool = self.check_constraints(constr_dict)
-        self.log.info(f'CheckBool: {check_bool}')
+        # self.log.info(f'CheckBool: {check_bool}')
         if check_bool:
             check_1 = self.set_coordinates(param_dict)
             check_2 = self.ramp()

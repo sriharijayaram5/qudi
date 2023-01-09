@@ -124,7 +124,9 @@ class CounterLogic(GenericLogic):
         self._saving_start_time = time.time()
 
         # connect signals
-        self.sigCountDataNext.connect(self.count_loop_body, QtCore.Qt.QueuedConnection)
+        # self.sigCountDataNext.connect(self.count_loop_body, QtCore.Qt.QueuedConnection)
+        self.sigCountDataNextTimer = QtCore.QTimer()
+        self.sigCountDataNextTimer.timeout.connect(self.count_loop_body)
         return
 
     def on_deactivate(self):
@@ -137,7 +139,8 @@ class CounterLogic(GenericLogic):
         if self.module_state() == 'locked':
             self._stopCount_wait()
 
-        self.sigCountDataNext.disconnect()
+        self.sigCountDataNextTimer.stop()
+        # self.sigCountDataNext.disconnect()
         return
 
     def get_hardware_constraints(self):
@@ -435,7 +438,8 @@ class CounterLogic(GenericLogic):
 
             # Start data reader loop
             self.sigCountStatusChanged.emit(True)
-            self.sigCountDataNext.emit()
+            # self.sigCountDataNext.emit()
+            self.sigCountDataNextTimer.start(1000/self._count_frequency)
             return
 
     def stopCount(self):
@@ -465,6 +469,7 @@ class CounterLogic(GenericLogic):
                     self.stopRequested = False
                     self.module_state.unlock()
                     self.sigCounterUpdated.emit()
+                    self.sigCountDataNextTimer.stop()
                     return
 
                 # read the current counter value
@@ -484,7 +489,7 @@ class CounterLogic(GenericLogic):
 
             # call this again from event loop
             self.sigCounterUpdated.emit()
-            self.sigCountDataNext.emit()
+            # self.sigCountDataNext.emit()
         return
 
     def save_current_count_trace(self, name_tag=''):

@@ -121,6 +121,10 @@ class TimeTaggerCounter(Base, SlowCounterInterface, RecorderInterface):
         elif self._channel_apd_1 is None:
             self._mode = 0
             self._channel_apd = self._channel_apd_0
+            self.countrate = tt.Countrate(
+                self._tagger,
+                channels=[self._channel_apd]
+            )
         else:
             self._mode = 2
 
@@ -234,7 +238,7 @@ class TimeTaggerCounter(Base, SlowCounterInterface, RecorderInterface):
         @return numpy.array(uint32): the photon counts per second
         """
 
-        time.sleep(2 / self._count_frequency)
+        # time.sleep(2 / self._count_frequency)
         if self._mode < 2:
             return self.counter.getData() * self._count_frequency
         else:
