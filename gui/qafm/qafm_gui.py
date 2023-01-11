@@ -1,5 +1,4 @@
 
-from markdown import extensions
 from math import log10, floor
 from matplotlib import cm
 import numpy as np
@@ -544,74 +543,6 @@ class ProteusQGUI(GUIBase):
 
         self._ab.software_version_Label.setText(f"LabQ version {self._LabQversion}")
 
-
-    def update_hardware_status_message(self):
-        """ Retrieves information from qafm_logic, regarding the hardware conditions
-            In the case this is called with dummy instances, the null report is returned
-        """
-        status = "#Hardware Status:\n\n"
-        try: 
-            # MicrowaveQ hardware
-            query = ['unlocked_features','fpga_version',]
-            status_dict = self._qafm_logic.get_hardware_status(query)
-            status += "## MicrowaveQ  \n"
-            for refname, refres in status_dict.items():
-                status += f"### {refname}  \n"
-                if isinstance(refres,dict):
-                    status += "\n".join([f" - {k} : {v}" for k,v in refres.items()])
-                else:
-                    status += str(refres)
-                status += "\n\n"      
-            status += "---  \n"
-        
-        except:
-            # Dummy MQ used
-            status += "## MicrowaveQ  \n - Dummy MicrowaveQ in use  \n\n---  \n"
-
-        try:
-            # SPM hardware
-            query = ['spm_library_version','spm_server_version','spm_client_version']
-            status_dict = self._qafm_logic.get_hardware_status(query)
-            status += "## SPM  \n"
-            for refname, refres in status_dict.items():
-                status += f"### {refname}  \n"
-                if isinstance(refres,dict):
-                    status += "\n".join([f" - {k} : {v}" for k,v in refres.items()])
-                else:
-                    status += str(refres)
-                status += "\n\n"      
-            status += "---  \n"
-
-        except:
-            status += "## SPM  \n - Dummy SPM in use  \n\n---  \n"
-
-        # Pixel clock timing
-        query = ['spm_pixelclock_timing']
-        timing_dict = self._qafm_logic.get_hardware_status(query)
-
-        if timing_dict['spm_pixelclock_timing']:
-            status += "## SPM Pixel Clock Timing \n"
-            res = timing_dict['spm_pixelclock_timing']
-            times = sorted(list(res.keys()))
-            headers = [ k for k in res[times[0]]]
-            status += "Pixel clock integration timing  \n\n <br/>"
-            status += " meas | " + " | ".join([str(i) for i in range(1,len(times)+1)]) + "\n"
-            status += "--|-- " * len(times) + "\n"
-            status += " int_time(s) | " + " | ".join([f'{t/1000:1.5e}' for t in times]) + "\n"
-            status += f" {'n':>10s} | " + " | ".join([f"{res[t]['n']}" for t in times]) + "\n"
-            headers.remove('n')
-            
-            for h in headers:
-                status += f" {h:>10s}(s) | " + " | ".join([f'{res[t][h]:1.5e}' for t in times]) + "\n"
-
-            status += "\n\n"
-        else:
-            status += "## SPM pixel clock timing  \n- Results not available  \n"
-
-        status_html = markdown.markdown(status, extensions=['tables']) 
-        self._ab.hardware_status_Label.setText(status_html)
-
-
     def show_about_tab(self):
         """ display 'About LabQ', emphasis on about tab"""
 
@@ -645,7 +576,6 @@ class ProteusQGUI(GUIBase):
         """ display 'About LabQ' dialog box """
         # Load the 'About text'
         self.update_about_messages()
-        self.update_hardware_status_message()
 
         self._ab.show()
         self._ab.raise_()

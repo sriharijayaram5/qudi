@@ -164,6 +164,7 @@ class TimeTaggerFastCounter(Base, FastCounterInterface):
         self.module_state.lock()
         self.pulsed.clear()
         self.pulsed.start()
+        self._tagger.sync()
         self.statusvar = 2
         return 0
 
@@ -192,6 +193,7 @@ class TimeTaggerFastCounter(Base, FastCounterInterface):
         """
         if self.module_state() == 'locked':
             self.pulsed.start()
+            self._tagger.sync()
             self.statusvar = 2
         return 0
 

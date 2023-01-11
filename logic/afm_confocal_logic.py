@@ -43,9 +43,6 @@ import datetime
 import matplotlib.pyplot as plt
 import math
 from . import gwyfile as gwy
-
-from deprecation import deprecated
-
 from qtpy import QtCore
 
 class WorkerThread(QtCore.QRunnable):
@@ -2297,9 +2294,14 @@ class AFMConfocalLogic(GenericLogic):
                     self._counter.start_recorder(arm=True)
 
                     if mw_list_mode:
-                        self._pulser._seq = self._next_trigger_seq
-                        self._pulser.pulser_on(n=2)
-                        time.sleep(0.001)
+                        if self._counter.recorder.getHistogramIndex()==-1:
+                            self._pulser._seq = self._next_trigger_seq
+                            self._pulser.pulser_on(n=1)
+                            # time.sleep(0.001)
+                            while True:
+                                time.sleep(0.001)
+                                if self._pulser.pulse_streamer.hasFinished():
+                                    break
                         self._pulser._seq = self._podmr_seq
                         self._pulser.pulser_on(trigger=True, n=num_runs, final=self._pulser._mw_trig_final_state)
                     
@@ -2320,6 +2322,8 @@ class AFMConfocalLogic(GenericLogic):
                         self._pulser.pulser_on(n=num_runs, final=self._pulser._mw_trig_sync_final_state)
                     
                     # obtain pulsed measurement
+                    self.log.debug(f'self._counter.recorder.getHistogramIndex():{self._counter.recorder.getHistogramIndex()}')
+                    self.log.debug(f'self._counter.recorder.getCounts():{self._counter.recorder.getCounts()}')
                     pulsed_meas = self._counter.get_measurements()[0]
 
                     pulsed_ret0, pulsed_ret1 = self.analyse_pulsed_meas(analysis_settings, pulsed_meas, alternating)
@@ -3317,6 +3321,11 @@ class AFMConfocalLogic(GenericLogic):
             block_1 = PulseBlock()
 
             channels = clear(channels)
+            channels[d_ch(self._pulser._laser_channel)] = 1.0
+            channels[a_ch(self._pulser._laser_analog_channel)] = self._pulser._laser_power_voltage
+            block_1.append(init_length = 1e-6, channels = channels, repetition = 1)
+
+            channels = clear(channels)
             channels[d_ch(self._pulser._mw_trig)] = 1.0
             channels[d_ch(self._pulser._laser_channel)] = 1.0
             channels[a_ch(self._pulser._laser_analog_channel)] = self._pulser._laser_power_voltage
@@ -3329,7 +3338,12 @@ class AFMConfocalLogic(GenericLogic):
             channels[a_ch(self._pulser._laser_analog_channel)] = self._pulser._laser_power_voltage
             channels[d_ch(self._pulser._pixel_stop)] = 1.0
             channels[d_ch(self._pulser._mw_switch)] = 0.0
-            block_1.append(init_length = 1000e-6, channels = channels, repetition = 1)
+            block_1.append(init_length = 1e-6, channels = channels, repetition = 1)
+
+            channels = clear(channels)
+            channels[d_ch(self._pulser._laser_channel)] = 1.0
+            channels[a_ch(self._pulser._laser_analog_channel)] = self._pulser._laser_power_voltage
+            block_1.append(init_length = 1e-6, channels = channels, repetition = 1)
 
             seq.append([(block_1, freq_points)])
 
@@ -3339,6 +3353,10 @@ class AFMConfocalLogic(GenericLogic):
             seq = PulseSequence()
             block_1 = PulseBlock()
 
+            channels = clear(channels)
+            channels[a_ch(self._pulser._laser_analog_channel)] = self._pulser._laser_power_voltage
+            block_1.append(init_length = 1.4e-6, channels = channels, repetition = 1)
+            
             channels = clear(channels)
             channels[a_ch(self._pulser._laser_analog_channel)] = self._pulser._laser_power_voltage
             channels[d_ch(self._pulser._mw_switch)] = 1.0
@@ -3356,7 +3374,7 @@ class AFMConfocalLogic(GenericLogic):
             
             channels = clear(channels)
             channels[a_ch(self._pulser._laser_analog_channel)] = self._pulser._laser_power_voltage
-            block_1.append(init_length = 1.5e-6, channels = channels, repetition = 1)
+            block_1.append(init_length = 0.1e-6, channels = channels, repetition = 1)
 
             seq.append([(block_1, 1)])
 
@@ -3368,12 +3386,16 @@ class AFMConfocalLogic(GenericLogic):
 
             channels = clear(channels)
             channels[a_ch(self._pulser._laser_analog_channel)] = self._pulser._laser_power_voltage
-            channels[d_ch(self._pulser._pixel_stop)] = 1.0
-            block_1.append(init_length = 1e-3, channels = channels, repetition = 1)
+            block_1.append(init_length = 1e-6, channels = channels, repetition = 1)
             
             channels = clear(channels)
             channels[a_ch(self._pulser._laser_analog_channel)] = self._pulser._laser_power_voltage
-            block_1.append(init_length = 1e-3, channels = channels, repetition = 1)
+            channels[d_ch(self._pulser._pixel_stop)] = 1.0
+            block_1.append(init_length = 1e-6, channels = channels, repetition = 1)
+            
+            channels = clear(channels)
+            channels[a_ch(self._pulser._laser_analog_channel)] = self._pulser._laser_power_voltage
+            block_1.append(init_length = 1e-6, channels = channels, repetition = 1)
             
             seq.append([(block_1, 1)])
 

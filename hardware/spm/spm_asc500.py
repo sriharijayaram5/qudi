@@ -31,8 +31,8 @@ from interface.scanner_interface import ScannerInterface, ScannerMode, ScanStyle
                                         ScannerState, ScannerConstraints, ScannerMeasurements  
 from core.configoption import ConfigOption
 
-_binPath = 'C:\\qudi\\proteusq-modules\\hardware\\spm\\spm_library\\ASC500_Python_Control\\Installer\\ASC500CL-V2.7.13'
-_dllPath = 'C:\\qudi\\proteusq-modules\\hardware\\spm\\spm_library\\ASC500_Python_Control\\64bit_lib\\ASC500CL-LIB-WIN64-V2.7.13\\daisybase\\lib\\'
+_binPath = 'C:\\Users\\yy3\\Documents\\Software\\qudi\\hardware\\spm\\spm_library\\ASC500_Python_Control\\Installer\\ASC500CL-V2.7.13'
+_dllPath = 'C:\\Users\\yy3\\Documents\\Software\\qudi\\hardware\\spm\\spm_library\\ASC500_Python_Control\\64bit_lib\\ASC500CL-LIB-WIN64-V2.7.13\\daisybase\\lib\\'
 
 class SPM_ASC500(Base, ScannerInterface):
     """SPM wrapper for the communication with the ASC500 module.

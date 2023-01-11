@@ -104,6 +104,11 @@ class ODMRCounterInterfuse(GenericLogic, ODMRCounterInterface):
         block_1 = PulseBlock()
 
         channels = clear(channels)
+        channels[d_ch(self._pulser._laser_channel)] = 1.0
+        channels[a_ch(self._pulser._laser_analog_channel)] = self._pulser._laser_power_voltage
+        block_1.append(init_length = 1e-6, channels = channels, repetition = 1)
+
+        channels = clear(channels)
         channels[d_ch(self._pulser._mw_trig)] = 1.0
         channels[d_ch(self._pulser._laser_channel)] = 1.0
         channels[a_ch(self._pulser._laser_analog_channel)] = self._pulser._laser_power_voltage
@@ -116,7 +121,12 @@ class ODMRCounterInterfuse(GenericLogic, ODMRCounterInterface):
         channels[a_ch(self._pulser._laser_analog_channel)] = self._pulser._laser_power_voltage
         channels[d_ch(self._pulser._mw_switch)] = 0.0
         channels[d_ch(self._pulser._pixel_stop)] = 1.0
-        block_1.append(init_length = 1e-3, channels = channels, repetition = 1)
+        block_1.append(init_length = 1e-6, channels = channels, repetition = 1)
+
+        channels = clear(channels)
+        channels[d_ch(self._pulser._laser_channel)] = 1.0
+        channels[a_ch(self._pulser._laser_analog_channel)] = self._pulser._laser_power_voltage
+        block_1.append(init_length = 1e-6, channels = channels, repetition = 1)
 
         seq.append([(block_1, 1)])
 
@@ -166,9 +176,9 @@ class ODMRCounterInterfuse(GenericLogic, ODMRCounterInterface):
         @return float[]: the photon counts per second
         """
 
+        self._sc_device.start_recorder()
         self._pulser.pulser_on(n=self._odmr_length) # not sure why n=length fails
         counts = self._sc_device.get_measurements(['counts'])[0]
-        self._sc_device.start_recorder()
     
         return False, counts
 

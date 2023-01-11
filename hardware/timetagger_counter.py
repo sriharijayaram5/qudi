@@ -536,7 +536,7 @@ class TimeTaggerCounter(Base, SlowCounterInterface, RecorderInterface):
 
         self.recorder.start()
         self.is_measurement_running = True
-        return True 
+        return self._tagger.sync(timeout=5000)
 
     def get_measurements(self, meas_keys=['counts']):
         """ get measurements
