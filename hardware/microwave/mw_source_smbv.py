@@ -323,7 +323,7 @@ class MicrowaveSmbv(Base, MicrowaveInterface):
         actual_freq = self.get_frequency()
         actual_power = self.get_power()
         mode, dummy = self.get_status()
-        return actual_freq, actual_power, mode
+        return actual_freq, actual_power, 'list'
 
     def reset_listpos(self):
         """
