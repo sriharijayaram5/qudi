@@ -765,7 +765,7 @@ class SPM_ASC500(Base, ScannerInterface):
     def check_spm_scan_params_by_plane(self, plane, coord0_start, coord0_stop, coord1_start,coord1_stop):
         return -1 if coord0_start>coord0_stop or coord1_start>coord1_stop else 1
 
-    def finish_scan(self):
+    def finish_scan(self, retract=False):
         """ Request completion of the current scan line 
         It is correct (but not abs necessary) to end each scan 
         process by this method. There is no problem for 'Point' scan, 
@@ -777,6 +777,8 @@ class SPM_ASC500(Base, ScannerInterface):
         """
         self._dev.scanner.sendScannerCommand(self._dev.base.getConst('SCANRUN_OFF'))
         self._spm_curr_state =  ScannerState.IDLE
+        if retract:
+            self.retract_probe()
         return 1
     
     def stop_measurement(self):
@@ -1191,14 +1193,14 @@ class SPM_ASC500(Base, ScannerInterface):
     # ========================
 
     def lift_probe(self, rel_z):
-        """ Lift the probe on the surface.
+        """ Lift the probe on the surface. #WONT WORK
 
         @param float rel_z: lifts the probe by rel_z distance (m) (adds to previous lifts)  
 
         @return bool: Function returns True if method succesful, False if not
         """
         self._dev.base.setParameter(self._dev.base.getConst('ID_REG_LOOP_ON'), 0, 0)
-        curr_z_pm = getParameter(self._dev.base.getConst('ID_REG_SET_Z_M'))
+        curr_z_pm = self._dev.base.getParameter(self._dev.base.getConst('ID_REG_SET_Z_M'))
         rel_z_pm = rel_z*10e12
         move_rel_pm = int(curr_z_pm + rel_z_pm)
         self._dev.base.setParameter(self._dev.base.getConst('ID_REG_SET_Z_M'), move_rel_pm, 0)

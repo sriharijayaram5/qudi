@@ -1368,8 +1368,9 @@ class ProteusQGUI(GUIBase):
                                data_dict[obj_name]['data_fit'])
                 dockwidget.graphicsView.addItem(plot_item)
 
+            elif 'esr' in obj_name or 'pulsed' in obj_name:
+                pass
             else:
-
                 image_item = self._create_image_item(obj_name, data_dict[obj_name]['data'])
                 dockwidget.graphicsView_matrix.addItem(image_item)
                 image_item.setLookupTable(c_scale.lut)

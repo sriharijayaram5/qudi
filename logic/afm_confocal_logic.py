@@ -569,13 +569,14 @@ class AFMConfocalLogic(GenericLogic):
 
         self._opti_scan_array = self.initialize_opti_z_scan_array(0, 10e-6, 30)
 
-        # self._esr_scan_array = self.initialize_esr_scan_array(2.8e9, 2.94e9, 50,
-        #                                                         0, 100e-6, 10, 
-        #                                                         0, 100e-6, 10)
+        self._esr_scan_array = self.initialize_esr_scan_array(2.8e9, 2.94e9, 50,
+                                                                0, 100e-6, 10, 
+                                                                0, 100e-6, 10)
 
-        # self._pulsed_scan_array = self.initialize_pulsed_scan_array(10e-9, 2e-6, 100e-9,
-        #                                                         0, 100e-6, 10, 
-        #                                                         0, 100e-6, 10)
+        self._pulsed_scan_array = self.initialize_pulsed_scan_array(np.linspace(10e-9,100e-9,10), False,
+                                                                len(np.linspace(10e-9,100e-9,10)), 1e-9, 3e-6,
+                                                                0, 100e-6, 10, 
+                                                                0, 100e-6, 10)
 
         self.sigNewObjPos.emit(self.get_obj_pos())
         self.sigNewAFMPos.emit(self.get_afm_pos())
@@ -1487,59 +1488,59 @@ class AFMConfocalLogic(GenericLogic):
 
             # if next measurement is not in the reverse way, make a quick stop
             # and perform here an optimization first
-            if self.get_optimize_request():
+            # if self.get_optimize_request():
 
-                _update_normalization = 0
-                if 'Height(Dac)' in curr_scan_params: _update_normalization += 1 
-                if 'Height(Sen)' in curr_scan_params: _update_normalization += 1 
+            #     _update_normalization = 0
+            #     if 'Height(Dac)' in curr_scan_params: _update_normalization += 1 
+            #     if 'Height(Sen)' in curr_scan_params: _update_normalization += 1 
 
-                self._counter.stop_measurement()
-                self._spm.finish_scan()
+            #     self._counter.stop_measurement()
+            #     self._spm.finish_scan()
 
-                self.sigHealthCheckStartSkip.emit()
-                time.sleep(2)
-                self.log.debug('optimizer started.')
+            #     self.sigHealthCheckStartSkip.emit()
+            #     time.sleep(2)
+            #     self.log.debug('optimizer started.')
 
-                self.default_optimize()
-                _, _, _ = self._spm.configure_scanner(mode=ScannerMode.PROBE_CONTACT,
-                                                      params= {'line_points': coord0_num,
-                                                               'meas_params': meas_params},
-                                                      scan_style=ScanStyle.LINE) 
+            #     self.default_optimize()
+            #     _, _, _ = self._spm.configure_scanner(mode=ScannerMode.PROBE_CONTACT,
+            #                                           params= {'line_points': coord0_num,
+            #                                                    'meas_params': meas_params},
+            #                                           scan_style=ScanStyle.LINE) 
 
-                if 'counts' in meas_params:
-                    self._spm.set_ext_trigger(True)
+            #     if 'counts' in meas_params:
+            #         self._spm.set_ext_trigger(True)
 
-                # pixel clock
-                if scan_mode == 'pixel':
-                    self._counter.configure_recorder(
-                        mode=HWRecorderMode.PIXELCLOCK, 
-                        params={'mw_frequency': self._freq1_iso_b_frequency,
-                                'num_meas': coord0_num})
+            #     # pixel clock
+            #     if scan_mode == 'pixel':
+            #         self._counter.configure_recorder(
+            #             mode=HWRecorderMode.PIXELCLOCK, 
+            #             params={'mw_frequency': self._freq1_iso_b_frequency,
+            #                     'num_meas': coord0_num})
 
-                # single iso-b
-                elif scan_mode == 'single iso-b':
-                    self._counter.configure_recorder(
-                        mode=HWRecorderMode.PIXELCLOCK_SINGLE_ISO_B,
-                        params={'mw_frequency':self._freq1_iso_b_frequency,
-                                'mw_power': self._iso_b_power, 
-                                'num_meas': coord0_num })
+            #     # single iso-b
+            #     elif scan_mode == 'single iso-b':
+            #         self._counter.configure_recorder(
+            #             mode=HWRecorderMode.PIXELCLOCK_SINGLE_ISO_B,
+            #             params={'mw_frequency':self._freq1_iso_b_frequency,
+            #                     'mw_power': self._iso_b_power, 
+            #                     'num_meas': coord0_num })
 
-                # dual iso-b
-                elif scan_mode == 'dual iso-b':
-                    self._counter.configure_recorder(
-                        mode=HWRecorderMode.PIXELCLOCK_N_ISO_B,
-                        params={'mw_frequency_list': freq_list,
-                                'mw_pulse_lengths': pulse_lengths,
-                                'mw_power': self._iso_b_power,
-                                'mw_n_freq_splits': self._sg_n_iso_b_n_freq_splits,
-                                'mw_laser_cooldown_time': self._sg_n_iso_b_laser_cooldown_length,
-                                'num_meas': coord0_num })
+            #     # dual iso-b
+            #     elif scan_mode == 'dual iso-b':
+            #         self._counter.configure_recorder(
+            #             mode=HWRecorderMode.PIXELCLOCK_N_ISO_B,
+            #             params={'mw_frequency_list': freq_list,
+            #                     'mw_pulse_lengths': pulse_lengths,
+            #                     'mw_power': self._iso_b_power,
+            #                     'mw_n_freq_splits': self._sg_n_iso_b_n_freq_splits,
+            #                     'mw_laser_cooldown_time': self._sg_n_iso_b_laser_cooldown_length,
+            #                     'num_meas': coord0_num })
 
-                # incosistend mode found
-                else:
-                    self.log.error('AFM_logic error; inconsitent modality')
+            #     # incosistend mode found
+            #     else:
+            #         self.log.error('AFM_logic error; inconsitent modality')
 
-                self.log.debug('optimizer finished.')
+            #     self.log.debug('optimizer finished.')
 
         stop_time_afm_scan = datetime.datetime.now()
         self._afm_meas_duration = self._afm_meas_duration + (stop_time_afm_scan - start_time_afm_scan).total_seconds()
@@ -1558,8 +1559,9 @@ class AFMConfocalLogic(GenericLogic):
             self._counter.stop_measurement()
 
         # clean up the spm
-        self._spm.finish_scan()
+        self._spm.finish_scan(retract=True)
         self._mw.off()
+        self._pulser.pulser_off()
         self.module_state.unlock()
         self.sigQAFMScanFinished.emit()
 
@@ -1871,13 +1873,14 @@ class AFMConfocalLogic(GenericLogic):
             last_elem = list(range(coord0_num))[-1]
 
             for index in range(coord0_num):
-
+                #self.log.debug(f'Point number {index+1} scan started')
                 # first two entries are counts and b_field, remaining entries are the scan parameter
                 self._scan_point = np.zeros(num_params) 
 
                 # at first the AFM parameter
 
                 self._debug = self._spm.scan_point()
+                #self.log.debug(f'Point number {index+1} scan done')
                 self._scan_point[2:] = self._debug 
                 
                 # obtain ESR measurement
@@ -1999,9 +2002,10 @@ class AFMConfocalLogic(GenericLogic):
             self._qafm_scan_array[entry]['params']['Total measurement time (s)'] = self._afm_meas_duration
 
         # clean up the spm
-        self._spm.finish_scan()
+        self._spm.finish_scan(retract=True)
         self._mw.off()
         self._counter.stop_measurement()
+        self._pulser.pulser_off()
         # self.module_state.unlock()
         self.sigQuantiScanFinished.emit()
 
@@ -2287,6 +2291,8 @@ class AFMConfocalLogic(GenericLogic):
 
                 for index in range(coord0_num):
 
+                    self.log.debug(f'Point number {index+1} started')
+
                     # first two entries are counts and b_field, remaining entries are the scan parameter
                     self._scan_point = np.zeros(num_params) 
 
@@ -2306,18 +2312,19 @@ class AFMConfocalLogic(GenericLogic):
                         self._pulser.pulser_on(trigger=True, n=num_runs, final=self._pulser._mw_trig_final_state)
                     
                     self._debug = self._spm.scan_point()
-                    self._scan_point[0] = self._debug 
+                    self.log.debug(f'P0int number {index+1} scan done')
+                    self._scan_point[2:] = self._debug 
 
                     if mw_list_mode:
                         while True:
+                            time.sleep(0.001)
                             if self._counter.recorder.getHistogramIndex() > 0:
-                                time.sleep(0.001)
                                 break
                         for i in range(1, freq_points-1):
                             self._pulser.pulser_on(n=num_runs, final=self._pulser._mw_trig_final_state)
                             while True:
+                                time.sleep(0.001)
                                 if self._counter.recorder.getHistogramIndex() > i:
-                                    time.sleep(0.001)
                                     break
                         self._pulser.pulser_on(n=num_runs, final=self._pulser._mw_trig_sync_final_state)
                     
@@ -2326,14 +2333,17 @@ class AFMConfocalLogic(GenericLogic):
                     self.log.debug(f'self._counter.recorder.getCounts():{self._counter.recorder.getCounts()}')
                     pulsed_meas = self._counter.get_measurements()[0]
 
+                    self._counter.countrate.startFor(1e9)
+
                     pulsed_ret0, pulsed_ret1 = self.analyse_pulsed_meas(analysis_settings, pulsed_meas, alternating)
                     self._debug = pulsed_ret0
                     # self.set_pulsed_gui_plots(pulsed_ret0, pulsed_ret1)
 
                     # here the fit parameter can be saved
-                    self._scan_point[0] = 0
+                    self._scan_point[1] = 1
                     # here the counts can be saved:
-                    self._scan_point[1] = 0
+                    self._counter.countrate.waitUntilFinished(timeout=10)
+                    self._scan_point[0] = self._counter.countrate.getData()
 
                     for param_index, param_name in enumerate(curr_scan_params):
                         name = f'{param_name}_fw'
@@ -2395,7 +2405,7 @@ class AFMConfocalLogic(GenericLogic):
                 self._qafm_scan_array[entry]['params']['Total measurement time (s)'] = self._afm_meas_duration
 
             # clean up the spm
-            self._spm.finish_scan()
+            self._spm.finish_scan(retract=True)
             self._mw.off()
             self._counter.stop_measurement()
             self._pulser.pulser_off()
