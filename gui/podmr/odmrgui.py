@@ -297,6 +297,18 @@ class ODMRGui(GUIBase):
         self._mw.odmr_PlotWidget.setLabel(axis='bottom', text='Frequency', units='Hz')
         self._mw.odmr_PlotWidget.showGrid(x=True, y=True, alpha=0.8)
 
+        self.sweep_start_line = pg.InfiniteLine(pos=0,
+                                              pen={'color': palette.c3, 'width': 1},
+                                              movable=True)
+        self.sweep_end_line = pg.InfiniteLine(pos=0,
+                                            pen={'color': palette.c3, 'width': 1},
+                                            movable=True)
+        self._mw.odmr_PlotWidget.addItem(self.sweep_start_line)
+        self._mw.odmr_PlotWidget.addItem(self.sweep_end_line)
+
+        self.sweep_start_line.sigPositionChangeFinished.connect(self.sweep_settings_changed)
+        self.sweep_end_line.sigPositionChangeFinished.connect(self.sweep_settings_changed)
+
         # self._mw.odmr_matrix_PlotWidget.addItem(self.odmr_matrix_image)
         # self._mw.odmr_matrix_PlotWidget.setLabel(axis='left', text='Matrix Lines', units='#')
         # self._mw.odmr_matrix_PlotWidget.setLabel(axis='bottom', text='Frequency', units='Hz')
@@ -308,13 +320,13 @@ class ODMRGui(GUIBase):
         ########################################################################
         #                  Configuration of the Colorbar                       #
         ########################################################################
-        self.odmr_cb = ColorBar(my_colors.cmap_normed, 100, 0, 100000)
+        # self.odmr_cb = ColorBar(my_colors.cmap_normed, 100, 0, 100000)
 
-        # adding colorbar to ViewWidget
-        self._mw.odmr_cb_PlotWidget.addItem(self.odmr_cb)
-        self._mw.odmr_cb_PlotWidget.hideAxis('bottom')
-        self._mw.odmr_cb_PlotWidget.hideAxis('left')
-        self._mw.odmr_cb_PlotWidget.setLabel('right', 'Fluorescence', units='counts/s')
+        # # adding colorbar to ViewWidget
+        # self._mw.odmr_cb_PlotWidget.addItem(self.odmr_cb)
+        # self._mw.odmr_cb_PlotWidget.hideAxis('bottom')
+        # self._mw.odmr_cb_PlotWidget.hideAxis('left')
+        # self._mw.odmr_cb_PlotWidget.setLabel('right', 'Fluorescence', units='counts/s')
 
         ########################################################################
         #          Configuration of the various display Widgets                #
@@ -349,15 +361,15 @@ class ODMRGui(GUIBase):
         self._mw.sweep_power_DoubleSpinBox.editingFinished.connect(self.change_sweep_params)
         # self._mw.cw_power_DoubleSpinBox.editingFinished.connect(self.change_cw_params)
         # self._mw.runtime_DoubleSpinBox.editingFinished.connect(self.change_runtime)
-        self._mw.odmr_cb_max_DoubleSpinBox.valueChanged.connect(self.colorscale_changed)
-        self._mw.odmr_cb_min_DoubleSpinBox.valueChanged.connect(self.colorscale_changed)
-        self._mw.odmr_cb_high_percentile_DoubleSpinBox.valueChanged.connect(self.colorscale_changed)
-        self._mw.odmr_cb_low_percentile_DoubleSpinBox.valueChanged.connect(self.colorscale_changed)
+        # self._mw.odmr_cb_max_DoubleSpinBox.valueChanged.connect(self.colorscale_changed)
+        # self._mw.odmr_cb_min_DoubleSpinBox.valueChanged.connect(self.colorscale_changed)
+        # self._mw.odmr_cb_high_percentile_DoubleSpinBox.valueChanged.connect(self.colorscale_changed)
+        # self._mw.odmr_cb_low_percentile_DoubleSpinBox.valueChanged.connect(self.colorscale_changed)
         self._mw.average_level_SpinBox.valueChanged.connect(self.average_level_changed)
         # Internal trigger signals
         # self._mw.odmr_cb_manual_RadioButton.clicked.connect(self.colorscale_changed)
 
-        self._mw.odmr_cb_centiles_RadioButton.clicked.connect(self.colorscale_changed)
+        # self._mw.odmr_cb_centiles_RadioButton.clicked.connect(self.colorscale_changed)
         self._mw.clear_odmr_PushButton.clicked.connect(self.clear_odmr_data)
         self._mw.action_run_stop.triggered.connect(self.run_stop_odmr)
         # self._mw.action_resume_odmr.triggered.connect(self.resume_odmr)
@@ -398,6 +410,7 @@ class ODMRGui(GUIBase):
         self._odmr_logic.sigOutputStateUpdated.connect(self.update_status,
                                                        QtCore.Qt.QueuedConnection)
         self._odmr_logic.sigOdmrPlotsUpdated.connect(self.update_plots, QtCore.Qt.QueuedConnection)
+        self._mw.odmr_derivative_radioButton.toggled.connect(self.update_for_derivative_plot, QtCore.Qt.QueuedConnection)
         self._odmr_logic.sigOdmrLaserDataUpdated.connect(self.update_laser_data, QtCore.Qt.QueuedConnection)
         self._odmr_logic.sigOdmrFitUpdated.connect(self.update_fit, QtCore.Qt.QueuedConnection)
         self._odmr_logic.sigOdmrElapsedTimeUpdated.connect(self.update_elapsedtime,
@@ -468,10 +481,10 @@ class ODMRGui(GUIBase):
         # self._mw.cw_power_DoubleSpinBox.editingFinished.disconnect()
         self._mw.sweep_power_DoubleSpinBox.editingFinished.disconnect()
         # self._mw.runtime_DoubleSpinBox.editingFinished.disconnect()
-        self._mw.odmr_cb_max_DoubleSpinBox.valueChanged.disconnect()
-        self._mw.odmr_cb_min_DoubleSpinBox.valueChanged.disconnect()
-        self._mw.odmr_cb_high_percentile_DoubleSpinBox.valueChanged.disconnect()
-        self._mw.odmr_cb_low_percentile_DoubleSpinBox.valueChanged.disconnect()
+        # self._mw.odmr_cb_max_DoubleSpinBox.valueChanged.disconnect()
+        # self._mw.odmr_cb_min_DoubleSpinBox.valueChanged.disconnect()
+        # self._mw.odmr_cb_high_percentile_DoubleSpinBox.valueChanged.disconnect()
+        # self._mw.odmr_cb_low_percentile_DoubleSpinBox.valueChanged.disconnect()
         self._mw.average_level_SpinBox.valueChanged.disconnect()
         self._fsd.sigFitsUpdated.disconnect()
         self._mw.fit_range_SpinBox.editingFinished.disconnect()
@@ -561,6 +574,25 @@ class ODMRGui(GUIBase):
         self.ref_end_line.sigPositionChangeFinished.disconnect()
         return
     
+    def sweep_settings_changed(self):
+        settings_dict = dict()
+        sig_start = self.sweep_start_line.value()
+        sig_end = self.sweep_end_line.value()
+        settings_dict['signal_start'] = sig_start if sig_start <= sig_end else sig_end
+        settings_dict['signal_end'] = sig_end if sig_end >= sig_start else sig_start
+
+        object_dict = self.get_objects_from_groupbox_row(0)
+        for object_name in object_dict:
+            if "DoubleSpinBox" in object_name:
+                if "start" in object_name:
+                    object_dict[object_name].setValue(settings_dict['signal_start'])
+                elif "stop" in object_name:
+                    object_dict[object_name].setValue(settings_dict['signal_end'])
+
+        self.change_sweep_params()
+        
+        return
+
     @QtCore.Slot()
     def analysis_settings_changed(self):
         """
@@ -951,10 +983,31 @@ class ODMRGui(GUIBase):
         self.sigClearData.emit()
         return
 
+    def update_for_derivative_plot(self):
+        try:
+            self.update_plots(self._odmr_logic.odmr_plot_x, self._odmr_logic.odmr_plot_y, self._odmr_logic.odmr_plot_xy)
+        except:
+            self.log.warning('Measurement data shape incorrect for derivative. Repeat measurement.')
+        return
+
     def update_plots(self, odmr_data_x, odmr_data_y, odmr_matrix):
         """ Refresh the plot widgets with new data. """
         # Update mean signal plot
-        self.odmr_image.setData(odmr_data_x, odmr_data_y[self.display_channel])
+        x_data = odmr_data_x
+        mn = x_data.min()
+        mx = x_data.max()
+        self.sweep_start_line.setBounds((mn,mx))
+        self.sweep_end_line.setBounds((mn,mx))
+        if self._mw.odmr_derivative_radioButton.isChecked():
+            self._mw.odmr_PlotWidget.setLabel(axis='left', text='ODMR Slope', units='Counts/s²')
+            self._mw.odmr_PlotWidget.setLabel(axis='bottom', text='Frequency', units='Hz')
+            dx = odmr_data_x[1] - odmr_data_x[0]
+            dy = np.gradient(odmr_data_y[self.display_channel], dx)
+            self.odmr_image.setData(odmr_data_x, dy)
+        else:
+            self._mw.odmr_PlotWidget.setLabel(axis='left', text='Counts', units='Counts/s')
+            self._mw.odmr_PlotWidget.setLabel(axis='bottom', text='Frequency', units='Hz')
+            self.odmr_image.setData(odmr_data_x, odmr_data_y[self.display_channel])
         # Update raw data matrix plot
         # cb_range = self.get_matrix_cb_range()
         # self.update_colorbar(cb_range)
@@ -1003,14 +1056,14 @@ class ODMRGui(GUIBase):
         # self.odmr_matrix_image.setImage(image=matrix_image, levels=(cb_range[0], cb_range[1]))
         return
 
-    def update_colorbar(self, cb_range):
-        """
-        Update the colorbar to a new range.
+    # def update_colorbar(self, cb_range):
+    #     """
+    #     Update the colorbar to a new range.
 
-        @param list cb_range: List or tuple containing the min and max values for the cb range
-        """
-        self.odmr_cb.refresh_colorbar(cb_range[0], cb_range[1])
-        return
+    #     @param list cb_range: List or tuple containing the min and max values for the cb range
+    #     """
+    #     self.odmr_cb.refresh_colorbar(cb_range[0], cb_range[1])
+    #     return
 
     # def get_matrix_cb_range(self):
     #     """
@@ -1232,6 +1285,8 @@ class ODMRGui(GUIBase):
             stops.append(stop)
 
         power = self._mw.sweep_power_DoubleSpinBox.value()
+        self.sweep_start_line.setPos(starts[0])
+        self.sweep_end_line.setPos(stops[0])
         self.sigMwSweepParamsChanged.emit(starts, stops, steps, power)
         return
 
@@ -1260,15 +1315,15 @@ class ODMRGui(GUIBase):
 
     def save_data(self):
         """ Save the sum plot, the scan marix plot and the scan data """
-        filetag = self._mw.save_tag_LineEdit.text()
-        cb_range = self.get_matrix_cb_range()
+        # filetag = self._mw.save_tag_LineEdit.text()
+        # cb_range = self.get_matrix_cb_range()
 
         # Percentile range is None, unless the percentile scaling is selected in GUI.
         pcile_range = None
-        if self._mw.odmr_cb_centiles_RadioButton.isChecked():
-            low_centile = self._mw.odmr_cb_low_percentile_DoubleSpinBox.value()
-            high_centile = self._mw.odmr_cb_high_percentile_DoubleSpinBox.value()
-            pcile_range = [low_centile, high_centile]
+        # if self._mw.odmr_cb_centiles_RadioButton.isChecked():
+        #     low_centile = self._mw.odmr_cb_low_percentile_DoubleSpinBox.value()
+        #     high_centile = self._mw.odmr_cb_high_percentile_DoubleSpinBox.value()
+        #     pcile_range = [low_centile, high_centile]
 
-        self.sigSaveMeasurement.emit(filetag, cb_range, pcile_range)
+        # self.sigSaveMeasurement.emit(filetag, cb_range, pcile_range)
         return
