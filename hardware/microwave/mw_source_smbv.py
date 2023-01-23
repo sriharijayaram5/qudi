@@ -393,6 +393,45 @@ class MicrowaveSmbv(Base, MicrowaveInterface):
         freq_list = self.get_frequency()
         mode, dummy = self.get_status()
         return freq_list[0], freq_list[1], freq_list[2], actual_power, mode
+    
+    def set_sweep_2(self, start=None, stop=None, step=None, power=None):
+        """
+        Configures the device for sweep-mode and optionally sets frequency start/stop/step
+        and/or power
+        This does not have the start-step situation like the other one
+
+        @return float, float, float, float, str: current start frequency in Hz,
+                                                 current stop frequency in Hz,
+                                                 current frequency step in Hz,
+                                                 current power in dBm,
+                                                 current mode
+        """
+        mode, is_running = self.get_status()
+        if is_running:
+            self.off()
+
+        if mode != 'sweep':
+            self._command_wait(':FREQ:MODE SWEEP')
+
+        if (start is not None) and (stop is not None) and (step is not None):
+            self._connection.write(':SWE:MODE STEP')
+            self._connection.write(':SWE:SPAC LIN')
+            self._connection.write('*WAI')
+            self._connection.write(':FREQ:START {0:f}'.format(start))
+            self._connection.write(':FREQ:STOP {0:f}'.format(stop))
+            self._connection.write(':SWE:STEP:LIN {0:f}'.format(step))
+            self._connection.write('*WAI')
+
+        if power is not None:
+            self._connection.write(':POW {0:f}'.format(power))
+            self._connection.write('*WAI')
+
+        self._command_wait('TRIG:FSW:SOUR EXT')
+
+        actual_power = self.get_power()
+        freq_list = self.get_frequency()
+        mode, dummy = self.get_status()
+        return freq_list[0], freq_list[1], freq_list[2], actual_power, mode
 
     def reset_sweeppos(self):
         """

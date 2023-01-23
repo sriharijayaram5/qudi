@@ -55,8 +55,8 @@ class ODMRLogic(GenericLogic):
 
     clock_frequency = StatusVar('clock_frequency', 200)
     cw_mw_frequency = StatusVar('cw_mw_frequency', 2870e6)
-    cw_mw_power = StatusVar('cw_mw_power', -30)
-    sweep_mw_power = StatusVar('sweep_mw_power', -30)
+    cw_mw_power = StatusVar('cw_mw_power', -20)
+    sweep_mw_power = StatusVar('sweep_mw_power', -20)
     fit_range = StatusVar('fit_range', 0)
     mw_starts = StatusVar('mw_starts', [2800e6])
     mw_stops = StatusVar('mw_stops', [2950e6])
@@ -386,7 +386,7 @@ class ODMRLogic(GenericLogic):
                     mw_step = np.abs(mw_stop - mw_start) / (limits.list_maxentries - 1)
                     self.sigParameterUpdated.emit({'mw_steps': [mw_step]})
 
-                sweep_return = self._mw_device.set_sweep(
+                sweep_return = self._mw_device.set_sweep_2(
                     mw_start, mw_stop, mw_step, self.sweep_mw_power)
                 mw_start, mw_stop, mw_step, self.sweep_mw_power, mode = sweep_return
 

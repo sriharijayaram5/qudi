@@ -198,7 +198,7 @@ class ProteusQGUI(GUIBase):
     _daily_folder = StatusVar('daily_folder', default=True)
 
     _afm_range_x_min = StatusVar('afm_range_x_min', default=0)
-    _afm_range_x_max = StatusVar('afm_range_x_max', default=37-6)
+    _afm_range_x_max = StatusVar('afm_range_x_max', default=37e-6)
     _afm_range_x_num = StatusVar('afm_range_x_num', default=100)
 
     _afm_range_y_min = StatusVar('afm_range_y_min', default=0)
@@ -353,7 +353,7 @@ class ProteusQGUI(GUIBase):
 
         # initialize the settings stuff
         self.initSettingsUI()
-        self.update_temperature()
+        
 
         # Initialize iso b parameter
         self._mw.use_single_isob_RadioButton.toggled.connect(self._set_iso_b_single_mode)
@@ -378,8 +378,9 @@ class ProteusQGUI(GUIBase):
         self.initOptimizerRequestUI()
 
         self.initAboutUI()     # provide version number and hardware status
-        self.retrieve_status_var()
         self.load_view()
+        self.retrieve_status_var()
+        self.update_temperature()
 
     def on_deactivate(self):
         """ Deactivate the module properly.
@@ -487,6 +488,12 @@ class ProteusQGUI(GUIBase):
         self._sd.iso_b_autocalibrate_CheckBox.toggle()
 
         self._sd.iso_b_operation_CheckBox.toggle()
+
+        self._sd.int_time_obj_scan_DoubleSpinBox.setMaximum(100e-3)
+        self._sd.int_time_obj_scan_DoubleSpinBox.setMinimum(1e-3)
+
+        self._sd.optimizer_int_time_DoubleSpinBox.setMaximum(100e-3)
+        self._sd.optimizer_int_time_DoubleSpinBox.setMinimum(1e-3)
 
         # write the configuration to the settings window of the GUI.
         self.keep_former_qafm_settings()
@@ -826,11 +833,11 @@ class ProteusQGUI(GUIBase):
         sd = {}
 
         # general settings
-        sd['idle_move_target_sample'] = self._sd.idle_move_target_sample_DoubleSpinBox.value()
-        sd['idle_move_target_obj'] = self._sd.idle_move_target_obj_DoubleSpinBox.value()
+        # sd['idle_move_target_sample'] = self._sd.idle_move_target_sample_DoubleSpinBox.value()
+        # sd['idle_move_target_obj'] = self._sd.idle_move_target_obj_DoubleSpinBox.value()
         # scanning settings
         sd['idle_move_scan_sample'] = self._sd.idle_move_scan_sample_DoubleSpinBox.value()
-        sd['idle_move_scan_obj'] = self._sd.idle_move_scan_obj_DoubleSpinBox.value()
+        # sd['idle_move_scan_obj'] = self._sd.idle_move_scan_obj_DoubleSpinBox.value()
         sd['int_time_sample_scan'] = self._sd.int_time_sample_scan_DoubleSpinBox.value()
         sd['int_time_obj_scan'] = self._sd.int_time_obj_scan_DoubleSpinBox.value()
         sd['iso_b_autocalibrate_margin'] = self._sd.iso_b_autocalibrate_CheckBox.isChecked()
@@ -898,11 +905,11 @@ class ProteusQGUI(GUIBase):
         sd = self._qafm_logic.get_qafm_settings()
 
         # general settings
-        self._sd.idle_move_target_sample_DoubleSpinBox.setValue(sd['idle_move_target_sample'])
-        self._sd.idle_move_target_obj_DoubleSpinBox.setValue(sd['idle_move_target_obj'])
+        # self._sd.idle_move_target_sample_DoubleSpinBox.setValue(sd['idle_move_target_sample'])
+        # self._sd.idle_move_target_obj_DoubleSpinBox.setValue(sd['idle_move_target_obj'])
         # scanning settings
         self._sd.idle_move_scan_sample_DoubleSpinBox.setValue(sd['idle_move_scan_sample'])
-        self._sd.idle_move_scan_obj_DoubleSpinBox.setValue(sd['idle_move_scan_obj'])
+        # self._sd.idle_move_scan_obj_DoubleSpinBox.setValue(sd['idle_move_scan_obj'])
         self._sd.int_time_sample_scan_DoubleSpinBox.setValue(sd['int_time_sample_scan'])
         self._sd.int_time_obj_scan_DoubleSpinBox.setValue(sd['int_time_obj_scan'])
         # save settings
@@ -975,8 +982,8 @@ class ProteusQGUI(GUIBase):
         self._mw.optimizer_request_autorun_CheckBox.setChecked(self._periodic_opti_autorun)
 
         # Handle the Quantitative measurement values
-        self._qm.afm_int_time_DoubleSpinBox.setValue(self._qm_afm_int_time)
-        self._qm.idle_move_time_QDoubleSpinBox.setValue(self._qm_idle_move_time)
+        # self._qm.afm_int_time_DoubleSpinBox.setValue(self._qm_afm_int_time)
+        # self._qm.idle_move_time_QDoubleSpinBox.setValue(self._qm_idle_move_time)
         self._qm.esr_freq_start_DoubleSpinBox.setValue(self._qm_esr_freq_start)
         self._qm.esr_freq_stop_DoubleSpinBox.setValue(self._qm_esr_freq_stop)
         self._qm.esr_freq_num_SpinBox.setValue(self._qm_esr_freq_num)
@@ -1024,8 +1031,8 @@ class ProteusQGUI(GUIBase):
         self._periodic_opti_time = self._mw.optimizer_request_period_SpinBox.value()
         self._periodic_opti_autorun = self._mw.optimizer_request_autorun_CheckBox.isChecked()
 
-        self._qm_afm_int_time = self._qm.afm_int_time_DoubleSpinBox.value()
-        self._qm_idle_move_time = self._qm.idle_move_time_QDoubleSpinBox.value()
+        # self._qm_afm_int_time = self._qm.afm_int_time_DoubleSpinBox.value()
+        # self._qm_idle_move_time = self._qm.idle_move_time_QDoubleSpinBox.value()
         self._qm_esr_freq_start = self._qm.esr_freq_start_DoubleSpinBox.value()
         self._qm_esr_freq_stop = self._qm.esr_freq_stop_DoubleSpinBox.value()
         self._qm_esr_freq_num = self._qm.esr_freq_num_SpinBox.value()
@@ -1650,6 +1657,8 @@ class ProteusQGUI(GUIBase):
             checkbox.valueChanged_custom.connect(self._update_afm_dockwidget_by_name)
             checkbox.setChecked(True)
             checkbox.setChecked(False)
+            checkbox.setChecked(True)
+            checkbox.setEnabled(False)
 
             self._mw.gridLayout_scan_params.addWidget(checkbox, index, 0, 1, 1)
             self._checkbox_container[entry] = checkbox
@@ -2596,8 +2605,8 @@ class ProteusQGUI(GUIBase):
             if self._checkbox_container[entry].isChecked():
                 meas_params.append(entry)
 
-        afm_int_time = self._qm.afm_int_time_DoubleSpinBox.value()
-        idle_move_time = self._qm.idle_move_time_QDoubleSpinBox.value()
+        afm_int_time = self._sd.int_time_sample_scan_DoubleSpinBox.value()
+        idle_move_time = self._sd.idle_move_scan_sample_DoubleSpinBox.value()
         esr_freq_start = self._qm.esr_freq_start_DoubleSpinBox.value()
         esr_freq_stop = self._qm.esr_freq_stop_DoubleSpinBox.value()
         esr_freq_num = self._qm.esr_freq_num_SpinBox.value()
@@ -2637,19 +2646,29 @@ class ProteusQGUI(GUIBase):
             if self._checkbox_container[entry].isChecked():
                 meas_params.append(entry)
 
-        afm_int_time = self._qm.pulsed_afm_int_time_DoubleSpinBox.value()
-        idle_move_time = self._qm.pulsed_idle_move_time_QDoubleSpinBox.value()
+        afm_int_time = self._sd.int_time_sample_scan_DoubleSpinBox.value()
+        idle_move_time = self._sd.idle_move_scan_sample_DoubleSpinBox.value()
 
         esr_mw_power = self._qm.pulsed_mw_power_DoubleSpinBox.value()
-        mw_list_mode = self._qm.mw_list_mode_RadioButton.isChecked()
 
+        mw_tracking_mode = self._qm.mw_tracking_mode_RadioButton.isChecked()
+        hyperfine_struct = self._qm.hyperfine_comboBox.currentText()
+        p_value_delta = self._qm.p_delta_doubleSpinBox.value()
+        delta_0 = self._qm.delta0_doubleSpinBox.value()
+        res_freq = self._qm.f0_doubleSpinBox.value()
+        slope2_podmr = self._qm.slope2_doubleSpinBox.value()
+        use_slope_track = self._qm.slope_radioButton.isChecked()
+        
+        mw_list_mode = self._qm.mw_list_mode_RadioButton.isChecked()
         esr_freq_start = self._qm.pulsed_freq_start_DoubleSpinBox.value()
         esr_freq_stop = self._qm.pulsed_freq_stop_DoubleSpinBox.value()
         esr_freq_num = self._qm.pulsed_freq_num_SpinBox.value()
 
+        mw_cw_mode = self._qm.cw_mode_RadioButton.isChecked()
         esr_mw_cw_freq = self._qm.cw_freq_DoubleSpinBox.value()
 
         pulse_repetition = self._qm.pulse_repetition_spinBox.value()
+        pi_half_duration = self._qm.pi_half_doubleSpinBox.value()
 
         self._qafm_logic.start_scan_area_pulsed_qafm_fw_by_point(
             coord0_start=x_start, coord0_stop=x_stop, coord0_num=res_x, 
@@ -2657,8 +2676,12 @@ class ProteusQGUI(GUIBase):
             int_time_afm=afm_int_time, idle_move_time=idle_move_time, 
             freq_start=esr_freq_start, freq_stop=esr_freq_stop, 
             freq_points=esr_freq_num, mw_power=esr_mw_power, 
-            mw_cw_freq=esr_mw_cw_freq, mw_list_mode=mw_list_mode, num_runs=pulse_repetition, 
-            optimize_period=None, meas_params=meas_params)
+            mw_cw_freq=esr_mw_cw_freq, mw_list_mode=mw_list_mode, num_runs=pulse_repetition, pi_half_duration = pi_half_duration,
+            optimize_period=None, meas_params=meas_params,
+            mw_tracking_mode=mw_tracking_mode,
+            hyperfine=hyperfine_struct, p_value_delta=p_value_delta, delta_0=delta_0,
+            res_freq=res_freq, slope2_podmr=slope2_podmr, use_slope_track=use_slope_track,
+            mw_cw_mode = mw_cw_mode)
 
 
     def continue_pulsed_measure_clicked(self):

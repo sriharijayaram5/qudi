@@ -332,22 +332,22 @@ class SPM_ASC500(Base, ScannerInterface):
         elif mode == ScannerMode.OBJECTIVE_XY:
             # Objective scanning returns no parameters
             self._spm_curr_state =  ScannerState.IDLE
-            self._chn_no = 6 # counter channel
+            self._chn_no = 13 # counter channel
 
         elif mode == ScannerMode.OBJECTIVE_XZ:
             # Objective scanning returns no parameters
             self._spm_curr_state =  ScannerState.IDLE
-            self._chn_no = 6 # counter channel
+            self._chn_no = 13 # counter channel
 
         elif mode == ScannerMode.OBJECTIVE_YZ:
             # Objective scanning returns no parameters
             self._spm_curr_state =  ScannerState.IDLE
-            self._chn_no = 6 # counter channel
+            self._chn_no = 13 # counter channel
         
         elif mode == ScannerMode.OBJECTIVE_ZX:
             # Objective scanning returns no parameters
             self._spm_curr_state =  ScannerState.IDLE
-            self._chn_no = 6 # counter channel
+            self._chn_no = 13 # counter channel
 
         elif mode == ScannerMode.PROBE_CONTACT:
             # Scanner library specific style is always "LINE_STYLE" 
@@ -420,10 +420,12 @@ class SPM_ASC500(Base, ScannerInterface):
             self.overrange = False
 
             px=int((abs(line_corr0_stop-line_corr0_start))*1e9)
-            sT=time_forward/self._line_points
+            sT=time_forward
             # Here the time_back coming from idle_time will set how was the sample scanner moves around
             # time_forward is set by integration time and will determine time spend at each point. Currently weirdly divided between all points in a line.
-            self._dev.base.setParameter(self._dev.base.getConst('ID_SCAN_PSPEED'), px/time_back, 0)
+
+            # time back is actually the scan speed from the GUI in m/s
+            self._dev.base.setParameter(self._dev.base.getConst('ID_SCAN_PSPEED'), time_back*1e9, 0)
             
             while self._dev.base.getParameter(self._dev.base.getConst('ID_PATH_RUNNING'), 0)==1 or self._dev.base.getParameter(self._dev.base.getConst('ID_SCAN_STATUS'), 0)==2:
                 pass
@@ -434,6 +436,9 @@ class SPM_ASC500(Base, ScannerInterface):
             self._configurePathDataBuffering(sampTime=sT)
 
             if self._spm_curr_sstyle==ScanStyle.POINT:
+                while True:
+                    if self._dev.base.getParameter(self._dev.base.getConst('ID_SCAN_STATUS'), 0)==8: # should represent idle scan state
+                        break
                 self._dev.base.setParameter(self._dev.base.getConst('ID_SPEC_PATHCTRL'), -1, 0 ) # -1 is grid mode
                 self._dev.scanner.setRelativeOrigin(self.end_coords) # set after path or it will attempt going to origin for some reason
                 self._spm_curr_state =  ScannerState.PROBE_SCANNING
@@ -483,7 +488,7 @@ class SPM_ASC500(Base, ScannerInterface):
                     self.overrange = True
                     return self.get_objective_pos(list(axis_dict.keys()))
             self.overrange = False
-        self.idle_time = time_back
+        
         sT=time_forward/self._line_points
         self._create_objective_line(xOffset=line_corr0_start, yOffset=line_corr1_start, pxSize=abs(line_corr0_stop-line_corr0_start)/self._line_points, columns=self._line_points)
         self._polled_data = np.zeros(self._line_points)
@@ -588,7 +593,7 @@ class SPM_ASC500(Base, ScannerInterface):
         keys = list(self.objective_scan_line.keys())
         axis_dict[keys[0]] = self.objective_scan_line[keys[0]][0]
         axis_dict[keys[1]] = self.objective_scan_line[keys[1]][0]
-        self.set_objective_pos_abs(axis_dict, self.idle_time)
+        self.set_objective_pos_abs(axis_dict)
         self._dev.base.setParameter(self._dev.base.getConst('ID_SPEC_STATUS'), 1, self.spec_engine_dummy)
         self._poll_path_data()
 

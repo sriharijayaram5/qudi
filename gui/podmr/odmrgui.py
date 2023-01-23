@@ -1122,7 +1122,17 @@ class ODMRGui(GUIBase):
 
     def do_fit(self):
         fit_function = self._mw.fit_methods_ComboBox.getCurrentFit()[0]
-        self.sigDoFit.emit(fit_function, None, None, self._mw.odmr_channel_ComboBox.currentIndex(),
+        if self._mw.odmr_derivative_radioButton.isChecked():
+            odmr_data_x  = self._odmr_logic.odmr_plot_x
+            odmr_data_y = self._odmr_logic.odmr_plot_y
+            dx = odmr_data_x[1] - odmr_data_x[0]
+            dy = np.gradient(odmr_data_y[self.display_channel], dx)
+            x = odmr_data_x
+            y = dy
+        else:
+            x = None
+            y = None
+        self.sigDoFit.emit(fit_function, x, y, self._mw.odmr_channel_ComboBox.currentIndex(),
                            self._mw.fit_range_SpinBox.value())
         return
 

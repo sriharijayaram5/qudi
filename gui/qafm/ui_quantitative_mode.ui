@@ -7,17 +7,17 @@
     <x>0</x>
     <y>0</y>
     <width>410</width>
-    <height>500</height>
+    <height>642</height>
    </rect>
   </property>
   <property name="windowTitle">
    <string>Quantitative Measurement Control</string>
   </property>
-  <layout class="QVBoxLayout" name="verticalLayout">
-   <item>
+  <layout class="QGridLayout" name="gridLayout_4">
+   <item row="0" column="0">
     <widget class="QTabWidget" name="tabWidget">
      <property name="currentIndex">
-      <number>1</number>
+      <number>0</number>
      </property>
      <widget class="QWidget" name="Tab1">
       <property name="whatsThis">
@@ -26,7 +26,7 @@
       <attribute name="title">
        <string>CW ESR</string>
       </attribute>
-      <layout class="QGridLayout" name="gridLayout_5">
+      <layout class="QGridLayout" name="gridLayout_2">
        <item row="0" column="0">
         <layout class="QHBoxLayout" name="horizontalLayout">
          <item>
@@ -56,229 +56,212 @@
         </layout>
        </item>
        <item row="1" column="0">
-        <widget class="QGroupBox" name="groupBox">
-         <property name="title">
-          <string>AFM Parameters</string>
-         </property>
-         <layout class="QGridLayout" name="gridLayout_2">
-          <item row="1" column="0">
-           <widget class="QLabel" name="label">
-            <property name="toolTip">
-             <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;The time the scanner should take during an idle move, i.e. when it drives to a new position, or to travel to the next starting position if the end line was reached in a single forward scan.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-            </property>
-            <property name="text">
-             <string>Idle move time</string>
-            </property>
-           </widget>
-          </item>
-          <item row="0" column="0">
-           <widget class="QLabel" name="label_2">
-            <property name="text">
-             <string>AFM integration time per point</string>
-            </property>
-           </widget>
-          </item>
-          <item row="0" column="1">
-           <widget class="ScienDSpinBox" name="afm_int_time_DoubleSpinBox">
-            <property name="suffix">
-             <string>s</string>
-            </property>
-            <property name="singleStep">
-             <double>0.100000000000000</double>
-            </property>
-            <property name="value">
-             <double>0.100000000000000</double>
-            </property>
-           </widget>
-          </item>
-          <item row="1" column="1">
-           <widget class="ScienDSpinBox" name="idle_move_time_QDoubleSpinBox">
-            <property name="toolTip">
-             <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;The time the scanner should take during an idle move, i.e. when it drives to a new position, or to travel to the next starting position if the end line was reached in a single forward scan.&lt;/p&gt;&lt;p&gt;Default is 0.5s.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-            </property>
-            <property name="suffix">
-             <string>s</string>
-            </property>
-            <property name="minimum">
-             <double>0.100000000000000</double>
-            </property>
-            <property name="singleStep">
-             <double>0.100000000000000</double>
-            </property>
-            <property name="value">
-             <double>0.500000000000000</double>
-            </property>
-           </widget>
-          </item>
-         </layout>
-        </widget>
-       </item>
-       <item row="2" column="0">
         <widget class="QGroupBox" name="groupBox_2">
          <property name="title">
           <string>ESR Parameters</string>
          </property>
          <layout class="QGridLayout" name="gridLayout_3">
-          <item row="0" column="1">
-           <widget class="ScienDSpinBox" name="esr_freq_start_DoubleSpinBox">
-            <property name="suffix">
-             <string>Hz</string>
-            </property>
-            <property name="minimum">
-             <double>2500000000.000000000000000</double>
-            </property>
-            <property name="maximum">
-             <double>3500000000.000000000000000</double>
-            </property>
-            <property name="singleStep">
-             <double>0.010000000000000</double>
-            </property>
-            <property name="value">
-             <double>2780000000.000000000000000</double>
-            </property>
-           </widget>
-          </item>
-          <item row="2" column="1">
-           <widget class="ScienSpinBox" name="esr_freq_num_SpinBox">
-            <property name="maximum">
-             <number>1000</number>
-            </property>
-            <property name="value">
-             <number>30</number>
-            </property>
-           </widget>
-          </item>
           <item row="0" column="0">
-           <widget class="QLabel" name="label_3">
-            <property name="text">
-             <string>Frequency Start (Hz)</string>
-            </property>
-           </widget>
+           <layout class="QHBoxLayout" name="horizontalLayout_21">
+            <item>
+             <widget class="QLabel" name="label_3">
+              <property name="text">
+               <string>Frequency Start (Hz)</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="ScienDSpinBox" name="esr_freq_start_DoubleSpinBox">
+              <property name="suffix">
+               <string>Hz</string>
+              </property>
+              <property name="minimum">
+               <double>2500000000.000000000000000</double>
+              </property>
+              <property name="maximum">
+               <double>3500000000.000000000000000</double>
+              </property>
+              <property name="singleStep">
+               <double>0.010000000000000</double>
+              </property>
+              <property name="value">
+               <double>2780000000.000000000000000</double>
+              </property>
+             </widget>
+            </item>
+           </layout>
           </item>
           <item row="1" column="0">
-           <widget class="QLabel" name="label_4">
-            <property name="text">
-             <string>Frequency Stop (Hz)</string>
-            </property>
-           </widget>
-          </item>
-          <item row="1" column="1">
-           <widget class="ScienDSpinBox" name="esr_freq_stop_DoubleSpinBox">
-            <property name="suffix">
-             <string>Hz</string>
-            </property>
-            <property name="minimum">
-             <double>2500000000.000000000000000</double>
-            </property>
-            <property name="maximum">
-             <double>3500000000.000000000000000</double>
-            </property>
-            <property name="singleStep">
-             <double>0.010000000000000</double>
-            </property>
-            <property name="value">
-             <double>2980000000.000000000000000</double>
-            </property>
-           </widget>
-          </item>
-          <item row="3" column="1">
-           <widget class="ScienDSpinBox" name="esr_count_freq_DoubleSpinBox">
-            <property name="suffix">
-             <string>Hz</string>
-            </property>
-            <property name="maximum">
-             <double>500.000000000000000</double>
-            </property>
-            <property name="value">
-             <double>200.000000000000000</double>
-            </property>
-           </widget>
-          </item>
-          <item row="3" column="0">
-           <widget class="QLabel" name="label_6">
-            <property name="text">
-             <string>ESR Count Frequency (Hz)</string>
-            </property>
-           </widget>
+           <layout class="QHBoxLayout" name="horizontalLayout_22">
+            <item>
+             <widget class="QLabel" name="label_4">
+              <property name="text">
+               <string>Frequency Stop (Hz)</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="ScienDSpinBox" name="esr_freq_stop_DoubleSpinBox">
+              <property name="suffix">
+               <string>Hz</string>
+              </property>
+              <property name="minimum">
+               <double>2500000000.000000000000000</double>
+              </property>
+              <property name="maximum">
+               <double>3500000000.000000000000000</double>
+              </property>
+              <property name="singleStep">
+               <double>0.010000000000000</double>
+              </property>
+              <property name="value">
+               <double>2980000000.000000000000000</double>
+              </property>
+             </widget>
+            </item>
+           </layout>
           </item>
           <item row="2" column="0">
-           <widget class="QLabel" name="label_5">
-            <property name="text">
-             <string># of Frequency Points</string>
-            </property>
-           </widget>
+           <layout class="QHBoxLayout" name="horizontalLayout_23">
+            <item>
+             <widget class="QLabel" name="label_5">
+              <property name="text">
+               <string># of Frequency Points</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="ScienSpinBox" name="esr_freq_num_SpinBox">
+              <property name="maximum">
+               <number>1000</number>
+              </property>
+              <property name="value">
+               <number>30</number>
+              </property>
+             </widget>
+            </item>
+           </layout>
           </item>
-          <item row="5" column="1">
-           <widget class="ScienSpinBox" name="esr_runs_SpinBox">
-            <property name="maximum">
-             <number>1000</number>
-            </property>
-            <property name="value">
-             <number>30</number>
-            </property>
-           </widget>
+          <item row="3" column="0">
+           <layout class="QHBoxLayout" name="horizontalLayout_24">
+            <item>
+             <widget class="QLabel" name="label_6">
+              <property name="text">
+               <string>ESR Count Frequency (Hz)</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="ScienDSpinBox" name="esr_count_freq_DoubleSpinBox">
+              <property name="suffix">
+               <string>Hz</string>
+              </property>
+              <property name="maximum">
+               <double>500.000000000000000</double>
+              </property>
+              <property name="value">
+               <double>200.000000000000000</double>
+              </property>
+             </widget>
+            </item>
+           </layout>
           </item>
           <item row="4" column="0">
-           <widget class="QLabel" name="label_7">
-            <property name="text">
-             <string>Microwave Power (dBm)</string>
-            </property>
-           </widget>
+           <layout class="QHBoxLayout" name="horizontalLayout_25">
+            <item>
+             <widget class="QLabel" name="label_7">
+              <property name="text">
+               <string>Microwave Power (dBm)</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="ScienDSpinBox" name="esr_mw_power_DoubleSpinBox">
+              <property name="suffix">
+               <string>dBm</string>
+              </property>
+              <property name="decimals">
+               <number>2</number>
+              </property>
+              <property name="minimum">
+               <double>-50.000000000000000</double>
+              </property>
+              <property name="maximum">
+               <double>40.000000000000000</double>
+              </property>
+              <property name="singleStep">
+               <double>0.100000000000000</double>
+              </property>
+              <property name="value">
+               <double>-30.000000000000000</double>
+              </property>
+             </widget>
+            </item>
+           </layout>
           </item>
           <item row="5" column="0">
-           <widget class="QLabel" name="label_8">
-            <property name="text">
-             <string># of ESR Runs per pixel</string>
-            </property>
-           </widget>
-          </item>
-          <item row="4" column="1">
-           <widget class="ScienDSpinBox" name="esr_mw_power_DoubleSpinBox">
-            <property name="suffix">
-             <string>dBm</string>
-            </property>
-            <property name="decimals">
-             <number>2</number>
-            </property>
-            <property name="minimum">
-             <double>-50.000000000000000</double>
-            </property>
-            <property name="maximum">
-             <double>40.000000000000000</double>
-            </property>
-            <property name="singleStep">
-             <double>0.100000000000000</double>
-            </property>
-            <property name="value">
-             <double>-30.000000000000000</double>
-            </property>
-           </widget>
+           <layout class="QHBoxLayout" name="horizontalLayout_26">
+            <item>
+             <widget class="QLabel" name="label_8">
+              <property name="text">
+               <string># of ESR Runs per pixel</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="ScienSpinBox" name="esr_runs_SpinBox">
+              <property name="maximum">
+               <number>1000</number>
+              </property>
+              <property name="value">
+               <number>30</number>
+              </property>
+             </widget>
+            </item>
+           </layout>
           </item>
           <item row="6" column="0">
-           <widget class="QRadioButton" name="esr_single_res_RadioButton">
-            <property name="toolTip">
-             <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;It is expected that only one resonance peak of the NV is measured.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-            </property>
-            <property name="text">
-             <string>Single Resonance Measure</string>
-            </property>
-            <property name="checked">
-             <bool>true</bool>
-            </property>
-           </widget>
-          </item>
-          <item row="6" column="1">
-           <widget class="QRadioButton" name="esr_double_res_RadioButton">
-            <property name="toolTip">
-             <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;It is expected that both resonance peaks of the NV are measured.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-            </property>
-            <property name="text">
-             <string>Double Resonance Measure</string>
-            </property>
-           </widget>
+           <layout class="QHBoxLayout" name="horizontalLayout_27">
+            <item>
+             <widget class="QRadioButton" name="esr_single_res_RadioButton">
+              <property name="toolTip">
+               <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;It is expected that only one resonance peak of the NV is measured.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+              </property>
+              <property name="text">
+               <string>Single Resonance Measure</string>
+              </property>
+              <property name="checked">
+               <bool>true</bool>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QRadioButton" name="esr_double_res_RadioButton">
+              <property name="toolTip">
+               <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;It is expected that both resonance peaks of the NV are measured.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+              </property>
+              <property name="text">
+               <string>Double Resonance Measure</string>
+              </property>
+             </widget>
+            </item>
+           </layout>
           </item>
          </layout>
         </widget>
+       </item>
+       <item row="2" column="0">
+        <spacer name="verticalSpacer">
+         <property name="orientation">
+          <enum>Qt::Vertical</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>20</width>
+           <height>320</height>
+          </size>
+         </property>
+        </spacer>
        </item>
       </layout>
      </widget>
@@ -286,7 +269,7 @@
       <attribute name="title">
        <string>Pulsed Measurements</string>
       </attribute>
-      <layout class="QGridLayout" name="gridLayout_4">
+      <layout class="QGridLayout" name="gridLayout_5">
        <item row="0" column="0">
         <layout class="QHBoxLayout" name="horizontalLayout_3">
          <item>
@@ -316,70 +299,12 @@
         </layout>
        </item>
        <item row="1" column="0">
-        <widget class="QGroupBox" name="groupBox_5">
-         <property name="title">
-          <string>AFM Parameters</string>
-         </property>
-         <layout class="QGridLayout" name="gridLayout_6">
-          <item row="0" column="0">
-           <widget class="QLabel" name="label_17">
-            <property name="text">
-             <string>AFM integration time per point</string>
-            </property>
-           </widget>
-          </item>
-          <item row="0" column="1">
-           <widget class="ScienDSpinBox" name="pulsed_afm_int_time_DoubleSpinBox">
-            <property name="suffix">
-             <string>s</string>
-            </property>
-            <property name="singleStep">
-             <double>0.100000000000000</double>
-            </property>
-            <property name="value">
-             <double>1.000000000000000</double>
-            </property>
-           </widget>
-          </item>
-          <item row="1" column="1">
-           <widget class="ScienDSpinBox" name="pulsed_idle_move_time_QDoubleSpinBox">
-            <property name="toolTip">
-             <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;The time the scanner should take during an idle move, i.e. when it drives to a new position, or to travel to the next starting position if the end line was reached in a single forward scan.&lt;/p&gt;&lt;p&gt;Default is 0.5s.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-            </property>
-            <property name="suffix">
-             <string>s</string>
-            </property>
-            <property name="minimum">
-             <double>0.100000000000000</double>
-            </property>
-            <property name="singleStep">
-             <double>0.100000000000000</double>
-            </property>
-            <property name="value">
-             <double>5.000000000000000</double>
-            </property>
-           </widget>
-          </item>
-          <item row="1" column="0">
-           <widget class="QLabel" name="label_16">
-            <property name="toolTip">
-             <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;The time the scanner should take during an idle move, i.e. when it drives to a new position, or to travel to the next starting position if the end line was reached in a single forward scan.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-            </property>
-            <property name="text">
-             <string>Idle move time</string>
-            </property>
-           </widget>
-          </item>
-         </layout>
-        </widget>
-       </item>
-       <item row="2" column="0">
         <widget class="QGroupBox" name="groupBox_4">
          <property name="title">
           <string>MW Parameters</string>
          </property>
-         <layout class="QVBoxLayout" name="verticalLayout_4">
-          <item>
+         <layout class="QGridLayout" name="gridLayout_7">
+          <item row="0" column="0">
            <layout class="QHBoxLayout" name="horizontalLayout_9">
             <item>
              <widget class="QLabel" name="label_14">
@@ -412,20 +337,201 @@
             </item>
            </layout>
           </item>
-          <item>
+          <item row="1" column="0">
+           <widget class="QRadioButton" name="mw_tracking_mode_RadioButton">
+            <property name="toolTip">
+             <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;It is expected that only one resonance peak of the NV is measured.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+            </property>
+            <property name="text">
+             <string>MW PODMR Tracking Mode</string>
+            </property>
+            <property name="checked">
+             <bool>true</bool>
+            </property>
+            <property name="autoExclusive">
+             <bool>false</bool>
+            </property>
+            <attribute name="buttonGroup">
+             <string notr="true">buttonGroup</string>
+            </attribute>
+           </widget>
+          </item>
+          <item row="2" column="0">
+           <layout class="QHBoxLayout" name="horizontalLayout_15">
+            <item>
+             <widget class="QLabel" name="label_9">
+              <property name="text">
+               <string>Hyperfine structure</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QComboBox" name="hyperfine_comboBox">
+              <item>
+               <property name="text">
+                <string>None</string>
+               </property>
+              </item>
+             </widget>
+            </item>
+           </layout>
+          </item>
+          <item row="3" column="0">
+           <layout class="QHBoxLayout" name="horizontalLayout_4">
+            <item>
+             <widget class="QLabel" name="label_24">
+              <property name="text">
+               <string>P(Δ)</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="ScienDSpinBox" name="p_delta_doubleSpinBox">
+              <property name="minimum">
+               <double>1.000000000000000</double>
+              </property>
+              <property name="maximum">
+               <double>100000000000000000.000000000000000</double>
+              </property>
+              <property name="value">
+               <double>1.000000000000000</double>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </item>
+          <item row="4" column="0">
+           <layout class="QHBoxLayout" name="horizontalLayout_17">
+            <item>
+             <widget class="QLabel" name="label_25">
+              <property name="text">
+               <string>Δ0</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="ScienDSpinBox" name="delta0_doubleSpinBox">
+              <property name="suffix">
+               <string>Hz</string>
+              </property>
+              <property name="minimum">
+               <double>1.000000000000000</double>
+              </property>
+              <property name="maximum">
+               <double>13000000000.000000000000000</double>
+              </property>
+              <property name="singleStep">
+               <double>1000.000000000000000</double>
+              </property>
+              <property name="value">
+               <double>100000.000000000000000</double>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </item>
+          <item row="5" column="0">
+           <widget class="QGroupBox" name="groupBox_3">
+            <property name="title">
+             <string>Track with</string>
+            </property>
+            <property name="flat">
+             <bool>false</bool>
+            </property>
+            <property name="checkable">
+             <bool>false</bool>
+            </property>
+            <layout class="QGridLayout" name="gridLayout">
+             <item row="0" column="0">
+              <layout class="QHBoxLayout" name="horizontalLayout_18">
+               <item>
+                <widget class="QLabel" name="label_26">
+                 <property name="text">
+                  <string>f0</string>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <widget class="ScienDSpinBox" name="f0_doubleSpinBox">
+                 <property name="toolTip">
+                  <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;The f0 must always be the left most peak in case of Hyperfine structure being present&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+                 </property>
+                 <property name="suffix">
+                  <string>Hz</string>
+                 </property>
+                 <property name="minimum">
+                  <double>1.000000000000000</double>
+                 </property>
+                 <property name="maximum">
+                  <double>13000000000.000000000000000</double>
+                 </property>
+                 <property name="singleStep">
+                  <double>1000.000000000000000</double>
+                 </property>
+                 <property name="value">
+                  <double>2870000000.000000000000000</double>
+                 </property>
+                </widget>
+               </item>
+              </layout>
+             </item>
+             <item row="1" column="0">
+              <layout class="QHBoxLayout" name="horizontalLayout_16">
+               <item>
+                <widget class="QRadioButton" name="slope_radioButton">
+                 <property name="text">
+                  <string>Slope</string>
+                 </property>
+                 <property name="checked">
+                  <bool>true</bool>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <widget class="ScienDSpinBox" name="slope2_doubleSpinBox">
+                 <property name="decimals">
+                  <number>6</number>
+                 </property>
+                 <property name="maximum">
+                  <double>99999999999999997168788049560464200849936328366177157906432.000000000000000</double>
+                 </property>
+                </widget>
+               </item>
+              </layout>
+             </item>
+             <item row="2" column="0">
+              <widget class="QRadioButton" name="retrieve_radioButton">
+               <property name="toolTip">
+                <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Retrieve PODMR curve from the PODMR qudi module and use as a look up table. Works if PODMR was measured since module load.&lt;/p&gt;&lt;p&gt;&lt;br/&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+               </property>
+               <property name="text">
+                <string>Retrieve curve</string>
+               </property>
+              </widget>
+             </item>
+            </layout>
+           </widget>
+          </item>
+          <item row="6" column="0">
            <widget class="QRadioButton" name="mw_list_mode_RadioButton">
             <property name="toolTip">
              <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;It is expected that only one resonance peak of the NV is measured.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
             </property>
             <property name="text">
-             <string>MW PODMR  List Mode</string>
+             <string>MW PODMR List Mode</string>
             </property>
             <property name="checked">
+             <bool>false</bool>
+            </property>
+            <property name="autoExclusive">
              <bool>true</bool>
             </property>
+            <attribute name="buttonGroup">
+             <string notr="true">buttonGroup</string>
+            </attribute>
            </widget>
           </item>
-          <item>
+          <item row="7" column="0">
            <layout class="QHBoxLayout" name="horizontalLayout_5">
             <item>
              <widget class="QLabel" name="label_10">
@@ -455,7 +561,7 @@
             </item>
            </layout>
           </item>
-          <item>
+          <item row="8" column="0">
            <layout class="QHBoxLayout" name="horizontalLayout_6">
             <item>
              <widget class="QLabel" name="label_11">
@@ -485,7 +591,7 @@
             </item>
            </layout>
           </item>
-          <item>
+          <item row="9" column="0">
            <layout class="QHBoxLayout" name="horizontalLayout_7">
             <item>
              <widget class="QLabel" name="label_13">
@@ -506,7 +612,7 @@
             </item>
            </layout>
           </item>
-          <item>
+          <item row="10" column="0">
            <widget class="QRadioButton" name="cw_mode_RadioButton">
             <property name="toolTip">
              <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;It is expected that only one resonance peak of the NV is measured.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
@@ -517,9 +623,15 @@
             <property name="checked">
              <bool>false</bool>
             </property>
+            <property name="autoExclusive">
+             <bool>true</bool>
+            </property>
+            <attribute name="buttonGroup">
+             <string notr="true">buttonGroup</string>
+            </attribute>
            </widget>
           </item>
-          <item>
+          <item row="11" column="0">
            <layout class="QHBoxLayout" name="horizontalLayout_8">
             <item>
              <widget class="QLabel" name="label_12">
@@ -552,38 +664,42 @@
          </layout>
         </widget>
        </item>
-       <item row="3" column="0">
+       <item row="2" column="0">
         <widget class="QGroupBox" name="groupBox_6">
          <property name="title">
           <string>Pulsed Parameters</string>
          </property>
-         <layout class="QFormLayout" name="formLayout">
+         <layout class="QGridLayout" name="gridLayout_8">
           <item row="0" column="0">
-           <widget class="QLabel" name="label_19">
-            <property name="text">
-             <string>Pulse seq.</string>
-            </property>
-           </widget>
+           <layout class="QHBoxLayout" name="horizontalLayout_29">
+            <item>
+             <widget class="QLabel" name="label_19">
+              <property name="text">
+               <string>Pulse seq.</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QLabel" name="loaded_sequence_label">
+              <property name="font">
+               <font>
+                <family>Segoe UI</family>
+                <weight>75</weight>
+                <bold>true</bold>
+               </font>
+              </property>
+              <property name="text">
+               <string>PulsedModule_Loaded_Sequence</string>
+              </property>
+              <property name="alignment">
+               <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+              </property>
+             </widget>
+            </item>
+           </layout>
           </item>
-          <item row="0" column="1">
-           <widget class="QLabel" name="loaded_sequence_label">
-            <property name="font">
-             <font>
-              <family>Segoe UI</family>
-              <weight>75</weight>
-              <bold>true</bold>
-             </font>
-            </property>
-            <property name="text">
-             <string>PulsedModule_Loaded_Sequence</string>
-            </property>
-            <property name="alignment">
-             <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
-            </property>
-           </widget>
-          </item>
-          <item row="1" column="0" colspan="2">
-           <layout class="QHBoxLayout" name="horizontalLayout_2">
+          <item row="1" column="0">
+           <layout class="QHBoxLayout" name="horizontalLayout_28">
             <item>
              <widget class="QLabel" name="label_18">
               <property name="toolTip">
@@ -599,12 +715,55 @@
               <property name="maximum">
                <number>1000000000</number>
               </property>
+              <property name="value">
+               <number>1</number>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </item>
+          <item row="2" column="0">
+           <layout class="QHBoxLayout" name="horizontalLayout_2">
+            <item>
+             <widget class="QLabel" name="label_27">
+              <property name="toolTip">
+               <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;The time the scanner should take during an idle move, i.e. when it drives to a new position, or to travel to the next starting position if the end line was reached in a single forward scan.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+              </property>
+              <property name="text">
+               <string>Pi/2 duration</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="ScienDSpinBox" name="pi_half_doubleSpinBox">
+              <property name="suffix">
+               <string>s</string>
+              </property>
+              <property name="maximum">
+               <double>100.000000000000000</double>
+              </property>
+              <property name="value">
+               <double>1.000000000000000</double>
+              </property>
              </widget>
             </item>
            </layout>
           </item>
          </layout>
         </widget>
+       </item>
+       <item row="3" column="0">
+        <spacer name="verticalSpacer_2">
+         <property name="orientation">
+          <enum>Qt::Vertical</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>20</width>
+           <height>5</height>
+          </size>
+         </property>
+        </spacer>
        </item>
       </layout>
      </widget>
@@ -630,5 +789,25 @@
   </customwidget>
  </customwidgets>
  <resources/>
- <connections/>
+ <connections>
+  <connection>
+   <sender>mw_tracking_mode_RadioButton</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>groupBox_3</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>203</x>
+     <y>216</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>203</x>
+     <y>325</y>
+    </hint>
+   </hints>
+  </connection>
+ </connections>
+ <buttongroups>
+  <buttongroup name="buttonGroup"/>
+ </buttongroups>
 </ui>
