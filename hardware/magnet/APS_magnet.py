@@ -137,73 +137,49 @@ class APSMagnet(Base, MagnetInterface):
                  'ramp': ['Linear'],
                  'pos_min': -self.x_constr,
                  'pos_max': self.x_constr,
-                 'pos_step': 0.001e-3,
-                 'vel_min': 0,
-                 'vel_max': 1e-3,
-                 'vel_step': 0.01e-3,
-                 'acc_min': 0.1e-3,
-                 'acc_max': 0.0,
-                 'acc_step': 0.0}
+                 'pos_step': 0.001e-3}
 
         axis1 = {'label': 'y',
                  'unit': 'T',
                  'ramp': ['Linear'],
                  'pos_min': -self.y_constr,
                  'pos_max': self.y_constr,
-                 'pos_step': 0.001e-3,
-                 'vel_min': 0,
-                 'vel_max': 1e-3,
-                 'vel_step': 0.01e-3,
-                 'acc_min': 0.1e-3,
-                 'acc_max': 0.0,
-                 'acc_step': 0.0}
+                 'pos_step': 0.001e-3}
 
         axis2 = {'label': 'z',
                  'unit': 'T',
                  'ramp': ['Linear'],
                  'pos_min': -self.z_constr,
                  'pos_max': self.z_constr,
-                 'pos_step': 0.001e-3,
-                 'vel_min': 0,
-                 'vel_max': 1e-3,
-                 'vel_step': 0.01e-3,
-                 'acc_min': 0.1e-3,
-                 'acc_max': 0.0,
-                 'acc_step': 0.0}
-
-        axis3 = {'label': 'phi',
-                 'unit': 'rad',
+                 'pos_step': 0.001e-3}
+        
+        axis3 = {'label': 'theta', 
+                 'unit': 'deg', 
+                 'pos_min': 0, 
+                 'pos_max': 180, 
+                 'pos_step': 0.1}
+        
+        axis4 = {'label': 'phi',
+                 'unit': 'deg',
                  'ramp': ['Sinus'],
                  'pos_min': 0,
-                 'pos_max': 2*np.pi,
-                 'pos_step': 2*np.pi/100,
-                 'vel_min': 0,
-                 'vel_max': 1,
-                 'vel_step': 1e-6,
-                 'acc_min': None,
-                 'acc_max': None,
-                 'acc_step': None}
+                 'pos_max': 360,
+                 'pos_step': 0.1}
+
+        axis5 = {'label': 'rho', 
+                 'unit': 'T', 
+                 'pos_min': 0, 
+                 'pos_max': self.rho_constr, 
+                 'pos_step': 1e-3}
+
         
-        axis4 = {'label': 'rho', 'unit': 'T', 'pos_min': 0, 'pos_max': self.rho_constr, 'pos_step': 1e-3,
-                 'vel_min': 0, 'vel_max': 1, 'vel_step': 1e-6}
 
-        # In fact position constraints for rho is dependent on theta and phi, which would need
-        # the use of an additional function to calculate
-        # going to change the return value to a function rho_max_pos which needs the current theta and
-        # phi position
-        # get the constraints for the x axis:
-        axis5 = {'label': 'theta', 'unit': 'rad', 'pos_min': 0, 'pos_max': 2*np.pi, 'pos_step': 2*np.pi/100, 'vel_min': 0,
-                 'vel_max': 1, 'vel_step': 1e-6}
-
-        # assign the parameter container for x to a name which will identify it
-
-        # assign the parameter container for x to a name which will identify it
         constraints[axis0['label']] = axis0
         constraints[axis1['label']] = axis1
         constraints[axis2['label']] = axis2
+        constraints[axis3['label']] = axis3
         constraints[axis4['label']] = axis4
         constraints[axis5['label']] = axis5
-        constraints[axis3['label']] = axis3
 
         return constraints
 
@@ -252,10 +228,7 @@ class APSMagnet(Base, MagnetInterface):
         @return answer_dict: contains the same labels as the param_dict if it was set correct and the
                              corresponding items are the answers of the magnet (format is string), else
                              an empty dictionary is returned
-
-
         """
-
         answer_dict = {}
         if param_dict.get('x') is not None:
             if not param_dict['x'].endswith('\n'):
@@ -299,7 +272,7 @@ class APSMagnet(Base, MagnetInterface):
         return answer_dict
 
     def get_status(self, param_list=None):
-        """ Get the status of the position
+        """ Get the status of the position, ie, moving or close enought to setpoint
 
         @param list param_list: optional, if a specific status of an axis
                                 is desired, then the labels of the needed
@@ -329,7 +302,7 @@ class APSMagnet(Base, MagnetInterface):
 
         return status_dict
 
-    def target_field_setpoint(self, param_dict):
+    def target_field_setpoint(self, param_dict, all_coord):
         """ Function to set the target field (in T), which will be reached through the
             function ramp(self, param_list).
 
@@ -339,37 +312,27 @@ class APSMagnet(Base, MagnetInterface):
             @return int: error code (0:OK, -1:error)
             """
 
-        field_dict = self.get_current_field()
+        field_dict = all_coord
         old_dict = field_dict.copy()
         mode = self.mode
 
         if param_dict.get('x') is not None:
             field_dict['x'] = param_dict['x']
-            unit = self.ask({'x':'UNITS?'})
-            if 'kG' not in unit['x']:
-                self.log.warning('Check units of x axis!')
-                return -1
+
         if param_dict.get('y') is not None:
             field_dict['y'] = param_dict['y']
-            unit = self.ask({'y':'UNITS?'})
-            if 'kG' not in unit['y']:
-                self.log.warning('Check units of y axis!')
-                return -1
+
         if param_dict.get('z') is not None:
             field_dict['z'] = param_dict['z']
-            unit = self.ask({'z':'UNITS?'})
-            if 'kG' not in unit['z']:
-                self.log.warning('Check units of z axis!')
-                return -1
+
         if param_dict.get('x') is None and param_dict.get('y') is None and param_dict.get('z') is None:
             self.log.warning('no valid axis was supplied in '
-                    'target_field_setpoint')
+                    'target field setpoint')
             return -1
 
         new_coord = [field_dict['x'], field_dict['y'], field_dict['z']]
         check_var = self.check_constraints({mode: {'cart': new_coord}})
-        if np.sqrt(new_coord[0]**2 + new_coord[1]**2 + new_coord[2]**2)>self.rho_constr: #T
-            return -1
+
         # everything in kG. Conversion could be done here from Tesla
         param_dict = {i:np.round(param_dict[i]*10,6) for i in param_dict.keys()}
 
@@ -393,7 +356,7 @@ class APSMagnet(Base, MagnetInterface):
 
         else:
             self.log.warning('resulting field would be too high in '
-                    'target_field_setpoint')
+                    'target field setpoint')
             return -1
 
         return 0
@@ -459,7 +422,7 @@ class APSMagnet(Base, MagnetInterface):
 
         return 0
 
-    def set_coordinates(self, param_dict):
+    def set_coordinates(self, param_dict, all_coord):
         """
         Function to set spherical coordinates ( keep in mind all is in radians)
         This function is intended to replace the old set functions ( set_magnitude,
@@ -474,17 +437,11 @@ class APSMagnet(Base, MagnetInterface):
 
         @return int: error code (0:OK, -1:error)
         """
-
-        answ_dict = {}
         coord_list = []
 
-        answ_dict = self.get_current_field()
-        coord_list.append(answ_dict['x'])
-        coord_list.append(answ_dict['y'])
-        coord_list.append(answ_dict['z'])
-        transform_dict = {'cart': {'rad': coord_list}}
-
-        coord_list = self.transform_coordinates(transform_dict)
+        coord_list.append(all_coord['rho'])
+        coord_list.append(all_coord['theta'])
+        coord_list.append(all_coord['phi'])
     
         if param_dict.get('rho') is not None:
             coord_list[0] = param_dict['rho']
@@ -493,12 +450,13 @@ class APSMagnet(Base, MagnetInterface):
         if param_dict.get('phi') is not None:
             coord_list[2] = param_dict['phi']
 
-        transform_dict = {'rad': {'cart': coord_list}}
+        transform_dict = {'deg': {'cart': coord_list}}
         coord_list = self.transform_coordinates(transform_dict)
-        set_point_dict = {'x': np.round(coord_list[0],5), 'y': np.round(coord_list[1],5),
+        set_point_dict = {'x': np.round(coord_list[0],5), 
+                          'y': np.round(coord_list[1],5),
                           'z': np.round(coord_list[2],5)}
 
-        check_val = self.target_field_setpoint(set_point_dict)
+        check_val = self.target_field_setpoint(set_point_dict, all_coord)
 
         return check_val
 
@@ -517,25 +475,23 @@ class APSMagnet(Base, MagnetInterface):
         coord_list = []
         mode = self.mode
 
-        param_dict = self.update_coordinates(param_dict)
+        param_dict, all_coord = self.update_coordinates(param_dict)
         coord_list.append(param_dict['rho'])
         coord_list.append(param_dict['theta'])
         coord_list.append(param_dict['phi'])
 
-        constr_dict = {mode: {'rad': coord_list}}
-        self.log.debug('show new dictionary: {0}'.format(param_dict))
+        constr_dict = {mode: {'deg': coord_list}}
         check_bool = self.check_constraints(constr_dict)
-        # self.log.info(f'CheckBool: {check_bool}')
+
         if check_bool:
-            check_1 = self.set_coordinates(param_dict)
+            check_1 = self.set_coordinates(param_dict, all_coord)
             check_2 = self.ramp()
         else:
             self.log.warning("move_abs hasn't done anything, see check_constraints message why")
             return -1
 
-        if check_1 is check_2:
-            if check_1 is 0:
-                return 0
+        if check_1 is 0 and check_2 is 0:
+            return 0
         else:
             return -1
 
@@ -560,7 +516,7 @@ class APSMagnet(Base, MagnetInterface):
         coord_list.append(answ_dict['y'])
         coord_list.append(answ_dict['z'])
 
-        transform_dict = {'cart': {'rad': coord_list}}
+        transform_dict = {'cart': {'deg': coord_list}}
 
         coord_list = self.transform_coordinates(transform_dict)
         label_list = ['rho', 'theta', 'phi']
@@ -573,9 +529,10 @@ class APSMagnet(Base, MagnetInterface):
 
         for key in param_dict.keys():
             if key not in label_list:
-                self.log.warning("The key "+key+" provided is no valid key in set_coordinates.")
+                self.log.warning("The key "+key+" provided is no valid key in set coordinates.")
                 return -1
-        new_coord_dict = {'rho': coord_list[0], 'theta': coord_list[1],
+        new_coord_dict = {'rho': coord_list[0], 
+                          'theta': coord_list[1],
                           'phi': coord_list[2]}
         check_val = self.move_abs(new_coord_dict)
         return check_val
@@ -596,8 +553,6 @@ class APSMagnet(Base, MagnetInterface):
             or [rho, theta, phi] for deg or rad
             @return list containing the transformed values
         """
-
-
         if param_dict.get('deg') is not None:
             if param_dict['deg'].get('rad') is not None:
                 try:
@@ -618,9 +573,7 @@ class APSMagnet(Base, MagnetInterface):
                 except ValueError:
                     self.log.error('Supplied input list for transform_coordinates has to be of length 3: returning [-1,-1,-1]')
                     return [-1, -1, -1]
-            # transformations that should probably be revisited.
-            # They are there in case the theta and phi values
-            # are not in the correct range.
+
                 while theta >= 180:
                     phi += 180
                     theta = 360 - theta
@@ -642,6 +595,7 @@ class APSMagnet(Base, MagnetInterface):
                 cartesian_list.append(rho * np.cos(theta * 2 * np.pi / 360))
 
                 return cartesian_list
+
         if param_dict.get('rad') is not None:
             if param_dict['rad'].get('deg') is not None:
                 try:
@@ -745,7 +699,7 @@ class APSMagnet(Base, MagnetInterface):
 
         answ_dict = self.get_current_field()
         coord_list = [answ_dict['x'], answ_dict['y'], answ_dict['z']]
-        rho, theta, phi = self.transform_coordinates({'cart': {'rad': coord_list}})
+        rho, theta, phi = self.transform_coordinates({'cart': {'deg': coord_list}})
         mypos1['rho'] = rho
         mypos1['theta'] = theta
         mypos1['phi'] = phi
@@ -759,7 +713,6 @@ class APSMagnet(Base, MagnetInterface):
 
         if param_list is None:
             return mypos2
-
         else:
             return {i:mypos1[i] for i in param_list}
 
@@ -822,66 +775,6 @@ class APSMagnet(Base, MagnetInterface):
 
         return answer_dict
 
-    def translated_get_status(self, param_list=None):
-        """ Just a translation of the numbers according to the
-            manual supplied by American Magnets, Inc.
-
-            @param list param_list: string (elements allowed  'x', 'y' and 'z')
-            for which the translated status should be returned. Can be None, then
-            the answer is the same as for the list ['x','y','z']
-
-            @return dictionary status_dict: keys are the elements of param_list and the items contain the
-            message for the user.
-            """
-        status_dict = self.ask_status(param_list)
-
-        for myiter in status_dict.keys():
-            stateval = status_dict[myiter]
-
-            try:
-                if int(stateval) > 10:
-                    stateval = int(stateval)
-                    while stateval > 10:
-                        stateval //= 10
-                    stateval = str(stateval)
-
-                if stateval == '1':
-                    translated_status = 'RAMPING to target field/current'
-                elif stateval == '2':
-                    translated_status = 'HOLDING at the target field/current'
-                elif stateval == '3':
-                    translated_status = 'PAUSED'
-                elif stateval == '4':
-                    translated_status = 'Ramping in MANUAL UP mode'
-                elif stateval == '5':
-                    translated_status = 'Ramping in MANUAL DOWN mode'
-                elif stateval == '6':
-                    translated_status = 'ZEROING CURRENT (in progress)'
-                elif stateval == '7':
-                    translated_status = 'Quench detected'
-                elif stateval == '8':
-                    translated_status = 'At ZERO current'
-                elif stateval == '9':
-                    translated_status = 'Heating persistent switch'
-                elif stateval == '10':
-                    translated_status = 'Cooling persistent switch'
-                else:
-                    self.log.warning('Something went wrong in ask_status as the statevalue was not between 1 and 10!')
-                    return -1
-            except ValueError:
-                self.log.warning("Sometimes the magnet returns nonsense after a request")
-                return -1
-            status_dict[myiter] = translated_status
-
-        return status_dict
-
-    # This first version of set and get velocity will be very simple
-    # Normally one can set up several ramping rates for different field
-    # regions and so on. I also leave it to the user to find out how many
-    # segments he has and so on. If nothing is changed the magnet should have
-    # 1 segment and max_val should be the max_val that can be reached in that
-    # direction.
-
     def set_velocity(self, param_dict):
         """ Function to change the ramp rate  in T/s (ampere per second)
             @param dict: contains as keys the different cartesian axes ('x', 'y', 'z')
@@ -927,7 +820,7 @@ class APSMagnet(Base, MagnetInterface):
 
         return return_dict
 
-    def check_constraints(self, param_dict):
+    def check_constraints(self, param_dict, all_coord=None):
         """
         Function that verifies if for a given configuration of field strength exerted through the coils
         the constraints of the magnet are violated.
@@ -943,7 +836,7 @@ class APSMagnet(Base, MagnetInterface):
         # First going to include a local function to check the constraints for cartesian coordinates
         # This helps to just reuse this function for the check of 'deg' and 'rad' cases.
 
-        def check_cart_constraints(coord_list, mode):
+        def check_cart_constraints(coord_list, mode, all_coord=None):
 
             my_boolean = True
             try:
@@ -959,25 +852,27 @@ class APSMagnet(Base, MagnetInterface):
                     my_boolean = False
 
                 if np.abs(z_val) > self.x_constr:
-
                     my_boolean = False
 
                 field_magnitude = np.sqrt(x_val**2 + y_val**2 + z_val**2)
                 if field_magnitude > self.rho_constr:
                     my_boolean = False
                 
-                def check_trans_field_magnitude(coord_list):
-                    curr_field = self.get_current_field()
+                def check_trans_field_magnitude(coord_list, all_coord=None):
+                    if all_coord is None:
+                        curr_field = self.get_current_field()
+                    else:
+                        curr_field = all_coord
                     field_arr = np.array([coord_list,[curr_field['x'],curr_field['y'],curr_field['z']]]).T
                     cart_prod = itertools.product(*field_arr)
 
                     for possibility in cart_prod:
                         if np.sqrt(possibility[0]**2 + possibility[1]**2 + possibility[2]**2) > self.rho_constr:
-                            return True, possibility
-                    return False, None
+                            return False, possibility
+                    return True, coord_list
 
-                trans_field_magnitude_large, poss = check_trans_field_magnitude(coord_list)
-                if trans_field_magnitude_large:
+                trans_field_magnitude_okay, poss = check_trans_field_magnitude(coord_list, all_coord)
+                if not trans_field_magnitude_okay:
                     self.log.warning('Vector magnitude may exceed constraint in transition from curr. field to setpoint!')
                     self.log.warning(f'Possibility that exceeds rho contr.: {poss}')
                     my_boolean = False
@@ -1004,10 +899,9 @@ class APSMagnet(Base, MagnetInterface):
 
         return_val = False
 
-
         if param_dict.get('normal_mode') is not None:
             if param_dict['normal_mode'].get("cart") is not None:
-                return_val = check_cart_constraints(param_dict['normal_mode']["cart"], 'normal_mode')
+                return_val = check_cart_constraints(param_dict['normal_mode']["cart"], 'normal_mode', all_coord)
             if param_dict['normal_mode'].get("rad") is not None:
                 transform_dict = {'rad': {'cart': param_dict['normal_mode']["rad"]}}
                 cart_coord = self.transform_coordinates(transform_dict)
@@ -1017,7 +911,7 @@ class APSMagnet(Base, MagnetInterface):
             if param_dict['normal_mode'].get("deg") is not None:
                 transform_dict = {'deg': {'cart': param_dict['normal_mode']["deg"]}}
                 cart_coord = self.transform_coordinates(transform_dict)
-                return_val = check_cart_constraints(cart_coord, 'normal_mode')
+                return_val = check_cart_constraints(cart_coord, 'normal_mode', all_coord)
 
         elif param_dict.get('z_mode') is not None:
             if param_dict['z_mode'].get("cart") is not None:
@@ -1036,100 +930,9 @@ class APSMagnet(Base, MagnetInterface):
             self.log.warning("no valid key was provided, therefore nothing happened in function check_constraints.")
         return return_val
 
-    def rho_pos_max(self, param_dict):
-        """
-        Function that calculates the constraint for rho either given theta and phi values in degree
-        or x, y and z in cartesian coordinates.
-
-        @param dictionary param_dict: Has to be of the form {'rad': [rho, theta, phi]} supports also 'deg' and 'cart'
-                                      option.
-
-        @return float pos_max: the max position for given theta and phi values. Returns -1 in case of failure.
-        """
-        # so I'm going to rework this function. The answer in the case
-        # of z_mode is easy. (Max value for r is constant 3 True)
-        # For the "normal_mode" I decided to come up with a new
-        # algorithm.
-        # That algorithm can be summarized as follows:
-        # Check if the vector  (r,theta,phi)
-        # with length so that it is on the surface of the sphere. In case it conflicts with the
-        # rectangular constraints given by the coils itself (x<=10, y<=10, z<=10)
-        # we need to find the
-        # intersection between the vector and the cube (Sadly this will need
-        # 6 cases, just like a dice), else we are finished.
-        pos_max_dict = {'rho': -1, 'theta': -1, 'phi': 2 * np.pi}
-        param_dict = {self.mode: param_dict}
-
-        if param_dict.get("z_mode") is not None:
-            pos_max_dict['theta'] = np.pi*5/180  # 5° cone
-            if self.check_constraints(param_dict):
-                pos_max_dict['rho'] = self.z_constr
-            else:
-                pos_max_dict['rho'] = 0.0
-        elif param_dict.get("normal_mode") is not None:
-            pos_max_dict['theta'] = np.pi
-            if param_dict["normal_mode"].get("cart") is not None:
-                transform_dict = {'cart': {'rad': param_dict["normal_mode"].get("cart")}}
-                coord_dict_rad = self.transform_coordinates(transform_dict)
-                coord_dict_rad = {'rad': coord_dict_rad}
-                coord_dict_rad['rad'][0] = self.rho_constr
-                transform_dict = {'rad': {'cart': coord_dict_rad['rad']}}
-                coord_dict_cart = self.transform_coordinates(transform_dict)
-                coord_dict_cart = {'normal_mode': {'cart': coord_dict_cart}}
-
-
-            elif param_dict["normal_mode"].get("rad") is not None:
-                # getting the coord list and transforming the coordinates to
-                # cartesian, so cart_constraints can make use of it
-                # setting the radial coordinate, as only the angular coordinates
-                # are of importance and e.g. a zero in the radial component would be
-                # To set it to rho_constr is also important, as it allows a check
-                # if the sphere is the valid constraint in the current direction.
-                coord_list = param_dict["normal_mode"]["rad"]
-                coord_dict_rad = param_dict["normal_mode"]
-                coord_dict_rad['rad'][0] = self.rho_constr
-                transform_dict = {'rad': {'cart': coord_dict_rad['rad']}}
-                coord_dict_cart = self.transform_coordinates(transform_dict)
-                coord_dict_cart = {'normal_mode': {'cart': coord_dict_cart}}
-
-            elif param_dict["normal_mode"].get("deg") is not None:
-                coord_list = param_dict["normal_mode"]["deg"]
-                coord_dict_deg = param_dict["normal_mode"]
-                coord_dict_deg['deg'][0] = self.rho_constr
-                coord_dict_rad = self.transform_coordinates({'deg': {'rad': coord_dict_deg['deg']}})
-                coord_dict_rad = {'rad': coord_dict_rad}
-                transform_dict = {'rad': {'cart': coord_dict_rad['rad']}}
-                coord_dict_cart = self.transform_coordinates(transform_dict)
-                coord_dict_cart = {'normal_mode': {'cart': coord_dict_cart}}
-
-            my_boolean = self.check_constraints(coord_dict_cart)
-
-            if my_boolean:
-                pos_max_dict['rho'] = self.rho_constr
-            else:
-                    # now I need to find out, which plane I need to check
-                phi = coord_dict_rad['rad'][2]
-                theta = coord_dict_rad['rad'][1]
-                # Sides of the rectangular intersecting with position vector
-                if (np.pi/4 <= theta) and (theta < np.pi - np.pi/4):
-                    if (7*np.pi/4 < phi < 2*np.pi) or (0 <= phi <= np.pi/4):
-                        pos_max_dict['rho'] = self.x_constr/(np.cos(phi)*np.sin(theta))
-                    elif (np.pi/4 < phi) and (phi <= 3*np.pi/4):
-                        pos_max_dict['rho'] = self.y_constr / (np.sin(phi)*np.sin(theta))
-                    elif (3*np.pi/4 < phi) and (phi <= 5*np.pi/4):
-                        pos_max_dict['rho'] = -self.x_constr/(np.cos(phi)*np.sin(theta))
-                    elif (5*np.pi/4 < phi) and (phi <= 7*np.pi/4):
-                        pos_max_dict['rho'] = -self.y_constr / (np.sin(phi)*np.sin(theta))
-                    # Top and bottom of the rectangular
-                elif (0 <= theta) and (theta < np.pi/4):
-                    pos_max_dict['rho'] = self.x_constr / np.cos(theta)
-                elif (3*np.pi/4 <= theta) and (theta <= np.pi):
-                    pos_max_dict['rho'] = - self.x_constr / np.cos(theta)
-        return pos_max_dict
-
     def update_coordinates(self, param_dict):
         """
-        A small helper function that does make the functions set_coordinates, transform_coordinates compatible
+        A small helper function that does make the functions set coordinates, transform_coordinates compatible
         with the interface defined functions. The problem is, that in the interface functions each coordinate
         is item to an key which represents the axes of the current coordinate system. This function only
         makes the set of coordinates complete. E.g {'rho': 1.3} to {'rho': 1.3, 'theta': np.pi/2, 'phi': 0 }
@@ -1137,13 +940,12 @@ class APSMagnet(Base, MagnetInterface):
         @param param_dict:  Contains the incomplete dictionary
         @return: the complete dictionary
         """
-        current_coord_dict = self.get_pos()
-
-        for key in current_coord_dict.keys():
+        all_coord_dict = self.get_pos(['rho','theta','phi','x','y','z'])
+        for key in ['x','y','z']:
             if param_dict.get(key) is None:
-                param_dict[key] = current_coord_dict[key]
+                param_dict[key] = all_coord_dict[key]
 
-        return param_dict
+        return param_dict, all_coord_dict
 
 
     def set_magnet_idle_state(self, magnet_idle=True):
