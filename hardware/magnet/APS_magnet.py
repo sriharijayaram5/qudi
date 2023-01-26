@@ -321,7 +321,7 @@ class APSMagnet(Base, MagnetInterface):
             try:
                 set_I = float(status_plural[axes][:-2])/10
                 curr_I = float(field_dict[axes])
-                translated_status = np.isclose([curr_I],[set_I], atol=1e-4)
+                translated_status = np.isclose([curr_I],[set_I], atol=1e-3)
                 status_dict[axes] = translated_status
             except:
                 translated_status = False

@@ -204,17 +204,17 @@ class MagnetLogic(GenericLogic):
             self.align_2d_axis0_name = self._statusVariables['align_2d_axis0_name']
         else:
             axes = list(self._magnet_device.get_constraints())
-            self.align_2d_axis0_name = axes[0]
+            self.align_2d_axis0_name = axes[3]
         if 'align_2d_axis1_name' in self._statusVariables:
             self.align_2d_axis1_name = self._statusVariables['align_2d_axis1_name']
         else:
             axes = list(self._magnet_device.get_constraints())
-            self.align_2d_axis1_name = axes[1]
+            self.align_2d_axis1_name = axes[4]
         if 'align_2d_axis2_name' in self._statusVariables:
             self.align_2d_axis2_name = self._statusVariables['align_2d_axis2_name']
         else:
             axes = list(self._magnet_device.get_constraints())
-            self.align_2d_axis2_name = axes[2]
+            self.align_2d_axis2_name = axes[5]
 
         # self.sigTest.connect(self._do_premeasurement_proc)
 

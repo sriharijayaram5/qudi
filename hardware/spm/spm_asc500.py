@@ -355,7 +355,7 @@ class SPM_ASC500(Base, ScannerInterface):
             # For internal "line_style" scan definitions, the additional trigger signal 
             # is activated
             self._spm_curr_state =  ScannerState.IDLE
-            self._chn_no = 2
+            self._chn_no = 12
 
         else:
             self.log.error(f'Error configure_scanner(): mode = "{ScannerMode.name(mode)}"'
@@ -718,7 +718,7 @@ class SPM_ASC500(Base, ScannerInterface):
             if self._spm_curr_mode == ScannerMode.PROBE_CONTACT:
                 self._polled_data[i] = np.mean(data)
             else:
-                self._polled_data = data
+                self._polled_data = data*2
 
     def _poll_point_data(self):
         '''
