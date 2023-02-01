@@ -182,7 +182,7 @@ class MicrowaveSmbv(Base, MicrowaveInterface):
             start = float(self._connection.query(':FREQ:STAR?'))
             stop = float(self._connection.query(':FREQ:STOP?'))
             step = float(self._connection.query(':SWE:STEP?'))
-            return_val = [start+step, stop, step]
+            return_val = [start, stop, step]
         elif 'list' in mode:
             # Exclude first frequency entry (duplicate due to trigger issues)
             frequency_str = self._connection.query(':LIST:FREQ?')

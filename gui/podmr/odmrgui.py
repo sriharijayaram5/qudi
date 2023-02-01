@@ -996,8 +996,8 @@ class ODMRGui(GUIBase):
         x_data = odmr_data_x
         mn = x_data.min()
         mx = x_data.max()
-        self.sweep_start_line.setBounds((mn,mx))
-        self.sweep_end_line.setBounds((mn,mx))
+        self.sweep_start_line.setPos(mn)
+        self.sweep_end_line.setPos(mx)
         if self._mw.odmr_derivative_radioButton.isChecked():
             self._mw.odmr_PlotWidget.setLabel(axis='left', text='ODMR Slope', units='Counts/s²')
             self._mw.odmr_PlotWidget.setLabel(axis='bottom', text='Frequency', units='Hz')

@@ -539,7 +539,7 @@ class ODMRLogic(GenericLogic):
                     mw_step = np.abs(mw_stop - mw_start) / (limits.list_maxentries - 1)
                     self.sigParameterUpdated.emit({'mw_steps': [mw_step]})
 
-                sweep_return = self._mw_device.set_sweep(
+                sweep_return = self._mw_device.set_sweep_2(
                     mw_start, mw_stop, mw_step, self.sweep_mw_power)
                 mw_start, mw_stop, mw_step, self.sweep_mw_power, mode = sweep_return
 

@@ -75,7 +75,6 @@ class ODMRCounterInterfuse(GenericLogic, ODMRCounterInterface):
         block_1.append(init_length = 1e-6, channels = channels, repetition = 1)
 
         channels = clear(channels)
-        channels[d_ch(self._pulser._mw_trig)] = 1.0
         channels[d_ch(self._pulser._laser_channel)] = 1.0
         channels[a_ch(self._pulser._laser_analog_channel)] = self._pulser._laser_power_voltage
         channels[d_ch(self._pulser._mw_switch)] = 1.0
@@ -92,6 +91,7 @@ class ODMRCounterInterfuse(GenericLogic, ODMRCounterInterface):
         channels = clear(channels)
         channels[d_ch(self._pulser._laser_channel)] = 1.0
         channels[a_ch(self._pulser._laser_analog_channel)] = self._pulser._laser_power_voltage
+        channels[d_ch(self._pulser._mw_trig)] = 1.0
         block_1.append(init_length = 1e-6, channels = channels, repetition = 1)
 
         seq.append([(block_1, 1)])

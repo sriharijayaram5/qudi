@@ -393,6 +393,7 @@ class ODMRLogic(GenericLogic):
                 param_dict = {'mw_starts': [mw_start], 'mw_stops': [mw_stop],
                               'mw_steps': [mw_step], 'sweep_mw_power': self.sweep_mw_power}
                 self.final_freq_list = np.arange(mw_start, mw_stop + mw_step, mw_step)
+                self.log.debug(f'{self.final_freq_list}')
             else:
                 self.log.error('sweep mode only works for one frequency range.')
 
@@ -532,7 +533,7 @@ class ODMRLogic(GenericLogic):
         # If the odmr measurement is not running do nothing
         if self.module_state() != 'locked':
             return
-
+        self.reset_sweep()
         self.set_up_next_trigger()
 
         self._odmr_counter._pulser.pulser_on(n=int(1))
@@ -1038,7 +1039,6 @@ class ODMRLogic(GenericLogic):
 
         # set all relevant parameter:
         self.set_sweep_parameters(freq_start, freq_stop, freq_step, power)
-        self.set_runtime(runtime)
 
         # start the scan
         self.start_odmr_scan()
