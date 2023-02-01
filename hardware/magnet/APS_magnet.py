@@ -58,6 +58,7 @@ class APSMagnet(Base, MagnetInterface):
     y_constr = ConfigOption('magnet_y_constr', 0.001)
     z_constr = ConfigOption('magnet_z_constr', 0.001)
     rho_constr = ConfigOption('magnet_rho_constr', 0.001)
+    check_precision = ConfigOption('check_precision', 0.001)
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -294,11 +295,14 @@ class APSMagnet(Base, MagnetInterface):
             try:
                 set_I = float(status_plural[axes][:-2])/10
                 curr_I = float(field_dict[axes])
-                translated_status = np.isclose([curr_I],[set_I], atol=1e-3)
+                translated_status = np.isclose([curr_I],[set_I], atol=self.check_precision)
                 status_dict[axes] = translated_status
             except:
                 translated_status = False
                 status_dict[axes] = translated_status
+            
+            # translated_status = True
+            # status_dict[axes] = translated_status
 
         return status_dict
 
@@ -730,6 +734,7 @@ class APSMagnet(Base, MagnetInterface):
             for i in param_list:
                 ret = self.tell({f'{i}':'SWEEP PAUSE'})
 
+        self.log.info('Pausing all sweeps!')
         return ret
 
     def abort(self):

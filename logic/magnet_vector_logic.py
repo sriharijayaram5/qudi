@@ -152,21 +152,10 @@ class MagnetLogic(GenericLogic):
 
         # 2D alignment settings
 
-        if 'align_2d_axis0_name' in self._statusVariables:
-            self.align_2d_axis0_name = self._statusVariables['align_2d_axis0_name']
-        else:
-            axes = list(self._magnet_device.get_constraints())
-            self.align_2d_axis0_name = axes[3]
-        if 'align_2d_axis1_name' in self._statusVariables:
-            self.align_2d_axis1_name = self._statusVariables['align_2d_axis1_name']
-        else:
-            axes = list(self._magnet_device.get_constraints())
-            self.align_2d_axis1_name = axes[4]
-        if 'align_2d_axis2_name' in self._statusVariables:
-            self.align_2d_axis2_name = self._statusVariables['align_2d_axis2_name']
-        else:
-            axes = list(self._magnet_device.get_constraints())
-            self.align_2d_axis2_name = axes[5]
+        axes = list(self._magnet_device.get_constraints())
+        self.align_2d_axis0_name = axes[3]
+        self.align_2d_axis1_name = axes[4]
+        self.align_2d_axis2_name = axes[5]
 
         if '_2D_add_data_matrix' in self._statusVariables:
             self._2D_add_data_matrix = self._statusVariables['_2D_add_data_matrix']
@@ -175,6 +164,7 @@ class MagnetLogic(GenericLogic):
 
 
         self.alignment_methods = ['2d_fluorescence']
+        self._optimize_pos_freq = 0
 
     def on_deactivate(self):
         """ Deactivate the module properly.
@@ -432,7 +422,7 @@ class MagnetLogic(GenericLogic):
 
         # get name of other axis to control their values
         pos_dict = self.get_pos()
-        self._control_dict = {'rho': pos_dict['rho']}
+        self._control_dict = {'rho': pos_dict['rho'], 'theta': pos_dict['theta'], 'phi': pos_dict['phi']}
 
         # additional values to save
         self._2d_error = []
@@ -487,11 +477,15 @@ class MagnetLogic(GenericLogic):
         # move absolute to the index position, which is currently given
 
         move_dict_abs = self._move_to_index(self._pathway_index, self._pathway)
-        self._magnet_device.move_abs(move_dict_abs)
+        self.log.debug(f'Move to index: {move_dict_abs}')
+        ret = self._magnet_device.move_abs(move_dict_abs)
+        if ret == -1:
+            self._stop_measure = True
+        self.log.debug('Done move to index')
 
-        while self._check_is_moving():
-            time.sleep(self._checktime)
-            self.log.debug("Went into while loop in _move_to_curr_pathway_index")
+        # while self._check_is_moving():
+        #     time.sleep(self._checktime)
+        #     self.log.debug("Went into while loop in _move_to_curr_pathway_index")
 
         # this function will return to this function if position is reached:
         if stepwise_meas:
@@ -510,7 +504,7 @@ class MagnetLogic(GenericLogic):
         if self._stop_measure:
             self._end_alignment_procedure()
             return
-
+        self.log.debug('Entered stepwise loop body')
         self._do_premeasurement_proc()
         pos = self._magnet_device.get_pos()
         end_pos = self._pathway[self._pathway_index]
@@ -556,7 +550,9 @@ class MagnetLogic(GenericLogic):
             self._do_premeasurement_proc()
             move_dict_abs = self._move_to_index(self._pathway_index, self._pathway)
 
-            self._magnet_device.move_abs(move_dict_abs)
+            ret = self._magnet_device.move_abs(move_dict_abs)
+            if ret == -1:
+                self._stop_measure = True
 
             while self._check_is_moving():
                 time.sleep(self._checktime)
@@ -593,7 +589,9 @@ class MagnetLogic(GenericLogic):
             for axis_name in self._saved_pos_before_align:
                 last_pos[axis_name] = self._backmap[self._pathway_index - 1][axis_name]
 
-            self._magnet_device.move_abs(self._saved_pos_before_align)
+            ret = self._magnet_device.move_abs(self._saved_pos_before_align)
+            if ret == -1:
+                self._stop_measure = True
         except:
             self.log.debug('Stopped too quick. Missed something here.')
 
@@ -662,18 +660,10 @@ class MagnetLogic(GenericLogic):
 
     def _do_alignment_measurement(self):
         """ That is the main method which contains all functions with measurement routines.
-
-        Each measurement routine has to output the measurement value, but can
-        also provide a dictionary with additional measurement parameters, which
-        have been measured either as a pre-requisition for the measurement or
-        are results of the measurement.
-
         Save each measured value as an item to a keyword string, i.e.
             {'ODMR frequency (MHz)': <the_parameter>, ...}
         The save routine will handle the additional information and save them
         properly.
-
-
         @return tuple(float, dict): the measured value is of type float and the
                                     additional parameters are saved in a
                                     dictionary form.
@@ -761,12 +751,12 @@ class MagnetLogic(GenericLogic):
 
         self.log.debug('Magnet 2D data saved to:\n{0}'.format(filepath))
 
-        figure_data = np.flip(matrix_data['Alignment Matrix'], axis=0)
+        figure_data = matrix_data['Alignment Matrix']
         
-        image_extent = [self._2D_axis1_data.min(),
-                        self._2D_axis1_data.max(),
-                        self._2D_axis0_data.min(),
-                        self._2D_axis0_data.max()]
+        image_extent = [self._2D_axis0_data.min(),
+                        self._2D_axis0_data.max(),
+                        self._2D_axis1_data.min(),
+                        self._2D_axis1_data.max()]
         axes = ['theta', 'phi']
 
         figs = self.draw_figure(data=figure_data,
@@ -794,53 +784,53 @@ class MagnetLogic(GenericLogic):
                                     plotfig=figs)
 
         # prepare the data in a dict or in an OrderedDict:
-        add_data = OrderedDict()
-        axis0_data = np.zeros(len(self._backmap))
-        axis1_data = np.zeros(len(self._backmap))
-        param_data = np.zeros(len(self._backmap), dtype='object')
+        # add_data = OrderedDict()
+        # axis0_data = np.zeros(len(self._backmap))
+        # axis1_data = np.zeros(len(self._backmap))
+        # param_data = np.zeros(len(self._backmap), dtype='object')
 
-        for backmap_index in self._backmap:
-            axis0_data[backmap_index] = self._backmap[backmap_index][self.align_2d_axis0_name]
-            axis1_data[backmap_index] = self._backmap[backmap_index][self.align_2d_axis1_name]
-            param_data[backmap_index] = str(self._2D_add_data_matrix[self._backmap[backmap_index]['index']])
+        # for backmap_index in self._backmap:
+        #     axis0_data[backmap_index] = self._backmap[backmap_index][self.align_2d_axis0_name]
+        #     axis1_data[backmap_index] = self._backmap[backmap_index][self.align_2d_axis1_name]
+        #     param_data[backmap_index] = str(self._2D_add_data_matrix[self._backmap[backmap_index]['index']])
 
-        constr = self.get_hardware_constraints()
-        units_axis0 = constr[self.align_2d_axis0_name]['unit']
-        units_axis1 = constr[self.align_2d_axis1_name]['unit']
+        # constr = self.get_hardware_constraints()
+        # units_axis0 = constr[self.align_2d_axis0_name]['unit']
+        # units_axis1 = constr[self.align_2d_axis1_name]['unit']
 
-        add_data['{0} values ({1})'.format(self.align_2d_axis0_name, units_axis0)] = axis0_data
-        add_data['{0} values ({1})'.format(self.align_2d_axis1_name, units_axis1)] = axis1_data
-        # add_data['all measured additional parameter'] = param_data
+        # add_data['{0} values ({1})'.format(self.align_2d_axis0_name, units_axis0)] = axis0_data
+        # add_data['{0} values ({1})'.format(self.align_2d_axis1_name, units_axis1)] = axis1_data
+        # # add_data['all measured additional parameter'] = param_data
 
-        self._save_logic.save_data(add_data, filepath=filepath, filelabel=filelabel2,
-                                   timestamp=timestamp)
+        # self._save_logic.save_data(add_data, filepath=filepath, filelabel=filelabel2,
+        #                            timestamp=timestamp)
         # save the data table
 
-        count_data = self._2D_data_matrix
-        x_val = self._2D_axis0_data
-        y_val = self._2D_axis1_data
-        save_dict = OrderedDict()
-        axis0_key = '{0} values ({1})'.format(self.align_2d_axis0_name, units_axis0)
-        axis1_key = '{0} values ({1})'.format(self.align_2d_axis1_name, units_axis1)
-        counts_key = 'counts (c/s)'
-        save_dict[axis0_key] = []
-        save_dict[axis1_key] = []
-        save_dict[counts_key] = []
+        # count_data = self._2D_data_matrix
+        # x_val = self._2D_axis0_data
+        # y_val = self._2D_axis1_data
+        # save_dict = OrderedDict()
+        # axis0_key = '{0} values ({1})'.format(self.align_2d_axis0_name, units_axis0)
+        # axis1_key = '{0} values ({1})'.format(self.align_2d_axis1_name, units_axis1)
+        # counts_key = 'counts (c/s)'
+        # save_dict[axis0_key] = []
+        # save_dict[axis1_key] = []
+        # save_dict[counts_key] = []
 
-        for ii, columns in enumerate(count_data):
-            for jj, col_counts in enumerate(columns):
-                # x_list = [x_val[ii]] * len(countlist)
-                save_dict[axis0_key].append(x_val[ii])
-                save_dict[axis1_key].append(y_val[jj])
-                save_dict[counts_key].append(col_counts)
-        save_dict[axis0_key] = np.array(save_dict[axis0_key])
-        save_dict[axis1_key] = np.array(save_dict[axis1_key])
-        save_dict[counts_key] = np.array(save_dict[counts_key])
+        # for ii, columns in enumerate(count_data):
+        #     for jj, col_counts in enumerate(columns):
+        #         # x_list = [x_val[ii]] * len(countlist)
+        #         save_dict[axis0_key].append(x_val[ii])
+        #         save_dict[axis1_key].append(y_val[jj])
+        #         save_dict[counts_key].append(col_counts)
+        # save_dict[axis0_key] = np.array(save_dict[axis0_key])
+        # save_dict[axis1_key] = np.array(save_dict[axis1_key])
+        # save_dict[counts_key] = np.array(save_dict[counts_key])
 
-        # making saveable dictionaries
+        # # making saveable dictionaries
 
-        self._save_logic.save_data(save_dict, filepath=filepath, filelabel=filelabel3,
-                                   timestamp=timestamp, fmt='%.6e')
+        # self._save_logic.save_data(save_dict, filepath=filepath, filelabel=filelabel3,
+        #                            timestamp=timestamp, fmt='%.6e')
         keys = self._2d_intended_fields[0].keys()
         intended_fields = OrderedDict()
         for key in keys:
@@ -850,19 +840,19 @@ class MagnetLogic(GenericLogic):
         self._save_logic.save_data(intended_fields, filepath=filepath, filelabel=filelabel4,
                                    timestamp=timestamp)
 
-        measured_fields = OrderedDict()
-        for key in keys:
-            field_values = [coord_dict[key] for coord_dict in self._2d_measured_fields]
-            measured_fields[key] = field_values
+        # measured_fields = OrderedDict()
+        # for key in keys:
+        #     field_values = [coord_dict[key] for coord_dict in self._2d_measured_fields]
+        #     measured_fields[key] = field_values
 
-        self._save_logic.save_data(measured_fields, filepath=filepath, filelabel=filelabel5,
-                                   timestamp=timestamp)
+        # self._save_logic.save_data(measured_fields, filepath=filepath, filelabel=filelabel5,
+        #                            timestamp=timestamp)
 
-        error = OrderedDict()
-        error['quadratic error'] = self._2d_error
+        # error = OrderedDict()
+        # error['quadratic error'] = self._2d_error
 
-        self._save_logic.save_data(error, filepath=filepath, filelabel=filelabel6,
-                                   timestamp=timestamp)
+        # self._save_logic.save_data(error, filepath=filepath, filelabel=filelabel6,
+        #                            timestamp=timestamp)
 
     def draw_figure(self, data, image_extent, scan_axis=None, cbar_range=None, percentile_range=None,  crosshair_pos=None):
         """ Create a 2-D color map figure of the scan image.
@@ -938,9 +928,9 @@ class MagnetLogic(GenericLogic):
                             extent=image_dimension
                             )
 
-        ax.set_aspect(1)
-        ax.set_xlabel(scan_axis[0] + ' (' + x_prefix + 'rad)')
-        ax.set_ylabel(scan_axis[1] + ' (' + y_prefix + 'rad)')
+        ax.set_aspect('auto')
+        ax.set_xlabel(scan_axis[0] + ' (' + x_prefix + 'deg)')
+        ax.set_ylabel(scan_axis[1] + ' (' + y_prefix + 'deg)')
         ax.spines['bottom'].set_position(('outward', 10))
         ax.spines['left'].set_position(('outward', 10))
         ax.spines['top'].set_visible(False)

@@ -68,6 +68,69 @@ class CrossLine(pg.InfiniteLine):
         if self.angle == 90:
             self.setValue(extroi.pos()[0] + extroi.size()[0] * 0.5)
 
+class _3DAlignmentImageItem():
+    def __init__(self, rho, thetas, phis, view):
+        self.thetas = thetas
+        self.phis = phis
+        self.d_th = abs(thetas[1]-thetas[0])/2
+        self.d_phi = abs(phis[1]-phis[0])/2
+        self.rho = rho
+        self.parent_view = view
+        self.items = []
+        
+    def del_items(self):
+        for item in self.items:
+            try:
+                self.parent_view.removeItem(item)
+            except:
+                return
+    
+    def make_face(self, index):
+        theta, phi = self.thetas[index[0]], self.phis[index[1]]
+        vertices = []
+        for i in [1,-1]:
+            for j in [1,-1]:
+                _theta = theta + self.d_th*i
+                _phi = phi + self.d_phi*j
+                x1 = self.rho * np.sin(_theta* 2 * np.pi / 360) * np.cos(_phi* 2 * np.pi / 360)
+                y1 = self.rho * np.sin(_theta* 2 * np.pi / 360) * np.sin(_phi* 2 * np.pi / 360)
+                z1 = self.rho * np.cos(_theta* 2 * np.pi / 360)
+                vertices.append([x1,y1,z1])
+        faces = [[0,1,2],
+                 [1,2,3]]
+        
+        return vertices, faces
+                
+    def setImage(self, matrix, levels):
+        self.image = matrix
+        cb_min, cb_max = (levels)
+        norm = mpl.colors.Normalize(vmin=cb_min, vmax=cb_max)
+        cmap = cm.viridis
+        m = cm.ScalarMappable(norm=norm, cmap=cmap)
+        thet = self.thetas
+        ph = self.phis
+        mi_vertices = []
+        mi_faces = []
+        mi_colors = []
+        
+        n = 0
+        for i in range(len(thet)):
+            for j in range(len(ph)):
+                
+                verts, faces = self.make_face((i,j))
+                c = m.to_rgba(matrix[i,j])
+                colors = np.array([[*c],[*c]])
+                
+                mi_vertices.extend(verts)
+                mi_faces.extend(np.asarray(faces)+4*n)
+                mi_colors.extend(colors)
+                n += 1
+                ## Mesh item will automatically compute face normals.
+        m1 = gl.GLMeshItem(vertexes=np.asarray(mi_vertices), faces=np.asarray(mi_faces), faceColors=np.asarray(mi_colors), smooth=False, computeNormals=False)
+        m1.translate(0, 0, 0)
+        m1.setGLOptions('additive')
+        self.parent_view.addItem(m1)
+        self.items.append(m1)
 
 class MagnetMainWindow(QtWidgets.QMainWindow):
     """ Create the Main Window based on the *.ui file. """
@@ -119,6 +182,9 @@ class MagnetGui(GUIBase):
 
         self._mw = MagnetMainWindow()
         self._2d_alignment_ImageItem = None
+        self._GLView = None
+        self.new_vector_item = None
+        self.opt_vector_item = None
         self._mw.curr_pos_get_pos_PushButton.clicked.connect(self.update_pos)
         self._mw.curr_pos_stop_PushButton.clicked.connect(self.stop_movement)
         self._mw.move_abs_PushButton.clicked.connect(self.move_abs)
@@ -159,8 +225,7 @@ class MagnetGui(GUIBase):
                 continue
             dspinbox_move_abs_ref = self.get_ref_move_abs_ScienDSpinBox(axis_label)
             dspinbox_move_abs_ref.setValue(curr_pos[axis_label])
-            slider_move_abs_ref = self.get_ref_move_abs_Slider(axis_label)
-            slider_move_abs_ref.setValue(curr_pos[axis_label])
+            dspinbox_move_abs_ref.valueChanged.connect(self.give_pos_to_update_GLView_new_vector)
 
         self._magnet_logic.sigPosChanged.connect(self.update_pos)
         self._mw.fitFluorescence_pushButton.clicked.connect(self._magnet_logic._set_optimized_xy_from_fit)
@@ -187,6 +252,11 @@ class MagnetGui(GUIBase):
         step1 = axis1[1] - axis1[0]
         self._2d_alignment_ImageItem.set_image_extent([[axis0[0]-step0/2, axis0[-1]+step0/2],
                                                        [axis1[0]-step1/2, axis1[-1]+step1/2]])
+
+        layout = QtWidgets.QGridLayout()
+        self._GLView = gl.GLViewWidget()
+        layout.addWidget(self._GLView)
+        self._mw.frame_3D_view.setLayout(layout)    
         
         my_colors = ColorScaleViridis()
         self._2d_alignment_ImageItem.setLookupTable(my_colors.lut)
@@ -232,6 +302,8 @@ class MagnetGui(GUIBase):
         self._update_2d_graph_cb()
 
         self._mw.alignment_2d_cb_high_centiles_DSpinBox.setValue(100)
+
+        self._init_GLView()
 
         # Add save file tag input box
         self._mw.alignment_2d_nametag_LineEdit = QtWidgets.QLineEdit(self._mw)
@@ -384,11 +456,6 @@ class MagnetGui(GUIBase):
             self._interactive_mode = True
         else:
             self._interactive_mode = False
-        if self._ms.z_mode_checkBox.isChecked() and not self._ms.normal_mode_checkBox.isChecked():
-            self.log.warning("dum dum")
-
-        if self._ms.normal_mode_checkBox.isChecked() and not self._ms.z_mode_checkBox.isChecked():
-            self.log.warning("dam dam")
 
         if self._ms.interactive_mode_CheckBox.isChecked():
             self._interactive_mode = True
@@ -475,31 +542,16 @@ class MagnetGui(GUIBase):
             if axis_label in ['x','y','z']:
                 continue
 
-            slider = 'move_abs_{0}_Slider'.format(axis_label)
-            slider = getattr(self._mw, slider) # get the reference
-
             dspinbox = 'move_abs_{0}_DoubleSpinBox'.format(axis_label)
             dspinbox = getattr(self._mw, dspinbox) # get the reference
 
             dspinbox.setMaximum(constraints[axis_label]['pos_max'])
             dspinbox.setMinimum(constraints[axis_label]['pos_min'])
 
-            slider.setMaximum(constraints[axis_label]['pos_max']/constraints[axis_label]['pos_step'])
-            slider.setMinimum(constraints[axis_label]['pos_min']/constraints[axis_label]['pos_step'])
-            
-            # build a function to change the dspinbox value and connect a
-            # slidermove event to it:
-            func_name = '_update_move_abs_{0}_dspinbox'.format(axis_label)
-            setattr(self, func_name, self._function_builder_update_viewbox(func_name, axis_label, dspinbox))
-            update_func_dspinbox_ref = getattr(self, func_name)
-            slider.valueChanged.connect(update_func_dspinbox_ref)
+            dspinbox_pos_ref = self.get_ref_curr_pos_DoubleSpinBox(axis_label)
+            dspinbox_pos_ref.setMaximum(constraints[axis_label]['pos_max']*10)
+            dspinbox_pos_ref.setMinimum(constraints[axis_label]['pos_min']*10)
 
-            # build a function to change the slider value and connect a
-            # spinbox value change event to it:
-            func_name = '_update_move_abs_{0}_slider'.format(axis_label)
-            setattr(self, func_name, self._function_builder_update_slider(func_name, axis_label, slider))
-            update_func_slider_ref = getattr(self, func_name)
-            dspinbox.valueChanged.connect(update_func_slider_ref)
 
     def _function_builder_move_rel(self, func_name, axis_label, direction):
         """ Create a function/method, which gets executed for pressing move_rel.
@@ -518,91 +570,6 @@ class MagnetGui(GUIBase):
 
         def func_dummy_name():
             self.move_rel(axis_label, direction)
-
-        func_dummy_name.__name__ = func_name
-        return func_dummy_name
-
-
-    def _function_builder_update_viewbox(self, func_name, axis_label,
-                                         ref_dspinbox):
-        """ Create a function/method, which gets executed for pressing move_rel.
-
-        @param str func_name: name how the function should be called.
-        @param str axis_label: label of the axis you want to create a control
-                               function for.
-        @param object ref_dspinbox: a reference to the dspinbox object, which
-                                    will actually apply the changed within the
-                                    created method.
-
-        @return: function with name func_name
-        """
-
-        def func_dummy_name(slider_val):
-            """
-            @param int slider_val: The current value of the slider, will be an
-                                   integer value between
-                                       [0,(pos_max - pos_min)/pos_step] of the corresponding axis label. Now convert this value back to a viewbox value like:
-                                       pos_min + slider_step*pos_step
-            """
-
-            constraints = self._magnet_logic.get_hardware_constraints()
-            # set the resolution of the slider to nanometer precision, that is
-            # better for the display behaviour. In the end, that will just make
-            # everything smoother but not actually affect the displayed number:
-
-            # max_step_slider = 10**int(np.log10(constraints[axis_label]['pos_step']) -1)
-            max_step_slider = constraints[axis_label]['pos_step']
-
-            actual_pos = (constraints[axis_label]['pos_min'] + slider_val * max_step_slider)
-            ref_dspinbox.setValue(actual_pos)
-            ref_dspinbox.setDecimals(3)
-
-        func_dummy_name.__name__ = func_name
-        return func_dummy_name
-
-    def _function_builder_update_slider(self, func_name, axis_label, ref_slider):
-        """ Create a function/method, which gets executed for pressing move_rel.
-
-        Create a function/method, which gets executed for pressing move_rel.
-
-        @param str func_name: name how the function should be called.
-        @param str axis_label: label of the axis you want to create a control
-                               function for.
-        @param object ref_slider: a reference to the slider object, which
-                                  will actually apply the changed within the
-                                  created method.
-
-        @return: function with name func_name
-
-        A routine to construct a method on the fly and attach it as attribute
-        to the object, so that it can be used or so that other signals can be
-        connected to it. The connection of a signal to this method must appear
-        outside of the present function.
-        """
-
-        def func_dummy_name(viewbox_val):
-            """
-            @param int slider_step: The current value of the slider, will be an
-                                    integer value between
-                                        [0,(pos_max - pos_min)/pos_step]
-                                    of the corresponding axis label.
-                                    Now convert this value back to a viewbox
-                                    value like:
-                                        pos_min + slider_step*pos_step
-            """
-
-            # dspinbox_obj = self.get_ref_move_abs_ScienDSpinBox(axis_label)
-            # viewbox_val = dspinbox_obj.value()
-            constraints = self._magnet_logic.get_hardware_constraints()
-            # set the resolution of the slider to nanometer precision, that is
-            # better for the display behaviour. In the end, that will just make
-            # everything smoother but not actually affect the displayed number:
-
-            # max_step_slider = 10**int(np.log10(constraints[axis_label]['pos_step']) -1)
-            max_step_slider = constraints[axis_label]['pos_step']
-
-            slider_val = abs(viewbox_val - constraints[axis_label]['pos_min'])/max_step_slider
-            ref_slider.setValue(slider_val)
 
         func_dummy_name.__name__ = func_name
         return func_dummy_name
@@ -675,13 +642,6 @@ class MagnetGui(GUIBase):
         dspinbox_name = 'move_abs_{0}_DoubleSpinBox'.format(label)
         dspinbox_ref = getattr(self._mw, dspinbox_name)
         return dspinbox_ref
-
-    def get_ref_move_abs_Slider(self, label):
-        """ Get the reference to the slider for the passed label. """
-
-        slider_name = 'move_abs_{0}_Slider'.format(label)
-        slider_ref = getattr(self._mw, slider_name)
-        return slider_ref
 
     def move_rel_para_changed(self):
         """ Pass the current GUI value to the logic
@@ -814,6 +774,8 @@ class MagnetGui(GUIBase):
             except:
                 pass
         
+        self.update_GLView_vector(curr_pos)
+        self.make_new_sphere(radius=curr_pos['rho'])
         return curr_pos
 
     def run_stop_2d_alignment(self, is_checked):
@@ -977,7 +939,6 @@ class MagnetGui(GUIBase):
     def _update_2d_graph_data(self):
         """ Refresh the 2D-matrix image. """
         matrix_data = self._magnet_logic.get_2d_data_matrix()
-        axis0_array, axis1_array = self._magnet_logic.get_2d_axis_arrays()
 
         if self._mw.alignment_2d_centiles_RadioButton.isChecked():
 
@@ -1003,11 +964,8 @@ class MagnetGui(GUIBase):
             cb_min = self._mw.alignment_2d_cb_min_centiles_DSpinBox.value()
             cb_max = self._mw.alignment_2d_cb_max_centiles_DSpinBox.value()
 
-        cb_min = 0 if cb_min>cb_max else cb_min
-
-        self._2d_alignment_ImageItem.setImage(matrix=matrix_data, levels=(cb_min, cb_max))
+        self._2d_alignment_ImageItem.setImage(image=matrix_data, levels=(cb_min, cb_max))
         self._update_2d_graph_axis()
-
         self._update_2d_graph_cb()
 
         # get data from logic
@@ -1196,3 +1154,90 @@ class MagnetGui(GUIBase):
         self._mw.align_2d_fluorescence_integrationtime_DSpinBox.blockSignals(False)
         return time
     
+    def _init_GLView(self):
+
+        view = self._GLView
+
+        xgrid = gl.GLGridItem()
+        ygrid = gl.GLGridItem()
+        zgrid = gl.GLGridItem()
+
+        view.addItem(xgrid)
+        view.addItem(ygrid)
+        view.addItem(zgrid)
+
+        ## rotate x and y grids to face the correct direction
+        xgrid.rotate(90, 0, 1, 0)
+        ygrid.rotate(90, 1, 0, 0)
+
+        ## scale each grid differently
+        xgrid.scale(0.2, 0.1, 0.1)
+        ygrid.scale(0.2, 0.1, 0.1)
+        zgrid.scale(0.1, 0.2, 0.1)
+
+        PlotItem = gl.GLLinePlotItem(pos=np.array([[0,0,0],[1,0,0]]), color=pg.glColor((255, 140, 140, 255)), width=5, antialias=True)
+        view.addItem(PlotItem)
+        PlotItem = gl.GLLinePlotItem(pos=np.array([[0,0,0],[0,1,0]]), color=pg.glColor((140, 255, 140, 255)), width=5, antialias=True)
+        view.addItem(PlotItem)
+        PlotItem = gl.GLLinePlotItem(pos=np.array([[0,0,0],[0,0,1]]), color=pg.glColor((140, 140, 255, 255)), width=5, antialias=True)
+        view.addItem(PlotItem)
+
+        md = gl.MeshData.sphere(rows=20, cols=20)
+        m4 = gl.GLMeshItem(meshdata=md, smooth=True, drawFaces=False, drawEdges=True, edgeColor=(0.3,0.3,0.3,1))
+        m4.translate(0,0,0)
+        self.sphere = m4
+        view.addItem(self.sphere)
+        self.vector_item = gl.GLLinePlotItem(pos=np.array([[0,0,0],[0,0,0]]), color=pg.glColor((255, 255, 255, 255)), width=5, antialias=True)
+        self._GLView.addItem(self.vector_item)
+    
+    def make_new_sphere(self, radius=1):
+        if self._GLView:
+            self._GLView.removeItem(self.sphere)
+            md = gl.MeshData.sphere(rows=20, cols=20, radius=radius)
+            m4 = gl.GLMeshItem(meshdata=md, smooth=True, drawFaces=False, drawEdges=True, edgeColor=(0.3,0.3,0.3,1))
+            m4.translate(0,0,0)
+            self.sphere = m4
+            self._GLView.addItem(self.sphere)
+            self._GLView.update()
+    
+    def update_GLView_vector(self, curr_pos):
+        if self._GLView:
+            self._GLView.removeItem(self.vector_item)
+            self.vector_item = gl.GLLinePlotItem(pos=np.array([[0,0,0],[curr_pos['x'],curr_pos['y'],curr_pos['z']]]), color=pg.glColor((255, 255, 255, 255)), width=5, antialias=True)
+            self._GLView.addItem(self.vector_item)
+    
+    def update_GLView_new_vector(self, new_pos):
+        if self._GLView:
+            if self.new_vector_item:
+                self._GLView.removeItem(self.new_vector_item)
+            self.new_vector_item = gl.GLLinePlotItem(pos=np.array([[0,0,0],[new_pos['x'],new_pos['y'],new_pos['z']]]), color=pg.glColor((142, 199, 210, 255)), width=5, antialias=True)
+            self._GLView.addItem(self.new_vector_item)
+    
+    def update_GLView_opt_vector(self, new_pos):
+        if self._GLView:
+            if self.opt_vector_item:
+                self._GLView.removeItem(self.opt_vector_item)
+            self.opt_vector_item = gl.GLLinePlotItem(pos=np.array([[0,0,0],[new_pos['x'],new_pos['y'],new_pos['z']]]), color=pg.glColor((255, 195, 0, 255)), width=5, antialias=True)
+            self._GLView.addItem(self.opt_vector_item)
+    
+    def give_pos_to_update_GLView_new_vector(self):
+        constraints=self._magnet_logic.get_hardware_constraints()
+        new_pos_dict = {}
+        for axis_label in list(constraints):
+            if axis_label in ['x','y','z']:
+                continue
+            dspinbox_move_abs_ref = self.get_ref_move_abs_ScienDSpinBox(axis_label)
+            new_pos_dict[axis_label] = dspinbox_move_abs_ref.value()
+        new_pos = {}
+        new_pos['x'] = new_pos_dict['rho'] * np.sin(new_pos_dict['theta']* 2 * np.pi / 360) * np.cos(new_pos_dict['phi']* 2 * np.pi / 360)
+        new_pos['y'] = new_pos_dict['rho'] * np.sin(new_pos_dict['theta']* 2 * np.pi / 360) * np.sin(new_pos_dict['phi']* 2 * np.pi / 360)
+        new_pos['z'] = new_pos_dict['rho'] * np.cos(new_pos_dict['theta']* 2 * np.pi / 360)
+        self.update_GLView_new_vector(new_pos)
+    
+    def give_pos_to_update_GLView_opt_vector(self, new_pos_dict):
+        new_pos = {}
+        new_pos['x'] = new_pos_dict['rho'] * np.sin(new_pos_dict['theta']* 2 * np.pi / 360) * np.cos(new_pos_dict['phi']* 2 * np.pi / 360)
+        new_pos['y'] = new_pos_dict['rho'] * np.sin(new_pos_dict['theta']* 2 * np.pi / 360) * np.sin(new_pos_dict['phi']* 2 * np.pi / 360)
+        new_pos['z'] = new_pos_dict['rho'] * np.cos(new_pos_dict['theta']* 2 * np.pi / 360)
+        self._mw.fitResult_textBrowser.setText(new_pos_dict['fit_result'])
+        self.update_GLView_opt_vector(new_pos)

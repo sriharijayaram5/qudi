@@ -125,6 +125,12 @@ class SPM_ASC500(Base, ScannerInterface):
 
             self.log.info(f'{key} slew rate set to {axis_dict[key]*466/1e6} V/s')
             self.slew_rates[key]  = axis_dict[key]
+    
+    def set_sample_scanner_speed(self, speed=100):
+        """
+        Speed for sample motion in nm/s.
+        """
+        self._dev.base.setParameter(self._dev.base.getConst('ID_SCAN_PSPEED'), speed, 0)
 
     def _create_scanner_contraints(self):
 
