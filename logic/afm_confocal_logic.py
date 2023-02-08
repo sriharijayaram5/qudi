@@ -2115,18 +2115,21 @@ class AFMConfocalLogic(GenericLogic):
                 laser_pulses = self._pulsed_master.measurement_settings['number_of_lasers'] 
                 analysis_settings = self._pulsed_master.analysis_settings
                 var_list = np.linspace(var_start, var_stop, int(laser_pulses/2) if alternating else laser_pulses, endpoint=True)
+                mw_tracking_mode_runs = 1
 
             if (mw_list_mode or mw_tracking_mode):
                 if mw_list_mode:
                     var_start = freq_start
                     var_stop = freq_stop
                     var_incr = (freq_stop-freq_start)/freq_points
+                    mw_tracking_mode_runs = 1
                 elif mw_tracking_mode and (hyperfine == 'None'):
                     self.log.debug('set freq points to 2.')
                     freq_points = 2
-                    var_start = res_freq - delta_0
-                    var_stop = res_freq + delta_0
-                    var_incr = (var_stop-var_start)/freq_points
+                    var_start = round(res_freq - delta_0,0)
+                    var_stop = round(res_freq + delta_0,0)
+                    var_incr = round((var_stop-var_start)/freq_points,0)
+                    mw_tracking_mode_runs = 4
                 alternating = False
                 laser_pulses = freq_points # is normally not used for mw_list_mode or mw_tracking_mode
                 bin_width_s = self._podmr.bin_width_s
@@ -2217,7 +2220,6 @@ class AFMConfocalLogic(GenericLogic):
             if mw_tracking_mode:
                 self.res_freq_array = np.ones((coord1_num, coord0_num)) * res_freq
                 self.delta_array = np.ones((coord1_num, coord0_num)) * delta_0
-
             # self._pulsed_scan_array['pulsed_fw']['params']['ensemble_name'] = self.pulsed_SPM_ensemble.uploaded_ensemble_name
             # blocks, ensemble = self.save_loaded_ensemble_block()
             # self._pulsed_scan_array['pulsed_fw']['params']['ensemble'] = {'blocks': blocks, 'ensemble': ensemble} # TODO figure out the pickling that should happen at the save function
@@ -2312,78 +2314,94 @@ class AFMConfocalLogic(GenericLogic):
                     self._scan_point = np.zeros(num_params) 
 
                     # arm recorder
-                    self._counter.start_recorder(arm=True)
+                    #mw_tracking_mode_runs = 1 for all other modes 
+                    for n in range(mw_tracking_mode_runs):
+                        self._counter.start_recorder(arm=True)
 
-                    # prepare mw source, recorder and pulse_streamer at every point if needed
-                    if (mw_list_mode or mw_tracking_mode):
-                        if mw_tracking_mode:
-                            # set_list takes 273ms but can work for all HF modes but sweep is faster although works only for evenly spaced hence no HF mode
-                            if line_num==0 and index==0:
-                                coord = (line_num,index)
-                            elif line_num!=0 and index==0:
-                                coord = (line_num-1,index)
+                        # prepare mw source, recorder and pulse_streamer at every point if needed
+                        if (mw_list_mode or mw_tracking_mode):
+                            if mw_tracking_mode:
+                                # set_list takes 273ms but can work for all HF modes but sweep is faster although works only for evenly spaced hence no HF mode
+                                if line_num==0 and index==0:
+                                    coord = (line_num,index)
+                                elif line_num!=0 and index==0:
+                                    coord = (line_num-1,index)
+                                elif index!=0:
+                                    coord = (line_num,index-1)      
+                                res_estimate = self.res_freq_array[coord] if n==0 else res_estimate
+                                
+                                var_start = round(res_estimate-self.delta_array[coord],0)
+                                var_stop = round(res_estimate+self.delta_array[coord],0)
+                                var_incr = round((var_stop-var_start)/freq_points,0)
+
+                                if self._mw_mode == 'LIST' and (mw_list_mode or mw_tracking_mode):
+                                    var_list = np.linspace(var_start, var_stop, freq_points, endpoint=True)
+                                    self._mw.set_list(var_list, mw_power)
+                                    self._mw.list_on()  
+                                elif self._mw_mode == 'SWEEP' and (mw_list_mode or mw_tracking_mode):
+                                    self._mw.set_sweep_2(var_start, var_stop, var_incr, mw_power)
+                                    self._mw.sweep_on()
+
+                            if self._counter.recorder.getHistogramIndex()==-1:
+                                self._pulser._seq = self._next_trigger_seq
+                                self._pulser.pulser_on(n=1)
+                                # time.sleep(0.001)
+                                while True:
+                                    time.sleep(0.001)
+                                    if self._pulser.pulse_streamer.hasFinished():
+                                        break
+                            self._pulser._seq = self._podmr_seq
+                            # THIS A TRIGGERED PULSER ON COMMAND - will be trigger by ASC500 on the first loop
+                            if n==0:
+                                self._pulser.pulser_on(trigger=True, n=num_runs, final=self._pulser._mw_trig_final_state)
                             else:
-                                coord = (line_num,index-1)
-                            var_start = self.res_freq_array[coord]-self.delta_array[coord]
-                            var_stop = self.res_freq_array[coord]+self.delta_array[coord]
-                            var_incr = (var_stop-var_start)/freq_points
-                            if self._mw_mode == 'LIST' and (mw_list_mode or mw_tracking_mode):
-                                var_list = np.linspace(var_start, var_stop, freq_points, endpoint=True)
-                                self._mw.set_list(var_list, mw_power)
-                                self._mw.list_on()  
-                            elif self._mw_mode == 'SWEEP' and (mw_list_mode or mw_tracking_mode):
-                                self._mw.set_sweep_2(var_start, var_stop, var_incr, mw_power)
-                                self._mw.sweep_on()
+                                self._pulser.pulser_on(trigger=False, n=num_runs, final=self._pulser._mw_trig_final_state)
+                        
+                        # do movement and height scan
+                        # run for n=0 condition only
+                        if n==0:
+                            self._debug = self._spm.scan_point()
+                            self.log.debug(f'P0int number {index+1} scan done')
+                            self._scan_point[2:] = self._debug 
 
-                        if self._counter.recorder.getHistogramIndex()==-1:
-                            self._pulser._seq = self._next_trigger_seq
-                            self._pulser.pulser_on(n=1)
-                            # time.sleep(0.001)
+                        # performe podmr related pulsed measurements after the first freq_point was triggered by the  spm controller
+                        # other pulsed measurements are only triggered via the spm controller 
+                        if (mw_list_mode or mw_tracking_mode):
                             while True:
                                 time.sleep(0.001)
-                                if self._pulser.pulse_streamer.hasFinished():
+                                if self._counter.recorder.getHistogramIndex() > 0:
                                     break
-                        self._pulser._seq = self._podmr_seq
-                        self._pulser.pulser_on(trigger=True, n=num_runs, final=self._pulser._mw_trig_final_state)
-                    
-                    # do movement and height scan
-                    self._debug = self._spm.scan_point()
-                    self.log.debug(f'P0int number {index+1} scan done')
-                    self._scan_point[2:] = self._debug 
+                            for i in range(1, freq_points-1):
+                                self._pulser.pulser_on(n=num_runs, final=self._pulser._mw_trig_final_state)
+                                while True:
+                                    time.sleep(0.001)
+                                    if self._counter.recorder.getHistogramIndex() > i:
+                                        break
+                            if mw_tracking_mode:
+                                self._pulser.pulser_on(n=num_runs, final=self._pulser._mw_trig_final_state) # needs to give SPM sync later when satisfied with tracking
+                            else:
+                                self._pulser.pulser_on(n=num_runs, final=self._pulser._mw_trig_sync_final_state)
 
-                    # performe podmr related pulsed measurements after the first freq_point was triggered by the  spm controller
-                    # other pulsed measurements are only triggered via the spm controller 
-                    if (mw_list_mode or mw_tracking_mode):
-                        while True:
-                            time.sleep(0.001)
-                            if self._counter.recorder.getHistogramIndex() > 0:
-                                break
-                        for i in range(1, freq_points-1):
-                            self._pulser.pulser_on(n=num_runs, final=self._pulser._mw_trig_final_state)
-                            while True:
-                                time.sleep(0.001)
-                                if self._counter.recorder.getHistogramIndex() > i:
-                                    break
+                        
+                        # obtain pulsed measurement
+                        # self.log.debug(f'self._counter.recorder.getHistogramIndex():{self._counter.recorder.getHistogramIndex()}')
+                        # self.log.debug(f'self._counter.recorder.getCounts():{self._counter.recorder.getCounts()}')
+                        pulsed_meas = self._counter.get_measurements()[0]
+                        self.log.debug('Timetagger happy')
+                        # self.log.debug(f'self._counter.recorder.getHistogramIndex():{self._counter.recorder.getHistogramIndex()}')
+                        # self.log.debug(f'self._counter.recorder.getCounts():{self._counter.recorder.getCounts()}')
+                
+                        pulsed_ret0, pulsed_ret1 = self.analyse_pulsed_meas(analysis_settings, pulsed_meas, alternating, mw_list_mode, mw_tracking_mode)
+                        self._debug = pulsed_ret0
+                        
                         if mw_tracking_mode:
-                            self._pulser.pulser_on(n=num_runs, final=self._pulser._mw_trig_sync_final_state) # needs to give SPM sync later when satisfied with tracking
-                        else:
-                            self._pulser.pulser_on(n=num_runs, final=self._pulser._mw_trig_sync_final_state)
+                            track_ret = self.tracking_analysis(pulsed_ret0, line_num, index, slope2_podmr, res_estimate, use_slope_track)
+                            res_estimate, vis = track_ret
+                        # self.set_pulsed_gui_plots(pulsed_ret0, pulsed_ret1)
 
-                    
-                    # obtain pulsed measurement
-                    self.log.debug(f'self._counter.recorder.getHistogramIndex():{self._counter.recorder.getHistogramIndex()}')
-                    self.log.debug(f'self._counter.recorder.getCounts():{self._counter.recorder.getCounts()}')
-                    pulsed_meas = self._counter.get_measurements()[0]
-                    self.log.debug('Timetagger happy')
-                    self.log.debug(f'self._counter.recorder.getHistogramIndex():{self._counter.recorder.getHistogramIndex()}')
-                    self.log.debug(f'self._counter.recorder.getCounts():{self._counter.recorder.getCounts()}')
-              
-                    pulsed_ret0, pulsed_ret1 = self.analyse_pulsed_meas(analysis_settings, pulsed_meas, alternating, mw_list_mode, mw_tracking_mode)
-                    self._debug = pulsed_ret0
-                    
+                    #for nruns loop ends here
                     if mw_tracking_mode:
-                        track_ret = self.tracking_analysis(pulsed_ret0, var_list, p_value_delta, coord1_num, coord0_num, line_num, index, slope2_podmr, use_slope_track)
-                    # self.set_pulsed_gui_plots(pulsed_ret0, pulsed_ret1)
+                        self._pulser.pulser_on(n=1, final=self._pulser._mw_trig_sync_final_state)
 
                     # here the fit parameter can be saved
                     self._scan_point[1] = self.res_freq_array[line_num, index] if mw_tracking_mode else 1
@@ -2514,24 +2532,13 @@ class AFMConfocalLogic(GenericLogic):
 
         return (data, err) if not alternating else ((data0, err0), (data1, err1))
     
-    def tracking_analysis(self, pulsed_ret0, var_list, p_value_delta, coord1_num, coord0_num, line_num, index, slope2_podmr, use_slope_track):
+    def tracking_analysis(self, pulsed_ret0, line_num, index, slope2_podmr, prev, use_slope_track):
         if use_slope_track:
-            new_slope = (pulsed_ret0[1] - pulsed_ret0[0])/(var_list[1] - var_list[0])
-            
-            if line_num==0 and index==0:
-                coord = (line_num,index)
-            elif line_num!=0 and index==0:
-                coord = (line_num-1,index)
-            else:
-                coord = (line_num,index-1)
-            
-            new_res_freq = abs((new_slope - self.res_freq_array[coord] * slope2_podmr)/slope2_podmr)
-            if abs(new_res_freq-self.res_freq_array[coord])>50e6:
-                new_res_freq = self.res_freq_array[coord]
+            visibility = (pulsed_ret0[1] - pulsed_ret0[0])/(pulsed_ret0[1] + pulsed_ret0[0])
+            new_res_freq =  prev - visibility/slope2_podmr
             self.res_freq_array[line_num,index] = new_res_freq
-            delta_res_freq = abs(self.res_freq_array[coord] - new_res_freq)
-            # self.delta0_array[coord1] = delta_res_freq # check how to give coords for edge cases
-        return True
+
+        return new_res_freq, visibility
 
     def start_scan_area_pulsed_qafm_fw_by_point(self, coord0_start, coord0_stop,
                                             coord0_num, coord1_start, coord1_stop,
