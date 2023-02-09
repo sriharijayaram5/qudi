@@ -2130,6 +2130,13 @@ class AFMConfocalLogic(GenericLogic):
                     var_stop = round(res_freq + delta_0,0)
                     var_incr = round((var_stop-var_start)/freq_points,0)
                     mw_tracking_mode_runs = 4
+                elif mw_tracking_mode and (hyperfine == 'AWG'):
+                    self.log.debug('set freq points to 2.')
+                    freq_points = 2
+                    var_start = round(res_freq - delta_0,0)
+                    var_stop = round(res_freq + delta_0,0)
+                    var_incr = round((var_stop-var_start)/freq_points,0)
+                    mw_tracking_mode_runs = 4
                 alternating = False
                 laser_pulses = freq_points # is normally not used for mw_list_mode or mw_tracking_mode
                 bin_width_s = self._podmr.bin_width_s
@@ -2142,27 +2149,20 @@ class AFMConfocalLogic(GenericLogic):
                 self._mw.set_list(var_list, mw_power)
             elif self._mw_mode == 'SWEEP' and (mw_list_mode or mw_tracking_mode):
                 self._mw.set_sweep_2(var_start, var_stop, var_incr, mw_power)
+            elif mw_tracking_mode and (hyperfine == 'AWG'):
+                self._mw.set_cw(res_freq, mw_power)
             else:
                 self._mw.set_cw(mw_cw_freq, mw_power)
 
             # make the counter for pulsed measurement ready
+            # 2 histograms are still working for the AWG mode since we measure the two frequencies alternativels. Max counts must be dealt with
+            # maybe integration_time/record_length_s -> max_counts
             ret_val = self._counter.configure_recorder(
                 mode=HWRecorderMode.GENERAL_PULSED,
                 params={'laser_pulses': freq_points if (mw_list_mode or mw_tracking_mode) else laser_pulses,
                         'bin_width_s': bin_width_s,
                         'record_length_s': record_length_s,
                         'max_counts': 1 if (mw_list_mode or mw_tracking_mode) else (num_runs-1)} )
-
-            # prepare pulse_streamer for pulsed measurement and save the current sequence of the pulsestreamer
-            # if not (mw_list_mode or mw_tracking_mode):
-            #     self._pulser.prepare_SPM_ensemble()
-            #     self._pulser.upload_SPM_ensemble(sync=False)
-            #     self._pulser.pulser_on(trigger=True, n=num_runs, final=self._pulser._sync_final_state)
-            # else:
-            #     self._pulser.load_swabian_sequence(self._make_pulse_sequence(mode = 'PODMR', pi_half_pulse = pi_half_duration))
-            #     self._podmr_seq = self._pulser._seq
-            #     self._pulser.load_swabian_sequence(self._make_pulse_sequence('NextTrigger'))
-            #     self._next_trigger_seq = self._pulser._seq
 
             self._pulser.prepare_SPM_ensemble()
             #self._pulser.upload_SPM_ensemble(sync=False) 
