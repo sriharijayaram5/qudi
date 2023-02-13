@@ -1049,34 +1049,43 @@ class AWG663(Base, PulserInterface):
     # FOR TESTING
     #############
 
-    def run_triggered_multi_from_list(self, seqs):
+    def load_triggered_multi_replay(self, seqs, memsize_seq=None):
         """
         seqs should have the 'waveform_ch1.pkl' form, i.e a list of waveform name saved on memory
         They should all be of equal length as far as I can understand. If not atleast the last should be the longest
         Single segment memory size determines how much is played after a trigger
-        """
-        self.instance.set_mode('multi')
-        self.instance.init_ext_trigger()
-        sample_rate = self.get_sample_rate()
-
-        c1 = self.instance.cards[1]
-        c1.set_trigger_mode(0, 'pos_edge')
-        c1.set_trigger_mode(1, 'pos_edge')
+        Eg: 
+        ([
+        ['sinA_a_ch0.pkl', 'sinA_a_ch1.pkl', 'sinA_d_ch1.pkl', 'sinA_d_ch1.pkl']
+        ,['sinB_a_ch0.pkl', 'sinB_a_ch1.pkl', 'sinB_d_ch1.pkl', 'sinB_d_ch1.pkl']
+        ],  'sinA_d_ch0.pkl')
         
-        c1.set_trigger_level0(0, 100)
-        c1.set_trigger_level0(1, 100)
-        # c1.set_triggered_channels_ormask(0b11)
-        # c0.set_triggered_channels_ormask(0b11)
+        OR 
+        
+        ['sinA', 'sinB']
+        """
+        self.instance.set_mode('multi')       
         self.set_reps(0)
-        c1.set_trigger_ormask(True, True)
-
-        # self.write_setup()
-
-        #get max segment size (it is assumed that the max. segment size occurs at the longest tau)
-        # Get a list of  all pkl waveforms in waveform folder
         path = self.waveform_folder
         wave_form_list = self.get_waveform_names()
-        waveform = seqs[-1]
+        
+        # these are .pkl file names from saved_pulsed_assets which simply have everything that happens in a channel during the
+        # entire ensmeble. Multiple ensembles can be sequenced into memory to play one after the other on receiving the trigger.
+        def wfm_l_maker(ensemble_names=[]):
+            wfm_l = []
+            for iens, ens in enumerate(ensemble_names):
+                l = [f'{ens}_a_ch{i}.pkl' for i in range(5)]
+                wfm_l.append(l)
+                l = [f'{ens}_d_ch{i}.pkl' for i in range(6)]
+                wfm_l[iens].extend(l)
+            return wfm_l
+        
+        if isinstance(seqs[0], str):
+            seqs = wfm_l_maker(seqs)            
+            
+        # load ensemble to determine the sequence size. This will determine how much is played after one external
+        # trigger. It is assumed that all the ensembles are of equal length.
+        waveform = seqs[-1][-1] if memsize_seq is None else memsize_seq
         load_dict = dict()
         wave_name = waveform.rsplit('.pkl')[0]
         channel_num = int(wave_name.rsplit('_ch', 1)[1])
@@ -1101,40 +1110,36 @@ class AWG663(Base, PulserInterface):
                 return -1
         
         max_seq = data
-        segment_size = 0
-
-        for step in max_seq:
-            segment_size += int(step[1] * 1e-9 * sample_rate)
-            
+        segment_size = int(len(max_seq))       
         while not segment_size % 32 == 0:
             segment_size += 1
 
-        self.set_segment_size(segment_size)
-        self.set_memory_size(segment_size * len(seqs))
-
-        position = 0
-        data_list = list()
-        # this looks like 4 analog channels and 6 digital
-        for i in range(4):
-            data_list.append(np.zeros(int(segment_size), np.int16))
-        for i in range(6):
-            data_list.append(np.zeros(int(segment_size), np.bool))
-
+        self.instance.set_segment_size(segment_size)
+        self.instance.set_memory_size(segment_size * len(seqs))
+        self.instance.init_ext_trigger()
+        # setting of seqment size,i.e, replay length, and init of trigger done.
+        
+        # loading of the ensemble data, separating into channel .pkl files and then writing into data list done here
+        # after data_list for entire ensemble is compiled, upload is done into AWG specifying the segment size
+        # and also the index this particular segment occupies in memory.
         for iseq, seq in enumerate(seqs):
-            load_dict = [seq]
-
-            if isinstance(load_dict, list):
-                new_dict = dict()
-                for waveform in load_dict:
-                    wave_name = waveform.rsplit('.pkl')[0]
-                    channel_num = int(wave_name.rsplit('_ch', 1)[1])
-                    # Map channel numbers to HW channel numbers
-                    if '_a_ch' not in waveform:
-                        channel = channel_num + 4
-                    else:
-                        channel = channel_num
-                    new_dict[channel] = wave_name
-                load_dict = new_dict
+            data_list = list()
+            for i in range(4):
+                data_list.append(np.zeros(int(segment_size), np.int16))
+            for i in range(6):
+                data_list.append(np.zeros(int(segment_size), np.bool))
+                
+            load_dict = seq
+            new_dict = dict()
+            for waveform in load_dict:
+                wave_name = waveform.rsplit('.pkl')[0]
+                channel_num = int(wave_name.rsplit('_ch', 1)[1])
+                if '_a_ch' not in waveform:
+                    channel = channel_num + 4
+                else:
+                    channel = channel_num
+                new_dict[channel] = wave_name
+            load_dict = new_dict
 
             if not load_dict:
                 self.log.error('No data to send to AWG')
@@ -1145,8 +1150,7 @@ class AWG663(Base, PulserInterface):
                     wavefile = '{0}.pkl'.format(value)
                     filepath = os.path.join(path, wavefile)
                     data = self.my_load_dict(filepath)
-                    
-                    data_list[ch][position:position+len(data)] = data
+                    data_list[ch] = data
                     data_size = len(data)
 
                     if '_a_ch' in value:
@@ -1159,16 +1163,7 @@ class AWG663(Base, PulserInterface):
                     self.log.warn('Waveform {} not found in {}'.format(value, self.waveform_folder))
                     data_size = 0
 
-            # If data sizes don't match the first file, append empty rows
-            # TODO: This will only work for the last size loaded as data_size is a variable, not a list?
-            new_list = list()
-            if data_size < len(data_list[0]):
-                for row in data_list:
-                    new_row = row[position:position+data_size]
-                    new_list.append(new_row)
-                data_list = new_list
-
-            # See pg 80 in manual
+            # See pg 130 in manual
             count = 0
             while not data_size % 32 == 0:
                 data_size += 1
@@ -1181,13 +1176,12 @@ class AWG663(Base, PulserInterface):
                     new_list.append(new_row)
                 data_list = new_list
 
-            self.log.info(f'Uploading waveform set to AWG...')
+            self.log.info(f'Uploading waveform set {seq} to AWG...')
             if not data_size == 0:
                 self.instance.upload(data_list, segment_size, segment_size * iseq)
                 self.typeloaded = 'waveform'
 
         self.log.info('Upload to AWG complete')
-
         del seqs
 
     def generate_sine(self):
