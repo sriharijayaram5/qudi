@@ -320,9 +320,7 @@ class AWG663(Base, PulserInterface):
 
         # Get a list of  all pkl waveforms in waveform folder
         path = self.waveform_folder
-        wave_form_files = self.get_waveform_names()
-        # TODO: get_waveform_names() already removes .pkl extension?
-        wave_form_list = [file.rsplit('.pkl')[0] for file in wave_form_files]
+        wave_form_list = self.get_waveform_names()
 
         data_list = list()
         # this looks like 4 analog channels and 6 digital
@@ -831,11 +829,6 @@ class AWG663(Base, PulserInterface):
         """
         waveforms = list()
 
-        #
-        #     # & is_last_chunk:
-        # self.log.error('sample is either first of last, not both')
-        # return -1, waveforms
-
         if len(analog_samples) == 0:
             self.log.error('No analog samples passed to write_waveform method')
             return -1, waveforms
@@ -843,17 +836,6 @@ class AWG663(Base, PulserInterface):
         activation_dict = self.get_active_channels()
         active_channels = {chnl for chnl in activation_dict if activation_dict[chnl]}
         active_analog = sorted(chnl for chnl in active_channels if chnl.startswith('a'))
-
-        # Sanity check of channel numbers
-        # First need to undersatnd how to enable / disable digital channel
-        # if active_channels != set(analog_samples.keys()).union(set(digital_samples.keys())):
-        #     self.log.error('Mismatch of channel activation and sample array dimensions for '
-        #                    'waveform creation.\nChannel activation is: {0}\nSample arrays have: '
-        #                    ''.format(active_channels,
-        #                              set(analog_samples.keys()).union(set(digital_samples.keys()))))
-        #     return -1, waveforms
-
-        # file with all the waveforms saved
 
         # wave_dict = self.get_waveform_names()
         total_length = 0
@@ -1066,6 +1048,148 @@ class AWG663(Base, PulserInterface):
     #############
     # FOR TESTING
     #############
+
+    def run_triggered_multi_from_list(self, seqs):
+        """
+        seqs should have the 'waveform_ch1.pkl' form, i.e a list of waveform name saved on memory
+        They should all be of equal length as far as I can understand. If not atleast the last should be the longest
+        Single segment memory size determines how much is played after a trigger
+        """
+        self.instance.set_mode('multi')
+        self.instance.init_ext_trigger()
+        sample_rate = self.get_sample_rate()
+
+        c1 = self.instance.cards[1]
+        c1.set_trigger_mode(0, 'pos_edge')
+        c1.set_trigger_mode(1, 'pos_edge')
+        
+        c1.set_trigger_level0(0, 100)
+        c1.set_trigger_level0(1, 100)
+        # c1.set_triggered_channels_ormask(0b11)
+        # c0.set_triggered_channels_ormask(0b11)
+        self.set_reps(0)
+        c1.set_trigger_ormask(True, True)
+
+        # self.write_setup()
+
+        #get max segment size (it is assumed that the max. segment size occurs at the longest tau)
+        # Get a list of  all pkl waveforms in waveform folder
+        path = self.waveform_folder
+        wave_form_list = self.get_waveform_names()
+        waveform = seqs[-1]
+        load_dict = dict()
+        wave_name = waveform.rsplit('.pkl')[0]
+        channel_num = int(wave_name.rsplit('_ch', 1)[1])
+        # Map channel numbers to HW channel numbers
+        if '_a_ch' not in waveform:
+            channel = channel_num + 4
+        else:
+            channel = channel_num
+        load_dict[channel] = wave_name
+
+        if not load_dict:
+            self.log.error('No data to send to AWG')
+            return -1
+
+        for ch, value in load_dict.items():
+            if value in wave_form_list:
+                wavefile = '{0}.pkl'.format(value)
+                filepath = os.path.join(path, wavefile)
+                data = self.my_load_dict(filepath)
+            else:
+                self.log.error('Cannot find waveform to send to AWG')
+                return -1
+        
+        max_seq = data
+        segment_size = 0
+
+        for step in max_seq:
+            segment_size += int(step[1] * 1e-9 * sample_rate)
+            
+        while not segment_size % 32 == 0:
+            segment_size += 1
+
+        self.set_segment_size(segment_size)
+        self.set_memory_size(segment_size * len(seqs))
+
+        position = 0
+        data_list = list()
+        # this looks like 4 analog channels and 6 digital
+        for i in range(4):
+            data_list.append(np.zeros(int(segment_size), np.int16))
+        for i in range(6):
+            data_list.append(np.zeros(int(segment_size), np.bool))
+
+        for iseq, seq in enumerate(seqs):
+            load_dict = [seq]
+
+            if isinstance(load_dict, list):
+                new_dict = dict()
+                for waveform in load_dict:
+                    wave_name = waveform.rsplit('.pkl')[0]
+                    channel_num = int(wave_name.rsplit('_ch', 1)[1])
+                    # Map channel numbers to HW channel numbers
+                    if '_a_ch' not in waveform:
+                        channel = channel_num + 4
+                    else:
+                        channel = channel_num
+                    new_dict[channel] = wave_name
+                load_dict = new_dict
+
+            if not load_dict:
+                self.log.error('No data to send to AWG')
+                return -1
+
+            for ch, value in load_dict.items():
+                if value in wave_form_list:
+                    wavefile = '{0}.pkl'.format(value)
+                    filepath = os.path.join(path, wavefile)
+                    data = self.my_load_dict(filepath)
+                    
+                    data_list[ch][position:position+len(data)] = data
+                    data_size = len(data)
+
+                    if '_a_ch' in value:
+                        chan_name = 'a_ch{0}'.format(value.rsplit('a_ch')[1])
+                        self.loaded_assets[chan_name] = value[:-6]
+                    else:
+                        chan_name = 'd_ch{0}'.format(value.rsplit('d_ch')[1])
+                        self.loaded_assets[chan_name] = value[:-6]
+                else:
+                    self.log.warn('Waveform {} not found in {}'.format(value, self.waveform_folder))
+                    data_size = 0
+
+            # If data sizes don't match the first file, append empty rows
+            # TODO: This will only work for the last size loaded as data_size is a variable, not a list?
+            new_list = list()
+            if data_size < len(data_list[0]):
+                for row in data_list:
+                    new_row = row[position:position+data_size]
+                    new_list.append(new_row)
+                data_list = new_list
+
+            # See pg 80 in manual
+            count = 0
+            while not data_size % 32 == 0:
+                data_size += 1
+                count += 1
+            if not count == 1:
+                extra = np.zeros(count, np.int16)
+                new_list = list()
+                for row in data_list:
+                    new_row = np.concatenate((row, extra), axis=0)
+                    new_list.append(new_row)
+                data_list = new_list
+
+            self.log.info(f'Uploading waveform set to AWG...')
+            if not data_size == 0:
+                self.instance.upload(data_list, segment_size, segment_size * iseq)
+                self.typeloaded = 'waveform'
+
+        self.log.info('Upload to AWG complete')
+
+        del seqs
+
     def generate_sine(self):
         # For TESTING
         sample_rate = 1.25e9  # Sample set to default - 1.25 GSa/sec

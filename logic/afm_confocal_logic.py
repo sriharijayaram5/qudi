@@ -19,9 +19,6 @@ Copyright (c) the Qudi Developers. See the COPYRIGHT.txt file at the
 top-level directory of this distribution and at <https://github.com/Ulm-IQO/qudi/>
 """
 
-
-#from hardware.microwaveQ.microwaveq import MicrowaveQ    # for debugging only
-#from hardware.spm.spm_new import SmartSPM                # for debugging only
 from interface.scanner_interface import ScanStyle, ScannerMode
 from hardware.timetagger_counter import HWRecorderMode
 import logic.pulsed.pulse_objects as po
@@ -100,8 +97,6 @@ class WorkerThread(QtCore.QRunnable):
         self._is_running = False
         return super(WorkerThread, self).autoDelete()
 
-#TODO: reimplement the SetAutoDelete functionality
-               
 # ==========================================================================
 #               Start Methods for the Internal status check 
 class HealthChecker(object):
@@ -377,7 +372,6 @@ class AFMConfocalLogic(GenericLogic):
     sigQAFMScanStarted = QtCore.Signal()
     sigQAFMScanFinished = QtCore.Signal()
     
-    #FIXME: Check whether this is really required.
     # Pure AFM Scan
     sigAFMLineScanFinished = QtCore.Signal()
 
@@ -489,11 +483,6 @@ class AFMConfocalLogic(GenericLogic):
         """
         super().__init__(config=config, **kwargs)
 
-        # locking mechanism for thread safety. Use it like
-        #   self.threadlock.lock() # to lock the current thread
-        #   self.threadlock.unlock() # to unlock the current thread
-        #   self.threadlock.acquire() # to acquire a lock
-        #   self.threadlock.trylock()   # to try to lock it.
         self.threadlock = Mutex()
 
         # checking for the right configuration
@@ -508,10 +497,8 @@ class AFMConfocalLogic(GenericLogic):
 
         # Connect to hardware and save logic
         self._spm = self.spm_device()
-        #self._spm = SmartSPM()                    # temporarily get language server's help
         self._save_logic = self.savelogic()
-        self._counter = self.counter_device()   # temporarily disable
-        #self._counter = MicrowaveQ()           # uncomment to get language server's help
+        self._counter = self.counter_device() 
         self._fitlogic = self.fitlogic()
         self._pulser = self.pulser()
         self._mw = self.microwave()
@@ -554,11 +541,6 @@ class AFMConfocalLogic(GenericLogic):
         self.sigSaveDataGwyddionFinished.connect(self.decrease_save_counter)
 
         self._meas_path = os.path.abspath(self._meas_path)
-
-        #FIXME: Introduce a state variable to prevent redundant configuration calls of the hardware.
-        # self._counter.configure_recorder(mode=HWRecorderMode.PIXELCLOCK,
-        #                                  params={'mw_frequency': 2.8e9, 
-        #                                          'num_meas': 100})
 
         # safety precaution in case the meas path does not exist
         if not os.path.exists(self._meas_path):
@@ -1047,13 +1029,6 @@ class AFMConfocalLogic(GenericLogic):
 #           QAFM area scan functions
 # ==============================================================================
 
-    #FIXME: Think about transferring the normalization of the 'Height(Dac)' and 
-    #       'Height(Sen)' parameter to the hardware level.
-    #       In the hardware, the last measured value can always be tracked.
-    #       You also know that if the method setup_spm is used, then we have to 
-    #       update the normalization parameter. 
-    #       For now, it can be confusing, hence, at the moment, this 
-    #       normalization will take place in the logic.
     def scan_area_qafm_bw_fw_by_line(self, coord0_start, coord0_stop, coord0_num,
                                      coord1_start, coord1_stop, coord1_num,
                                      integration_time, plane='XY',
@@ -1117,12 +1092,8 @@ class AFMConfocalLogic(GenericLogic):
 
         spm_start_idx = 0
 
-        #FIXME: check whether bugs can occur if you do not reset the following values.
         if not continue_meas:
-            # if optimization happens during the scan, then we need to handle
-            # manually the normalization of both AFM parameters. Every time 
-            # 'setup_spm' is called, then the zero value is referred to the first
-            # measured point. 
+
             self._height_sens_norm = 0.0
             self._height_dac_norm = 0.0
 
@@ -1229,12 +1200,6 @@ class AFMConfocalLogic(GenericLogic):
                                                                     coord1_num)
             self._scan_counter = 0
 
-        # check input values
-        # ret_val |= self._spm.check_spm_scan_params_by_plane(plane,
-        #                                                     coord0_start,
-        #                                                     coord0_stop,
-        #                                                     coord1_start,
-        #                                                     coord1_stop)
         if ret_val < 1:
             self.module_state.unlock()
             self.sigQAFMScanFinished.emit()
@@ -1331,25 +1296,6 @@ class AFMConfocalLogic(GenericLogic):
 
                 i = meas_params.index('counts_diff')
                 self._qafm_scan_line[i] = counts_diff / (freq1_pulse_time + freq2_pulse_time) / 2
-
-                # FIXME: currently, this method will not work based on only 2 points
-                #        Issues:
-                #               - In reducing the slope formed by L(freq1)/L(freq2)   (L()=Lorenztian)
-                #                 there are two possible solutions: to left and right of inflection point (sigma/sqrt(3))
-                #                 It is not possible to determine which side you are on without a 3rd point
-                #               - With only 2 points, the slope of a curve is not distguishable from noise
-                #               
-                #i = meas_params.index('b_field')
-                #self._qafm_scan_line[i] = self.calc_mag_field_single_res(
-                #        self.calc_eps_shift_dual_iso_b(
-                #            counts1=self._counter.get_measurements('counts'),
-                #            counts2=self._counter.get_measurements('counts2'),
-                #            freq1=self._freq1_iso_b_frequency,
-                #            freq2=self._freq2_iso_b_frequency,
-                #            sigma=self._fwhm_iso_b_frequency / 2) 
-                #        +  (self._freq1_iso_b_frequency + self._freq2_iso_b_frequency) /2,  
-                #        self.ZFS, 
-                #        self.E_FIELD) * 10000
 
             row_i = line_num // 2    # row number for qafm_array
             if not reverse_meas:
@@ -1452,62 +1398,6 @@ class AFMConfocalLogic(GenericLogic):
 
             # store the current line number
             self._spm_line_num = line_num
-
-            # if next measurement is not in the reverse way, make a quick stop
-            # and perform here an optimization first
-            # if self.get_optimize_request():
-
-            #     _update_normalization = 0
-            #     if 'Height(Dac)' in curr_scan_params: _update_normalization += 1 
-            #     if 'Height(Sen)' in curr_scan_params: _update_normalization += 1 
-
-            #     self._counter.stop_measurement()
-            #     self._spm.finish_scan()
-
-            #     self.sigHealthCheckStartSkip.emit()
-            #     time.sleep(2)
-            #     self.log.debug('optimizer started.')
-
-            #     self.default_optimize()
-            #     _, _, _ = self._spm.configure_scanner(mode=ScannerMode.PROBE_CONTACT,
-            #                                           params= {'line_points': coord0_num,
-            #                                                    'meas_params': meas_params},
-            #                                           scan_style=ScanStyle.LINE) 
-
-            #     if 'counts' in meas_params:
-            #         self._spm.set_ext_trigger(True)
-
-            #     # pixel clock
-            #     if scan_mode == 'pixel':
-            #         self._counter.configure_recorder(
-            #             mode=HWRecorderMode.PIXELCLOCK, 
-            #             params={'mw_frequency': self._freq1_iso_b_frequency,
-            #                     'num_meas': coord0_num})
-
-            #     # single iso-b
-            #     elif scan_mode == 'single iso-b':
-            #         self._counter.configure_recorder(
-            #             mode=HWRecorderMode.PIXELCLOCK_SINGLE_ISO_B,
-            #             params={'mw_frequency':self._freq1_iso_b_frequency,
-            #                     'mw_power': self._iso_b_power, 
-            #                     'num_meas': coord0_num })
-
-            #     # dual iso-b
-            #     elif scan_mode == 'dual iso-b':
-            #         self._counter.configure_recorder(
-            #             mode=HWRecorderMode.PIXELCLOCK_N_ISO_B,
-            #             params={'mw_frequency_list': freq_list,
-            #                     'mw_pulse_lengths': pulse_lengths,
-            #                     'mw_power': self._iso_b_power,
-            #                     'mw_n_freq_splits': self._sg_n_iso_b_n_freq_splits,
-            #                     'mw_laser_cooldown_time': self._sg_n_iso_b_laser_cooldown_length,
-            #                     'num_meas': coord0_num })
-
-            #     # incosistend mode found
-            #     else:
-            #         self.log.error('AFM_logic error; inconsitent modality')
-
-            #     self.log.debug('optimizer finished.')
 
         stop_time_afm_scan = datetime.datetime.now()
         self._afm_meas_duration = self._afm_meas_duration + (stop_time_afm_scan - start_time_afm_scan).total_seconds()
@@ -1704,8 +1594,6 @@ class AFMConfocalLogic(GenericLogic):
         # set up the spm device:
         ## reverse_meas = False
         self._stop_request = False
-
-        # self._optimize_period = optimize_period
 
         # make the counter for esr ready                   
         if self._mw_mode == 'LIST':
@@ -2368,7 +2256,7 @@ class AFMConfocalLogic(GenericLogic):
                         # other pulsed measurements are only triggered via the spm controller 
                         if (mw_list_mode or mw_tracking_mode):
                             while True:
-                                time.sleep(0.001)
+                                # time.sleep(0.001)
                                 if self._counter.recorder.getHistogramIndex() > 0:
                                     break
                             for i in range(1, freq_points-1):
@@ -2402,6 +2290,394 @@ class AFMConfocalLogic(GenericLogic):
                     #for nruns loop ends here
                     if mw_tracking_mode:
                         self._pulser.pulser_on(n=1, final=self._pulser._mw_trig_sync_final_state)
+
+                    # here the fit parameter can be saved
+                    self._scan_point[1] = self.res_freq_array[line_num, index] if mw_tracking_mode else 1
+                    # here the counts can be saved:
+                    self._counter.countrate.startFor(1e9)
+                    self._counter.countrate.waitUntilFinished(timeout=10)
+                    self._counter._tagger.sync()
+                    self._scan_point[0] = np.nan_to_num(self._counter.countrate.getData())
+                    self.log.debug(f'Countrate: {self._scan_point[0]}')
+
+                    for param_index, param_name in enumerate(curr_scan_params):
+                        name = f'{param_name}_fw'
+                        if mw_tracking_mode:
+                            self._qafm_scan_array[name]['scale_fac'] = 1e-9
+
+                        self._qafm_scan_array[name]['data'][line_num][index] = self._scan_point[param_index] * self._qafm_scan_array[name]['scale_fac']
+
+                    self._pulsed_scan_array['pulsed_fw']['data'][line_num][index] = pulsed_ret0 if not alternating else pulsed_ret0[0]
+                    self._pulsed_scan_array['pulsed_fw']['data_std'][line_num][index] = pulsed_ret1 if not alternating else pulsed_ret0[1]
+                    if alternating:
+                        self._pulsed_scan_array['pulsed_fw']['data_alternating'][line_num][index] = pulsed_ret1[0]
+                        self._pulsed_scan_array['pulsed_fw']['data_alternating_std'][line_num][index] = pulsed_ret1[1]
+                        self._pulsed_scan_array['pulsed_fw']['data_delta'][line_num][index] = pulsed_ret0[0] - pulsed_ret1[0]
+                        
+                    # self._pulsed_scan_array['pulsed_fw']['data_fit'][line_num][index] = pulsed_ret0
+                    self._pulsed_scan_array['pulsed_fw']['data_raw'][line_num][index] = pulsed_meas
+
+
+                    self.log.info(f'Point: {line_num * coord0_num + index + 1} out of {coord0_num*coord1_num}, {(line_num * coord0_num + index +1)/(coord0_num*coord1_num) * 100:.2f}% finished.')
+
+                    if index != last_elem:
+                        self._afm_pos['x'] += x_step
+                        self.sigNewAFMPos.emit({'x': self._afm_pos['x']})
+
+                    self._scan_counter += 1
+
+                    # emit a signal at every point, so that update can happen in real time.
+                    self.sigQAFMLineScanFinished.emit()
+
+                    if (mw_list_mode or mw_tracking_mode):
+                        if self._mw_mode == 'LIST':
+                            self._mw.reset_listpos()
+                        elif self._mw_mode == 'SWEEP':
+                            self._mw.reset_sweeppos()
+
+                    # remove possibility to stop during line scan.
+                    if self._stop_request:
+                        break
+
+                # self.log.info(f'Line number {line_num} completed.')
+                self.log.info(f'Line number {line_num} completed.')
+
+                # store the current line number
+                self._spm_line_num = line_num
+
+                # break irrespective of the direction of the scan
+                if self._stop_request:
+                    break
+
+            stop_time_afm_scan = datetime.datetime.now()
+            self._afm_meas_duration = self._afm_meas_duration + (stop_time_afm_scan - start_time_afm_scan).total_seconds()
+
+            if line_num == self._spm_line_num:
+                self.log.info(f'Scan finished at {int(self._afm_meas_duration)}s. Yeehaa!')
+            else:
+                self.log.info(f'Scan stopped at {int(self._afm_meas_duration)}s.')
+
+            for entry in self._qafm_scan_array:
+                self._qafm_scan_array[entry]['params']['Measurement stop'] = stop_time_afm_scan.isoformat()
+                self._qafm_scan_array[entry]['params']['Total measurement time (s)'] = self._afm_meas_duration
+
+            # clean up the spm
+            self._spm.finish_scan(retract=True)
+            self._mw.off()
+            self._counter.stop_measurement()
+            self._pulser.pulser_off()
+            #if not (mw_list_mode or mw_tracking_mode):
+            self._pulser.upload_SPM_ensemble(sync=False)
+            
+            # self.module_state.unlock()
+            self.sigQuantiScanFinished.emit()
+
+            return self._qafm_scan_array
+
+    def scan_area_AWG_pulsed_qafm_fw_by_point(self, coord0_start, coord0_stop,
+                                            coord0_num, coord1_start, coord1_stop,
+                                            coord1_num, int_time_afm=0.1,
+                                            idle_move_time=0.1, freq_start=2.77e9,
+                                            freq_stop=2.97e9, freq_points=100,
+                                            mw_power=-25, mw_cw_freq=2.87e9, mw_list_mode=False,
+                                            num_runs=30, pi_half_duration=100e-9,
+                                            optimize_period=100,
+                                            meas_params=['Height(Dac)'],
+                                            mw_tracking_mode=False,
+                                            hyperfine='None', p_value_delta=1, delta_0=1e6,
+                                            res_freq=2.87e9, slope2_podmr=1, use_slope_track=True,
+                                            mw_cw_mode = False):
+
+            """ QAFM measurement (optical + afm) forward and backward for a scan by point.
+
+            @param float coord0_start: start coordinate in um
+            @param float coord0_stop: start coordinate in um
+            @param int coord0_num: number of points in coord0 direction
+            @param float coord1_start: start coordinate in um
+            @param float coord1_stop: start coordinate in um
+            @param int coord1_num: start coordinate in um
+            @param int coord0_num: number of points in coord1 direction
+            @param float int_time_afm: integration time for afm operations
+            @param float idle_move_time: time for a movement where nothing is measured
+            @param float var_start: start variable value in Hz or s
+            @param float var_stop: stop variable value in Hz or s
+            @param float var_incr: increment of var in Hz or s
+            @param float mw_power: microwave power during scan
+            @param int num_runs: number of averaging runs/max rollover for timetagger
+            @param float optimize_period: time after which an optimization request 
+                                        is set
+
+            @param list meas_params: list of possible strings of the measurement
+                                    parameter. Have a look at MEAS_PARAMS to see
+                                    the available parameters.
+
+            @return 2D_array: measurement results in a two dimensional list.
+            """
+            self.sigQuantiScanStarted.emit()
+            plane = 'XY'
+
+            # set up the spm device:
+            # reverse_meas = False
+            self._stop_request = False
+
+            # self._optimize_period = optimize_period
+
+            #Get parameters for the pulsed measurmeent depending on the mode
+            if mw_tracking_mode and (hyperfine == 'AWG'):
+                self.log.debug('set freq points to 2.')
+                freq_points = 2
+                var_start = round(res_freq - delta_0,0)
+                var_stop = round(res_freq + delta_0,0)
+                var_incr = round((var_stop-var_start)/freq_points,0)
+                mw_tracking_mode_runs = 4
+                alternating = False
+                laser_pulses = freq_points # is normally not used for mw_list_mode or mw_tracking_mode
+                bin_width_s = self._podmr.bin_width_s
+                record_length_s = self._podmr.record_length_s
+                analysis_settings = self._podmr.pulsed_analysis_settings
+                var_list = np.linspace(var_start, var_stop, freq_points, endpoint=True)
+            
+            # make the mw source for pulsed measurement ready
+            if mw_tracking_mode and (hyperfine == 'AWG'):
+                self._mw.set_cw(res_freq, mw_power)
+
+
+            # make the counter for pulsed measurement ready
+            # 2 histograms are still working for the AWG mode since we measure the two frequencies alternativels. Max counts must be dealt with
+            # maybe integration_time/record_length_s -> max_counts
+            awg_tracking_int_time = 100e-3
+            if mw_tracking_mode and (hyperfine == 'AWG'):
+                ret_val = self._counter.configure_recorder(
+                mode=HWRecorderMode.GENERAL_PULSED,
+                params={'laser_pulses': freq_points,
+                        'bin_width_s': bin_width_s,
+                        'record_length_s': record_length_s,
+                        'max_counts': np.max([1, int(awg_tracking_int_time/record_length_s)])} )
+
+            self._pulser.prepare_SPM_ensemble()
+            #self._pulser.upload_SPM_ensemble(sync=False) 
+            if mw_tracking_mode and (hyperfine == 'AWG'):
+                
+                # upload the IQ signal for + and - delta frequencies. Should be triggerable. Only the CW MW will change during scan
+
+                #everything else can remain the same
+                self._pulser.load_swabian_sequence(self._make_pulse_sequence(mode = 'PODMR', pi_half_pulse = pi_half_duration))
+                self._podmr_seq = self._pulser._seq
+                self._pulser.load_swabian_sequence(self._make_pulse_sequence('NextTrigger'))
+                self._next_trigger_seq = self._pulser._seq
+        
+
+            # return to normal operation
+            self.sigHealthCheckStopSkip.emit()
+
+            # scan_speed_per_line = 0.01  # in seconds
+            scan_speed_per_line = int_time_afm
+            scan_arr = self.create_scan_leftright(coord0_start, coord0_stop,
+                                                        coord1_start, coord1_stop, coord1_num)
+
+            ret_val, _, curr_scan_params = \
+                self._spm.configure_scanner(mode=ScannerMode.PROBE_CONTACT,
+                                            params= {'line_points': coord0_num,
+                                                    'meas_params': meas_params},
+                                            scan_style=ScanStyle.POINT) 
+
+            curr_scan_params.insert(0, 'fit_param')  # insert the magnetic field (place holder) 
+            curr_scan_params.insert(0, 'counts')  # insert the fluorescence parameter
+
+            # this case is for starting a new measurement:
+            # if (self._spm_line_num == 0):
+            self._spm_line_num = 0
+            self._afm_meas_duration = 0
+
+            # AFM signal
+            self._qafm_scan_array = self.initialize_qafm_scan_array(coord0_start, 
+                                                                    coord0_stop, 
+                                                                    coord0_num,
+                                                                    coord1_start, 
+                                                                    coord1_stop, 
+                                                                    coord1_num)
+            self._scan_counter = 0
+
+            self._pulsed_scan_array = self.initialize_pulsed_scan_array(var_list, alternating,
+                                                                laser_pulses if not (mw_list_mode or mw_tracking_mode) else freq_points,
+                                                                bin_width_s,
+                                                                record_length_s,
+                                                                coord0_start, 
+                                                                coord0_stop, 
+                                                                coord0_num,
+                                                                coord1_start, 
+                                                                coord1_stop, 
+                                                                coord1_num)
+
+            # prepare arrays for specific modes
+            if mw_tracking_mode:
+                self.res_freq_array = np.ones((coord1_num, coord0_num)) * res_freq
+                self.delta_array = np.ones((coord1_num, coord0_num)) * delta_0
+            # self._pulsed_scan_array['pulsed_fw']['params']['ensemble_name'] = self.pulsed_SPM_ensemble.uploaded_ensemble_name
+            # blocks, ensemble = self.save_loaded_ensemble_block()
+            # self._pulsed_scan_array['pulsed_fw']['params']['ensemble'] = {'blocks': blocks, 'ensemble': ensemble} # TODO figure out the pickling that should happen at the save function
+
+            # check input values
+            ret_val |= self._spm.check_spm_scan_params_by_plane(plane, coord0_start, coord0_stop,
+                                                                coord1_start, coord1_stop)
+
+            # if not self._pulsed_master.loaded_asset[0] == 'podmr' and (mw_list_mode or mw_tracking_mode):
+            #     ret_val=0
+            #     self.log.warning('Pulsed ODMR single step not uploaded in Pulsed Measurements module or currently sampled sequence not named "podmr".')
+
+            if ret_val < 1:
+                self.sigQuantiScanFinished.emit()
+                self._pulser.pulser_off()
+                #if not (mw_list_mode or mw_tracking_mode):
+                self._pulser.upload_SPM_ensemble(sync=False)
+                
+                return self._qafm_scan_array
+
+            start_time_afm_scan = datetime.datetime.now()
+            self._curr_scan_params = curr_scan_params
+            self.scan_dir = 'fw'
+
+            # save the measurement parameter
+            for entry in self._qafm_scan_array:
+                self._qafm_scan_array[entry]['params']['Parameters for'] = 'QAFM measurement'
+                self._qafm_scan_array[entry]['params']['axis name for coord0'] = 'X'
+                self._qafm_scan_array[entry]['params']['axis name for coord1'] = 'Y'
+                self._qafm_scan_array[entry]['params']['measurement plane'] = 'XY'
+                self._qafm_scan_array[entry]['params']['coord0_start (m)'] = coord0_start
+                self._qafm_scan_array[entry]['params']['coord0_stop (m)'] = coord0_stop
+                self._qafm_scan_array[entry]['params']['coord0_num (#)'] = coord0_num
+                self._qafm_scan_array[entry]['params']['coord1_start (m)'] = coord1_start
+                self._qafm_scan_array[entry]['params']['coord1_stop (m)'] = coord1_stop
+                self._qafm_scan_array[entry]['params']['coord1_num (#)'] = coord1_num
+
+                self._qafm_scan_array[entry]['params']['Pulsed start variable (s) or (Hz)'] = var_start
+                self._qafm_scan_array[entry]['params']['Pulsed stop variable (s) or (Hz)'] = var_stop
+                self._qafm_scan_array[entry]['params']['Pulsed step variable (s) or (Hz)'] = var_incr
+                self._qafm_scan_array[entry]['params']['MW Sweep (True) or CW (False)'] = (mw_list_mode or mw_tracking_mode)
+                self._qafm_scan_array[entry]['params']['MW power (dBm)'] = mw_power
+                self._qafm_scan_array[entry]['params']['Measurement runs (#)'] = num_runs
+                self._qafm_scan_array[entry]['params']['Optimize Period (s)'] = optimize_period
+
+                self._qafm_scan_array[entry]['params']['AFM integration time per pixel (s)'] = int_time_afm
+                self._qafm_scan_array[entry]['params']['AFM time for idle move (s)'] = idle_move_time
+                self._qafm_scan_array[entry]['params']['Measurement parameter list'] = str(curr_scan_params)
+                self._qafm_scan_array[entry]['params']['Measurement start'] = start_time_afm_scan.isoformat()
+
+            # turn on mw source
+            if mw_tracking_mode and (hyperfine == 'AWG'):
+                self._mw.cw_on()
+            
+            if mw_tracking_mode and (hyperfine == 'AWG'):
+                num_runs *= 2 # will only work for the two point tracking measurement
+            # start actual scan
+            for line_num, scan_coords in enumerate(scan_arr):
+
+                # for a continue measurement event, skip the first measurements
+                # until one has reached the desired line, then continue from there.
+                # if line_num < self._spm_line_num:
+                #     continue
+
+                num_params = len(curr_scan_params)
+
+                self._spm.configure_line(line_corr0_start=scan_coords[0],
+                                        line_corr0_stop=scan_coords[1],
+                                        line_corr1_start=scan_coords[2],
+                                        line_corr1_stop=scan_coords[3],
+                                        time_forward=scan_speed_per_line,
+                                        time_back=idle_move_time)
+
+
+                # -1 otherwise it would be more than coord0_num points, since first one is counted too.
+                x_step = (scan_coords[1] - scan_coords[0]) / (coord0_num - 1)
+
+                self._afm_pos = {'x': scan_coords[0], 'y': scan_coords[2]}
+
+                self.sigNewAFMPos.emit(self._afm_pos)
+
+                last_elem = list(range(coord0_num))[-1]
+
+                for index in range(coord0_num):
+
+                    self.log.debug(f'Point number {index+1} started')
+
+                    # first two entries are counts and b_field, remaining entries are the scan parameter
+                    self._scan_point = np.zeros(num_params) 
+
+                    # arm recorder
+                    #mw_tracking_mode_runs = 1 for all other modes 
+                    for n in range(mw_tracking_mode_runs):
+        
+                        self._counter.start_recorder(arm=True)
+                        # prepare mw source, recorder and pulse_streamer at every point if neede
+                                # set_list takes 273ms but can work for all HF modes but sweep is faster although works only for evenly spaced hence no HF mode
+                        if line_num==0 and index==0:
+                            coord = (line_num,index)
+                        elif line_num!=0 and index==0:
+                            coord = (line_num-1,index)
+                        elif index!=0:
+                            coord = (line_num,index-1)      
+                        res_estimate = self.res_freq_array[coord] if n==0 else res_estimate
+                        
+                        var_start = round(res_estimate-self.delta_array[coord],0)
+                        var_stop = round(res_estimate+self.delta_array[coord],0)
+                        var_incr = round((var_stop-var_start)/freq_points,0)
+
+                        if mw_tracking_mode and (hyperfine == 'AWG'):
+                            self._mw.set_cw(freq=res_estimate, power=mw_power)
+                            self._mw.cw_on()
+                            
+                        if self._counter.recorder.getHistogramIndex()==-1:
+                            self._pulser._seq = self._next_trigger_seq
+                            self._pulser.pulser_on(n=1)
+                            # time.sleep(0.001)
+                            while True:
+                                time.sleep(0.001)
+                                if self._pulser.pulse_streamer.hasFinished():
+                                    break
+                        self._pulser._seq = self._podmr_seq
+                        # THIS A TRIGGERED PULSER ON COMMAND - will be trigger by ASC500 on the first loop
+                        if mw_tracking_mode and (hyperfine == 'AWG'):
+                            self._pulser.pulser_on(trigger=True, n=num_runs, final=self._pulser._mw_trig_sync_final_state)
+                                              
+                        # do movement and height scan
+                        # run for n=0 condition only
+                        if n==0:
+                            self._debug = self._spm.scan_point()
+                            self.log.debug(f'P0int number {index+1} scan done')
+                            self._scan_point[2:] = self._debug 
+
+                        # performe podmr related pulsed measurements after the first freq_point was triggered by the  spm controller
+                        # other pulsed measurements are only triggered via the spm controller 
+                        while True:
+                            # time.sleep(0.001)
+                            if self._counter.recorder.getHistogramIndex() > 0:
+                                break
+                        # TODO for AWG mode - figure out how freqpoints must be changed
+                        for i in range(1, freq_points-1):
+                            self._pulser.pulser_on(n=num_runs, final=self._pulser._mw_trig_final_state)
+                            while True:
+                                # time.sleep(0.001)
+                                if self._counter.recorder.getHistogramIndex() > i:
+                                    break
+                        
+                        # obtain pulsed measurement
+                        # self.log.debug(f'self._counter.recorder.getHistogramIndex():{self._counter.recorder.getHistogramIndex()}')
+                        # self.log.debug(f'self._counter.recorder.getCounts():{self._counter.recorder.getCounts()}')
+                        pulsed_meas = self._counter.get_measurements()[0]
+                        self.log.debug('Timetagger happy')
+                        # self.log.debug(f'self._counter.recorder.getHistogramIndex():{self._counter.recorder.getHistogramIndex()}')
+                        # self.log.debug(f'self._counter.recorder.getCounts():{self._counter.recorder.getCounts()}')
+                
+                        pulsed_ret0, pulsed_ret1 = self.analyse_pulsed_meas(analysis_settings, pulsed_meas, alternating, mw_list_mode, mw_tracking_mode)
+                        self._debug = pulsed_ret0
+
+                        track_ret = self.tracking_analysis(pulsed_ret0, line_num, index, slope2_podmr, res_estimate, use_slope_track)
+                        res_estimate, vis = track_ret
+                        # self.set_pulsed_gui_plots(pulsed_ret0, pulsed_ret1)
+
+                    #for nruns loop ends here
+                    # just to give the sync pulse. n=2 so that it would work for the AWG tracking mode as well
+                    self._pulser.pulser_on(n=2, final=self._pulser._mw_trig_sync_final_state)
 
                     # here the fit parameter can be saved
                     self._scan_point[1] = self.res_freq_array[line_num, index] if mw_tracking_mode else 1
