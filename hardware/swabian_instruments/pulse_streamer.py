@@ -56,6 +56,7 @@ class PulseStreamer(Base, PulserInterface):
     _sync_in = ConfigOption('sync_in', 3, missing='warn')
     _mw_switch = ConfigOption('mw_switch', 4, missing='info')
     _mw_trig = ConfigOption('mw_trig', 5, missing='info')
+    _awg_trig = ConfigOption('awg_trig', 6, missing='info')
 
     _use_external_clock = ConfigOption('use_external_clock', False, missing='info')
     _external_clock_option = ConfigOption('external_clock_option', 0, missing='info')
@@ -851,16 +852,8 @@ class PulseStreamer(Base, PulserInterface):
                 else:
                     self._seq.setAnalog(int(key[-1]),seq[key])
 
-    def _make_sync(self):
-        sync = self.pulse_streamer.createSequence()
-        sync_patt = [(1e+6,1)]
-        sync.setDigital(self._sync_in, sync_patt)
-        return sync
-
     def prepare_SPM_ensemble(self):
         self._pre_SPM_seq = self._seq
-        self._sync_seq = self._make_sync()
-        self._sync_final_state = ps.OutputState([self._laser_channel,self._sync_in], self._laser_power_voltage, 0)
     
-    def upload_SPM_ensemble(self, sync=False):
-        self._seq = self._sync_seq if sync else self._pre_SPM_seq
+    def upload_SPM_ensemble(self):
+        self._seq = self._pre_SPM_seq

@@ -244,6 +244,7 @@ class AWG663(Base, PulserInterface):
         @return int: error code (0:OK, -1:error)
         """
         ERR = self.instance.stop()
+        self.instance.init_all_channels()
         if ERR == 0:
             return 1
         else:
