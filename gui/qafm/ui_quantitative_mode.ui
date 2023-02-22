@@ -17,7 +17,7 @@
    <item row="0" column="0">
     <widget class="QTabWidget" name="tabWidget">
      <property name="currentIndex">
-      <number>0</number>
+      <number>1</number>
      </property>
      <widget class="QWidget" name="Tab1">
       <property name="whatsThis">
@@ -361,7 +361,7 @@
             <item>
              <widget class="QLabel" name="label_9">
               <property name="text">
-               <string>Hyperfine structure</string>
+               <string>Mode</string>
               </property>
              </widget>
             </item>
@@ -370,6 +370,11 @@
               <item>
                <property name="text">
                 <string>None</string>
+               </property>
+              </item>
+              <item>
+               <property name="text">
+                <string>AWG</string>
                </property>
               </item>
              </widget>
@@ -381,20 +386,14 @@
             <item>
              <widget class="QLabel" name="label_24">
               <property name="text">
-               <string>P(Δ)</string>
+               <string>Repetitions</string>
               </property>
              </widget>
             </item>
             <item>
-             <widget class="ScienDSpinBox" name="p_delta_doubleSpinBox">
+             <widget class="QSpinBox" name="p_delta_doubleSpinBox">
               <property name="minimum">
-               <double>1.000000000000000</double>
-              </property>
-              <property name="maximum">
-               <double>100000000000000000.000000000000000</double>
-              </property>
-              <property name="value">
-               <double>1.000000000000000</double>
+               <number>1</number>
               </property>
              </widget>
             </item>

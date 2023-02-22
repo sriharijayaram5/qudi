@@ -2652,7 +2652,7 @@ class ProteusQGUI(GUIBase):
         esr_mw_power = self._qm.pulsed_mw_power_DoubleSpinBox.value()
 
         mw_tracking_mode = self._qm.mw_tracking_mode_RadioButton.isChecked()
-        hyperfine_struct = self._qm.hyperfine_comboBox.currentText()
+        mode = self._qm.hyperfine_comboBox.currentText()
         p_value_delta = self._qm.p_delta_doubleSpinBox.value()
         delta_0 = self._qm.delta0_doubleSpinBox.value()
         res_freq = self._qm.f0_doubleSpinBox.value()
@@ -2679,7 +2679,7 @@ class ProteusQGUI(GUIBase):
             mw_cw_freq=esr_mw_cw_freq, mw_list_mode=mw_list_mode, num_runs=pulse_repetition, pi_half_duration = pi_half_duration,
             optimize_period=None, meas_params=meas_params,
             mw_tracking_mode=mw_tracking_mode,
-            hyperfine=hyperfine_struct, p_value_delta=p_value_delta, delta_0=delta_0,
+            mode=mode, p_value_delta=p_value_delta, delta_0=delta_0,
             res_freq=res_freq, slope2_podmr=slope2_podmr, use_slope_track=use_slope_track,
             mw_cw_mode = mw_cw_mode)
 

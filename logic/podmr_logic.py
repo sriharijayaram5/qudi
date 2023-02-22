@@ -78,7 +78,7 @@ class ODMRLogic(GenericLogic):
     # Update signals, e.g. for GUI module
     sigParameterUpdated = QtCore.Signal(dict)
     sigOutputStateUpdated = QtCore.Signal(str, bool)
-    sigOdmrPlotsUpdated = QtCore.Signal(np.ndarray, np.ndarray, np.ndarray)
+    sigOdmrPlotsUpdated = QtCore.Signal(np.ndarray, np.ndarray, np.ndarray, np.ndarray)
     sigOdmrLaserDataUpdated = QtCore.Signal(object)
     sigOdmrFitUpdated = QtCore.Signal(np.ndarray, np.ndarray, dict, str)
     sigOdmrElapsedTimeUpdated = QtCore.Signal(float, str)
@@ -243,7 +243,7 @@ class ODMRLogic(GenericLogic):
 
         self.odmr_fit_y = np.zeros(self.odmr_fit_x.size)
 
-        self.sigOdmrPlotsUpdated.emit(self.odmr_plot_x, self.odmr_plot_y, np.array([np.nan]))
+        self.sigOdmrPlotsUpdated.emit(self.odmr_plot_x, self.odmr_plot_y, np.array([np.nan]), np.zeros_like(self.odmr_plot_y[0]))
         self.laser_data = np.zeros((1,int(self.record_length_s/self.bin_width_s)))
         self.sigOdmrLaserDataUpdated.emit(self.laser_data)
         current_fit = self.fc.current_fit
@@ -674,8 +674,9 @@ class ODMRLogic(GenericLogic):
             axis=0,
             dtype=np.float64
         )
+        self.odmr_plot_y_err = err
         self.sigOdmrLaserDataUpdated.emit(self.laser_data)
-        self.sigOdmrPlotsUpdated.emit(self.odmr_plot_x, self.odmr_plot_y, self.odmr_plot_xy)
+        self.sigOdmrPlotsUpdated.emit(self.odmr_plot_x, self.odmr_plot_y, self.odmr_plot_xy, self.odmr_plot_y_err)
       
         return (data, err)
     

@@ -698,7 +698,7 @@ def estimate_lorentziandouble_N15(self, x_axis, data, params):
     points_within_1MHz = len(x_axis) / (x_axis.max() - x_axis.min()) * 1e6
 
     # filter should have a width of 4 MHz
-    x_filter = np.linspace(0, 4 * points_within_1MHz, 4 * points_within_1MHz)
+    x_filter = np.linspace(0, 4 * points_within_1MHz, int(4 * points_within_1MHz))
     lorentz = np.piecewise(x_filter, [(x_filter >= 0) * (x_filter < len(x_filter) / 4),
                                       (x_filter >= len(x_filter) / 4) * (x_filter < len(x_filter) * 3 / 4),
                                       (x_filter >= len(x_filter) * 3 / 4)],
@@ -888,7 +888,7 @@ def estimate_lorentziantriple_N14(self, x_axis, data, params):
     points_within_1MHz = len(x_axis)/(x_axis.max()-x_axis.min()) * 1e6
 
     # filter should have a width of 5MHz
-    x_filter = np.linspace(0, 5*points_within_1MHz, 5*points_within_1MHz)
+    x_filter = np.linspace(0, 5*points_within_1MHz, int(5*points_within_1MHz))
     lorentz = np.piecewise(x_filter, [(x_filter >= 0)                   * (x_filter < len(x_filter)*1/5),
                                       (x_filter >= len(x_filter)*1/5)   * (x_filter < len(x_filter)*2/5),
                                       (x_filter >= len(x_filter)*2/5)   * (x_filter < len(x_filter)*3/5),

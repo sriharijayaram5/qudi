@@ -268,17 +268,6 @@ class ODMRGui(GUIBase):
 
         self._mw.odmr_channel_ComboBox.activated.connect(self.update_channel)
 
-        # Get the image from the logic
-        # self.odmr_matrix_image = pg.ImageItem(
-        #     self._odmr_logic.odmr_plot_xy[:, self.display_channel],
-        #     axisOrder='row-major')
-        # self.odmr_matrix_image.setRect(QtCore.QRectF(
-        #     self._odmr_logic.mw_starts[0],
-        #     0,
-        #     self._odmr_logic.mw_stops[0] - self._odmr_logic.mw_starts[0],
-        #     self._odmr_logic.number_of_lines
-        # ))
-
         self.odmr_image = pg.PlotDataItem(self._odmr_logic.odmr_plot_x,
                                           self._odmr_logic.odmr_plot_y[self.display_channel],
                                           pen=pg.mkPen(palette.c1, style=QtCore.Qt.DotLine),
@@ -286,6 +275,12 @@ class ODMRGui(GUIBase):
                                           symbolPen=palette.c1,
                                           symbolBrush=palette.c1,
                                           symbolSize=7)
+
+        self.signal_image_error_bars = pg.ErrorBarItem(x=self._odmr_logic.odmr_plot_x,
+                                                       y= self._odmr_logic.odmr_plot_y[self.display_channel],
+                                                       top=0.,
+                                                       bottom=0.,
+                                                       pen=palette.c2)
 
         self.odmr_fit_image = pg.PlotDataItem(self._odmr_logic.odmr_fit_x,
                                               self._odmr_logic.odmr_fit_y,
@@ -296,6 +291,8 @@ class ODMRGui(GUIBase):
         self._mw.odmr_PlotWidget.setLabel(axis='left', text='Counts', units='Counts/s')
         self._mw.odmr_PlotWidget.setLabel(axis='bottom', text='Frequency', units='Hz')
         self._mw.odmr_PlotWidget.showGrid(x=True, y=True, alpha=0.8)
+        
+        self._mw.odmr_PlotWidget.addItem(self.signal_image_error_bars)
 
         self.sweep_start_line = pg.InfiniteLine(pos=0,
                                               pen={'color': palette.c3, 'width': 1},
@@ -990,7 +987,7 @@ class ODMRGui(GUIBase):
             self.log.warning('Measurement data shape incorrect for derivative. Repeat measurement.')
         return
 
-    def update_plots(self, odmr_data_x, odmr_data_y, odmr_matrix):
+    def update_plots(self, odmr_data_x, odmr_data_y, odmr_matrix, odmr_data_y_err):
         """ Refresh the plot widgets with new data. """
         # Update mean signal plot
         x_data = odmr_data_x
@@ -1008,28 +1005,19 @@ class ODMRGui(GUIBase):
             self._mw.odmr_PlotWidget.setLabel(axis='left', text='Counts', units='Counts/s')
             self._mw.odmr_PlotWidget.setLabel(axis='bottom', text='Frequency', units='Hz')
             self.odmr_image.setData(odmr_data_x, odmr_data_y[self.display_channel])
-        # Update raw data matrix plot
-        # cb_range = self.get_matrix_cb_range()
-        # self.update_colorbar(cb_range)
-        # matrix_range = self._mw.odmr_control_DockWidget.matrix_range_SpinBox.value()
-        # start = self._odmr_logic.mw_starts[matrix_range]
-        # step = self._odmr_logic.mw_steps[matrix_range]
-        # stop = self._odmr_logic.mw_stops[matrix_range]
-        # selected_odmr_data_x = np.arange(start, stop, step)
-
-        # self.odmr_matrix_image.setRect(
-        #     QtCore.QRectF(
-        #         selected_odmr_data_x[0],
-        #         0,
-        #         np.abs(selected_odmr_data_x[-1] - selected_odmr_data_x[0]),
-        #         odmr_matrix.shape[0])
-        # )
-
-        # odmr_matrix_range = self._odmr_logic.select_odmr_matrix_data(odmr_matrix, self.display_channel, matrix_range)
-        # self.odmr_matrix_image.setImage(
-        #     image=odmr_matrix_range,
-        #     axisOrder='row-major',
-        #     levels=(cb_range[0], cb_range[1]))
+            
+            tmp_array = x_data[1:] - x_data[:-1]
+            if len(tmp_array) > 0:
+                beamwidth = tmp_array.min() if tmp_array.min() > 0 else tmp_array.max()
+            else:
+                beamwidth = 0
+            del tmp_array
+            beamwidth /= 3
+            self.signal_image_error_bars.setData(x=x_data,
+                                                y=odmr_data_y[self.display_channel],
+                                                top=odmr_data_y_err,
+                                                bottom=odmr_data_y_err,
+                                                beam=beamwidth)
 
     def update_channel(self, index):
         self.display_channel = int(

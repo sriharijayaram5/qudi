@@ -518,7 +518,7 @@ class SPM_ASC500(Base, ScannerInterface):
         
         self._dev.scanner.setNumberOfColumns(1)
         self._dev.scanner.setNumberOfLines(1)
-        self._dev.scanner.setPixelSize(1e-9)
+        self._dev.scanner.setPixelSize(0)
         self._dev.base.setParameter(self._dev.base.getConst('ID_SCAN_ROTATION'), 0, 0)
         
         self.end_coords = [line_corr0_stop,line_corr1_stop]
@@ -790,6 +790,7 @@ class SPM_ASC500(Base, ScannerInterface):
         self._spm_curr_state =  ScannerState.IDLE
         if retract:
             self.retract_probe()
+            self.set_sample_scanner_speed(1000)
         return 1
     
     def stop_measurement(self):
