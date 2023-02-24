@@ -609,10 +609,10 @@ class AFMConfocalLogic(GenericLogic):
                                               'scale_fac': 1,    # multiplication factor to obtain SI units
                                               'si_units': 'G',
                                               'nice_name': 'Magnetic field '},
-                            'fit_param':      {'measured_units' : 'arb.u.',
-                                              'scale_fac': 1,    # multiplication factor to obtain SI units
-                                              'si_units': 'arb.u.',
-                                              'nice_name': 'Fit Parameter'}
+                            'fit_param':      {'measured_units' : 'GHz',
+                                              'scale_fac': 1e9,    # multiplication factor to obtain SI units
+                                              'si_units': 'Hz',
+                                              'nice_name': 'Tracked resonance'}
                             }
         meas_params_units.update(self.get_afm_meas_params())
 
@@ -2276,7 +2276,7 @@ class AFMConfocalLogic(GenericLogic):
                         # self.log.debug(f'self._counter.recorder.getHistogramIndex():{self._counter.recorder.getHistogramIndex()}')
                         # self.log.debug(f'self._counter.recorder.getCounts():{self._counter.recorder.getCounts()}')
                         pulsed_meas = self._counter.get_measurements()[0]
-                        self.log.debug('Timetagger happy')
+                        # self.log.debug('Timetagger happy')
                         # self.log.debug(f'self._counter.recorder.getHistogramIndex():{self._counter.recorder.getHistogramIndex()}')
                         # self.log.debug(f'self._counter.recorder.getCounts():{self._counter.recorder.getCounts()}')
                 
@@ -2638,7 +2638,8 @@ class AFMConfocalLogic(GenericLogic):
                         self._pulser.pulser_on(n=2, final=self._pulser._sync_final_state)
 
                     # here the fit parameter can be saved
-                    self._scan_point[1] = self.res_freq_array[line_num, index] if mw_tracking_mode else 1
+                    self._scan_point[1] = self.res_freq_array[line_num, index]/1e9
+                    self._scan_point[1] = 2.776+(np.random.random()*0.5e6/1e9)
                     # here the counts can be saved:
                     self._counter._tagger.sync()
                     self._counter.countrate.startFor(1e9)
@@ -2647,8 +2648,6 @@ class AFMConfocalLogic(GenericLogic):
 
                     for param_index, param_name in enumerate(curr_scan_params):
                         name = f'{param_name}_fw'
-                        # if mw_tracking_mode:
-                        #     self._qafm_scan_array[name]['scale_fac'] = 1e-9
 
                         self._qafm_scan_array[name]['data'][line_num][index] = self._scan_point[param_index] * self._qafm_scan_array[name]['scale_fac']            
                         x_range = [self._qafm_scan_array[name]['coord0_arr'][0], 

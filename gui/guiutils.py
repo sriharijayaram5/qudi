@@ -84,8 +84,9 @@ class ColorBar(pg.GraphicsObject):
         # check whether a viewbox is already created for this object. If yes,
         # then it should be adjusted according to the full screen.
         if vb is not None:
-            vb.updateAutoRange()
-            vb.enableAutoRange()
+            # vb.updateAutoRange()
+            vb.setRange(pg.QtCore.QRectF(0, cb_min, width, cb_max-cb_min))
+            # vb.enableAutoRange()
 
     def paint(self, p, *args):
         """ Overwrite the paint method from GraphicsObject.

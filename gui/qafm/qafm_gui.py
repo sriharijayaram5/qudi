@@ -223,6 +223,14 @@ class ProteusQGUI(GUIBase):
     _qm_esr_runs = StatusVar('qm_esr_runs', default=30)
     _qm_optimizer_period = StatusVar('qm_optimizer_period', default=100)
 
+    esr_mw_power = StatusVar('esr_mw_power', default=-20)
+    mode = StatusVar('mode', default='AWG')
+    p_value_delta = StatusVar('p_value_delta', default=1)
+    delta_0 = StatusVar('delta_0', default=7e6)
+    res_freq = StatusVar('res_freq', default=2.87e9)
+    slope2_podmr = StatusVar('slope2_podmr', default=4e-9)
+    pulse_repetition = StatusVar('pulse_repetition', default=100000)
+    pi_half_duration = StatusVar('pi_half_duration', default=200e-9)
 
     def __init__(self, config, **kwargs):
         super().__init__(config=config, **kwargs)
@@ -991,6 +999,15 @@ class ProteusQGUI(GUIBase):
         self._qm.esr_mw_power_DoubleSpinBox.setValue(self._qm_esr_mw_power)
         self._qm.esr_runs_SpinBox.setValue(self._qm_esr_runs)
 
+        self._qm.pulsed_mw_power_DoubleSpinBox.setValue(self.esr_mw_power)
+        self._qm.hyperfine_comboBox.setCurrentText(self.mode)
+        self._qm.p_delta_doubleSpinBox.setValue(self.p_value_delta)
+        self._qm.delta0_doubleSpinBox.setValue(self.delta_0)
+        self._qm.f0_doubleSpinBox.setValue(self.res_freq)
+        self._qm.slope2_doubleSpinBox.setValue(self.slope2_podmr)
+        self._qm.pulse_repetition_spinBox.setValue(self.pulse_repetition)
+        self._qm.pi_half_doubleSpinBox.setValue(self.pi_half_duration)
+
     def store_status_var(self):
         """ Store all those variables to file. """
 
@@ -1039,6 +1056,15 @@ class ProteusQGUI(GUIBase):
         self._qm_esr_count_freq = self._qm.esr_count_freq_DoubleSpinBox.value()
         self._qm_esr_mw_power = self._qm.esr_mw_power_DoubleSpinBox.value()
         self._qm_esr_runs = self._qm.esr_runs_SpinBox.value()
+
+        self.esr_mw_power = self._qm.pulsed_mw_power_DoubleSpinBox.value()
+        self.mode = self._qm.hyperfine_comboBox.currentText()
+        self.p_value_delta = self._qm.p_delta_doubleSpinBox.value()
+        self.delta_0 = self._qm.delta0_doubleSpinBox.value()
+        self.res_freq = self._qm.f0_doubleSpinBox.value()
+        self.slope2_podmr = self._qm.slope2_doubleSpinBox.value()
+        self.pulse_repetition = self._qm.pulse_repetition_spinBox.value()
+        self.pi_half_duration = self._qm.pi_half_doubleSpinBox.value()
 
     def get_all_data_matrices(self):
         """ more of a helper method to get all the data matrices. """
