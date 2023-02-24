@@ -105,11 +105,13 @@ class ODMRGui(GUIBase):
         """
 
         self._odmr_logic = self.odmrlogic1()
+        self._fitlogic = self._odmr_logic.fitlogic()
 
         # Use the inherited class 'Ui_ODMRGuiUI' to create now the GUI element:
         self._mw = ODMRMainWindow()
         self.restoreWindowPos(self._mw)
         pass #self._sd = ODMRSettingDialog()
+        self.vis_arr = np.zeros(100)
 
         # Create a QSettings object for the mainwindow and store the actual GUI layout
         self.mwsettings = QtCore.QSettings("QUDI", "ODMR")
@@ -185,56 +187,6 @@ class ODMRGui(GUIBase):
             gridLayout.addWidget(stop_label, row, 5, 1, 1)
             gridLayout.addWidget(stop_freq_DoubleSpinBox, row, 6, 1, 1)
 
-            # on the first row add buttons to add and remove measurement ranges
-            # if row == 0:
-                # # stop
-                # stop_label = QtWidgets.QLabel(groupBox)
-                # stop_label.setText('Stop:')
-                # setattr(self._mw.odmr_control_DockWidget, 'stop_label_{}'.format(row), stop_label)
-                # stop_freq_DoubleSpinBox = ScienDSpinBox(groupBox)
-                # stop_freq_DoubleSpinBox.setMaximum(constraints.max_frequency)
-                # stop_freq_DoubleSpinBox.setMinimum(constraints.min_frequency)
-                # stop_freq_DoubleSpinBox.setMinimumSize(QtCore.QSize(80, 0))
-                # stop_freq_DoubleSpinBox.setValue(self._odmr_logic.mw_stops[row])
-                # stop_freq_DoubleSpinBox.setMinimumWidth(75)
-                # stop_freq_DoubleSpinBox.setMaximumWidth(100)
-                # setattr(self._mw.odmr_control_DockWidget, 'stop_freq_DoubleSpinBox_{}'.format(row),
-                #         stop_freq_DoubleSpinBox)
-                # add range
-                # add_range_button = QtWidgets.QPushButton(groupBox)
-                # add_range_button.setText('Add Range')
-                # add_range_button.setMinimumWidth(75)
-                # add_range_button.setMaximumWidth(100)
-                # if self._odmr_logic.mw_scanmode.name == 'SWEEP':
-                #     add_range_button.setDisabled(True)
-                # add_range_button.clicked.connect(self.add_ranges_gui_elements_clicked)
-                # gridLayout.addWidget(add_range_button, row, 7, 1, 1)
-                # setattr(self._mw.odmr_control_DockWidget, 'add_range_button',
-                #         add_range_button)
-
-                # remove_range_button = QtWidgets.QPushButton(groupBox)
-                # remove_range_button.setText('Remove Range')
-                # remove_range_button.setMinimumWidth(75)
-                # remove_range_button.setMaximumWidth(100)
-                # remove_range_button.clicked.connect(self.remove_ranges_gui_elements_clicked)
-                # gridLayout.addWidget(remove_range_button, row, 8, 1, 1)
-                # setattr(self._mw.odmr_control_DockWidget, 'remove_range_button',
-                #         remove_range_button)
-
-                # matrix_range_label = QtWidgets.QLabel(groupBox)
-                # matrix_range_label.setText('Matrix Range:')
-                # matrix_range_label.setMinimumWidth(75)
-                # matrix_range_label.setMaximumWidth(100)
-                # gridLayout.addWidget(matrix_range_label, row + 1, 7, 1, 1)
-
-                # matrix_range_SpinBox = QtWidgets.QSpinBox(groupBox)
-                # matrix_range_SpinBox.setValue(0)
-                # matrix_range_SpinBox.setMinimumWidth(75)
-                # matrix_range_SpinBox.setMaximumWidth(100)
-                # matrix_range_SpinBox.setMaximum(self._odmr_logic.ranges - 1)
-                # gridLayout.addWidget(matrix_range_SpinBox, row + 1, 8, 1, 1)
-                # setattr(self._mw.odmr_control_DockWidget, 'matrix_range_SpinBox',
-                #         matrix_range_SpinBox)
 
         self._mw.fit_range_SpinBox.setMaximum(self._odmr_logic.ranges - 1)
         setattr(self._mw.odmr_control_DockWidget, 'ranges_groupBox', groupBox)
@@ -285,6 +237,10 @@ class ODMRGui(GUIBase):
         self.odmr_fit_image = pg.PlotDataItem(self._odmr_logic.odmr_fit_x,
                                               self._odmr_logic.odmr_fit_y,
                                               pen=pg.mkPen(palette.c2))
+        
+        self.odmr_slope_line = pg.PlotDataItem(self._odmr_logic.odmr_fit_x,
+                                              self._odmr_logic.odmr_fit_y,
+                                              pen={'color': palette.c4, 'width': 2, 'dash' : [2.0,2.0]})
 
         # Add the display item to the xy and xz ViewWidget, which was defined in the UI file.
         self._mw.odmr_PlotWidget.addItem(self.odmr_image)
@@ -300,11 +256,19 @@ class ODMRGui(GUIBase):
         self.sweep_end_line = pg.InfiniteLine(pos=0,
                                             pen={'color': palette.c3, 'width': 1},
                                             movable=True)
+        
+        self.slope_start_line = pg.InfiniteLine(pos=0,
+                                              pen={'color': palette.c4, 'width': 1},
+                                              movable=True)
+        
         self._mw.odmr_PlotWidget.addItem(self.sweep_start_line)
         self._mw.odmr_PlotWidget.addItem(self.sweep_end_line)
 
         self.sweep_start_line.sigPositionChangeFinished.connect(self.sweep_settings_changed)
         self.sweep_end_line.sigPositionChangeFinished.connect(self.sweep_settings_changed)
+
+        self.slope_start_line.sigPositionChangeFinished.connect(self.slope_fit_changed)
+
 
         # self._mw.odmr_matrix_PlotWidget.addItem(self.odmr_matrix_image)
         # self._mw.odmr_matrix_PlotWidget.setLabel(axis='left', text='Matrix Lines', units='#')
@@ -589,6 +553,22 @@ class ODMRGui(GUIBase):
         self.change_sweep_params()
         
         return
+
+    def slope_fit_changed(self):
+        x = self._odmr_logic.odmr_plot_x
+        def find_nearest(array, value):
+            array = np.asarray(array)
+            idx = (np.abs(array - value)).argmin()
+            return idx
+        idx = find_nearest(x, self.slope_start_line.value())
+        m = np.gradient(self.vis_arr, x)[int(idx)]
+        self._odmr_logic.vis_slope = m
+        self._mw.slope_label.setText('{:.2e}'.format(m))
+        y = m*x + (-m*(x[int(idx)]))
+        self.odmr_slope_line.setData(x,y)
+        vb = self.odmr_image.getViewBox()
+        vb.setRange(xRange=(x.min(), x.max()), yRange=(self.vis_arr.min(), self.vis_arr.max()))
+        
 
     @QtCore.Slot()
     def analysis_settings_changed(self):
@@ -982,7 +962,7 @@ class ODMRGui(GUIBase):
 
     def update_for_derivative_plot(self):
         try:
-            self.update_plots(self._odmr_logic.odmr_plot_x, self._odmr_logic.odmr_plot_y, self._odmr_logic.odmr_plot_xy)
+            self.update_plots(self._odmr_logic.odmr_plot_x, self._odmr_logic.odmr_plot_y, self._odmr_logic.odmr_plot_xy, self._odmr_logic.odmr_plot_y_err)
         except:
             self.log.warning('Measurement data shape incorrect for derivative. Repeat measurement.')
         return
@@ -996,11 +976,26 @@ class ODMRGui(GUIBase):
         self.sweep_start_line.setPos(mn)
         self.sweep_end_line.setPos(mx)
         if self._mw.odmr_derivative_radioButton.isChecked():
-            self._mw.odmr_PlotWidget.setLabel(axis='left', text='ODMR Slope', units='Counts/s²')
+            def vis(lm, param, res, delta):
+                c2, c1 = lm.eval(param, x = np.array([res-delta, res+delta]))
+                return (c1-c2)/(c1+c2)
+            
+            fit = self._fitlogic.make_lorentzian_fit(x_data,odmr_data_y[self.display_channel],estimator=self._fitlogic.estimate_lorentzian_dip)
+            self.vis_arr = np.array([vis(fit.model, fit.params, x, fit.params['fwhm'].value/2) for x in x_data])
+
+            self._mw.odmr_PlotWidget.setLabel(axis='left', text='ODMR visibility', units='Counts/s²')
             self._mw.odmr_PlotWidget.setLabel(axis='bottom', text='Frequency', units='Hz')
-            dx = odmr_data_x[1] - odmr_data_x[0]
-            dy = np.gradient(odmr_data_y[self.display_channel], dx)
-            self.odmr_image.setData(odmr_data_x, dy)
+            # dx = odmr_data_x[1] - odmr_data_x[0]
+            # dy = np.gradient(odmr_data_y[self.display_channel], dx)
+            self.odmr_image.setData(odmr_data_x, self.vis_arr)
+            self.slope_start_line.setPos(odmr_data_x[int(len(odmr_data_x)/2)])
+            
+            self._mw.odmr_PlotWidget.removeItem(self.signal_image_error_bars)
+            self._mw.odmr_PlotWidget.removeItem(self.odmr_fit_image)
+            self._mw.odmr_PlotWidget.addItem(self.odmr_slope_line)
+            self._mw.odmr_PlotWidget.addItem(self.slope_start_line)
+            self.slope_fit_changed()
+            
         else:
             self._mw.odmr_PlotWidget.setLabel(axis='left', text='Counts', units='Counts/s')
             self._mw.odmr_PlotWidget.setLabel(axis='bottom', text='Frequency', units='Hz')
@@ -1013,6 +1008,10 @@ class ODMRGui(GUIBase):
                 beamwidth = 0
             del tmp_array
             beamwidth /= 3
+            self._mw.odmr_PlotWidget.addItem(self.signal_image_error_bars)
+            self._mw.odmr_PlotWidget.removeItem(self.odmr_slope_line)
+            self._mw.odmr_PlotWidget.removeItem(self.slope_start_line)
+            self._mw.slope_label.setText('{:.2e}'.format(0))
             self.signal_image_error_bars.setData(x=x_data,
                                                 y=odmr_data_y[self.display_channel],
                                                 top=odmr_data_y_err,
@@ -1044,39 +1043,6 @@ class ODMRGui(GUIBase):
         # self.odmr_matrix_image.setImage(image=matrix_image, levels=(cb_range[0], cb_range[1]))
         return
 
-    # def update_colorbar(self, cb_range):
-    #     """
-    #     Update the colorbar to a new range.
-
-    #     @param list cb_range: List or tuple containing the min and max values for the cb range
-    #     """
-    #     self.odmr_cb.refresh_colorbar(cb_range[0], cb_range[1])
-    #     return
-
-    # def get_matrix_cb_range(self):
-    #     """
-    #     Determines the cb_min and cb_max values for the matrix plot
-    #     """
-    #     matrix_image = self.odmr_matrix_image.image
-
-    #     # If "Manual" is checked or the image is empty (all zeros), then take manual cb range.
-    #     # Otherwise, calculate cb range from percentiles.
-    #     if self._mw.odmr_cb_manual_RadioButton.isChecked() or np.count_nonzero(matrix_image) < 1:
-    #         cb_min = self._mw.odmr_cb_min_DoubleSpinBox.value()
-    #         cb_max = self._mw.odmr_cb_max_DoubleSpinBox.value()
-    #     else:
-    #         # Exclude any zeros (which are typically due to unfinished scan)
-    #         matrix_image_nonzero = matrix_image[np.nonzero(matrix_image)]
-
-    #         # Read centile range
-    #         low_centile = self._mw.odmr_cb_low_percentile_DoubleSpinBox.value()
-    #         high_centile = self._mw.odmr_cb_high_percentile_DoubleSpinBox.value()
-
-    #         cb_min = np.percentile(matrix_image_nonzero, low_centile)
-    #         cb_max = np.percentile(matrix_image_nonzero, high_centile)
-
-    #     cb_range = [cb_min, cb_max]
-    #     return cb_range
 
     def restore_defaultview(self):
         self._mw.restoreGeometry(self.mwsettings.value("geometry", ""))

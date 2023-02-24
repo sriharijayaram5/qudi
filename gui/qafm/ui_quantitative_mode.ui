@@ -504,7 +504,7 @@
                 <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Retrieve PODMR curve from the PODMR qudi module and use as a look up table. Works if PODMR was measured since module load.&lt;/p&gt;&lt;p&gt;&lt;br/&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
                </property>
                <property name="text">
-                <string>Retrieve curve</string>
+                <string>Retrieve from PODMR</string>
                </property>
               </widget>
              </item>

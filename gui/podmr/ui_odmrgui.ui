@@ -118,7 +118,7 @@
    </property>
    <property name="minimumSize">
     <size>
-     <width>433</width>
+     <width>527</width>
      <height>159</height>
     </size>
    </property>
@@ -316,7 +316,29 @@
      <item row="0" column="3">
       <widget class="QRadioButton" name="odmr_derivative_radioButton">
        <property name="text">
-        <string>ODMR Derivative</string>
+        <string>ODMR visibility</string>
+       </property>
+      </widget>
+     </item>
+     <item row="0" column="4">
+      <widget class="QLabel" name="label_3">
+       <property name="text">
+        <string>Slope:</string>
+       </property>
+      </widget>
+     </item>
+     <item row="0" column="5">
+      <widget class="QLabel" name="slope_label">
+       <property name="font">
+        <font>
+         <family>MS Shell Dlg 2</family>
+         <pointsize>12</pointsize>
+         <weight>50</weight>
+         <bold>false</bold>
+        </font>
+       </property>
+       <property name="text">
+        <string>0</string>
        </property>
       </widget>
      </item>
@@ -580,7 +602,4 @@
    </hints>
   </connection>
  </connections>
- <buttongroups>
-  <buttongroup name="buttonGroup"/>
- </buttongroups>
 </ui>

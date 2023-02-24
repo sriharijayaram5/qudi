@@ -225,7 +225,7 @@ class ProteusQGUI(GUIBase):
 
     esr_mw_power = StatusVar('esr_mw_power', default=-20)
     mode = StatusVar('mode', default='AWG')
-    p_value_delta = StatusVar('p_value_delta', default=1)
+    repetitions = StatusVar('repetitions', default=1)
     delta_0 = StatusVar('delta_0', default=7e6)
     res_freq = StatusVar('res_freq', default=2.87e9)
     slope2_podmr = StatusVar('slope2_podmr', default=4e-9)
@@ -1001,7 +1001,7 @@ class ProteusQGUI(GUIBase):
 
         self._qm.pulsed_mw_power_DoubleSpinBox.setValue(self.esr_mw_power)
         self._qm.hyperfine_comboBox.setCurrentText(self.mode)
-        self._qm.p_delta_doubleSpinBox.setValue(self.p_value_delta)
+        self._qm.p_delta_doubleSpinBox.setValue(self.repetitions)
         self._qm.delta0_doubleSpinBox.setValue(self.delta_0)
         self._qm.f0_doubleSpinBox.setValue(self.res_freq)
         self._qm.slope2_doubleSpinBox.setValue(self.slope2_podmr)
@@ -1059,7 +1059,7 @@ class ProteusQGUI(GUIBase):
 
         self.esr_mw_power = self._qm.pulsed_mw_power_DoubleSpinBox.value()
         self.mode = self._qm.hyperfine_comboBox.currentText()
-        self.p_value_delta = self._qm.p_delta_doubleSpinBox.value()
+        self.repetitions = self._qm.p_delta_doubleSpinBox.value()
         self.delta_0 = self._qm.delta0_doubleSpinBox.value()
         self.res_freq = self._qm.f0_doubleSpinBox.value()
         self.slope2_podmr = self._qm.slope2_doubleSpinBox.value()
@@ -2679,7 +2679,7 @@ class ProteusQGUI(GUIBase):
 
         mw_tracking_mode = self._qm.mw_tracking_mode_RadioButton.isChecked()
         mode = self._qm.hyperfine_comboBox.currentText()
-        p_value_delta = self._qm.p_delta_doubleSpinBox.value()
+        repetitions = self._qm.p_delta_doubleSpinBox.value()
         delta_0 = self._qm.delta0_doubleSpinBox.value()
         res_freq = self._qm.f0_doubleSpinBox.value()
         slope2_podmr = self._qm.slope2_doubleSpinBox.value()
@@ -2705,7 +2705,7 @@ class ProteusQGUI(GUIBase):
             mw_cw_freq=esr_mw_cw_freq, mw_list_mode=mw_list_mode, num_runs=pulse_repetition, pi_half_duration = pi_half_duration,
             optimize_period=None, meas_params=meas_params,
             mw_tracking_mode=mw_tracking_mode,
-            mode=mode, p_value_delta=p_value_delta, delta_0=delta_0,
+            mode=mode, repetitions=repetitions, delta_0=delta_0,
             res_freq=res_freq, slope2_podmr=slope2_podmr, use_slope_track=use_slope_track,
             mw_cw_mode = mw_cw_mode)
 
