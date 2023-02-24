@@ -1968,7 +1968,7 @@ class AFMConfocalLogic(GenericLogic):
                                             optimize_period=100,
                                             meas_params=['Height(Dac)'],
                                             mw_tracking_mode=False,
-                                            mode='None', p_value_delta=1, delta_0=1e6,
+                                            mode='None', repetitions=1, delta_0=1e6,
                                             res_freq=2.87e9, slope2_podmr=1, use_slope_track=True,
                                             mw_cw_mode = False):
 
@@ -2040,6 +2040,9 @@ class AFMConfocalLogic(GenericLogic):
                 record_length_s = self._podmr.record_length_s
                 analysis_settings = self._podmr.pulsed_analysis_settings
                 var_list = np.linspace(var_start, var_stop, freq_points, endpoint=True)
+
+                if not use_slope_track:
+                    slope2_podmr = self._podmr.vis_slope
             
             # make the mw source for pulsed measurement ready
             if self._mw_mode == 'LIST' and (mw_list_mode or mw_tracking_mode):
@@ -2384,7 +2387,7 @@ class AFMConfocalLogic(GenericLogic):
                                             optimize_period=100,
                                             meas_params=['Height(Dac)'],
                                             mw_tracking_mode=False,
-                                            mode='None', p_value_delta=1, delta_0=1e6,
+                                            mode='None', repetitions=1, delta_0=1e6,
                                             res_freq=2.87e9, slope2_podmr=1, use_slope_track=True,
                                             mw_cw_mode = False):
 
@@ -2426,7 +2429,7 @@ class AFMConfocalLogic(GenericLogic):
             var_start = round(res_freq - delta_0,0)
             var_stop = round(res_freq + delta_0,0)
             var_incr = round((var_stop-var_start)/freq_points,0)
-            self.mw_tracking_mode_runs = p_value_delta
+            self.mw_tracking_mode_runs = repetitions
             mw_tracking_mode_runs = self.mw_tracking_mode_runs
             alternating = False
             laser_pulses = freq_points # is normally not used for mw_list_mode or mw_tracking_mode
@@ -2434,6 +2437,9 @@ class AFMConfocalLogic(GenericLogic):
             record_length_s = self._podmr.record_length_s
             analysis_settings = self._podmr.pulsed_analysis_settings
             var_list = np.linspace(var_start, var_stop, freq_points, endpoint=True)
+
+            if not use_slope_track:
+                slope2_podmr = self._podmr.vis_slope
 
             # make the counter for pulsed measurement ready
             # 2 histograms are still working for the AWG mode since we measure the two frequencies alternativels. Max counts must be dealt with
@@ -2771,10 +2777,9 @@ class AFMConfocalLogic(GenericLogic):
         return (data, err) if not alternating else ((data0, err0), (data1, err1))
     
     def tracking_analysis(self, pulsed_ret0, line_num, index, slope2_podmr, prev, use_slope_track):
-        if use_slope_track:
-            visibility = (pulsed_ret0[1] - pulsed_ret0[0])/(pulsed_ret0[1] + pulsed_ret0[0])
-            new_res_freq =  prev - visibility/slope2_podmr
-            self.res_freq_array[line_num,index] = new_res_freq
+        visibility = (pulsed_ret0[1] - pulsed_ret0[0])/(pulsed_ret0[1] + pulsed_ret0[0])
+        new_res_freq =  prev - visibility/slope2_podmr
+        self.res_freq_array[line_num,index] = new_res_freq
 
         return new_res_freq, visibility
     
@@ -2826,7 +2831,7 @@ class AFMConfocalLogic(GenericLogic):
                                             optimize_period=100,
                                             meas_params=['Height(Dac)'],
                                             mw_tracking_mode=False,
-                                            mode='None', p_value_delta=1, delta_0=1e6,
+                                            mode='None', repetitions=1, delta_0=1e6,
                                             res_freq=2.87e9, slope2_podmr=1, use_slope_track=False,
                                             mw_cw_mode = False):
 
@@ -2847,7 +2852,7 @@ class AFMConfocalLogic(GenericLogic):
                                                     optimize_period,
                                                     meas_params,
                                                     mw_tracking_mode,
-                                                    mode, p_value_delta, delta_0,
+                                                    mode, repetitions, delta_0,
                                                     res_freq, slope2_podmr, use_slope_track,
                                                     mw_cw_mode),
                                             name='quanti_thread')
@@ -5160,7 +5165,7 @@ class AFMConfocalLogic(GenericLogic):
         """
 
         if gwyobjtype in self._gwyobjecttypes['imgobjects']:
-            self._save_obj_to_gwyddion(dataobj=dataobj,filename=filename,datakeys=datakeys)
+            self._save_obj_to_gwyddion(dataobj=dataobj,filename=filename,datakeys=datakeys,gwytypes=['image'])
             self.sigSaveDataGwyddionFinished.emit(0)
         elif gwyobjtype in self._gwyobjecttypes['graphobjects']:
             self._save_esr_to_gwyddion(dataobj=dataobj,filename=filename,datakeys=datakeys)
