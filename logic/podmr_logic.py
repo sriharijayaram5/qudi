@@ -37,6 +37,7 @@ from core.statusvariable import StatusVar
 from interface.simple_pulse_objects import PulseBlock, PulseSequence
 from logic.pulsed.sampling_functions import SamplingFunctions as SF
 import logic.pulsed.pulse_objects as po
+import os
 
 class ODMRLogic(GenericLogic):
     """This is the Logic class for ODMR."""
@@ -102,6 +103,7 @@ class ODMRLogic(GenericLogic):
         self._save_logic = self.savelogic()
         self._taskrunner = self.taskrunner()
         self._pulsed_master_AWG = self.pulsed_master_AWG()
+        self.default_mode = self.mw_scanmode
 
         # Get hardware constraints
         limits = self.get_hw_constraints()
@@ -150,11 +152,13 @@ class ODMRLogic(GenericLogic):
 
         # Connect signals
         self.sigNextLine.connect(self._scan_odmr_line, QtCore.Qt.QueuedConnection)
+        self.sigNextLineTimer = QtCore.QTimer()
+        self.sigNextLineTimer.timeout.connect(self._scan_odmr_line)
         self._initialize_odmr_plots()
         self.odmr_raw_data = np.zeros(
-            [self.number_of_lines,
-             len(self._odmr_counter.get_odmr_channels()),
-             self.odmr_plot_x.size]
+            [self.odmr_plot_x.size,
+             int(self.record_length_s/self.bin_width_s),
+             ]
         )
         self.vis_slope = 0
         return
@@ -178,6 +182,7 @@ class ODMRLogic(GenericLogic):
         self._mw_device.off()
         # Disconnect signals
         self.sigNextLine.disconnect()
+        self.sigNextLineTimer.stop()
 
     @fc.constructor
     def sv_set_fits(self, val):
@@ -255,6 +260,12 @@ class ODMRLogic(GenericLogic):
         self.sigOdmrFitUpdated.emit(self.odmr_fit_x, self.odmr_fit_y, {}, current_fit)
         return
 
+    def change_MW_mode(self, toggle):
+        if toggle:
+            self.mw_scanmode = MicrowaveMode.CW
+        else:
+            self.mw_scanmode = self.default_mode
+    
     def set_trigger(self, trigger_pol, frequency):
         """
         Set trigger polarity of external microwave trigger (for list and sweep mode).
@@ -541,7 +552,7 @@ class ODMRLogic(GenericLogic):
             if self._odmr_counter._pulser.pulse_streamer.hasFinished():
                 break
 
-        self.set_up_odmr(self.pi_half_pulse*1e-9)
+        self.set_up_odmr(self.pi_half_pulse)
 
         if self.mw_scanmode == MicrowaveMode.CW:
             self._pulsed_master_AWG.toggle_pulse_generator(True)
@@ -549,12 +560,14 @@ class ODMRLogic(GenericLogic):
 
         # initialize raw_data array
         self.odmr_raw_data = np.zeros(
-            [1,
-                len(self._odmr_counter.get_odmr_channels()),
-                self.odmr_plot_x.size]
-        )
+            [self.odmr_plot_x.size,
+             int(self.record_length_s/self.bin_width_s),
+             ])
 
-        self.sigNextLine.emit()
+        if not self.mw_scanmode == MicrowaveMode.CW:
+            self.sigNextLine.emit()
+        else:
+            self.sigNextLineTimer.start(1000/10)
 
     def stop_odmr_scan(self):
         """ Stop the ODMR scan.
@@ -563,6 +576,7 @@ class ODMRLogic(GenericLogic):
         """
         if self.module_state() == 'locked':
             self.stopRequested = True
+            self.sigNextLineTimer.stop()
             self._odmr_counter._pulser.pulser_off()
             self._pulsed_master_AWG.toggle_pulse_generator(False)
             self.mw_off()
@@ -590,6 +604,7 @@ class ODMRLogic(GenericLogic):
         
         if self.stopRequested:
             self.stopRequested = False
+            self.sigNextLineTimer.stop()
             self.mw_off()
             self._stop_odmr_counter()
             self._odmr_counter._pulser.pulser_off()
@@ -599,7 +614,7 @@ class ODMRLogic(GenericLogic):
             
         if not self.mw_scanmode == MicrowaveMode.CW:
             for i in range(len(self.final_freq_list)):
-                self._odmr_counter._pulser.pulser_on(n=self.lines_to_average, final=self._odmr_counter._pulser._mw_trig_final_state)
+                self._odmr_counter._pulser.pulser_on(n=self.lines_to_average+1, final=self._odmr_counter._pulser._mw_trig_final_state)
                 d =time.time()
                 while True:
                     if self._odmr_counter._sc_device.recorder.getHistogramIndex() > i or (time.time()-d)>2 or self._odmr_counter._sc_device.recorder.getCounts()>0:
@@ -610,20 +625,17 @@ class ODMRLogic(GenericLogic):
                 self.sigOdmrElapsedTimeUpdated.emit(self.elapsed_time, f'{self.elapsed_sweeps} OF {self.odmr_plot_x.size}')
         # Acquire count data
         self.laser_data = self._odmr_counter._sc_device.get_measurements()[0]
+        self.analyse_pulsed_meas(self.pulsed_analysis_settings, self.laser_data)
 
         if self.mw_scanmode == MicrowaveMode.CW:
             # Update elapsed time/sweeps
-            self.elapsed_sweeps += 1
+            self.elapsed_sweeps = self._odmr_counter._sc_device.recorder.getCounts()
             self.elapsed_time = time.time() - self._startTime
-            if self.elapsed_time >= self.run_time:
+            if self.elapsed_sweeps >= self.lines_to_average and self.lines_to_average!=0:
                 self.stopRequested = True
             # Fire update signals
-            self.sigOdmrElapsedTimeUpdated.emit(self.elapsed_time, self.elapsed_sweeps)
-            self.sigOdmrPlotsUpdated.emit(self.odmr_plot_x, self.odmr_plot_y, self.odmr_plot_xy)
-            self.sigNextLine.emit()
+            self.sigOdmrElapsedTimeUpdated.emit(self.elapsed_time, f'{self.elapsed_sweeps}')
         else:
-            self.analyse_pulsed_meas(self.pulsed_analysis_settings, self.laser_data)
-
             self.stop_odmr_scan()
             # Fire update signals
             self.sigOdmrElapsedTimeUpdated.emit(self.elapsed_time, f'{self.elapsed_sweeps} OF {self.odmr_plot_x.size}')
@@ -680,28 +692,28 @@ class ODMRLogic(GenericLogic):
         
         else:
             channels = clear(channels)
-            channels[a_ch(self._pulser._laser_analog_channel)] = self._pulser._laser_power_voltage
-            channels[d_ch(self._pulser._awg_trig)] = 1.0
+            channels[a_ch(self._odmr_counter._pulser._laser_analog_channel)] = self._odmr_counter._pulser._laser_power_voltage
+            channels[d_ch(self._odmr_counter._pulser._awg_trig)] = 1.0
             block_1.append(init_length = 1.4e-6, channels = channels, repetition = 1)
             
             channels = clear(channels)
-            channels[a_ch(self._pulser._laser_analog_channel)] = self._pulser._laser_power_voltage
-            channels[d_ch(self._pulser._mw_switch)] = 1.0
+            channels[a_ch(self._odmr_counter._pulser._laser_analog_channel)] = self._odmr_counter._pulser._laser_power_voltage
+            channels[d_ch(self._odmr_counter._pulser._mw_switch)] = 1.0
             block_1.append(init_length = pi_pulse, channels = channels, repetition = 1)
             
             channels = clear(channels)
-            channels[a_ch(self._pulser._laser_analog_channel)] = self._pulser._laser_power_voltage
+            channels[a_ch(self._odmr_counter._pulser._laser_analog_channel)] = self._odmr_counter._pulser._laser_power_voltage
             block_1.append(init_length = 1e-6, channels = channels, repetition = 1)
             
             channels = clear(channels)
-            channels[d_ch(self._pulser._laser_channel)] = 1.0
-            channels[a_ch(self._pulser._laser_analog_channel)] = self._pulser._laser_power_voltage
-            channels[d_ch(self._pulser._pixel_start)] = 1.0 # pulse to TT channel detect
+            channels[d_ch(self._odmr_counter._pulser._laser_channel)] = 1.0
+            channels[a_ch(self._odmr_counter._pulser._laser_analog_channel)] = self._odmr_counter._pulser._laser_power_voltage
+            channels[d_ch(self._odmr_counter._pulser._pixel_start)] = 1.0 # pulse to TT channel detect
             block_1.append(init_length = 3e-6, channels = channels, repetition = 1)
             
             channels = clear(channels)
-            channels[a_ch(self._pulser._laser_analog_channel)] = self._pulser._laser_power_voltage
-            channels[d_ch(self._pulser._pixel_stop)] = 1.0 # pulse to TT channel next
+            channels[a_ch(self._odmr_counter._pulser._laser_analog_channel)] = self._odmr_counter._pulser._laser_power_voltage
+            channels[d_ch(self._odmr_counter._pulser._pixel_stop)] = 1.0 # pulse to TT channel next
             block_1.append(init_length = 0.1e-6, channels = channels, repetition = 1)
 
         seq.append([(block_1, 1)])
@@ -763,33 +775,46 @@ class ODMRLogic(GenericLogic):
             {'name': 'a_ch1', 'amp': 1.20, 'freq': delta, 'phase': 100.00}
             ]
         IQ_Seq = [IQ_Seq_element(delta) for delta in deltas]
-        dur = (self.pi_half_pulse*1e-9) + 1.4e-6 + 1e-6 # refer to make PODMR_AWG sequence for PS 
+        dur = (self.pi_half_pulse) + 1.4e-6 + 1e-6 # refer to make PODMR_AWG sequence for PS 
 
         ensemble_list = []
         for iseq, seq in enumerate(IQ_Seq):
+            exists = False
             ele = []
             a_ch = {'a_ch0': SF.DC(0), 'a_ch1': SF.DC(0), 'a_ch2': SF.DC(0), 'a_ch3': SF.DC(0)}
             d_ch = {'d_ch0': False, 'd_ch1': False, 'd_ch2': False, 'd_ch4': False, 'd_ch3': False, 'd_ch5': False}
             for ch in seq:
+                freq = ch['freq']
                 a_ch[ch['name']] = SF.Sin(amplitude=ch['amp'], frequency=ch['freq'], phase=ch['phase'])
                 
-            ele.append(po.PulseBlockElement(init_length_s=dur,  pulse_function=a_ch, digital_high=d_ch))
-            pulse_block = po.PulseBlock(name=f'SinAuto', element_list=ele)
             
-            self._pulsed_master_AWG.sequencegeneratorlogic().save_block(pulse_block)
+            ens = f'SinPODMR_{freq}'
+            channel_list = [f'{ens}_a_ch{i}.pkl' for i in [0,1]]
 
-            block_list = []
-            block_list.append((pulse_block.name, 0))
-            auto_pulse_CW = po.PulseBlockEnsemble(f'SinPODMR{iseq}', block_list)
-            ensemble_list.append(f'SinPODMR{iseq}')
+            for wavefile in channel_list:
+                filepath = os.path.join(self._pulsed_master_AWG.pulsedmeasurementlogic().pulsegenerator().waveform_folder, wavefile)
+                exists = os.path.isfile(filepath)
+                if not exists:
+                    break
 
-            ensemble = auto_pulse_CW
-            ensemblename = auto_pulse_CW.name
-            self._pulsed_master_AWG.sequencegeneratorlogic().save_ensemble(ensemble)
-            self._pulsed_master_AWG.sequencegeneratorlogic().sample_pulse_block_ensemble(ensemblename)
-            self._pulsed_master_AWG.sequencegeneratorlogic().load_ensemble(ensemblename)
+            if not exists:
+                ele.append(po.PulseBlockElement(init_length_s=dur,  pulse_function=a_ch, digital_high=d_ch))
+                pulse_block = po.PulseBlock(name=f'SinAuto', element_list=ele)
+                
+                self._pulsed_master_AWG.sequencegeneratorlogic().save_block(pulse_block)
 
-        self._AWG.load_triggered_multi_replay(ensemble_list) # refer to load_AWG_sine_for_IQ for names
+                block_list = []
+                block_list.append((pulse_block.name, 0))
+                auto_pulse_CW = po.PulseBlockEnsemble(f'SinPODMR_{freq}', block_list)
+                
+                ensemble = auto_pulse_CW
+                ensemblename = auto_pulse_CW.name
+                self._pulsed_master_AWG.sequencegeneratorlogic().save_ensemble(ensemble)
+                self._pulsed_master_AWG.sequencegeneratorlogic().sample_pulse_block_ensemble(ensemblename)
+                self._pulsed_master_AWG.sequencegeneratorlogic().load_ensemble(ensemblename)
+            ensemble_list.append(channel_list)
+
+        self._pulsed_master_AWG.pulsedmeasurementlogic().pulsegenerator().load_triggered_multi_replay(ensemble_list) # refer to load_AWG_sine_for_IQ for names
         self._mw_device.set_cw(cw_freq, sweep_mw_power)
 
         return mw_start, mw_stop, mw_step, sweep_mw_power, None
@@ -806,13 +831,9 @@ class ODMRLogic(GenericLogic):
             return (0,0)
 
         # shift data in the array "up" and add new data at the "bottom"
-        self.odmr_raw_data[0] = data
+        self.odmr_raw_data = pulsed_meas
 
-        self.odmr_plot_y = np.mean(
-            self.odmr_raw_data[:1, :, :],
-            axis=0,
-            dtype=np.float64
-        )
+        self.odmr_plot_y = data.reshape(1, len(data))
         # self.odmr_plot_y = np.random.random(len(self.odmr_plot_x)).reshape(1,len(self.odmr_plot_x))
         self.odmr_plot_y_err = err
         self.sigOdmrLaserDataUpdated.emit(self.laser_data)
@@ -926,7 +947,7 @@ class ODMRLogic(GenericLogic):
     def save_odmr_data(self, tag=None, colorscale_range=None, percentile_range=None):
         """ Saves the current ODMR data to a file."""
         timestamp = datetime.datetime.now()
-        filepath = self._save_logic.get_path_for_module(module_name='ODMR')
+        filepath = self._save_logic.get_path_for_module(module_name='PODMR')
 
         if tag is None:
             tag = ''
@@ -939,7 +960,7 @@ class ODMRLogic(GenericLogic):
                 filelabel_raw = 'ODMR_data_ch{0}_raw'.format(nch)
 
             data_raw = OrderedDict()
-            data_raw['count data (counts/s)'] = self.odmr_raw_data[:self.elapsed_sweeps, nch, :]
+            data_raw['count data (count events)'] = self.odmr_raw_data
             parameters = OrderedDict()
             parameters['Microwave CW Power (dBm)'] = self.cw_mw_power
             parameters['Microwave Sweep Power (dBm)'] = self.sweep_mw_power
@@ -948,8 +969,6 @@ class ODMRLogic(GenericLogic):
             parameters['Start Frequencies (Hz)'] = self.mw_starts
             parameters['Stop Frequencies (Hz)'] = self.mw_stops
             parameters['Step sizes (Hz)'] = self.mw_steps
-            parameters['Clock Frequencies (Hz)'] = self.clock_frequency
-            parameters['Channel'] = '{0}: {1}'.format(nch, channel)
             self._save_logic.save_data(data_raw,
                                        filepath=filepath,
                                        parameters=parameters,
@@ -972,7 +991,7 @@ class ODMRLogic(GenericLogic):
 
                 num_points = len(frequency_arr)
                 data_end_ind = data_start_ind + num_points
-                data['count data (counts/s)'] = self.odmr_plot_y[nch][data_start_ind:data_end_ind]
+                data['count data (arb.u.)'] = self.odmr_plot_y[nch][data_start_ind:data_end_ind]
                 data_start_ind += num_points
 
                 parameters = OrderedDict()
@@ -983,9 +1002,8 @@ class ODMRLogic(GenericLogic):
                 parameters['Start Frequency (Hz)'] = frequency_arr[0]
                 parameters['Stop Frequency (Hz)'] = frequency_arr[-1]
                 parameters['Step size (Hz)'] = frequency_arr[1] - frequency_arr[0]
-                parameters['Clock Frequencies (Hz)'] = self.clock_frequency
-                parameters['Channel'] = '{0}: {1}'.format(nch, channel)
                 parameters['frequency range'] = str(ii)
+                parameters.update(self.pulsed_analysis_settings)
 
                 key = 'channel: {0}, range: {1}'.format(nch, ii)
                 if key in self.fits_performed.keys():
@@ -1039,113 +1057,30 @@ class ODMRLogic(GenericLogic):
             fit_count_vals = self.fits_performed[key][2].eval()
         else:
             fit_count_vals = 0.0
-        matrix_data = self.select_odmr_matrix_data(self.odmr_plot_xy, channel_number, freq_range)
-
-        # If no colorbar range was given, take full range of data
-        if cbar_range is None:
-            cbar_range = np.array([np.min(matrix_data), np.max(matrix_data)])
-        else:
-            cbar_range = np.array(cbar_range)
-
-        prefix = ['', 'k', 'M', 'G', 'T']
-        prefix_index = 0
-
-        # Rescale counts data with SI prefix
-        while np.max(count_data) > 1000:
-            count_data = count_data / 1000
-            fit_count_vals = fit_count_vals / 1000
-            prefix_index = prefix_index + 1
-
-        counts_prefix = prefix[prefix_index]
-
-        # Rescale frequency data with SI prefix
-        prefix_index = 0
-
-        while np.max(freq_data) > 1000:
-            freq_data = freq_data / 1000
-            fit_freq_vals = fit_freq_vals / 1000
-            prefix_index = prefix_index + 1
-
-        mw_prefix = prefix[prefix_index]
 
         # Rescale matrix counts data with SI prefix
-        prefix_index = 0
-
-        while np.max(matrix_data) > 1000:
-            matrix_data = matrix_data / 1000
-            cbar_range = cbar_range / 1000
-            prefix_index = prefix_index + 1
-
-        cbar_prefix = prefix[prefix_index]
 
         # Use qudi style
         plt.style.use(self._save_logic.mpl_qd_style)
 
         # Create figure
-        fig, (ax_mean, ax_matrix) = plt.subplots(nrows=2, ncols=1)
+        fig, ax_mean = plt.subplots(nrows=1, ncols=1)
 
-        ax_mean.plot(freq_data, count_data, linestyle=':', linewidth=0.5)
+        prop_cycle = self.savelogic().mpl_qd_style['axes.prop_cycle']
+        colors = {}
+        for i, color_setting in enumerate(prop_cycle):
+            colors[i] = color_setting['color']
+        ax_mean.errorbar(freq_data, count_data, yerr=self.odmr_plot_y_err, fmt='-o',
+                                 linestyle=':', linewidth=0.5, color=colors[0],
+                                 ecolor=colors[1], capsize=3, capthick=0.9,
+                                 elinewidth=1.2, label='data trace 1')
 
         # Do not include fit curve if there is no fit calculated.
         if hasattr(fit_count_vals, '__len__'):
             ax_mean.plot(fit_freq_vals, fit_count_vals, marker='None')
 
-        ax_mean.set_ylabel('Fluorescence (' + counts_prefix + 'c/s)')
+        ax_mean.set_ylabel('Norm. counts')
         ax_mean.set_xlim(np.min(freq_data), np.max(freq_data))
-
-        matrixplot = ax_matrix.imshow(
-            matrix_data,
-            cmap=plt.get_cmap('inferno'),  # reference the right place in qd
-            origin='lower',
-            vmin=cbar_range[0],
-            vmax=cbar_range[1],
-            extent=[np.min(freq_data),
-                    np.max(freq_data),
-                    0,
-                    self.number_of_lines
-                    ],
-            aspect='auto',
-            interpolation='nearest')
-
-        ax_matrix.set_xlabel('Frequency (' + mw_prefix + 'Hz)')
-        ax_matrix.set_ylabel('Scan #')
-
-        # Adjust subplots to make room for colorbar
-        fig.subplots_adjust(right=0.8)
-
-        # Add colorbar axis to figure
-        cbar_ax = fig.add_axes([0.85, 0.15, 0.02, 0.7])
-
-        # Draw colorbar
-        cbar = fig.colorbar(matrixplot, cax=cbar_ax)
-        cbar.set_label('Fluorescence (' + cbar_prefix + 'c/s)')
-
-        # remove ticks from colorbar for cleaner image
-        cbar.ax.tick_params(which=u'both', length=0)
-
-        # If we have percentile information, draw that to the figure
-        if percentile_range is not None:
-            cbar.ax.annotate(str(percentile_range[0]),
-                             xy=(-0.3, 0.0),
-                             xycoords='axes fraction',
-                             horizontalalignment='right',
-                             verticalalignment='center',
-                             rotation=90
-                             )
-            cbar.ax.annotate(str(percentile_range[1]),
-                             xy=(-0.3, 1.0),
-                             xycoords='axes fraction',
-                             horizontalalignment='right',
-                             verticalalignment='center',
-                             rotation=90
-                             )
-            cbar.ax.annotate('(percentile)',
-                             xy=(-0.3, 0.5),
-                             xycoords='axes fraction',
-                             horizontalalignment='right',
-                             verticalalignment='center',
-                             rotation=90
-                             )
 
         return fig
 

@@ -1177,7 +1177,7 @@ class AWG663(Base, PulserInterface):
                     new_list.append(new_row)
                 data_list = new_list
 
-            self.log.info(f'Uploading waveform set {seq} to AWG...')
+            # self.log.info(f'Uploading waveform set {seq} to AWG...')
             if not data_size == 0:
                 self.instance.upload(data_list, segment_size, segment_size * iseq)
                 self.typeloaded = 'waveform'
