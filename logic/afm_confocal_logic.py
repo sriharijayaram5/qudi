@@ -627,7 +627,6 @@ class AFMConfocalLogic(GenericLogic):
                 name = f'{param}_{direction}' # this is the naming convention!
 
                 meas_dict[name] = {'data': np.zeros((num_rows, num_columns))}
-                #meas_dict[name] = {'data': np.random.rand(num_rows, num_columns)}
                 meas_dict[name]['coord0_arr'] = coord0_arr
                 meas_dict[name]['coord1_arr'] = coord1_arr
                 meas_dict[name]['corr_plane_coeff'] = [0.0, 0.0, 0.0] 
@@ -2645,7 +2644,7 @@ class AFMConfocalLogic(GenericLogic):
 
                     # here the fit parameter can be saved
                     self._scan_point[1] = self.res_freq_array[line_num, index]/1e9
-                    self._scan_point[1] = 2.776+(np.random.random()*0.5e6/1e9)
+                    # self._scan_point[1] = 2.776+(np.random.random()*0.5e6/1e9)
                     # here the counts can be saved:
                     self._counter._tagger.sync()
                     self._counter.countrate.startFor(1e9)

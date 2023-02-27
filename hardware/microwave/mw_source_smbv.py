@@ -92,7 +92,7 @@ class MicrowaveSmbv(Base, MicrowaveInterface):
         self._connection.write(command_str)
         self._connection.write('*WAI')
         while int(float(self._connection.query('*OPC?'))) != 1:
-            time.sleep(0.2)
+            time.sleep(0.02)
         return
 
     def get_limits(self):
@@ -210,7 +210,7 @@ class MicrowaveSmbv(Base, MicrowaveInterface):
         self._connection.write('*WAI')
         dummy, is_running = self.get_status()
         while not is_running:
-            time.sleep(0.2)
+            time.sleep(0.02)
             dummy, is_running = self.get_status()
         return 0
 
@@ -247,6 +247,36 @@ class MicrowaveSmbv(Base, MicrowaveInterface):
         actual_freq = self.get_frequency()
         actual_power = self.get_power()
         return actual_freq, actual_power, mode
+    
+    def set_cw_2(self, frequency=None, power=None):
+        """
+        Configures the device for cw-mode and optionally sets frequency and/or power
+
+        @param float frequency: frequency to set in Hz
+        @param float power: power to set in dBm
+
+        @return tuple(float, float, str): with the relation
+            current frequency in Hz,
+            current power in dBm,
+            current mode
+        """
+        mode, is_running = self.get_status()
+        if is_running:
+            self.off()
+
+        # Activate CW mode
+        if mode != 'cw':
+            self._command_wait(':FREQ:MODE CW')
+
+        # Set CW frequency
+        if frequency is not None:
+            self._command_wait(':FREQ {0:f}'.format(frequency))
+
+        # Set CW power
+        if power is not None:
+            self._command_wait(':POW {0:f}'.format(power))
+
+        return 
 
     def list_on(self):
         """

@@ -675,7 +675,7 @@ class ODMRLogic(GenericLogic):
             axis=0,
             dtype=np.float64
         )
-        self.odmr_plot_y = np.random.random(len(self.odmr_plot_x)).reshape(1,len(self.odmr_plot_x))
+        # self.odmr_plot_y = np.random.random(len(self.odmr_plot_x)).reshape(1,len(self.odmr_plot_x))
         self.odmr_plot_y_err = err
         self.sigOdmrLaserDataUpdated.emit(self.laser_data)
         self.sigOdmrPlotsUpdated.emit(self.odmr_plot_x, self.odmr_plot_y, self.odmr_plot_xy, self.odmr_plot_y_err)
