@@ -2641,13 +2641,20 @@ class ProteusQGUI(GUIBase):
         esr_runs = self._qm.esr_runs_SpinBox.value()
         single_res = self._qm.esr_single_res_RadioButton.isChecked() 
 
+        contrast = self._qm.esr_contrast_SpinBox.value()
+        offset = self._qm.esr_offset_SpinBox.value()
+        amp_noise = self._qm.esr_noise_SpinBox.value() 
+        esr_fwhm = self._qm.esr_fwhm_SpinBox.value()
+        optbay = self._qm.optBay_groupBox.isChecked()
+        param_estimation = (offset - (offset*contrast/100),offset,amp_noise,esr_fwhm)
+
         self._qafm_logic.start_scan_area_quanti_qafm_fw_by_point(
             coord0_start=x_start, coord0_stop=x_stop, coord0_num=res_x, 
             coord1_start=y_start, coord1_stop=y_stop, coord1_num=res_y, 
             int_time_afm=afm_int_time, idle_move_time=idle_move_time, 
             freq_start=esr_freq_start, freq_stop=esr_freq_stop, 
             freq_points=esr_freq_num, esr_count_freq=esr_count_freq,
-            mw_power=esr_mw_power, num_esr_runs=esr_runs, 
+            mw_power=esr_mw_power, num_esr_runs=esr_runs, param_estimation=param_estimation, optbay=optbay,
             optimize_period=None, meas_params=meas_params,
             single_res=single_res, continue_meas=continue_meas)
 
