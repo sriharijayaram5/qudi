@@ -324,6 +324,7 @@ class ODMRGui(GUIBase):
         self._odmr_logic.sigAnalysisSettingsUpdated.connect(self.analysis_settings_updated)
         self.analysis_settings_updated(self._odmr_logic.pulsed_analysis_settings)
         self._mw.pi_half_DoubleSpinBox.setValue(self.pi_half)
+        self._mw.pi_half_DoubleSpinBox.setMaximum(100e-6)
 
         # Show the Main ODMR GUI:
         self.show()
@@ -788,7 +789,7 @@ class ODMRGui(GUIBase):
             fit = self._fitlogic.make_lorentzian_fit(x_data,odmr_data_y[self.display_channel],estimator=self._fitlogic.estimate_lorentzian_dip)
             self.vis_arr = np.array([vis(fit.model, fit.params, x, fit.params['fwhm'].value/2) for x in x_data])
 
-            self._mw.odmr_PlotWidget.setLabel(axis='left', text='ODMR visibility', units='Counts/s²')
+            self._mw.odmr_PlotWidget.setLabel(axis='left', text='ODMR visibility', units='Events/s²')
             self._mw.odmr_PlotWidget.setLabel(axis='bottom', text='Frequency', units='Hz')
             # dx = odmr_data_x[1] - odmr_data_x[0]
             # dy = np.gradient(odmr_data_y[self.display_channel], dx)
@@ -802,7 +803,7 @@ class ODMRGui(GUIBase):
             self.slope_fit_changed()
             
         else:
-            self._mw.odmr_PlotWidget.setLabel(axis='left', text='Counts', units='Counts/s')
+            self._mw.odmr_PlotWidget.setLabel(axis='left', text='Norm. counts', units='Events')
             self._mw.odmr_PlotWidget.setLabel(axis='bottom', text='Frequency', units='Hz')
             self.odmr_image.setData(odmr_data_x, odmr_data_y[self.display_channel])
             
