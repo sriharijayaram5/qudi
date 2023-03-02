@@ -367,9 +367,12 @@ def estimate_lorentzian_dip(self, x_axis, data, params):
     amplitude = data_level.min()
 
     smoothing_spline = 1    # must be 1<= smoothing_spline <= 5
-    fit_function = InterpolatedUnivariateSpline(x_axis, data_level,
-                                            k=smoothing_spline)
-    numerical_integral = fit_function.integral(x_axis[0], x_axis[-1])
+    try:
+        fit_function = InterpolatedUnivariateSpline(x_axis, data_level,
+                                                k=smoothing_spline)
+        numerical_integral = fit_function.integral(x_axis[0], x_axis[-1])
+    except:
+        numerical_integral = np.trapz(data_smooth, x_axis)
 
     x_zero = x_axis[np.argmin(data_smooth)]
 

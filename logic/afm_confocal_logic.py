@@ -1899,7 +1899,7 @@ class AFMConfocalLogic(GenericLogic):
                                              idle_move_time=0.1, freq_start=2.77e9,
                                              freq_stop=2.97e9, freq_points=100,
                                              esr_count_freq=200,
-                                             mw_power=-25, num_esr_runs=30, param_estimation = (-30e3,100e3,0.5e3,7e6),
+                                             mw_power=-25, num_esr_runs=30, param_estimation = (-30e3,100e3,0.5e3,7e6,1),
                                              optimize_period=100,
                                              meas_params=['Height(Dac)'],
                                              single_res=True,
@@ -1938,10 +1938,6 @@ class AFMConfocalLogic(GenericLogic):
         self._stop_request = False
 
         ret_val = self._counter.configure_recorder(mode=HWRecorderMode.PIXELCLOCK, params={'num_meas': num_esr_runs})
-
-        if self._mw_mode == 'SWEEP' or self._mw_mode == 'LIST':
-            self.log.warning('Cannot do Bayesian experiment in sweep mode. Switch to CW.')
-            ret_val = -1
         
         # save the current sequence of the pulsestreamer and prepare the pulsestreamer for esr
         self._pulser.prepare_SPM_ensemble()
@@ -2001,8 +1997,7 @@ class AFMConfocalLogic(GenericLogic):
         self._curr_scan_params = curr_scan_params
         self.scan_dir = 'fw'
         self._esr_debug = {}
-        amp, background, background_noise, fwhm = param_estimation #TODO
-        my_obe = self.setup_obe(freq_start, freq_stop, freq_points, amp, background, background_noise, fwhm/2)
+        amp, background, background_noise, fwhm, self.opt_reps, self.err_margin = param_estimation 
 
         # save the measurement parameter
         for entry in self._qafm_scan_array:
@@ -2065,55 +2060,93 @@ class AFMConfocalLogic(GenericLogic):
                 #self.log.debug(f'Point number {index+1} scan started')
                 # first two entries are counts and b_field, remaining entries are the scan parameter
                 self._scan_point = np.zeros(num_params) 
-
-                # at first the AFM parameter
-                self._debug = self._spm.scan_point()
-                #self.log.debug(f'Point number {index+1} scan done')
-                self._scan_point[2:] = self._debug 
                 
-                n_measure = 20
+                n_measure = self.opt_reps
                 bay_x = []
                 bay_y = []
+                self.my_obe = self.setup_obe(freq_start, freq_stop, freq_points, amp, background, background_noise, fwhm/2)
                 last_run = False
+                err = np.inf
+                err_counter = 0
+                xmeas_fail = ((freq_stop - freq_start)/2,)
                 for i in range(n_measure):
-                    xmeas = my_obe.good_setting(pickiness=19)
+
+                    if i==n_measure-1:
+                        last_run = True
+                    if err<self.err_margin:
+                        err_counter +=1
+                        if err_counter>5:
+                            last_run = True
+                    try:
+                        xmeas = self.my_obe.good_setting(pickiness=19)
+                        xmeas_fail = xmeas
+                    except:
+                        self.log.warning(f'OptBay setting failed at line {line_num} and index {index}')
+                        xmeas = xmeas_fail
                     self._counter.start_recorder()
                     self._mw.set_cw(xmeas[0], mw_power)
                     self._mw.cw_on()
-                    self._pulser.pulser_on(trigger=False, n=1, final=self._pulser._sync_final_state if last_run else self._pulser._final_state)
-                    # obtain ESR measurement
+                    self._pulser.pulser_on(trigger=True if i==0 else False, n=1, final=self._pulser._sync_final_state if last_run else None)
+                    if i==0:
+                        # at first the AFM parameter
+                        self._debug = self._spm.scan_point()
+                        self._scan_point[2:] = self._debug 
+                        # obtain ESR measurement
+                    while True:
+                        if self._pulser.pulse_streamer.hasFinished():
+                            break
                     counts, int_time = self._counter.get_measurements(['counts', 'int_time']) 
                     esr_meas = counts/int_time
+                    # Fake data
+                    fx = np.array([xmeas[0]])
+                    true_center = 2.77e9 - 40e6*(index/coord0_num)
+                    esr_meas = self.physical_lorentzian(x=fx, center=true_center, sigma=7e6, amp=-30000, offset=100e3) + np.random.random()*1e3
 
                     ymeasure = np.mean(esr_meas)
-                    noise = np.std(esr_meas)
+                    noise = 1e3#np.std(esr_meas)
                     bay_x.append(xmeas[0])
                     bay_y.append(ymeasure)
 
                     measurement = (xmeas, ymeasure, noise)
+                    # self.log.debug(f'measurement {measurement}')
+                    
                     # OptBayesExpt does Bayesian inference
-                    my_obe.pdf_update(measurement)
+                    try:
+                        self.my_obe.pdf_update(measurement)
+                    except:
+                        self.log.warning(f'Opt Update maybe failed at line {line_num} and index {index}')
 
                     # OptBayesExpt provides statistics to track progress
-                    sigma = my_obe.std()
+                    sigma = self.my_obe.std()
+                    err = sigma[0]
                     if last_run:
                         break
-                    if sigma<1e-3:
-                        last_run = True
 
-                self._esr_debug[f'{line_num},{index}'] = xmeas[0]
                 bay_x = np.asarray(bay_x)
                 bay_y = np.asarray(bay_y)
+                param_dict = {'bay_x': bay_x,
+                            'bay_y': bay_y,
+                            'amp': amp,
+                            'offset': background,
+                            'fwhm': fwhm,
+                            'center': xmeas[0],
+                            'true_center': true_center}
+                self._esr_debug[f'{line_num},{index}'] = param_dict
 
-                
                 mag_field = 0.0
 
                 try:
                     # perform analysis and fit for the measured data:
                     if single_res:
+                        mod,add_params = self._fitlogic.make_lorentzian_model()
+                        add_params['sigma'].set(value=param_dict['fwhm']/2, vary=True, min=0, max=param_dict['fwhm'])
+                        add_params['amplitude'].set(value=param_dict['amp'], vary=True, max=0)
+                        add_params['offset'].set(value=param_dict['offset'], vary=True, max=param_dict['offset']*5) # maybe too arbitrary
+                        add_params['center'].set(value=param_dict['center'], vary=True, min=freq_start, max=freq_stop)
                         res = self._fitlogic.make_lorentzian_fit(bay_x,
                                                                  bay_y,
-                                                                 estimator=self._fitlogic.estimate_lorentzian_dip)
+                                                                 estimator=self._fitlogic.estimate_lorentzian_dip,
+                                                                 add_params=add_params)
 
                         esr_data_fit = res.best_fit
 
@@ -2123,7 +2156,6 @@ class AFMConfocalLogic(GenericLogic):
                                                                     self.ZFS, 
                                                                     self.E_FIELD) * 10000
 
-
                     else:   
                         pass 
 
@@ -2131,11 +2163,11 @@ class AFMConfocalLogic(GenericLogic):
                     self.log.warning(f'Fit was not working at line {line_num} and index {index}. Data needs to be post-processed.')
 
                 # here the counts are saved:
-                self._counter.countrate.startFor(1e9)
-                self._counter.countrate.waitUntilFinished(timeout=10)
-                self._counter._tagger.sync()
-                self._scan_point[0] = np.nan_to_num(self._counter.countrate.getData())
-                self.log.debug(f'Countrate: {self._scan_point[0]}')
+                # self._counter.countrate.startFor(1e9)
+                # self._counter.countrate.waitUntilFinished(timeout=10)
+                # self._counter._tagger.sync()
+                # self._scan_point[0] = np.nan_to_num(self._counter.countrate.getData())
+                # self.log.debug(f'Countrate: {self._scan_point[0]}')
     
                 # here the b_field is saved:
                 self._scan_point[1] = mag_field
@@ -2173,10 +2205,6 @@ class AFMConfocalLogic(GenericLogic):
 
                 # emit a signal at every point, so that update can happen in real time.
                 self.sigQAFMLineScanFinished.emit()
-                if self._mw_mode == 'LIST':
-                        self._mw.reset_listpos()
-                else:
-                    self._mw.reset_sweeppos()
                 # possibility to stop during line scan.
                 if self._stop_request:
                     break
@@ -2231,6 +2259,7 @@ class AFMConfocalLogic(GenericLogic):
     def setup_obe(self, start, stop, points, amp, background, background_noise, sigma):
         
         #Lorentzian model for OptBay
+        self.log.debug(f'start, stop, points, amp, background, background_noise, sigma {(start, stop, points, amp, background, background_noise, sigma)}')
         def my_model_function(sets, pars, cons):
             """ Evaluates a trusted model of the experiment's output
 
@@ -2273,10 +2302,10 @@ class AFMConfocalLogic(GenericLogic):
         x0_min, x0_max = (start, stop)
         x0_samples = rng.uniform(x0_min, x0_max, n_samples)
         # amplitude parameter a -- flat prior
-        a_samples = rng.uniform(-amp, -amp*0.1, n_samples)
+        a_samples = rng.normal(amp, abs(amp/2), n_samples)
         # background parameter b -- a gaussian prior around 250000
         b_mean, b_sigma = (background, background_noise)
-        b_samples = rng.normal(b_mean, b_sigma, n_samples)
+        b_samples = rng.normal(b_mean, abs(b_sigma), n_samples)
         # Pack the parameters into a tuple.
         # Note that the order must correspond to how the values are unpacked in
         # the model_function.
@@ -2299,7 +2328,7 @@ class AFMConfocalLogic(GenericLogic):
                                                    idle_move_time=0.1, freq_start=2.77e9,
                                                    freq_stop=2.97e9, freq_points=100,
                                                    esr_count_freq=200,
-                                                   mw_power=-25, num_esr_runs=30, param_estimation=(-30e3,100e3,0.5e3,7e6), optbay=False,
+                                                   mw_power=-25, num_esr_runs=30, param_estimation=(-30e3,100e3,0.5e3,7e6,1), optbay=False,
                                                    optimize_period=100,
                                                    meas_params=['Height(Dac)'],
                                                    single_res=True,
@@ -3008,9 +3037,9 @@ class AFMConfocalLogic(GenericLogic):
 
                         # THIS A TRIGGERED PULSER ON COMMAND - will be trigger by ASC500 on the first loop
                         if n==0:
-                            self._pulser.pulser_on(trigger=True, n=num_runs, final=self._pulser._sync_final_state if mw_tracking_mode_runs==1 else self._pulser._final_state)
+                            self._pulser.pulser_on(trigger=True, n=num_runs, final=self._pulser._sync_final_state if mw_tracking_mode_runs==1 else None)
                         else:
-                            self._pulser.pulser_on(trigger=False, n=num_runs, final=self._pulser._sync_final_state if mw_tracking_mode_runs==1 else self._pulser._final_state)
+                            self._pulser.pulser_on(trigger=False, n=num_runs, final=self._pulser._sync_final_state if mw_tracking_mode_runs==1 else None)
                                               
                         # do movement and height scan
                         # run for n=0 condition only

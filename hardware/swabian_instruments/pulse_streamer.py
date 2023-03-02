@@ -97,7 +97,7 @@ class PulseStreamer(Base, PulserInterface):
         self._sync_final_state = ps.OutputState([self._laser_channel,self._sync_in], self._laser_power_voltage, 0)
         self._mw_trig_final_state = ps.OutputState([self._uw_x_channel, self._pixel_stop, self._laser_channel], self._laser_power_voltage, 0)
         self._mw_trig_sync_final_state = ps.OutputState([self._uw_x_channel, self._pixel_stop, self._laser_channel, self._sync_in], self._laser_power_voltage, 0)
-        self._final_state = ps.OutputState([self._laser_channel], self._laser_power_voltage, 0)
+        self._final_state = ps.OutputState([self._laser_channel], self._laser_power_voltage, 0) # DO NOT USE THIS!
 
     def on_deactivate(self):
         self.reset()

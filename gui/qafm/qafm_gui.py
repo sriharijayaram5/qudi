@@ -2646,7 +2646,10 @@ class ProteusQGUI(GUIBase):
         amp_noise = self._qm.esr_noise_SpinBox.value() 
         esr_fwhm = self._qm.esr_fwhm_SpinBox.value()
         optbay = self._qm.optBay_groupBox.isChecked()
-        param_estimation = (offset - (offset*contrast/100),offset,amp_noise,esr_fwhm)
+        opt_reps = self._qm.esr_optReps_SpinBox.value()
+        err_margin = self._qm.esr_errorMargin_SpinBox.value()
+
+        param_estimation = (-(offset*contrast/100),offset,amp_noise,esr_fwhm,opt_reps,err_margin)
 
         self._qafm_logic.start_scan_area_quanti_qafm_fw_by_point(
             coord0_start=x_start, coord0_stop=x_stop, coord0_num=res_x, 
