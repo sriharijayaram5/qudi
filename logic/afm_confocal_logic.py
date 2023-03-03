@@ -45,6 +45,9 @@ from qtpy import QtCore
 from logic.pulsed.sampling_functions import SamplingFunctions as SF
 import logic.pulsed.pulse_objects as po
 from optbayesexpt import OptBayesExpt
+from numba import njit, float64
+import warnings
+warnings.filterwarnings("ignore", category=RuntimeWarning)
 
 class WorkerThread(QtCore.QRunnable):
     """ Create a simple Worker Thread class, with a similar usage to a python
@@ -1997,7 +2000,8 @@ class AFMConfocalLogic(GenericLogic):
         self._curr_scan_params = curr_scan_params
         self.scan_dir = 'fw'
         self._esr_debug = {}
-        amp, background, background_noise, fwhm, self.opt_reps, self.err_margin = param_estimation 
+        amp, background, background_noise, fwhm, self.opt_reps, self.err_margin_x0, self.err_margin_offset, self.err_margin_amp, n_samples = param_estimation 
+        my_model_function, settings, parameters, constants, scale, use_jit = self.setup_obe(freq_start, freq_stop, freq_points, amp, background, background_noise, fwhm/2, n_samples)
 
         # save the measurement parameter
         for entry in self._qafm_scan_array:
@@ -2064,21 +2068,22 @@ class AFMConfocalLogic(GenericLogic):
                 n_measure = self.opt_reps
                 bay_x = []
                 bay_y = []
-                self.my_obe = self.setup_obe(freq_start, freq_stop, freq_points, amp, background, background_noise, fwhm/2)
+                self.my_obe = OptBayesExpt(my_model_function, settings, parameters, constants, scale=scale, use_jit=use_jit)
                 last_run = False
-                err = np.inf
+                err = (np.inf, np.inf, np.inf)
                 err_counter = 0
                 xmeas_fail = ((freq_stop - freq_start)/2,)
                 for i in range(n_measure):
 
                     if i==n_measure-1:
                         last_run = True
-                    if err<self.err_margin:
+                    if err[0]<self.err_margin_x0 and err[0]<self.err_margin_amp and err[0]<self.err_margin_offset:
                         err_counter +=1
                         if err_counter>5:
                             last_run = True
                     try:
-                        xmeas = self.my_obe.good_setting(pickiness=19)
+                        # xmeas = self.my_obe.good_setting(pickiness=19)
+                        xmeas = self.my_obe.opt_setting()
                         xmeas_fail = xmeas
                     except:
                         self.log.warning(f'OptBay setting failed at line {line_num} and index {index}')
@@ -2118,7 +2123,7 @@ class AFMConfocalLogic(GenericLogic):
 
                     # OptBayesExpt provides statistics to track progress
                     sigma = self.my_obe.std()
-                    err = sigma[0]
+                    err = sigma
                     if last_run:
                         break
 
@@ -2256,10 +2261,10 @@ class AFMConfocalLogic(GenericLogic):
         """
         return (np.power(sigma, 2) / (np.power((center - x), 2) + np.power(sigma, 2))) * amp + offset
 
-    def setup_obe(self, start, stop, points, amp, background, background_noise, sigma):
+    def setup_obe(self, start, stop, points, amp, background, background_noise, sigma, n_samples):
         
         #Lorentzian model for OptBay
-        self.log.debug(f'start, stop, points, amp, background, background_noise, sigma {(start, stop, points, amp, background, background_noise, sigma)}')
+        # @njit(cache=True)
         def my_model_function(sets, pars, cons):
             """ Evaluates a trusted model of the experiment's output
 
@@ -2296,8 +2301,7 @@ class AFMConfocalLogic(GenericLogic):
 
         # Define the prior probability distribution of the parameters
         #
-        # resonance center x0 -- a flat prior around 3
-        n_samples = points
+        # resonance center x0 -- a flat prior around 3 # times 100 for a better defined prob. dist
 
         x0_min, x0_max = (start, stop)
         x0_samples = rng.uniform(x0_min, x0_max, n_samples)
@@ -2315,12 +2319,9 @@ class AFMConfocalLogic(GenericLogic):
         #
         dtrue = sigma
         constants = (dtrue,)
-
-        # make an instance of OptBayesExpt
-        #
-        my_obe = OptBayesExpt(my_model_function, settings, parameters, constants,
-                            scale=False)
-        return my_obe
+        scale = False
+        use_jit = False
+        return my_model_function, settings, parameters, constants, scale, use_jit
     
     def start_scan_area_quanti_qafm_fw_by_point(self, coord0_start, coord0_stop,
                                                    coord0_num, coord1_start, coord1_stop,
