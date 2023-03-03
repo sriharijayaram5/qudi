@@ -46,6 +46,7 @@ from logic.pulsed.sampling_functions import SamplingFunctions as SF
 import logic.pulsed.pulse_objects as po
 from optbayesexpt import OptBayesExpt
 from numba import njit, float64
+from PIL import Image
 import warnings
 warnings.filterwarnings("ignore", category=RuntimeWarning)
 
@@ -2003,6 +2004,17 @@ class AFMConfocalLogic(GenericLogic):
         amp, background, background_noise, fwhm, self.opt_reps, self.err_margin_x0, self.err_margin_offset, self.err_margin_amp, n_samples = param_estimation 
         my_model_function, settings, parameters, constants, scale, use_jit = self.setup_obe(freq_start, freq_stop, freq_points, amp, background, background_noise, fwhm/2, n_samples)
 
+        time_prev = time.monotonic()
+
+        # load the image
+        image = Image.open('C:\\Users\\yy3\\anaconda3\\envs\\qudi\\Lib\\site-packages\\skimage\\data\\rough-wall.png')
+        # convert image to numpy array
+        fdata = np.asarray(image)
+        data =fdata[:coord0_num,:coord1_num]
+
+        # true_res = np.ones([coord1,coord0]) * 2.87e9
+        true_res = ((data/np.mean(data)-np.max(data/np.mean(data))/2)*20e6) + 2.77e9
+
         # save the measurement parameter
         for entry in self._qafm_scan_array:
             self._qafm_scan_array[entry]['params']['Parameters for'] = 'QAFM measurement'
@@ -2103,10 +2115,11 @@ class AFMConfocalLogic(GenericLogic):
                     counts, int_time = self._counter.get_measurements(['counts', 'int_time']) 
                     esr_meas = counts/int_time
                     # Fake data
-                    fx = np.array([xmeas[0]])
-                    true_center = 2.77e9 - 40e6*(index/coord0_num)
-                    esr_meas = self.physical_lorentzian(x=fx, center=true_center, sigma=7e6, amp=-30000, offset=100e3) + np.random.random()*1e3
-
+                    # fx = np.array([xmeas[0]])
+                    # true_center = 2.77e9 - 40e6*(index/coord0_num)
+                    # true_center = true_res[index,line_num]
+                    # esr_meas = self.physical_lorentzian(x=fx, center=true_center, sigma=7e6, amp=-30000, offset=100e3) + np.random.random()*1e3
+                    
                     ymeasure = np.mean(esr_meas)
                     noise = 1e3#np.std(esr_meas)
                     bay_x.append(xmeas[0])
@@ -2136,7 +2149,15 @@ class AFMConfocalLogic(GenericLogic):
                             'fwhm': fwhm,
                             'center': xmeas[0],
                             'true_center': true_center}
+
                 self._esr_debug[f'{line_num},{index}'] = param_dict
+                if line_num==0 and index==0:   
+                    coord = (line_num,index)
+                elif line_num!=0 and index==0:
+                    coord = (line_num-1,index)
+                elif index!=0:
+                    coord = (line_num,index-1)      
+                res_estimate = self._esr_debug[f'{coord[0]},{coord[1]}']['center']
 
                 mag_field = 0.0
 
@@ -2147,7 +2168,7 @@ class AFMConfocalLogic(GenericLogic):
                         add_params['sigma'].set(value=param_dict['fwhm']/2, vary=True, min=0, max=param_dict['fwhm'])
                         add_params['amplitude'].set(value=param_dict['amp'], vary=True, max=0)
                         add_params['offset'].set(value=param_dict['offset'], vary=True, max=param_dict['offset']*5) # maybe too arbitrary
-                        add_params['center'].set(value=param_dict['center'], vary=True, min=freq_start, max=freq_stop)
+                        add_params['center'].set(value=bay_x[np.argmin(bay_y)], vary=True, min=freq_start, max=freq_stop)
                         res = self._fitlogic.make_lorentzian_fit(bay_x,
                                                                  bay_y,
                                                                  estimator=self._fitlogic.estimate_lorentzian_dip,
@@ -2198,8 +2219,13 @@ class AFMConfocalLogic(GenericLogic):
                 # self._esr_scan_array['esr_fw']['data_fit'][line_num][index] = esr_data_fit
 
                 # For debugging, display status text:
-                progress_text = f'Point: {line_num * coord0_num + index + 1} out of {coord0_num * coord1_num }, {(line_num * coord0_num + index + 1) / (coord0_num * coord1_num ) * 100:.2f}% finished.'
-                self.log.info(progress_text)
+                time_now = time.monotonic()
+                total_time = round((time_now - time_prev)/(line_num * coord0_num + index + 1) * (coord0_num*coord1_num)/60/60,3)
+                time_rem = round(total_time - (time_now - time_prev)/60/60,3)
+                
+                self.log.info(f'Point: {line_num * coord0_num + index + 1} out of {coord0_num*coord1_num}, {(line_num * coord0_num + index +1)/(coord0_num*coord1_num) * 100:.2f}% finished.\nTime remaining: {time_rem}/{total_time}hrs')
+                # progress_text = f'Point: {line_num * coord0_num + index + 1} out of {coord0_num * coord1_num }, {(line_num * coord0_num + index + 1) / (coord0_num * coord1_num ) * 100:.2f}% finished.'
+                # self.log.info(progress_text)
 
                 # track current AFM position:
                 if index != last_elem:
