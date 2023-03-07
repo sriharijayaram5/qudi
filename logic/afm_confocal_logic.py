@@ -2007,7 +2007,7 @@ class AFMConfocalLogic(GenericLogic):
         time_prev = time.monotonic()
 
         # load the image
-        image = Image.open('C:\\Users\\yy3\\anaconda3\\envs\\qudi\\Lib\\site-packages\\skimage\\data\\rough-wall.png')
+        image = Image.open('G:\\Data\\Qudi_Data\\2023\\03\\20230306\\AttoDRY2200_Pi3_SPM\\20230306-1252-09_test_wall_data_QAFM.tiff')
         # convert image to numpy array
         fdata = np.asarray(image)
         data =fdata[:coord0_num,:coord1_num]
@@ -2115,10 +2115,10 @@ class AFMConfocalLogic(GenericLogic):
                     counts, int_time = self._counter.get_measurements(['counts', 'int_time']) 
                     esr_meas = counts/int_time
                     # Fake data
-                    # fx = np.array([xmeas[0]])
-                    # true_center = 2.77e9 - 40e6*(index/coord0_num)
-                    # true_center = true_res[index,line_num]
-                    # esr_meas = self.physical_lorentzian(x=fx, center=true_center, sigma=7e6, amp=-30000, offset=100e3) + np.random.random()*1e3
+                    fx = np.array([xmeas[0]])
+                    true_center = 2.77e9 - 40e6*(index/coord0_num)
+                    true_center = true_res[index,line_num]
+                    esr_meas = self.physical_lorentzian(x=fx, center=true_center, sigma=7e6/2, amp=-30000, offset=100e3) + np.random.random()*1e3
                     
                     ymeasure = np.mean(esr_meas)
                     noise = 1e3#np.std(esr_meas)
@@ -2151,13 +2151,6 @@ class AFMConfocalLogic(GenericLogic):
                             'true_center': true_center}
 
                 self._esr_debug[f'{line_num},{index}'] = param_dict
-                if line_num==0 and index==0:   
-                    coord = (line_num,index)
-                elif line_num!=0 and index==0:
-                    coord = (line_num-1,index)
-                elif index!=0:
-                    coord = (line_num,index-1)      
-                res_estimate = self._esr_debug[f'{coord[0]},{coord[1]}']['center']
 
                 mag_field = 0.0
 
