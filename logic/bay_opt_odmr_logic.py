@@ -111,12 +111,21 @@ class ODMRLogic(GenericLogic):
         self._clearOdmrData = False
         self.opt_bay_params = None
         self.fit_dict = None
+        self.optimum = False
+        self.pickiness = 19
 
         # Initalize the ODMR data arrays (mean signal and sweep matrix)
+        self.lines_to_average = 1
+        if self.mw_starts == [] or self.mw_steps == [] or self.mw_stops == []:
+           self.mw_starts = [2.86e9]
+           self.mw_stops = [2.88e9]
+           self.mw_steps = [500e3] 
+
         self._initialize_odmr_plots()
         # Raw data array
         # Switch off microwave and set CW frequency and power
         self.mw_off()
+        self.fake_center = 1.87e9
 
         # Connect signals
         self.sigNextLine.connect(self._scan_odmr_line, QtCore.Qt.QueuedConnection)
@@ -391,23 +400,18 @@ class ODMRLogic(GenericLogic):
                     if stop <= start:
                         stop = start + step
                     self.mw_stops.append(limits.frequency_in_range(stop))
-                    if self.mw_scanmode == MicrowaveMode.LIST:
-                        self.mw_steps.append(limits.list_step_in_range(step))
-                    elif self.mw_scanmode == MicrowaveMode.SWEEP:
-                        if self.ranges == 1:
-                            self.mw_steps.append(limits.sweep_step_in_range(step))
-                        else:
-                            self.log.error("Sweep mode will only work with one frequency range.")
+                    if limits.sweep_minstep < step:
+                        self.mw_steps.append(step) 
 
             if isinstance(power, (int, float)):
-                self.sweep_mw_power = limits.power_in_range(power)
+                self.cw_mw_power = limits.power_in_range(power)
         else:
             self.log.warning('set_sweep_parameters failed. Logic is locked.')
 
         param_dict = {'mw_starts': self.mw_starts, 'mw_stops': self.mw_stops, 'mw_steps': self.mw_steps,
-                      'sweep_mw_power': self.sweep_mw_power}
+                      'sweep_mw_power': self.cw_mw_power}
         self.sigParameterUpdated.emit(param_dict)
-        return self.mw_starts, self.mw_stops, self.mw_steps, self.sweep_mw_power
+        return self.mw_starts, self.mw_stops, self.mw_steps, self.cw_mw_power
 
     def mw_cw_on(self):
         """
@@ -606,8 +610,11 @@ class ODMRLogic(GenericLogic):
                 if self.err_counter>5:
                     self.stopRequested = True
             try:
-                xmeas = self.my_obe.good_setting(pickiness=19)
-                # xmeas = self.my_obe.opt_setting()
+                if self.optimum:
+                    xmeas = self.my_obe.opt_setting()
+                else:
+                    xmeas = self.my_obe.good_setting(pickiness = self.pickiness)
+                
                 xmeas_fail = xmeas
             except:
                 xmeas = xmeas_fail
@@ -619,7 +626,7 @@ class ODMRLogic(GenericLogic):
             esr_meas = np.mean(new_counts)
             # Fake data
             fx = np.array([xmeas[0]])
-            esr_meas = self.physical_lorentzian(x=fx, center=2.87e9, sigma=7e6/2, amp=-30000, offset=100e3) + np.random.random()*5e3
+            esr_meas = self.physical_lorentzian(x=fx, center=self.fake_center, sigma=7e6/2, amp=-30000, offset=100e3) + np.random.random()*5e3
             
             ymeasure = np.mean(esr_meas)
             noise = 5e3
@@ -816,8 +823,7 @@ class ODMRLogic(GenericLogic):
             data_raw = OrderedDict()
             data_raw['count data (counts/s)'] = self.odmr_raw_data[:self.elapsed_sweeps, nch, :]
             parameters = OrderedDict()
-            parameters['Microwave CW Power (dBm)'] = self.cw_mw_power
-            parameters['Microwave Sweep Power (dBm)'] = self.sweep_mw_power
+            parameters['Microwave Sweep Power (dBm)'] = self.cw_mw_power
             parameters['Run Time (s)'] = self.run_time
             parameters['Number of frequency sweeps (#)'] = self.elapsed_sweeps
             parameters['Start Frequencies (Hz)'] = self.mw_starts
@@ -851,8 +857,7 @@ class ODMRLogic(GenericLogic):
                 data_start_ind += num_points
 
                 parameters = OrderedDict()
-                parameters['Microwave CW Power (dBm)'] = self.cw_mw_power
-                parameters['Microwave Sweep Power (dBm)'] = self.sweep_mw_power
+                parameters['Microwave Sweep Power (dBm)'] = self.cw_mw_power
                 parameters['Run Time (s)'] = self.run_time
                 parameters['Number of frequency sweeps (#)'] = self.elapsed_sweeps
                 parameters['Start Frequency (Hz)'] = frequency_arr[0]

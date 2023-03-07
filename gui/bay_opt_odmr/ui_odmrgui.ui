@@ -144,7 +144,7 @@
           </sizepolicy>
          </property>
          <property name="text">
-          <string>CW Power :</string>
+          <string>MW Power:</string>
          </property>
         </widget>
        </item>
@@ -291,7 +291,7 @@
          <item>
           <widget class="QLabel" name="average_label">
            <property name="text">
-            <string>Lines to average</string>
+            <string>Runs per freq.:</string>
            </property>
           </widget>
          </item>
