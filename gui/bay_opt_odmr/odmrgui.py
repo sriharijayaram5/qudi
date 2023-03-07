@@ -232,6 +232,8 @@ class ODMRGui(GUIBase):
         self._mw.start_freq_DoubleSpinBox_0.valueChanged.connect(self.change_sweep_params)
         self._mw.step_freq_DoubleSpinBox_0.valueChanged.connect(self.change_sweep_params)
         self._mw.stop_freq_DoubleSpinBox_0.valueChanged.connect(self.change_sweep_params)
+        self._mw.cw_power_DoubleSpinBox.valueChanged.connect(self.change_sweep_params)
+        
         self.change_sweep_params()
 
         # Show the Main ODMR GUI:
@@ -362,8 +364,20 @@ class ODMRGui(GUIBase):
                 dspinbox_type_list = dspinbox_dict[identifier_name]
                 [dspinbox_type.setEnabled(False) for dspinbox_type in dspinbox_type_list]
             
+            self._mw.cw_power_DoubleSpinBox.setEnabled(False)
+            self._mw.action_resume_odmr.setEnabled(False)
+
+            self._mw.start_freq_DoubleSpinBox_0.setEnabled(False)
+            self._mw.step_freq_DoubleSpinBox_0.setEnabled(False)
+            self._mw.stop_freq_DoubleSpinBox_0.setEnabled(False)
             self.sigStartOdmrScan.emit()
         else:
+            self._mw.action_resume_odmr.setEnabled(True)
+            self._mw.cw_power_DoubleSpinBox.setEnabled(True)
+            
+            self._mw.start_freq_DoubleSpinBox_0.setEnabled(True)
+            self._mw.step_freq_DoubleSpinBox_0.setEnabled(True)
+            self._mw.stop_freq_DoubleSpinBox_0.setEnabled(True)
             self.sigStopOdmrScan.emit()
         return
 
@@ -377,8 +391,20 @@ class ODMRGui(GUIBase):
                 [dspinbox_type.setEnabled(False) for dspinbox_type in dspinbox_type_list]
             self._mw.runtime_DoubleSpinBox.setEnabled(False)
             self._sd.clock_frequency_DoubleSpinBox.setEnabled(False)
+
+            self._mw.cw_power_DoubleSpinBox.setEnabled(False)
+
+            self._mw.start_freq_DoubleSpinBox_0.setEnabled(False)
+            self._mw.step_freq_DoubleSpinBox_0.setEnabled(False)
+            self._mw.stop_freq_DoubleSpinBox_0.setEnabled(False)
             self.sigContinueOdmrScan.emit()
         else:
+            self._mw.cw_power_DoubleSpinBox.setEnabled(True)
+            
+            self._mw.start_freq_DoubleSpinBox_0.setEnabled(True)
+            self._mw.step_freq_DoubleSpinBox_0.setEnabled(True)
+            self._mw.stop_freq_DoubleSpinBox_0.setEnabled(True)
+
             self._mw.action_run_stop.setEnabled(True)
             self._mw.action_resume_odmr.setEnabled(True)
             self.sigStopOdmrScan.emit()
