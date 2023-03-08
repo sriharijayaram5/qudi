@@ -2114,14 +2114,14 @@ class AFMConfocalLogic(GenericLogic):
                             break
                     counts, int_time = self._counter.get_measurements(['counts', 'int_time']) 
                     esr_meas = counts/int_time
-                    # Fake data
-                    fx = np.array([xmeas[0]])
-                    true_center = 2.77e9 - 40e6*(index/coord0_num)
-                    true_center = true_res[index,line_num]
-                    esr_meas = self.physical_lorentzian(x=fx, center=true_center, sigma=7e6/2, amp=-30000, offset=100e3) + np.random.random()*1e3
+                    # # Fake data
+                    # fx = np.array([xmeas[0]])
+                    # true_center = 2.77e9 - 40e6*(index/coord0_num)
+                    # true_center = true_res[index,line_num]
+                    # esr_meas = self.physical_lorentzian(x=fx, center=true_center, sigma=7e6/2, amp=-30000, offset=100e3) + np.random.random()*1e3
                     
                     ymeasure = np.mean(esr_meas)
-                    noise = 1e3#np.std(esr_meas)
+                    noise = np.std(esr_meas)
                     bay_x.append(xmeas[0])
                     bay_y.append(ymeasure)
 
@@ -2147,8 +2147,7 @@ class AFMConfocalLogic(GenericLogic):
                             'amp': amp,
                             'offset': background,
                             'fwhm': fwhm,
-                            'center': xmeas[0],
-                            'true_center': true_center}
+                            'center': xmeas[0]}
 
                 self._esr_debug[f'{line_num},{index}'] = param_dict
 

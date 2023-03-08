@@ -609,6 +609,7 @@ class ODMRLogic(GenericLogic):
                 self.err_counter +=1
                 if self.err_counter>5:
                     self.stopRequested = True
+            xmeas_fail = [2.87e9]
             try:
                 if self.optimum:
                     xmeas = self.my_obe.opt_setting()
@@ -622,14 +623,15 @@ class ODMRLogic(GenericLogic):
             self._mw_device.cw_on()
             # Acquire count data
             error, new_counts = self._odmr_counter.count_odmr(length=self.lines_to_average)
+            # self.log.debug(new_counts)
         
             esr_meas = np.mean(new_counts)
-            # Fake data
-            fx = np.array([xmeas[0]])
-            esr_meas = self.physical_lorentzian(x=fx, center=self.fake_center, sigma=7e6/2, amp=-30000, offset=100e3) + np.random.random()*5e3
+            # # Fake data
+            # fx = np.array([xmeas[0]])
+            # esr_meas = self.physical_lorentzian(x=fx, center=self.fake_center, sigma=7e6/2, amp=-30000, offset=100e3) + np.random.random()*5e3
             
             ymeasure = np.mean(esr_meas)
-            noise = 5e3
+            noise = np.std(new_counts)
             self.bay_x.append(xmeas[0])
             self.bay_y.append(ymeasure)
 
@@ -821,7 +823,7 @@ class ODMRLogic(GenericLogic):
                 filelabel_raw = 'ODMR_data_ch{0}_raw'.format(nch)
 
             data_raw = OrderedDict()
-            data_raw['count data (counts/s)'] = self.odmr_raw_data[:self.elapsed_sweeps, nch, :]
+            data_raw['count data (counts/s)'] = self.odmr_plot_y
             parameters = OrderedDict()
             parameters['Microwave Sweep Power (dBm)'] = self.cw_mw_power
             parameters['Run Time (s)'] = self.run_time
