@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>329</width>
-    <height>377</height>
+    <width>376</width>
+    <height>402</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -53,18 +53,15 @@
              </widget>
             </item>
             <item>
-             <widget class="ScienSpinBox" name="esr_noise_SpinBox">
+             <widget class="ScienDSpinBox" name="esr_noise_SpinBox">
               <property name="suffix">
                <string>cnts</string>
               </property>
-              <property name="minimum">
-               <number>1</number>
-              </property>
               <property name="maximum">
-               <number>1000000000</number>
+               <double>10000000000000000000000.000000000000000</double>
               </property>
               <property name="value">
-               <number>500</number>
+               <double>5000.000000000000000</double>
               </property>
              </widget>
             </item>
@@ -80,18 +77,15 @@
              </widget>
             </item>
             <item>
-             <widget class="ScienSpinBox" name="esr_offset_SpinBox">
+             <widget class="ScienDSpinBox" name="esr_offset_SpinBox">
               <property name="suffix">
                <string>cnts</string>
               </property>
-              <property name="minimum">
-               <number>1</number>
-              </property>
               <property name="maximum">
-               <number>1000000000</number>
+               <double>10000000000000000000.000000000000000</double>
               </property>
               <property name="value">
-               <number>100000</number>
+               <double>100000.000000000000000</double>
               </property>
              </widget>
             </item>
@@ -107,18 +101,12 @@
              </widget>
             </item>
             <item>
-             <widget class="ScienSpinBox" name="esr_contrast_SpinBox">
+             <widget class="ScienDSpinBox" name="esr_contrast_SpinBox">
               <property name="suffix">
                <string>%</string>
               </property>
-              <property name="minimum">
-               <number>-1000</number>
-              </property>
-              <property name="maximum">
-               <number>1000</number>
-              </property>
               <property name="value">
-               <number>30</number>
+               <double>30.000000000000000</double>
               </property>
              </widget>
             </item>
@@ -134,18 +122,15 @@
              </widget>
             </item>
             <item>
-             <widget class="ScienSpinBox" name="esr_fwhm_SpinBox">
+             <widget class="ScienDSpinBox" name="esr_fwhm_SpinBox">
               <property name="suffix">
                <string>Hz</string>
               </property>
-              <property name="minimum">
-               <number>1</number>
-              </property>
               <property name="maximum">
-               <number>1000000000</number>
+               <double>999999999.000000000000000</double>
               </property>
               <property name="value">
-               <number>7000000</number>
+               <double>7000000.000000000000000</double>
               </property>
              </widget>
             </item>
@@ -161,7 +146,7 @@
              </widget>
             </item>
             <item>
-             <widget class="ScienSpinBox" name="esr_nSamples_SpinBox">
+             <widget class="QSpinBox" name="esr_nSamples_SpinBox">
               <property name="suffix">
                <string/>
               </property>
@@ -188,18 +173,12 @@
              </widget>
             </item>
             <item>
-             <widget class="ScienSpinBox" name="esr_errorMarginContrast_SpinBox">
+             <widget class="ScienDSpinBox" name="esr_errorMarginContrast_SpinBox">
               <property name="suffix">
                <string>%</string>
               </property>
-              <property name="minimum">
-               <number>1</number>
-              </property>
-              <property name="maximum">
-               <number>1000000000</number>
-              </property>
               <property name="value">
-               <number>1</number>
+               <double>1.000000000000000</double>
               </property>
              </widget>
             </item>
@@ -215,18 +194,15 @@
              </widget>
             </item>
             <item>
-             <widget class="ScienSpinBox" name="esr_errorMarginCenter_SpinBox">
+             <widget class="ScienDSpinBox" name="esr_errorMarginCenter_SpinBox">
               <property name="suffix">
                <string>Hz</string>
               </property>
-              <property name="minimum">
-               <number>1</number>
-              </property>
               <property name="maximum">
-               <number>1000000000</number>
+               <double>999999999.000000000000000</double>
               </property>
               <property name="value">
-               <number>100000</number>
+               <double>1000000.000000000000000</double>
               </property>
              </widget>
             </item>
@@ -242,18 +218,15 @@
              </widget>
             </item>
             <item>
-             <widget class="ScienSpinBox" name="esr_errorMarginOffset_SpinBox">
+             <widget class="ScienDSpinBox" name="esr_errorMarginOffset_SpinBox">
               <property name="suffix">
                <string>cnts</string>
               </property>
-              <property name="minimum">
-               <number>1</number>
-              </property>
               <property name="maximum">
-               <number>1000000000</number>
+               <double>999999999999999983222784.000000000000000</double>
               </property>
               <property name="value">
-               <number>1000</number>
+               <double>10000.000000000000000</double>
               </property>
              </widget>
             </item>
@@ -318,11 +291,23 @@
  </widget>
  <customwidgets>
   <customwidget>
-   <class>ScienSpinBox</class>
-   <extends>QSpinBox</extends>
+   <class>ScienDSpinBox</class>
+   <extends>QDoubleSpinBox</extends>
    <header>qtwidgets.scientific_spinbox.h</header>
   </customwidget>
  </customwidgets>
+ <tabstops>
+  <tabstop>tabWidget</tabstop>
+  <tabstop>clock_frequency_DoubleSpinBox</tabstop>
+  <tabstop>esr_contrast_SpinBox</tabstop>
+  <tabstop>esr_offset_SpinBox</tabstop>
+  <tabstop>esr_noise_SpinBox</tabstop>
+  <tabstop>esr_fwhm_SpinBox</tabstop>
+  <tabstop>esr_nSamples_SpinBox</tabstop>
+  <tabstop>esr_errorMarginCenter_SpinBox</tabstop>
+  <tabstop>esr_errorMarginContrast_SpinBox</tabstop>
+  <tabstop>esr_errorMarginOffset_SpinBox</tabstop>
+ </tabstops>
  <resources/>
  <connections>
   <connection>

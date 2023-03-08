@@ -275,18 +275,12 @@
            </widget>
           </item>
           <item>
-           <widget class="ScienSpinBox" name="esr_contrast_SpinBox">
+           <widget class="ScienDSpinBox" name="esr_contrast_SpinBox">
             <property name="suffix">
              <string>%</string>
             </property>
-            <property name="minimum">
-             <number>-1000</number>
-            </property>
-            <property name="maximum">
-             <number>1000</number>
-            </property>
             <property name="value">
-             <number>30</number>
+             <double>30.000000000000000</double>
             </property>
            </widget>
           </item>
@@ -302,18 +296,15 @@
            </widget>
           </item>
           <item>
-           <widget class="ScienSpinBox" name="esr_offset_SpinBox">
+           <widget class="ScienDSpinBox" name="esr_offset_SpinBox">
             <property name="suffix">
              <string>cnts</string>
             </property>
-            <property name="minimum">
-             <number>1</number>
-            </property>
             <property name="maximum">
-             <number>1000000000</number>
+             <double>9999999999999999583119736832.000000000000000</double>
             </property>
             <property name="value">
-             <number>100000</number>
+             <double>100000.000000000000000</double>
             </property>
            </widget>
           </item>
@@ -329,18 +320,15 @@
            </widget>
           </item>
           <item>
-           <widget class="ScienSpinBox" name="esr_noise_SpinBox">
+           <widget class="ScienDSpinBox" name="esr_noise_SpinBox">
             <property name="suffix">
              <string>cnts</string>
             </property>
-            <property name="minimum">
-             <number>1</number>
-            </property>
             <property name="maximum">
-             <number>1000000000</number>
+             <double>9999999999999999635896294965248.000000000000000</double>
             </property>
             <property name="value">
-             <number>500</number>
+             <double>5000.000000000000000</double>
             </property>
            </widget>
           </item>
@@ -356,18 +344,15 @@
            </widget>
           </item>
           <item>
-           <widget class="ScienSpinBox" name="esr_fwhm_SpinBox">
+           <widget class="ScienDSpinBox" name="esr_fwhm_SpinBox">
             <property name="suffix">
              <string>Hz</string>
             </property>
-            <property name="minimum">
-             <number>1</number>
-            </property>
             <property name="maximum">
-             <number>1000000000</number>
+             <double>999999999.000000000000000</double>
             </property>
             <property name="value">
-             <number>7000000</number>
+             <double>7000000.000000000000000</double>
             </property>
            </widget>
           </item>
@@ -383,7 +368,7 @@
            </widget>
           </item>
           <item>
-           <widget class="ScienSpinBox" name="esr_optReps_SpinBox">
+           <widget class="QSpinBox" name="esr_optReps_SpinBox">
             <property name="suffix">
              <string/>
             </property>
@@ -410,7 +395,7 @@
            </widget>
           </item>
           <item>
-           <widget class="ScienSpinBox" name="esr_nSamples_SpinBox">
+           <widget class="QSpinBox" name="esr_nSamples_SpinBox">
             <property name="suffix">
              <string/>
             </property>
@@ -437,18 +422,15 @@
            </widget>
           </item>
           <item>
-           <widget class="ScienSpinBox" name="esr_errorMarginCenter_SpinBox">
+           <widget class="ScienDSpinBox" name="esr_errorMarginCenter_SpinBox">
             <property name="suffix">
              <string>Hz</string>
             </property>
-            <property name="minimum">
-             <number>1</number>
-            </property>
             <property name="maximum">
-             <number>1000000000</number>
+             <double>999999999.000000000000000</double>
             </property>
             <property name="value">
-             <number>100000</number>
+             <double>1000000.000000000000000</double>
             </property>
            </widget>
           </item>
@@ -464,18 +446,15 @@
            </widget>
           </item>
           <item>
-           <widget class="ScienSpinBox" name="esr_errorMarginContrast_SpinBox">
+           <widget class="ScienDSpinBox" name="esr_errorMarginContrast_SpinBox">
             <property name="suffix">
              <string>%</string>
             </property>
-            <property name="minimum">
-             <number>1</number>
-            </property>
             <property name="maximum">
-             <number>1000000000</number>
+             <double>100.000000000000000</double>
             </property>
             <property name="value">
-             <number>1</number>
+             <double>1.000000000000000</double>
             </property>
            </widget>
           </item>
@@ -491,18 +470,15 @@
            </widget>
           </item>
           <item>
-           <widget class="ScienSpinBox" name="esr_errorMarginOffset_SpinBox">
+           <widget class="ScienDSpinBox" name="esr_errorMarginOffset_SpinBox">
             <property name="suffix">
              <string>cnts</string>
             </property>
-            <property name="minimum">
-             <number>1</number>
-            </property>
             <property name="maximum">
-             <number>1000000000</number>
+             <double>9999999.000000000000000</double>
             </property>
             <property name="value">
-             <number>1000</number>
+             <double>10000.000000000000000</double>
             </property>
            </widget>
           </item>
@@ -943,7 +919,6 @@
            <widget class="QLabel" name="loaded_sequence_label">
             <property name="font">
              <font>
-              <weight>75</weight>
               <bold>true</bold>
              </font>
             </property>
@@ -1054,8 +1029,8 @@
    <slot>setEnabled(bool)</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>203</x>
-     <y>216</y>
+     <x>215</x>
+     <y>150</y>
     </hint>
     <hint type="destinationlabel">
      <x>203</x>

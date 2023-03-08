@@ -232,6 +232,16 @@ class ProteusQGUI(GUIBase):
     pulse_repetition = StatusVar('pulse_repetition', default=100000)
     pi_half_duration = StatusVar('pi_half_duration', default=200e-9)
 
+    clock_frequency = StatusVar('clock_frequency', default=100)
+    contrast = StatusVar('contrast', default=30)
+    offset = StatusVar('offset', default=100e3)
+    amp_noise = StatusVar('amp_noise', default=5e3)
+    esr_fwhm = StatusVar('esr_fwhm', default=7e6)
+    err_margin_x0 = StatusVar('err_margin_x0', default=1e6)
+    err_margin_offset = StatusVar('err_margin_offset', default=10e3)
+    err_margin_contrast = StatusVar('err_margin_contrast', default=1)
+    n_samples = StatusVar('n_samples', default=50e3)
+
     def __init__(self, config, **kwargs):
         super().__init__(config=config, **kwargs)
 
@@ -1008,6 +1018,15 @@ class ProteusQGUI(GUIBase):
         self._qm.pulse_repetition_spinBox.setValue(self.pulse_repetition)
         self._qm.pi_half_doubleSpinBox.setValue(self.pi_half_duration)
 
+        self._qm.esr_contrast_SpinBox.setValue(self.contrast )
+        self._qm.esr_offset_SpinBox.setValue(self.offset )
+        self._qm.esr_noise_SpinBox.setValue( self.amp_noise )
+        self._qm.esr_fwhm_SpinBox.setValue(self.esr_fwhm )
+        self._qm.esr_errorMarginCenter_SpinBox.setValue(self.err_margin_x0 )
+        self._qm.esr_errorMarginOffset_SpinBox.setValue(self.err_margin_offset )
+        self._qm.esr_errorMarginContrast_SpinBox.setValue(self.err_margin_contrast )
+        self._qm.esr_nSamples_SpinBox.setValue(self.n_samples )
+
     def store_status_var(self):
         """ Store all those variables to file. """
 
@@ -1065,6 +1084,15 @@ class ProteusQGUI(GUIBase):
         self.slope2_podmr = self._qm.slope2_doubleSpinBox.value()
         self.pulse_repetition = self._qm.pulse_repetition_spinBox.value()
         self.pi_half_duration = self._qm.pi_half_doubleSpinBox.value()
+
+        self.contrast = self._qm.esr_contrast_SpinBox.value()
+        self.offset = self._qm.esr_offset_SpinBox.value()
+        self.amp_noise = self._qm.esr_noise_SpinBox.value() 
+        self.esr_fwhm = self._qm.esr_fwhm_SpinBox.value()
+        self.err_margin_x0 = self._qm.esr_errorMarginCenter_SpinBox.value()
+        self.err_margin_offset = self._qm.esr_errorMarginOffset_SpinBox.value()
+        self.err_margin_contrast = self._qm.esr_errorMarginContrast_SpinBox.value()
+        self.n_samples = self._qm.esr_nSamples_SpinBox.value()
 
     def get_all_data_matrices(self):
         """ more of a helper method to get all the data matrices. """

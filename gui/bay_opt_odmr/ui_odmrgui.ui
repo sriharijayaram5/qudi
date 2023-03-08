@@ -60,7 +60,7 @@
      <x>0</x>
      <y>0</y>
      <width>953</width>
-     <height>21</height>
+     <height>22</height>
     </rect>
    </property>
    <widget class="QMenu" name="menu_File">
@@ -298,16 +298,16 @@
          <item>
           <widget class="QSpinBox" name="average_level_SpinBox">
            <property name="minimum">
-            <number>1</number>
+            <number>2</number>
            </property>
            <property name="maximum">
-            <number>1000</number>
+            <number>10000</number>
            </property>
            <property name="singleStep">
             <number>1</number>
            </property>
            <property name="value">
-            <number>1</number>
+            <number>2</number>
            </property>
           </widget>
          </item>
@@ -611,14 +611,14 @@
  </widget>
  <customwidgets>
   <customwidget>
-   <class>PlotWidget</class>
-   <extends>QGraphicsView</extends>
-   <header>pyqtgraph</header>
-  </customwidget>
-  <customwidget>
    <class>ScienDSpinBox</class>
    <extends>QDoubleSpinBox</extends>
    <header>qtwidgets.scientific_spinbox.h</header>
+  </customwidget>
+  <customwidget>
+   <class>PlotWidget</class>
+   <extends>QGraphicsView</extends>
+   <header>pyqtgraph</header>
   </customwidget>
   <customwidget>
    <class>FitSettingsComboBox</class>
@@ -648,7 +648,4 @@
    </hints>
   </connection>
  </connections>
- <buttongroups>
-  <buttongroup name="buttonGroup"/>
- </buttongroups>
 </ui>

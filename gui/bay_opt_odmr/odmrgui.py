@@ -23,7 +23,7 @@ import numpy as np
 import os
 import pyqtgraph as pg
 
-from core.connector import Connector
+from core.connector import Connector, StatusVar
 from core.util import units
 from gui.guibase import GUIBase
 from gui.guiutils import ColorBar
@@ -93,6 +93,16 @@ class ODMRGui(GUIBase):
     sigDoFit = QtCore.Signal(str, object, object, int, int)
     sigSaveMeasurement = QtCore.Signal(str)
     sigAverageLinesChanged = QtCore.Signal(int)
+
+    clock_frequency = StatusVar('clock_frequency', default=100)
+    contrast = StatusVar('contrast', default=30)
+    offset = StatusVar('offset', default=100e3)
+    amp_noise = StatusVar('amp_noise', default=5e3)
+    esr_fwhm = StatusVar('esr_fwhm', default=7e6)
+    err_margin_x0 = StatusVar('err_margin_x0', default=1e6)
+    err_margin_offset = StatusVar('err_margin_offset', default=10e3)
+    err_margin_contrast = StatusVar('err_margin_contrast', default=1)
+    n_samples = StatusVar('n_samples', default=50e3)
 
     def __init__(self, config, **kwargs):
         super().__init__(config=config, **kwargs)
@@ -234,6 +244,7 @@ class ODMRGui(GUIBase):
         self._mw.stop_freq_DoubleSpinBox_0.valueChanged.connect(self.change_sweep_params)
         self._mw.cw_power_DoubleSpinBox.valueChanged.connect(self.change_sweep_params)
         
+        self.retrieve_status_vars()
         self.change_sweep_params()
 
         # Show the Main ODMR GUI:
@@ -245,6 +256,7 @@ class ODMRGui(GUIBase):
         @return int: error code (0:OK, -1:error)
         """
         # Disconnect signals
+        self.store_status_vars()
         self._sd.buttonBox.button(QtWidgets.QDialogButtonBox.Apply).clicked.disconnect()
         self._sd.accepted.disconnect()
         self._sd.rejected.disconnect()
@@ -297,6 +309,27 @@ class ODMRGui(GUIBase):
         """ Open the settings menu """
         self._sd.exec_()
 
+    def retrieve_status_vars(self):
+        self._sd.clock_frequency_DoubleSpinBox.setValue(self.clock_frequency )
+        self._sd.esr_contrast_SpinBox.setValue(self.contrast )
+        self._sd.esr_offset_SpinBox.setValue(self.offset )
+        self._sd.esr_noise_SpinBox.setValue( self.amp_noise )
+        self._sd.esr_fwhm_SpinBox.setValue(self.esr_fwhm )
+        self._sd.esr_errorMarginCenter_SpinBox.setValue(self.err_margin_x0 )
+        self._sd.esr_errorMarginOffset_SpinBox.setValue(self.err_margin_offset )
+        self._sd.esr_errorMarginContrast_SpinBox.setValue(self.err_margin_contrast )
+        self._sd.esr_nSamples_SpinBox.setValue(self.n_samples )
+    
+    def store_status_vars(self):
+        self.clock_frequency = self._sd.clock_frequency_DoubleSpinBox.value()
+        self.contrast = self._sd.esr_contrast_SpinBox.value()
+        self.offset = self._sd.esr_offset_SpinBox.value()
+        self.amp_noise = self._sd.esr_noise_SpinBox.value() 
+        self.esr_fwhm = self._sd.esr_fwhm_SpinBox.value()
+        self.err_margin_x0 = self._sd.esr_errorMarginCenter_SpinBox.value()
+        self.err_margin_offset = self._sd.esr_errorMarginOffset_SpinBox.value()
+        self.err_margin_contrast = self._sd.esr_errorMarginContrast_SpinBox.value()
+        self.n_samples = self._sd.esr_nSamples_SpinBox.value()
       
     def get_objects_from_groupbox_row(self, row):
         # get elements from the row
