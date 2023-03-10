@@ -23,7 +23,7 @@ import numpy as np
 import os
 import pyqtgraph as pg
 
-from core.connector import Connector, StatusVar
+from core.module import Connector, StatusVar
 from core.util import units
 from gui.guibase import GUIBase
 from gui.guiutils import ColorBar

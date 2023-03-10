@@ -229,11 +229,15 @@ class AWG663(Base, PulserInterface):
 
         return limits
 
-    def pulser_on(self):
+    def pulser_on(self, trigger=False):
         """ Switches the pulsing device on.
         @return int: error code (0:OK, -1:error)
         """
-        ERR = self.instance.start()
+        if trigger:
+            ERR = self.instance.start_enable_trigger()
+        else:
+            ERR = self.instance.start()
+        
         if ERR == 0:
             return 1
         else:

@@ -555,7 +555,8 @@ class ODMRLogic(GenericLogic):
         self.set_up_odmr(self.pi_half_pulse)
 
         if self.mw_scanmode == MicrowaveMode.CW:
-            self._pulsed_master_AWG.toggle_pulse_generator(True)
+            # self._pulsed_master_AWG.toggle_pulse_generator(True)
+            self._pulsed_master_AWG.pulsedmeasurementlogic().pulsegenerator().pulser_on(trigger=True)
             self._odmr_counter._pulser.pulser_on()
 
         # initialize raw_data array
@@ -567,7 +568,7 @@ class ODMRLogic(GenericLogic):
         if not self.mw_scanmode == MicrowaveMode.CW:
             self.sigNextLine.emit()
         else:
-            self.sigNextLineTimer.start(1000/10)
+            self.sigNextLineTimer.start(1000)
 
     def stop_odmr_scan(self):
         """ Stop the ODMR scan.
