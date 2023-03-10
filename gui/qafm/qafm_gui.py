@@ -1977,6 +1977,9 @@ class ProteusQGUI(GUIBase):
                     scale_fac = qafm_data[param_name]['scale_fac']
                     data = data / scale_fac
                     
+                    if not np.any(data):
+                        continue
+                    
                     cb_range = self._get_scan_cb_range(param_name,data=data)
 
                     if qafm_data[param_name]['display_range'] is not None:
