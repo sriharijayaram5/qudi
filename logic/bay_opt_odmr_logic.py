@@ -647,12 +647,14 @@ class ODMRLogic(GenericLogic):
             # OptBayesExpt provides statistics to track progress
             sigma = self.my_obe.std()
             err = sigma
-
+            params = self.my_obe.parameters
+            
             self.fit_dict = {'bay_x': self.bay_x,
                             'bay_y': self.bay_y,
-                            'amp': self.opt_bay_params['params'][0],
-                            'offset': self.opt_bay_params['params'][1],
-                            'fwhm': self.opt_bay_params['params'][3]}
+                            'amp': params[1].mean(),
+                            'offset': params[2].mean(),
+                            'fwhm': self.opt_bay_params['params'][3],
+                            'center': params[0].mean()}
 
             if error:
                 self.stopRequested = True
@@ -782,11 +784,12 @@ class ODMRLogic(GenericLogic):
                                      ''.format(fit_function))
 
         if fit_function == 'Lorentzian dip' and self.fit_dict:
-            mod,add_params = self.fitlogic().make_lorentzian_model()
-            add_params['sigma'].set(value=self.fit_dict['fwhm']/2, vary=True, min=0)
-            add_params['amplitude'].set(value=self.fit_dict['amp'], vary=True, max=0)
-            add_params['offset'].set(value=self.fit_dict['offset'], vary=True, max=self.fit_dict['offset']*5) # maybe too arbitrary
-            add_params['center'].set(value=self.odmr_plot_x[np.argmin(self.odmr_plot_y)], vary=True)
+            params = self.my_obe.parameters
+            mod,add_params = self._fitlogic.make_lorentzian_model()
+            add_params['sigma'].set(value=self.fit_dict['fwhm']/2, vary=True, min=0, max=self.fit_dict['fwhm'])
+            add_params['amplitude'].set(value=self.fit_dict['amp'], vary=True, max=params[1].max(), min=params[1].min())
+            add_params['offset'].set(value=self.fit_dict['offset'], vary=True, max=params[2].max(), min=params[2].min())
+            add_params['center'].set(value=self.fit_dict['center'], vary=True, max=params[0].max(), min=params[0].min())
             self.fc.use_settings = add_params
         else:
             self.fc.use_settings = None

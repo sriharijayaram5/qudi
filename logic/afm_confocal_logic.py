@@ -2154,12 +2154,13 @@ class AFMConfocalLogic(GenericLogic):
 
                 bay_x = np.asarray(bay_x)
                 bay_y = np.asarray(bay_y)
+                params = self.my_obe.parameters
                 param_dict = {'bay_x': bay_x,
                             'bay_y': bay_y,
-                            'amp': amp,
-                            'offset': background,
+                            'amp': params[1].mean(),
+                            'offset': params[2].mean(),
                             'fwhm': fwhm,
-                            'center': xmeas[0]}
+                            'center': params[0].mean()}
 
                 self._esr_debug[f'{line_num},{index}'] = param_dict
 
@@ -2170,9 +2171,9 @@ class AFMConfocalLogic(GenericLogic):
                     if single_res:
                         mod,add_params = self._fitlogic.make_lorentzian_model()
                         add_params['sigma'].set(value=param_dict['fwhm']/2, vary=True, min=0, max=param_dict['fwhm'])
-                        add_params['amplitude'].set(value=param_dict['amp'], vary=True, max=0)
-                        add_params['offset'].set(value=param_dict['offset'], vary=True, max=param_dict['offset']*5) # maybe too arbitrary
-                        add_params['center'].set(value=bay_x[np.argmin(bay_y)], vary=True, min=freq_start, max=freq_stop)
+                        add_params['amplitude'].set(value=param_dict['amp'], vary=True, max=params[1].max(), min=params[1].min())
+                        add_params['offset'].set(value=param_dict['offset'], vary=True, max=params[2].max(), min=params[2].min()) 
+                        add_params['center'].set(value=param_dict['center'], vary=True, max=params[0].max(), min=params[0].min())
                         res = self._fitlogic.make_lorentzian_fit(bay_x,
                                                                  bay_y,
                                                                  estimator=self._fitlogic.estimate_lorentzian_dip,
