@@ -553,6 +553,8 @@ class AFMConfocalLogic(GenericLogic):
         self._meas_path = os.path.abspath(self._meas_path)
 
         self.mw_tracking_mode_runs = 1
+        self.optimum = False
+        self.pickiness = 19
 
         # safety precaution in case the meas path does not exist
         if not os.path.exists(self._meas_path):
@@ -2106,8 +2108,10 @@ class AFMConfocalLogic(GenericLogic):
                         if err_counter>5:
                             last_run = True
                     try:
-                        # xmeas = self.my_obe.good_setting(pickiness=19)
-                        xmeas = self.my_obe.opt_setting()
+                        if self.optimum:
+                            xmeas = self.my_obe.opt_setting()
+                        else:
+                            xmeas = self.my_obe.good_setting(pickiness = self.pickiness)
                         xmeas_fail = xmeas
                     except:
                         self.log.warning(f'OptBay setting failed at line {line_num} and index {index}')
