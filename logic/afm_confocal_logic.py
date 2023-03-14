@@ -1627,7 +1627,7 @@ class AFMConfocalLogic(GenericLogic):
         self._pulser.prepare_SPM_ensemble()
         self._pulser.load_swabian_sequence(self._make_pulse_sequence(HWRecorderMode.ESR, 1/esr_count_freq, freq_points))
         self._pulser.pulser_on(trigger=True, n=num_esr_runs, final=self._pulser._sync_final_state)
-
+        self.run_IQ_DC()
         if ret_val < 0:
             self.sigQuantiScanFinished.emit()
             self._pulser.pulser_off()
@@ -1812,11 +1812,12 @@ class AFMConfocalLogic(GenericLogic):
                     self.log.warning(f'Fit was not working at line {line_num} and index {index}. Data needs to be post-processed.')
 
                 # here the counts are saved:
-                self._counter.countrate.startFor(1e9)
-                self._counter.countrate.waitUntilFinished(timeout=10)
                 self._counter._tagger.sync()
+                t_int = 10 # time for integration in ms 
+                self._counter.countrate.startFor(t_int*1e9, clear = True)
+                self._counter.countrate.waitUntilFinished(timeout=t_int*10)
                 self._scan_point[0] = np.nan_to_num(self._counter.countrate.getData())
-                self.log.debug(f'Countrate: {self._scan_point[0]}')
+                # self.log.debug(f'Countrate: {self._scan_point[0]}')
     
                 # here the b_field is saved:
                 self._scan_point[1] = mag_field
@@ -1946,7 +1947,7 @@ class AFMConfocalLogic(GenericLogic):
         # save the current sequence of the pulsestreamer and prepare the pulsestreamer for esr
         self._pulser.prepare_SPM_ensemble()
         self._pulser.load_swabian_sequence(self._make_pulse_sequence('BayesianESR', 1/esr_count_freq, num_esr_runs))# esr count freq is int_time; freq points is repetition at each point
-
+        self.run_IQ_DC()
         if ret_val < 0:
             self.sigQuantiScanFinished.emit()
             self._pulser.pulser_off()
@@ -2076,6 +2077,17 @@ class AFMConfocalLogic(GenericLogic):
                 #self.log.debug(f'Point number {index+1} scan started')
                 # first two entries are counts and b_field, remaining entries are the scan parameter
                 self._scan_point = np.zeros(num_params) 
+
+                # here the counts are saved:
+                self._counter._tagger.sync()
+                t_int = 10 # time for integration in ms 
+                self._counter.countrate.startFor(t_int*1e9, clear = True)
+                self._counter.countrate.waitUntilFinished(timeout=t_int*10)
+                self._scan_point[0] = np.nan_to_num(self._counter.countrate.getData())
+
+                b_mean, b_sigma = (self._scan_point[0], background_noise)
+                b_samples = np.random.default_rng().normal(b_mean, abs(b_sigma), n_samples)
+                parameters = (parameters[0],parameters[1],b_samples)
                 
                 n_measure = self.opt_reps
                 bay_x = []
@@ -2179,13 +2191,6 @@ class AFMConfocalLogic(GenericLogic):
 
                 except:
                     self.log.warning(f'Fit was not working at line {line_num} and index {index}. Data needs to be post-processed.')
-
-                # here the counts are saved:
-                # self._counter.countrate.startFor(1e9)
-                # self._counter.countrate.waitUntilFinished(timeout=10)
-                # self._counter._tagger.sync()
-                # self._scan_point[0] = np.nan_to_num(self._counter.countrate.getData())
-                # self.log.debug(f'Countrate: {self._scan_point[0]}')
     
                 # here the b_field is saved:
                 self._scan_point[1] = mag_field
@@ -2469,7 +2474,7 @@ class AFMConfocalLogic(GenericLogic):
                     var_start = round(res_freq - delta_0,0)
                     var_stop = round(res_freq + delta_0,0)
                     var_incr = round((var_stop-var_start)/freq_points,0)
-                    mw_tracking_mode_runs = 4
+                    mw_tracking_mode_runs = repetitions
 
                 alternating = False
                 laser_pulses = freq_points # is normally not used for mw_list_mode or mw_tracking_mode
@@ -2507,6 +2512,7 @@ class AFMConfocalLogic(GenericLogic):
                 self._pulser.load_swabian_sequence(self._make_pulse_sequence('NextTrigger'))
                 self._next_trigger_seq = self._pulser._seq
 
+            self.run_IQ_DC()
             # return to normal operation
             self.sigHealthCheckStopSkip.emit()
 
@@ -2608,6 +2614,18 @@ class AFMConfocalLogic(GenericLogic):
             else:
                 self._mw.cw_on()
 
+            #this is untested but works in AWG mode - check first if breaks and move back into the SPM loop
+            if (mw_list_mode or mw_tracking_mode):
+                if self._counter.recorder.getHistogramIndex()==-1:
+                    self._pulser._seq = self._next_trigger_seq
+                    self._pulser.pulser_on(n=1)
+                    # time.sleep(0.001)
+                    while True:
+                        # time.sleep(0.001)
+                        if self._pulser.pulse_streamer.hasFinished():
+                            break
+                self._pulser._seq = self._podmr_seq
+
             # start actual scan
             for line_num, scan_coords in enumerate(scan_arr):
 
@@ -2671,21 +2689,10 @@ class AFMConfocalLogic(GenericLogic):
                                     self._mw.set_sweep_2(var_start, var_stop, var_incr, mw_power)
                                     self._mw.sweep_on()
 
-                            if self._counter.recorder.getHistogramIndex()==-1:
-                                self._pulser._seq = self._next_trigger_seq
-                                self._pulser.pulser_on(n=1)
-                                # time.sleep(0.001)
-                                while True:
-                                    # time.sleep(0.001)
-                                    if self._pulser.pulse_streamer.hasFinished():
-                                        break
-                            self._pulser._seq = self._podmr_seq
-                            # THIS A TRIGGERED PULSER ON COMMAND - will be trigger by ASC500 on the first loop
-                            if n==0:
-                                self._pulser.pulser_on(trigger=True, n=num_runs, final=self._pulser._mw_trig_final_state)
-                            else:
-                                self._pulser.pulser_on(trigger=False, n=num_runs, final=self._pulser._mw_trig_final_state)
-                        
+                            
+                            # THIS A TRIGGERED PULSER ON COMMAND - will be triggered by ASC500 on the first loop only
+                            self._pulser.pulser_on(trigger=True if n==0 else False, n=num_runs, final=self._pulser._mw_trig_final_state)
+
                         # do movement and height scan
                         # run for n=0 condition only
                         if n==0:
@@ -2736,10 +2743,11 @@ class AFMConfocalLogic(GenericLogic):
                     self._scan_point[1] = self.res_freq_array[line_num, index] if mw_tracking_mode else 1
                     # here the counts can be saved:
                     self._counter._tagger.sync()
-                    self._counter.countrate.startFor(1e9)
-                    self._counter.countrate.waitUntilFinished(timeout=10)
+                    t_int = 10 # time for integration in ms 
+                    self._counter.countrate.startFor(t_int*1e9, clear = True)
+                    self._counter.countrate.waitUntilFinished(timeout=t_int*10)
                     self._scan_point[0] = np.nan_to_num(self._counter.countrate.getData())
-                    self.log.debug(f'Countrate: {self._scan_point[0]}')
+                    # self.log.debug(f'Countrate: {self._scan_point[0]}')
 
                     for param_index, param_name in enumerate(curr_scan_params):
                         name = f'{param_name}_fw'
@@ -2895,7 +2903,8 @@ class AFMConfocalLogic(GenericLogic):
             self._pulsed_master_AWG.toggle_pulse_generator(False)
             self.load_AWG_sine_for_IQ(delta_0, pi_half_duration)            
             self._AWG.load_triggered_multi_replay(['SinSPM0', 'SinSPM1']) # refer to load_AWG_sine_for_IQ for names
-            self._pulsed_master_AWG.toggle_pulse_generator(True)
+            # self._pulsed_master_AWG.toggle_pulse_generator(True)
+            self._pulsed_master_AWG.pulsedmeasurementlogic().pulsegenerator().pulser_on(trigger=True)
 
             #everything else can remain the same
             self._pulser.load_swabian_sequence(self._make_pulse_sequence(mode = 'PODMR_AWG', pi_half_pulse = pi_half_duration))
@@ -2948,6 +2957,7 @@ class AFMConfocalLogic(GenericLogic):
             # prepare arrays for specific modes
             self.res_freq_array = np.ones((coord1_num, coord0_num)) * res_freq
             self.delta_array = np.ones((coord1_num, coord0_num)) * delta_0
+            self._mw.set_cw_2(res_freq, mw_power)
 
             # check input values
             ret_val |= self._spm.check_spm_scan_params_by_plane(plane, coord0_start, coord0_stop,
@@ -3048,17 +3058,16 @@ class AFMConfocalLogic(GenericLogic):
                         res_estimate = self.res_freq_array[coord] if n==0 else res_estimate
 
                         try:
-                            self._mw.set_cw_2(res_estimate, mw_power)
-                            self._mw.cw_on()
+                            # self._mw.set_cw_2(res_estimate, mw_power) #trying with _3 to minimize unnecessary calls to device
+                            self._mw.set_cw_3(res_estimate, mw_power)
+                            # self._mw.cw_on()
+                            self._mw.cw_on_3()
                         except:
                             self._stop_request = True
                             self.log.warning('Something has gone wrong with MW device connection!')
 
-                        # THIS A TRIGGERED PULSER ON COMMAND - will be trigger by ASC500 on the first loop
-                        if n==0:
-                            self._pulser.pulser_on(trigger=True, n=num_runs, final=self._pulser._sync_final_state if mw_tracking_mode_runs==1 else None)
-                        else:
-                            self._pulser.pulser_on(trigger=False, n=num_runs, final=self._pulser._sync_final_state if mw_tracking_mode_runs==1 else None)
+                        # THIS A TRIGGERED PULSER ON COMMAND - will be triggered by ASC500 on the first loop only
+                        self._pulser.pulser_on(trigger=True if n==0 else False, n=num_runs, final=self._pulser._sync_final_state if mw_tracking_mode_runs==1 else None)
                                               
                         # do movement and height scan
                         # run for n=0 condition only
@@ -3085,8 +3094,9 @@ class AFMConfocalLogic(GenericLogic):
                     # self._scan_point[1] = 2.776+(np.random.random()*0.5e6/1e9)
                     # here the counts can be saved:
                     self._counter._tagger.sync()
-                    self._counter.countrate.startFor(1e9)
-                    self._counter.countrate.waitUntilFinished(timeout=10)
+                    t_int = 10 # time for integration in ms 
+                    self._counter.countrate.startFor(t_int*1e9, clear = True)
+                    self._counter.countrate.waitUntilFinished(timeout=t_int*10)
                     self._scan_point[0] = np.nan_to_num(self._counter.countrate.getData())
 
                     for param_index, param_name in enumerate(curr_scan_params):

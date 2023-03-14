@@ -214,6 +214,22 @@ class MicrowaveSmbv(Base, MicrowaveInterface):
             dummy, is_running = self.get_status()
         return 0
 
+    def cw_on_3(self):
+        """
+        Switches on cw microwave output.
+        Must return AFTER the device is actually running.
+
+        @return int: error code (0:OK, -1:error)
+        """
+
+        self._connection.write(':OUTP:STAT ON')
+        self._connection.write('*WAI')
+        dummy, is_running = self.get_status()
+        while not is_running:
+            time.sleep(0.02)
+            dummy, is_running = self.get_status()
+        return 0
+
     def set_cw(self, frequency=None, power=None):
         """
         Configures the device for cw-mode and optionally sets frequency and/or power
@@ -275,6 +291,22 @@ class MicrowaveSmbv(Base, MicrowaveInterface):
         # Set CW power
         if power is not None:
             self._command_wait(':POW {0:f}'.format(power))
+
+        return 
+    
+    def set_cw_3(self, frequency=None, power=None):
+        """
+        Configures the device for cw-mode and optionally sets frequency and/or power
+
+        @param float frequency: frequency to set in Hz
+
+        """
+        self.off()
+
+        # Activate CW mode
+        self._command_wait(':FREQ:MODE CW')
+        # Set CW frequency
+        self._command_wait(':FREQ {0:f}'.format(frequency))
 
         return 
 
