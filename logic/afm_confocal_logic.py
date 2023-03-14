@@ -2164,7 +2164,8 @@ class AFMConfocalLogic(GenericLogic):
                             'amp': params[1].mean(),
                             'offset': params[2].mean(),
                             'fwhm': fwhm,
-                            'center': params[0].mean()}
+                            'center': params[0].mean(),
+                            'params': params}
 
                 self._esr_debug[f'{line_num},{index}'] = param_dict
 
@@ -2192,7 +2193,9 @@ class AFMConfocalLogic(GenericLogic):
                                                                     self.E_FIELD) * 10000
 
                     else:   
-                        pass 
+                        mag_field =  self.calc_mag_field_single_res(params[0].mean(), 
+                                                                    self.ZFS, 
+                                                                    self.E_FIELD) * 10000 
 
                 except:
                     self.log.warning(f'Fit was not working at line {line_num} and index {index}. Data needs to be post-processed.')
