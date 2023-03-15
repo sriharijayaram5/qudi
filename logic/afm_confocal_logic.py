@@ -2006,6 +2006,7 @@ class AFMConfocalLogic(GenericLogic):
         self._esr_debug = {}
         amp, background, background_noise, fwhm, self.opt_reps, self.err_margin_x0, self.err_margin_offset, self.err_margin_amp, n_samples = param_estimation 
         my_model_function, settings, parameters, constants, scale, use_jit = self.setup_obe(freq_start, freq_stop, freq_points, amp, background, background_noise, fwhm/2, n_samples)
+        self._mw.set_cw(freq_start, mw_power) # minimal cw set function _3 is used later which does not repeat setting of power
 
         time_prev = time.monotonic()
 
@@ -2103,9 +2104,9 @@ class AFMConfocalLogic(GenericLogic):
 
                     if i==n_measure-1:
                         last_run = True
-                    if err[0]<self.err_margin_x0 and err[0]<self.err_margin_amp and err[0]<self.err_margin_offset:
+                    if err[0]<self.err_margin_x0 and err[1]<abs(self.err_margin_amp) and err[2]<self.err_margin_offset:
                         err_counter +=1
-                        if err_counter>5:
+                        if err_counter>1:
                             last_run = True
                     try:
                         if self.optimum:
@@ -2117,8 +2118,8 @@ class AFMConfocalLogic(GenericLogic):
                         self.log.warning(f'OptBay setting failed at line {line_num} and index {index}')
                         xmeas = xmeas_fail
                     self._counter.start_recorder()
-                    self._mw.set_cw(xmeas[0], mw_power)
-                    self._mw.cw_on()
+                    self._mw.set_cw_3(xmeas[0], mw_power) # minimal cw set function _3 is used which does not repeat setting of power
+                    self._mw.cw_on_3()
                     self._pulser.pulser_on(trigger=True if i==0 else False, n=1, final=self._pulser._sync_final_state if last_run else None)
                     if i==0:
                         # at first the AFM parameter
@@ -2152,7 +2153,7 @@ class AFMConfocalLogic(GenericLogic):
 
                     # OptBayesExpt provides statistics to track progress
                     sigma = self.my_obe.std()
-                    err = sigma
+                    self.err = sigma
                     if last_run:
                         break
 
@@ -3067,7 +3068,7 @@ class AFMConfocalLogic(GenericLogic):
 
                         try:
                             # self._mw.set_cw_2(res_estimate, mw_power) #trying with _3 to minimize unnecessary calls to device
-                            self._mw.set_cw_3(res_estimate, mw_power)
+                            self._mw.set_cw_3(res_estimate, mw_power) # minimal cw set function _3 is used which does not repeat setting of power
                             # self._mw.cw_on()
                             self._mw.cw_on_3()
                         except:

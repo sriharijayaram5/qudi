@@ -225,6 +225,8 @@ class ODMRGui(GUIBase):
                                                      QtCore.Qt.QueuedConnection)
         self._odmr_logic.sigOutputStateUpdated.connect(self.update_status,
                                                        QtCore.Qt.QueuedConnection)
+        self._odmr_logic.sigOBEResultUpdated.connect(self.update_obe_result,
+                                                       QtCore.Qt.QueuedConnection)                                                       
         self._odmr_logic.sigOdmrPlotsUpdated.connect(self.update_plots, QtCore.Qt.QueuedConnection)
         self._odmr_logic.sigOdmrFitUpdated.connect(self.update_fit, QtCore.Qt.QueuedConnection)
         self._odmr_logic.sigOdmrElapsedTimeUpdated.connect(self.update_elapsedtime,
@@ -444,6 +446,10 @@ class ODMRGui(GUIBase):
         return
 
 
+    def update_obe_result(self, result):
+        self._mw.obe_results_DisplayWidget.clear()
+        self._mw.obe_results_DisplayWidget.setPlainText(result)
+        return 
 
     def update_status(self, mw_mode, is_running):
         """
@@ -461,6 +467,9 @@ class ODMRGui(GUIBase):
         if is_running:
             self._mw.action_resume_odmr.setEnabled(False)
             self._mw.cw_power_DoubleSpinBox.setEnabled(False)
+            self._mw.start_freq_DoubleSpinBox_0.setEnabled(False)
+            self._mw.step_freq_DoubleSpinBox_0.setEnabled(False)
+            self._mw.stop_freq_DoubleSpinBox_0.setEnabled(False)
             if mw_mode != 'cw':
                 self._mw.action_run_stop.setEnabled(True)
                 self._mw.action_toggle_cw.setEnabled(False)
@@ -486,6 +495,9 @@ class ODMRGui(GUIBase):
             self._mw.action_resume_odmr.setEnabled(True)
             self._mw.cw_power_DoubleSpinBox.setEnabled(True)
             self._mw.action_run_stop.setEnabled(True)
+            self._mw.start_freq_DoubleSpinBox_0.setEnabled(True)
+            self._mw.step_freq_DoubleSpinBox_0.setEnabled(True)
+            self._mw.stop_freq_DoubleSpinBox_0.setEnabled(True)
             dspinbox_dict = self.get_all_dspinboxes_from_groupbox()
             for identifier_name in dspinbox_dict:
                 dspinbox_type_list = dspinbox_dict[identifier_name]

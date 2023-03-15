@@ -72,6 +72,7 @@ class ODMRLogic(GenericLogic):
     # Update signals, e.g. for GUI module
     sigParameterUpdated = QtCore.Signal(dict)
     sigOutputStateUpdated = QtCore.Signal(str, bool)
+    sigOBEResultUpdated = QtCore.Signal(str)
     sigOdmrPlotsUpdated = QtCore.Signal(np.ndarray, np.ndarray)
     sigOdmrFitUpdated = QtCore.Signal(np.ndarray, np.ndarray, dict, str)
     sigOdmrElapsedTimeUpdated = QtCore.Signal(float, int)
@@ -125,7 +126,7 @@ class ODMRLogic(GenericLogic):
         # Raw data array
         # Switch off microwave and set CW frequency and power
         self.mw_off()
-        self.fake_center = 1.87e9
+        self.fake_center = 2.87e9
 
         # Connect signals
         self.sigNextLine.connect(self._scan_odmr_line, QtCore.Qt.QueuedConnection)
@@ -532,6 +533,7 @@ class ODMRLogic(GenericLogic):
 
             self._initialize_odmr_plots()
             self._odmr_counter.set_odmr_length(self.lines_to_average)
+            self._mw_device.set_cw(start, self.cw_mw_power)
             self.sigNextLine.emit()
             return 0
 
@@ -605,11 +607,11 @@ class ODMRLogic(GenericLogic):
                 self.elapsed_sweeps = 0
                 self._startTime = time.time()
                        
-            if self.err[0]<self.err_margin_x0 and self.err[0]<self.err_margin_amp and self.err[0]<self.err_margin_offset:
+            if self.err[0]<self.err_margin_x0 and self.err[1]<abs(self.err_margin_amp) and self.err[2]<self.err_margin_offset:
                 self.err_counter +=1
-                if self.err_counter>5:
+                if self.err_counter>2:
                     self.stopRequested = True
-            xmeas_fail = [2.87e9]
+            xmeas_fail = [3e9]
             try:
                 if self.optimum:
                     xmeas = self.my_obe.opt_setting()
@@ -617,19 +619,20 @@ class ODMRLogic(GenericLogic):
                     xmeas = self.my_obe.good_setting(pickiness = self.pickiness)
                 
                 xmeas_fail = xmeas
-            except:
+            except Exception as err:
                 xmeas = xmeas_fail
-            self._mw_device.set_cw(xmeas[0], self.cw_mw_power)
-            self._mw_device.cw_on()
+                self.log.warning(f'OBE Failed. {err}')
+            self._mw_device.set_cw_3(xmeas[0], self.cw_mw_power)
+            self._mw_device.cw_on_3()
             # Acquire count data
             error, new_counts = self._odmr_counter.count_odmr(length=self.lines_to_average)
             # self.log.debug(new_counts)
         
-            esr_meas = np.mean(new_counts)
             # # Fake data
-            # fx = np.array([xmeas[0]])
-            # esr_meas = self.physical_lorentzian(x=fx, center=self.fake_center, sigma=7e6/2, amp=-30000, offset=100e3) + np.random.random()*5e3
+            fx = np.array([xmeas[0], xmeas[0], xmeas[0]])
+            new_counts = self.physical_lorentzian(x=fx, center=self.fake_center, sigma=7e6/2, amp=-30000, offset=100e3) + np.random.random(len(fx))*5e3
             
+            esr_meas = np.mean(new_counts)
             ymeasure = np.mean(esr_meas)
             noise = np.std(new_counts)
             self.bay_x.append(xmeas[0])
@@ -646,8 +649,9 @@ class ODMRLogic(GenericLogic):
 
             # OptBayesExpt provides statistics to track progress
             sigma = self.my_obe.std()
-            err = sigma
+            self.err = sigma
             params = self.my_obe.parameters
+            
             
             self.fit_dict = {'bay_x': self.bay_x,
                             'bay_y': self.bay_y,
@@ -655,7 +659,10 @@ class ODMRLogic(GenericLogic):
                             'offset': params[2].mean(),
                             'fwhm': self.opt_bay_params['params'][3],
                             'center': params[0].mean()}
-
+            contrast = abs(100*self.fit_dict['amp']/self.fit_dict['offset'])
+            contrast_std = (100*params[1]/params[2]).std()
+            result = f"Position: {self.fit_dict['center']:.3e} ± {params[0].std():.3e}Hz\nContrast: {contrast:2.2e} ± {contrast_std:2.2e} %\nFWHM: {self.fit_dict['fwhm']:.3e} Hz"
+            self.sigOBEResultUpdated.emit(result)
             if error:
                 self.stopRequested = True
                 self.sigNextLine.emit()
@@ -785,7 +792,7 @@ class ODMRLogic(GenericLogic):
 
         if fit_function == 'Lorentzian dip' and self.fit_dict:
             params = self.my_obe.parameters
-            mod,add_params = self._fitlogic.make_lorentzian_model()
+            mod,add_params = self.fitlogic().make_lorentzian_model()
             add_params['sigma'].set(value=self.fit_dict['fwhm']/2, vary=True, min=0, max=self.fit_dict['fwhm'])
             add_params['amplitude'].set(value=self.fit_dict['amp'], vary=True, max=params[1].max(), min=params[1].min())
             add_params['offset'].set(value=self.fit_dict['offset'], vary=True, max=params[2].max(), min=params[2].min())
