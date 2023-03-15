@@ -513,7 +513,7 @@ class ODMRLogic(GenericLogic):
             start, stop = (self.mw_starts[0], self.mw_stops[0])
             points = int((stop-start)/self.mw_steps[0])
 
-            amp, background, background_noise, fwhm, self.err_margin_x0, self.err_margin_offset, self.err_margin_amp, n_samples = self.opt_bay_params['params']
+            amp, background, background_noise, fwhm, self.err_margin_x0, self.err_margin_offset, self.err_margin_amp, n_samples, self.pickiness = self.opt_bay_params['params']
             params = self.setup_obe(start, stop, points, amp, background, background_noise, fwhm/2, n_samples)
 
             my_model_function, settings, parameters, constants, scale, use_jit = params

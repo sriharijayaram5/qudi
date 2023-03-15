@@ -2004,7 +2004,7 @@ class AFMConfocalLogic(GenericLogic):
         self._curr_scan_params = curr_scan_params
         self.scan_dir = 'fw'
         self._esr_debug = {}
-        amp, background, background_noise, fwhm, self.opt_reps, self.err_margin_x0, self.err_margin_offset, self.err_margin_amp, n_samples = param_estimation 
+        amp, background, background_noise, fwhm, self.opt_reps, self.err_margin_x0, self.err_margin_offset, self.err_margin_amp, n_samples, self.pickiness = param_estimation 
         my_model_function, settings, parameters, constants, scale, use_jit = self.setup_obe(freq_start, freq_stop, freq_points, amp, background, background_noise, fwhm/2, n_samples)
         self._mw.set_cw(freq_start, mw_power) # minimal cw set function _3 is used later which does not repeat setting of power
 

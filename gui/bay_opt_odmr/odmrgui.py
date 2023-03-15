@@ -557,7 +557,8 @@ class ODMRGui(GUIBase):
         err_margin_offset = self._sd.esr_errorMarginOffset_SpinBox.value()
         err_margin_contrast = self._sd.esr_errorMarginContrast_SpinBox.value()
         n_samples = self._sd.esr_nSamples_SpinBox.value()
-        param_estimation = {'params': (-(offset*contrast/100),offset,amp_noise,esr_fwhm,err_margin_x0,err_margin_offset,-(offset*err_margin_contrast/100), n_samples)}
+        pickiness = self._sd.esr_OptBay_Pickiness_SpinBox.value()
+        param_estimation = {'params': (-(offset*contrast/100),offset,amp_noise,esr_fwhm,err_margin_x0,err_margin_offset,-(offset*err_margin_contrast/100), n_samples, pickiness)}
         self.sigOptBaySettingsChanged.emit(param_estimation)
         return
 

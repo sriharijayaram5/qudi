@@ -2682,7 +2682,8 @@ class ProteusQGUI(GUIBase):
         err_margin_offset = self._qm.esr_errorMarginOffset_SpinBox.value()
         err_margin_contrast = self._qm.esr_errorMarginContrast_SpinBox.value()
         n_samples = self._qm.esr_nSamples_SpinBox.value()
-        param_estimation = (-(offset*contrast/100),offset,amp_noise,esr_fwhm,opt_reps,err_margin_x0,err_margin_offset,-(offset*err_margin_contrast/100), n_samples)
+        pickiness = self._qm.esr_OptBay_Pickiness_SpinBox.value()
+        param_estimation = (-(offset*contrast/100),offset,amp_noise,esr_fwhm,opt_reps,err_margin_x0,err_margin_offset,-(offset*err_margin_contrast/100), n_samples, pickiness)
 
         self._qafm_logic.start_scan_area_quanti_qafm_fw_by_point(
             coord0_start=x_start, coord0_stop=x_stop, coord0_num=res_x, 
