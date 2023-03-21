@@ -897,6 +897,43 @@ class ODMRLogic(GenericLogic):
 
         return signal_data, error_data
     
+    def analyse_mean_norm_new(self, laser_data, signal_start=0.0, signal_end=200e-9, norm_start=300e-9,
+                          norm_end=500e-9):
+        """
+
+        @param laser_data:
+        @param signal_start:
+        @param signal_end:
+        @param norm_start:
+        @param norm_end:
+        @return:
+        """
+        # Get number of lasers
+        num_of_lasers = laser_data.shape[0]
+        # Get counter bin width
+        bin_width = self.bin_width_s
+
+        if not isinstance(bin_width, float):
+            return np.zeros(num_of_lasers), np.zeros(num_of_lasers)
+
+        # Convert the times in seconds to bins (i.e. array indices)
+        signal_start_bin = round(signal_start / bin_width)
+        signal_end_bin = round(signal_end / bin_width)
+        norm_start_bin = round(norm_start / bin_width)
+        norm_end_bin = round(norm_end / bin_width)
+
+        # loop over all laser pulses and analyze them
+        tmp_ref = laser_data[:,norm_start_bin:norm_end_bin]
+        tmp_signal = laser_data[:,signal_start_bin:signal_end_bin]
+        if np.count_nonzero(tmp_signal):
+            signal_data = np.mean(tmp_signal, axis=1)/np.mean(tmp_ref, axis=1)
+            error_data = signal_data * np.sqrt(1/np.sum(tmp_signal, axis=1) + 1/np.sum(tmp_ref, axis=1))
+        else:
+            signal_data = np.zeros(num_of_lasers)
+            error_data = np.zeros(num_of_lasers)
+        
+        return signal_data, error_data
+    
     def get_fit_functions(self):
         """ Return the hardware constraints/limits
         @return list(str): list of fit function names

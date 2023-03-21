@@ -3138,7 +3138,7 @@ class AFMConfocalLogic(GenericLogic):
         
         if (mw_list_mode or mw_tracking_mode):
             args = [pulsed_meas, analysis_settings['signal_start'], analysis_settings['signal_end'], analysis_settings['norm_start'], analysis_settings['norm_end']]
-            data, err = self._podmr.analyse_mean_norm(*args)
+            data, err = self._podmr.analyse_mean_norm_new(*args) #new is the only numpy operations version of the mean norm
 
         else:
             method = analysis_settings['method']
