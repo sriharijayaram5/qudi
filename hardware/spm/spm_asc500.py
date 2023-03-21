@@ -583,10 +583,11 @@ class SPM_ASC500(Base, ScannerInterface):
                 else:
                     break
             self._dev.base.setParameter(self._dev.base.getConst('ID_SPEC_PATHCTRL'), -1, 0 ) # -1 is grid mode
+            # self.log.info('New path started')
              # set after path or it will attempt going to origin for some reason
             self._spm_curr_state =  ScannerState.PROBE_SCANNING
-            self._poll_path_data()
             self._dev.scanner.setRelativeOrigin(self.end_coords)
+            self._poll_path_data()
 
         elif self._spm_curr_mode == ScannerMode.OBJECTIVE_XY or self._spm_curr_mode == ScannerMode.OBJECTIVE_XZ or self._spm_curr_mode == ScannerMode.OBJECTIVE_YZ or self._spm_curr_mode == ScannerMode.OBJECTIVE_ZX:
             self._spm_curr_state =  ScannerState.OBJECTIVE_SCANNING

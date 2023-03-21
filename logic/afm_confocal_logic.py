@@ -1092,7 +1092,7 @@ class AFMConfocalLogic(GenericLogic):
 
         time_forward = integration_time
 
-        scan_arr = self.create_scan_leftright2(coord0_start, coord0_stop,
+        scan_arr = self.create_scan_leftright(coord0_start, coord0_stop,
                                                coord1_start, coord1_stop,
                                                coord1_num)
 
@@ -1141,53 +1141,10 @@ class AFMConfocalLogic(GenericLogic):
 
             elif scan_mode == 'dual iso-b':
                 # dual iso-b
-                if self._sg_iso_b_autocalibrate_margin:
-                    if not self._pixel_clock_tdiff:
-                        self.log.error("Dual iso-B: to use pulse margin autocalibration,"
-                                       " at least 1 quenching scan must be performed; Perform the quenching scan first") 
-                    else:
-                        int_time_ms = int(integration_time * 1000)
-                        tdiff = self._pixel_clock_tdiff.get(int_time_ms, None)
-                        min_margin = tdiff['margin_2sd'] if tdiff is not None \
-                                     else  min([td['margin_2sd'] for td in self._pixel_clock_tdiff.values()])
-
-                        # time consumed in pulse is: pixel clock margin, laser cooldown, 
-                        # and the number of frequency configurations made (=n_freq*n_splits)
-                        t_consume = abs(min_margin) + \
-                                    self._sg_n_iso_b_laser_cooldown_length + \
-                                    2 * self._sg_n_iso_b_n_freq_splits * self._counter._iso_b_pulse_config_time
-
-                        pulse_margin_frac = t_consume / integration_time  
-                        self.log.info(f'Autocalibrated pulse margin used = {pulse_margin_frac}')
-
-                freq_list=[self._freq1_iso_b_frequency, self._freq2_iso_b_frequency] 
-                pulse_length = integration_time * (1 - pulse_margin_frac) / len(freq_list)
-                pulse_lengths=[pulse_length]*len(freq_list)
-                freq1_pulse_time, freq2_pulse_time = pulse_lengths
-
-                ret_val_mq = self._counter.configure_recorder(
-                    mode=HWRecorderMode.PIXELCLOCK_N_ISO_B,
-                    params={'mw_frequency_list': freq_list,
-                            'mw_pulse_lengths': pulse_lengths,
-                            'mw_power': self._iso_b_power,
-                            'mw_n_freq_splits': self._sg_n_iso_b_n_freq_splits,
-                            'mw_laser_cooldown_time': self._sg_n_iso_b_laser_cooldown_length,
-                            'num_meas': coord0_num })
-
-                self.log.info(f'Used "mw_n_freq_splits={self._sg_n_iso_b_n_freq_splits}')
-                    
-                # add counts2 parameter
-                curr_scan_params.insert(1, 'counts2')      # fluorescence of freq2 parameter
-                curr_scan_params.insert(2, 'counts_diff')  # difference in 'counts2' - 'counts' 
-                spm_start_idx = 3 # start index of the temporary scan for the spm parameters
-                #curr_scan_params.insert(3, 'b_field')  # insert the magnetic field parameter   # FIXME
-                #spm_start_idx = 4 # start index of the temporary scan for the spm parameters
-
-                self.log.info(f'Prepared pixelclock dual iso b, val {ret_val_mq}')
+                pass
             
             else:
                 self.log.error('AFM_logic error; inconsitent modality')
-
 
             if ret_val_mq < 0:
                 self.module_state.unlock()
@@ -1271,7 +1228,7 @@ class AFMConfocalLogic(GenericLogic):
                                      time_back=time_idle_move)
 
             self._spm.scan_line()  # start the scan line
-
+            # self.log.info(f'{line_num} line done started afm')
             #-------------------
             # Process line scan
             #-------------------
@@ -1283,7 +1240,6 @@ class AFMConfocalLogic(GenericLogic):
             else:
                 # perform just the scan without using the data.
                 self._spm.get_measurements(reshape=True)
-
             # Optical signal (from MicrowaveQ)
             # The same variables are requested from 'pixel', 'single iso-b', and 'dual iso-b'
             # if they don't exist, then missing value is returned as None
@@ -1310,27 +1266,18 @@ class AFMConfocalLogic(GenericLogic):
                 i = meas_params.index('counts_diff')
                 self._qafm_scan_line[i] = counts_diff / (freq1_pulse_time + freq2_pulse_time) / 2
 
-            row_i = line_num // 2    # row number for qafm_array
-            if not reverse_meas:
-                # current is forward pass, optimization occured on backward pass
-                ref_j = -1             
-                curr_direc, past_direc  = '_fw' , '_bw'
-            else:
-                # current is backward pass, optimization occured on forward pass
-                ref_j = 0             
-                curr_direc, past_direc  = '_bw' , '_fw'
+            row_i = line_num   # row number for qafm_array
+            # current is forward pass, optimization occured on backward pass
+            ref_j = -1             
+            curr_direc, past_direc  = '_fw' , '_bw'
 
             # Iterate through parameters
             for index, param_name in enumerate(curr_scan_params):
                 name = param_name + curr_direc 
 
                 # check if line was a reverse scan, if so, flip
-                if not reverse_meas:
-                    data = self._qafm_scan_line[index] 
-                else:
-                    data = np.flip(self._qafm_scan_line[index], axis=0) 
-
-                # store transformed data
+                data = self._qafm_scan_line[index] 
+                               # store transformed data
                 self._qafm_scan_array[name]['data'][row_i] = data * self._qafm_scan_array[name]['scale_fac']
 
                 # if optimization was performed after last measurement, then adjust the normalization 
@@ -1371,13 +1318,8 @@ class AFMConfocalLogic(GenericLogic):
                     self._qafm_scan_array[name]['params']['image_correction'] = str(self._qafm_scan_array[name]['image_correction'])
                     self._qafm_scan_array[name]['corr_plane_coeff'] = C.copy()
 
-            # change direction
-            if reverse_meas:
-                reverse_meas = False
-                self.sigQAFMLineScanFinished.emit()      # emit only a signal if the reversed is finished.
-            else:
-                reverse_meas = True
-
+ 
+            self.sigQAFMLineScanFinished.emit()      # emit only a signal if the reversed is finished.
             self.log.info(f'Line number {line_num} completed.')
 
             # determine pixel clock margin to use
@@ -1406,7 +1348,7 @@ class AFMConfocalLogic(GenericLogic):
                 self._pixel_clock_tdiff_data[int_time_ms] = pixel_clock_tdiff
 
             # enable the break only if next scan goes into forward movement
-            if self._stop_request and not reverse_meas:
+            if self._stop_request:
                 break
 
             # store the current line number
@@ -1685,6 +1627,8 @@ class AFMConfocalLogic(GenericLogic):
         self.scan_dir = 'fw'
         self._esr_debug = {}
 
+        time_prev = time.monotonic()
+
         # save the measurement parameter
         for entry in self._qafm_scan_array:
             self._qafm_scan_array[entry]['params']['Parameters for'] = 'QAFM measurement'
@@ -1845,8 +1789,12 @@ class AFMConfocalLogic(GenericLogic):
                 self._esr_scan_array['esr_fw']['data_fit'][line_num][index] = esr_data_fit
 
                 # For debugging, display status text:
-                progress_text = f'Point: {line_num * coord0_num + index + 1} out of {coord0_num * coord1_num }, {(line_num * coord0_num + index + 1) / (coord0_num * coord1_num ) * 100:.2f}% finished.'
-                self.log.info(progress_text)
+                
+                time_now = time.monotonic()
+                total_time = round((time_now - time_prev)/(line_num * coord0_num + index + 1) * (coord0_num*coord1_num)/60/60,3)
+                time_rem = round(total_time - (time_now - time_prev)/60/60,3)
+                
+                self.log.info(f'Point: {line_num * coord0_num + index + 1} out of {coord0_num*coord1_num}, {(line_num * coord0_num + index +1)/(coord0_num*coord1_num) * 100:.2f}% finished.\nTime remaining: {time_rem}/{total_time}hrs')
 
                 # track current AFM position:
                 if index != last_elem:

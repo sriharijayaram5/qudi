@@ -1282,7 +1282,7 @@ class ProteusQGUI(GUIBase):
         self._mw.afm_x_max_DSpinBox.setSuffix('m')
         self._mw.afm_x_max_DSpinBox.setMinimalStep(0.1e-6)
 
-        self._mw.afm_x_num_SpinBox.setRange(2, 10000)
+        self._mw.afm_x_num_SpinBox.setRange(1, 10000)
 
         self._mw.afm_y_min_DSpinBox.setRange(0.0e-6, 37e-6)
         self._mw.afm_y_min_DSpinBox.setSuffix('m')
@@ -1292,7 +1292,7 @@ class ProteusQGUI(GUIBase):
         self._mw.afm_y_max_DSpinBox.setSuffix('m')
         self._mw.afm_y_max_DSpinBox.setMinimalStep(0.1e-6)
 
-        self._mw.afm_y_num_SpinBox.setRange(2, 10000)
+        self._mw.afm_y_num_SpinBox.setRange(1, 10000)
 
 
         self._mw.afm_target_x_DSpinBox.setRange(0.0e-6, 37e-6)

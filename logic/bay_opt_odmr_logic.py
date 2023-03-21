@@ -517,7 +517,7 @@ class ODMRLogic(GenericLogic):
             params = self.setup_obe(start, stop, points, amp, background, background_noise, fwhm/2, n_samples)
 
             my_model_function, settings, parameters, constants, scale, use_jit = params
-            self.my_obe = OptBayesExpt(my_model_function, settings, parameters, constants, scale=scale, use_jit=use_jit)
+            self.my_obe = OptBayesExpt(my_model_function, settings, parameters, constants, scale=scale, use_jit=use_jit, auto_resample=True)
 
             self.bay_x = []
             self.bay_y = []
@@ -629,8 +629,8 @@ class ODMRLogic(GenericLogic):
             # self.log.debug(new_counts)
         
             # # Fake data
-            fx = np.array([xmeas[0], xmeas[0], xmeas[0]])
-            new_counts = self.physical_lorentzian(x=fx, center=self.fake_center, sigma=7e6/2, amp=-30000, offset=100e3) + np.random.random(len(fx))*5e3
+            # fx = np.array([xmeas[0], xmeas[0], xmeas[0]])
+            # new_counts = self.physical_lorentzian(x=fx, center=self.fake_center, sigma=7e6/2, amp=-30000, offset=100e3) + np.random.random(len(fx))*5e3
             
             esr_meas = np.mean(new_counts)
             ymeasure = np.mean(esr_meas)
