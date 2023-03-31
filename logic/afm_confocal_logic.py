@@ -5807,6 +5807,50 @@ class AFMConfocalLogic(GenericLogic):
         esrobj['/0/graph/graph/1'] = esrgraph 
         esrobj['/0/graph/graph/1/visible'] = False 
 
+        meas = dataobj
+        coord0 = meas['coord0_arr']
+        coord1 = meas['coord1_arr']
+        coord2 = meas['coord2_arr']
+        data_si = meas['data'] #* scalefactor
+        xy_units = gwy.objects.GwySIUnit(unitstr='m')
+        z_units = gwy.objects.GwySIUnit(unitstr=meas['si_units'])
+        measname = 'esr_fw' + ":" + meas['nice_name']
+        x,y,z = (data_si.shape[0], data_si.shape[1], data_si.shape[2])
+        new_data = np.zeros((z,x,y))
+        for i in range(z):
+            new_data[i] = data_si[:,:,i]
+        data_si = new_data
+
+        img = gwy.objects.GwyBrick(data=data_si.flatten(),
+                 xres=len(dataobj['coord0_arr']), yres=len(dataobj['coord1_arr']), zres=len(dataobj['coord2_arr']),
+                 xreal=None, yreal=None, zreal=None,
+                 xoff=None, yoff=None, zoff=None,
+                 si_unit_x=xy_units, si_unit_y=xy_units, 
+                 si_unit_z=gwy.objects.GwySIUnit(unitstr='Hz'), si_unit_w=z_units,
+                 typecodes=None)
+        # img.data = data_si
+
+        xstart = dataobj['coord0_arr'][0]
+        xstop = dataobj['coord0_arr'][-1]
+        img.xoff = xstart
+        img.xreal = xstop - xstart
+
+        ystart = dataobj['coord1_arr'][0]
+        ystop = dataobj['coord1_arr'][-1]
+        img.yoff = ystart
+        img.yreal = ystop - ystart
+
+
+        zstart = dataobj['coord2_arr'][0]
+        zstop = dataobj['coord2_arr'][-1]
+        img.zoff = zstart
+        img.zreal = zstop - zstart
+
+        basekey = '/' + 'brick/' + '0'
+        esrobj[basekey] = img
+        esrobj[basekey + '/title'] = measname
+        esrobj[basekey + '/visible'] = True
+
         esrobj.tofile(filename) 
         return True
 
