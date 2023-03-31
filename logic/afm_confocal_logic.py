@@ -1101,8 +1101,6 @@ class AFMConfocalLogic(GenericLogic):
                                         params={'line_points' : coord0_num,
                                                 'meas_params' : meas_params },
                                         scan_style=ScanStyle.LINE) 
-        print(curr_scan_params, meas_params)
-
         spm_start_idx = 0
 
         if not continue_meas:
@@ -1696,16 +1694,17 @@ class AFMConfocalLogic(GenericLogic):
                 self._scan_point = np.zeros(num_params) 
 
                 # at first the AFM parameter
+                # arm recorder
+                self._counter.start_recorder()
 
                 self._debug = self._spm.scan_point()
                 #self.log.debug(f'Point number {index+1} scan done')
                 self._scan_point[2:] = self._debug 
-                
+
                 # obtain ESR measurement
                 esr_meas = self._counter.get_measurements()[0]
                 self._esr_debug[f'{line_num},{index}'] = esr_meas
-                # arm recorder
-                self._counter.start_recorder() # mostly does recoreder.clear() and can give issues if put earlier. better here
+                
                 # self.debug_check = esr_meas
                 esr_meas_mean = esr_meas.mean(axis=0)
                 esr_meas_std = esr_meas.std(axis=0)
@@ -1753,17 +1752,18 @@ class AFMConfocalLogic(GenericLogic):
                                                                    self.E_FIELD) * 10000
 
                     fluorescence = res.params['offset'].value
+                    self._scan_point[0] = fluorescence
 
                 except:
                     self.log.warning(f'Fit was not working at line {line_num} and index {index}. Data needs to be post-processed.')
 
                 # here the counts are saved:
                 self._counter._tagger.sync()
-                t_int = 10 # time for integration in ms 
-                self._counter.countrate.startFor(t_int*1e9, clear = True)
-                self._counter.countrate.waitUntilFinished(timeout=t_int*10)
+                t_int = 5 # time for integration in ms 
+                self._counter.countrate.startFor(int(t_int*1e9), clear = True)
+                self._counter.countrate.waitUntilFinished(timeout=int(t_int*10))
                 self._scan_point[0] = np.nan_to_num(self._counter.countrate.getData())
-                # self.log.debug(f'Countrate: {self._scan_point[0]}')
+                self.log.debug(f'Countrate: {self._scan_point[0]}')
     
                 # here the b_field is saved:
                 self._scan_point[1] = mag_field
@@ -1965,7 +1965,7 @@ class AFMConfocalLogic(GenericLogic):
         data =fdata[:coord0_num,:coord1_num]
 
         # true_res = np.ones([coord1,coord0]) * 2.87e9
-        true_res = ((data/np.mean(data)-np.max(data/np.mean(data))/2)*20e6) + 2.77e9
+        true_res = ((data/np.mean(data)-np.nanmax(data/np.mean(data))/2)*20e6) + 2.77e9
 
         # save the measurement parameter
         for entry in self._qafm_scan_array:
@@ -2031,9 +2031,9 @@ class AFMConfocalLogic(GenericLogic):
 
                 # here the counts are saved:
                 self._counter._tagger.sync()
-                t_int = 10 # time for integration in ms 
-                self._counter.countrate.startFor(t_int*1e9, clear = True)
-                self._counter.countrate.waitUntilFinished(timeout=t_int*10)
+                t_int = 5 # time for integration in ms 
+                self._counter.countrate.startFor(int(t_int*1e9), clear = True)
+                self._counter.countrate.waitUntilFinished(timeout=int(t_int*10))
                 self._scan_point[0] = np.nan_to_num(self._counter.countrate.getData())
 
                 b_mean, b_sigma = (self._scan_point[0], background_noise)
@@ -2700,9 +2700,10 @@ class AFMConfocalLogic(GenericLogic):
                     self._scan_point[1] = self.res_freq_array[line_num, index] if mw_tracking_mode else 1
                     # here the counts can be saved:
                     self._counter._tagger.sync()
-                    t_int = 10 # time for integration in ms 
-                    self._counter.countrate.startFor(t_int*1e9, clear = True)
-                    self._counter.countrate.waitUntilFinished(timeout=t_int*10)
+                    t_int = 5 # time for integration in ms 
+                    self._counter.countrate.clear()
+                    self._counter.countrate.startFor(int(t_int*1e9), clear = True)
+                    self._counter.countrate.waitUntilFinished(timeout=int(t_int*10))
                     self._scan_point[0] = np.nan_to_num(self._counter.countrate.getData())
                     # self.log.debug(f'Countrate: {self._scan_point[0]}')
 
@@ -3051,9 +3052,9 @@ class AFMConfocalLogic(GenericLogic):
                     # self._scan_point[1] = 2.776+(np.random.random()*0.5e6/1e9)
                     # here the counts can be saved:
                     self._counter._tagger.sync()
-                    t_int = 10 # time for integration in ms 
-                    self._counter.countrate.startFor(t_int*1e9, clear = True)
-                    self._counter.countrate.waitUntilFinished(timeout=t_int*10)
+                    t_int = 5 # time for integration in ms 
+                    self._counter.countrate.startFor(int(t_int*1e9), clear = True)
+                    self._counter.countrate.waitUntilFinished(timeout=int(t_int*10))
                     self._scan_point[0] = np.nan_to_num(self._counter.countrate.getData())
 
                     for param_index, param_name in enumerate(curr_scan_params):
@@ -3542,15 +3543,15 @@ class AFMConfocalLogic(GenericLogic):
         time_idle_move = 0.1 # in seconds, time in which the stage is just
                              # moving without measuring
 
-        ret_val = self._counter.configure_recorder(
-            mode=HWRecorderMode.PIXELCLOCK, 
-            params={'mw_frequency': self._freq1_iso_b_frequency,
-                    'num_meas': coord0_num})
+        # ret_val = self._counter.configure_recorder(
+        #     mode=HWRecorderMode.PIXELCLOCK, 
+        #     params={'mw_frequency': self._freq1_iso_b_frequency,
+        #             'num_meas': coord0_num})
 
-        if ret_val < 0:
-            self.sigObjScanFinished.emit()
-            self._stop_request = True   # Set a stop request to stop a false measurement!
-            return self._opti_scan_array
+        # if ret_val < 0:
+        #     self.sigObjScanFinished.emit()
+        #     self._stop_request = True   # Set a stop request to stop a false measurement!
+        #     return self._opti_scan_array
 
 
         scan_arr = self.create_scan_leftright(coord0_start, coord0_stop,
@@ -3684,15 +3685,15 @@ class AFMConfocalLogic(GenericLogic):
         time_idle_move = 0.1 # in seconds, time in which the stage is just
                              # moving without measuring
 
-        ret_val = self._counter.configure_recorder(
-            mode=HWRecorderMode.PIXELCLOCK, 
-            params={'mw_frequency': self._freq1_iso_b_frequency,
-                    'num_meas': res})
+        # ret_val = self._counter.configure_recorder(
+        #     mode=HWRecorderMode.PIXELCLOCK, 
+        #     params={'mw_frequency': self._freq1_iso_b_frequency,
+        #             'num_meas': res})
 
-        if ret_val < 0:
-            self.sigOptimizeLineScanFinished.emit(opti_name)
-            self._stop_request = True   # Set a stop request to stop a false measurement!
-            return self._opti_scan_array
+        # if ret_val < 0:
+        #     self.sigOptimizeLineScanFinished.emit(opti_name)
+        #     self._stop_request = True   # Set a stop request to stop a false measurement!
+        #     return self._opti_scan_array
             
         # scan_speed_per_line = 0.01  # in seconds
         scan_speed_per_line = integration_time * res
@@ -3942,7 +3943,7 @@ class AFMConfocalLogic(GenericLogic):
 
         self.sigOptimizeLineScanFinished.emit('opti_z')
         self.sigOptimizeScanFinished.emit()
-        self._counter.stop_measurement()
+        # self._counter.stop_measurement()
 
         return x_max, y_max, c_max, z_max, c_max_z
 
@@ -4776,7 +4777,7 @@ class AFMConfocalLogic(GenericLogic):
             image_data = image_data_in.copy()
             
         # Scale data, determine SI prefix 
-        value_range =  [np.min(image_data), np.max(image_data)]
+        value_range =  [np.nanmin(image_data), np.nanmax(image_data)]
         n = floor(log10(max([abs(v) for v in value_range])))  // 3     # 1000^n 
         scale_fac = 1 / 1000**n
 
@@ -5459,7 +5460,7 @@ class AFMConfocalLogic(GenericLogic):
 
         # If no colorbar range was given, take full range of data
         if cbar_range is None:
-            cbar_range = [np.min(image_data_xy), np.max(image_data_xy)]
+            cbar_range = [np.nanmin(image_data_xy), np.nanmax(image_data_xy)]
 
             # discard zeros if they are exactly the lowest value
             if np.isclose(cbar_range[0], 0.0):
