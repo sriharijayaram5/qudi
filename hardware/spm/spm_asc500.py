@@ -104,6 +104,7 @@ class SPM_ASC500(Base, ScannerInterface):
         self._create_scanner_measurements()
         self._trig = False
         self.objective_lock = False
+        self._has_been_set = [False, False]
 
         return
 
@@ -653,12 +654,14 @@ class SPM_ASC500(Base, ScannerInterface):
             self.spec_engine_dummy = 1
             self.spec_count = 469 # this value works because it is not changed after spec engine starts - necessary for correct buffer size
             
-            self._dev.base.configureChannel(self._chn_no, # any Number between 0 and 13.
-                                    self._dev.base.getConst(f'CHANCONN_SPEC_{self.spec_engine_dummy}'), # How you want to the data to be triggered - CHANCONN_PERMANENT is time triggered data
-                                    self._dev.base.getConst('CHANADC_ZOUTINV'), # The ADC channel you want to get the data from
-                                    1, # 0/1 -  if you want to switch on averaging
-                                    sampTime) # Scanner sample time [s]
-
+            if not self._has_been_set[0]:
+                self._dev.base.configureChannel(self._chn_no, # any Number between 0 and 13.
+                                        self._dev.base.getConst(f'CHANCONN_SPEC_{self.spec_engine_dummy}'), # How you want to the data to be triggered - CHANCONN_PERMANENT is time triggered data
+                                        self._dev.base.getConst('CHANADC_ZOUTINV'), # The ADC channel you want to get the data from
+                                        1, # 0/1 -  if you want to switch on averaging
+                                        sampTime) # Scanner sample time [s]
+            self._has_been_set[0] = True    
+            
             self._dev.base.setParameter(self._dev.base.getConst('ID_SPEC_DAC_NO'), 3, self.spec_engine_dummy) # index 1 is spec engine 2. Spec engine 0 is Z-Spec. 4 is the 4th DAC which is not used for objective scanning
             self._dev.base.setParameter(self._dev.base.getConst('ID_SPEC_START_DISP'), 0, self.spec_engine_dummy)
             self._dev.base.setParameter(self._dev.base.getConst('ID_SPEC_END_DISP'), 1000, self.spec_engine_dummy)
@@ -672,11 +675,13 @@ class SPM_ASC500(Base, ScannerInterface):
             self.spec_count = self._line_points
             self._dev.base.setParameter(self._dev.base.getConst('ID_CNT_EXP_TIME'),int(sampTime/2.5e-6), 0)
             
-            self._dev.base.configureChannel(self._chn_no, # any Number between 0 and 13.
+            if not self._has_been_set[1]:
+                self._dev.base.configureChannel(self._chn_no, # any Number between 0 and 13.
                                     self._dev.base.getConst(f'CHANCONN_SPEC_{self.spec_engine_dummy}'), # How you want to the data to be triggered - CHANCONN_PERMANENT is time triggered data
                                     self._dev.base.getConst('CHANADC_COUNTER'), # The counter  ADC channel
                                     1, # 0/1 -  if you want to switch on averaging
                                     sampTime) # Scanner sample time [s]
+                self._has_been_set[1] = True
             
             start_cart = self.objective_scan_line[{0:'X2', 1:'Y2', 2:'Z2'}[self.fast_axis]][0]
             stop_cart = self.objective_scan_line[{0:'X2', 1:'Y2', 2:'Z2'}[self.fast_axis]][-1]
