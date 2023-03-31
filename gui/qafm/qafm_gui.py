@@ -2126,10 +2126,12 @@ class ProteusQGUI(GUIBase):
             low_centile = dockwidget.doubleSpinBox_per_min.value()
             high_centile = dockwidget.doubleSpinBox_per_max.value()
 
-            cb_min = np.percentile(data_nonzero, low_centile)
-            cb_max = np.percentile(data_nonzero, high_centile)
+            cb_min = np.nanpercentile(data_nonzero, low_centile)
+            cb_max = np.nanpercentile(data_nonzero, high_centile)
 
         cb_range = [cb_min, cb_max]
+        if cb_range == [np.nan,np.nan]:
+            cb_range = [0,1]
 
         return cb_range
 
