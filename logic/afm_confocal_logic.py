@@ -5685,7 +5685,13 @@ class AFMConfocalLogic(GenericLogic):
                 # image types
                 basekey = '/' + str(dataki) + '/data'
                 objout[basekey + '/title'] = measname
+                objout['/' + str(dataki) + '/base/palette'] = 'Sky'
                 objout[basekey] = img
+                # comment meta data
+                if meas['params']:
+                    d = {key: str(val) for key, val in meas['params'].items()}
+                    meta = gwy.objects.GwyContainer(d)
+                    objout['/' + str(dataki) + '/meta'] = meta
                 
             if 'xyz' in gwytypes:
                 # xyz types
@@ -5694,16 +5700,12 @@ class AFMConfocalLogic(GenericLogic):
                 objout[basekey] = xyz
                 objout[basekey + '/preview'] = img
                 objout[basekey + '/visible'] = True
+                if meas['params']:
+                    d = {key: str(val) for key, val in meas['params'].items()}
+                    meta = gwy.objects.GwyContainer(d)
+                    objout[basekey + '/meta'] = meta
 
-                # comment meta data
-                comm = gwy.objects.GwyContainer()
-                for k,v in meas['params'].items():
-                    if isinstance(v,(list,tuple)):
-                        comm[k] = ",".join([str(vs) for vs in v])
-                    else:
-                        comm[k] = str(v)
-                
-                objout[basekey + '/meta'] = comm
+            
 
         # write out file    
         if objout:
@@ -5808,9 +5810,6 @@ class AFMConfocalLogic(GenericLogic):
         esrobj['/0/graph/graph/1/visible'] = False 
 
         meas = dataobj
-        coord0 = meas['coord0_arr']
-        coord1 = meas['coord1_arr']
-        coord2 = meas['coord2_arr']
         data_si = meas['data'] #* scalefactor
         xy_units = gwy.objects.GwySIUnit(unitstr='m')
         z_units = gwy.objects.GwySIUnit(unitstr=meas['si_units'])
@@ -5850,6 +5849,12 @@ class AFMConfocalLogic(GenericLogic):
         esrobj[basekey] = img
         esrobj[basekey + '/title'] = measname
         esrobj[basekey + '/visible'] = True
+        esrobj[basekey + '/preview/palette'] = 'Sky'
+        
+        if self._qafm_scan_array['counts_fw']['params']:
+            d = {key: str(val) for key, val in self._qafm_scan_array['counts_fw']['params'].items()}
+            meta = gwy.objects.GwyContainer(d)
+            esrobj[basekey + '/meta'] = meta
 
         esrobj.tofile(filename) 
         return True
