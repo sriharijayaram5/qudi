@@ -695,7 +695,7 @@ class ODMRLogic(GenericLogic):
             channels = clear(channels)
             channels[a_ch(self._odmr_counter._pulser._laser_analog_channel)] = self._odmr_counter._pulser._laser_power_voltage
             channels[d_ch(self._odmr_counter._pulser._awg_trig)] = 1.0
-            block_1.append(init_length = 1.4e-6, channels = channels, repetition = 1)
+            block_1.append(init_length = 1.5e-6, channels = channels, repetition = 1)
             
             channels = clear(channels)
             channels[a_ch(self._odmr_counter._pulser._laser_analog_channel)] = self._odmr_counter._pulser._laser_power_voltage
@@ -775,8 +775,8 @@ class ODMRLogic(GenericLogic):
             {'name': 'a_ch0', 'amp': 1.00, 'freq': delta, 'phase': 0.00},
             {'name': 'a_ch1', 'amp': 1.20, 'freq': delta, 'phase': 100.00}
             ]
-        IQ_Seq = [IQ_Seq_element(delta) for delta in deltas]
-        dur = (self.pi_half_pulse) + 1.4e-6 + 1e-6 # refer to make PODMR_AWG sequence for PS 
+        IQ_Seq = [IQ_Seq_element(round(delta)) for delta in deltas]
+        dur = (self.pi_half_pulse) + 1.4e-6 + 3e-6 # refer to make PODMR_AWG sequence for PS 
 
         ensemble_list = []
         for iseq, seq in enumerate(IQ_Seq):
@@ -822,7 +822,7 @@ class ODMRLogic(GenericLogic):
 
     def analyse_pulsed_meas(self, analysis_settings, pulsed_meas):
 
-        analysis_method = self.analyse_mean_norm
+        analysis_method = self.analyse_mean_norm_new
         args = [pulsed_meas, analysis_settings['signal_start'], analysis_settings['signal_end'], analysis_settings['norm_start'], analysis_settings['norm_end']]
            
         try:

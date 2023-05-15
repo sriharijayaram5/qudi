@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>569</width>
+    <width>410</width>
     <height>642</height>
    </rect>
   </property>
@@ -27,290 +27,33 @@
        <string>CW ESR</string>
       </attribute>
       <layout class="QGridLayout" name="gridLayout_4">
-       <item row="2" column="0">
-        <widget class="QGroupBox" name="optBay_groupBox">
-         <property name="toolTip">
-          <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Runs the optimal bayesian control experiment for better point determination. Uses the 'Start', 'Stop', 'Count Freq.', and 'Power' from above.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-         </property>
-         <property name="title">
-          <string>Optimal Bayesian Experiment</string>
-         </property>
-         <property name="checkable">
-          <bool>true</bool>
-         </property>
-         <layout class="QGridLayout" name="gridLayout_2">
-          <item row="0" column="0">
-           <layout class="QHBoxLayout" name="horizontalLayout_10">
-            <item>
-             <widget class="QLabel" name="label_15">
-              <property name="text">
-               <string>ESR Contrast (%)</string>
-              </property>
-             </widget>
-            </item>
-            <item>
-             <widget class="ScienDSpinBox" name="esr_contrast_SpinBox">
-              <property name="toolTip">
-               <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Expected ODMR contrast.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-              </property>
-              <property name="suffix">
-               <string>%</string>
-              </property>
-              <property name="value">
-               <double>30.000000000000000</double>
-              </property>
-             </widget>
-            </item>
-           </layout>
-          </item>
-          <item row="1" column="0">
-           <layout class="QHBoxLayout" name="horizontalLayout_11">
-            <item>
-             <widget class="QLabel" name="label_16">
-              <property name="text">
-               <string>ESR Offset (c/s)</string>
-              </property>
-             </widget>
-            </item>
-            <item>
-             <widget class="ScienDSpinBox" name="esr_offset_SpinBox">
-              <property name="toolTip">
-               <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Expected counts off resonance.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-              </property>
-              <property name="suffix">
-               <string>cnts</string>
-              </property>
-              <property name="maximum">
-               <double>9999999999999999583119736832.000000000000000</double>
-              </property>
-              <property name="value">
-               <double>100000.000000000000000</double>
-              </property>
-             </widget>
-            </item>
-           </layout>
-          </item>
-          <item row="2" column="0">
-           <layout class="QHBoxLayout" name="horizontalLayout_12">
-            <item>
-             <widget class="QLabel" name="label_17">
-              <property name="text">
-               <string>Amplitude Noise (c/s)</string>
-              </property>
-             </widget>
-            </item>
-            <item>
-             <widget class="ScienDSpinBox" name="esr_noise_SpinBox">
-              <property name="toolTip">
-               <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Expected noise in counts (Gaussian assumed).&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-              </property>
-              <property name="suffix">
-               <string>cnts</string>
-              </property>
-              <property name="maximum">
-               <double>9999999999999999635896294965248.000000000000000</double>
-              </property>
-              <property name="value">
-               <double>5000.000000000000000</double>
-              </property>
-             </widget>
-            </item>
-           </layout>
-          </item>
-          <item row="3" column="0">
-           <layout class="QHBoxLayout" name="horizontalLayout_13">
-            <item>
-             <widget class="QLabel" name="label_20">
-              <property name="text">
-               <string>ESR FWHM (Hz)</string>
-              </property>
-             </widget>
-            </item>
-            <item>
-             <widget class="ScienDSpinBox" name="esr_fwhm_SpinBox">
-              <property name="toolTip">
-               <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Expected ODMR FWHM (Gaussian assumed).&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-              </property>
-              <property name="suffix">
-               <string>Hz</string>
-              </property>
-              <property name="maximum">
-               <double>999999999.000000000000000</double>
-              </property>
-              <property name="value">
-               <double>7000000.000000000000000</double>
-              </property>
-             </widget>
-            </item>
-           </layout>
-          </item>
-          <item row="4" column="0">
-           <layout class="QHBoxLayout" name="horizontalLayout_14">
-            <item>
-             <widget class="QLabel" name="label_21">
-              <property name="text">
-               <string>No. OptBay reps.</string>
-              </property>
-             </widget>
-            </item>
-            <item>
-             <widget class="QSpinBox" name="esr_optReps_SpinBox">
-              <property name="toolTip">
-               <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Number of OptBay measurements done. One should check if this is sufficient by trying the OptBay ODMR module. Depends highly on pickiness, noise, and measurement space.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-              </property>
-              <property name="suffix">
-               <string/>
-              </property>
-              <property name="minimum">
-               <number>1</number>
-              </property>
-              <property name="maximum">
-               <number>1000000000</number>
-              </property>
-              <property name="value">
-               <number>25</number>
-              </property>
-             </widget>
-            </item>
-           </layout>
-          </item>
-          <item row="5" column="0">
-           <layout class="QHBoxLayout" name="horizontalLayout_31">
-            <item>
-             <widget class="QLabel" name="label_29">
-              <property name="text">
-               <string>No.of dist. samples</string>
-              </property>
-             </widget>
-            </item>
-            <item>
-             <widget class="QSpinBox" name="esr_nSamples_SpinBox">
-              <property name="toolTip">
-               <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Determines spacing of points available for the OptBay functions.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-              </property>
-              <property name="suffix">
-               <string/>
-              </property>
-              <property name="minimum">
-               <number>1</number>
-              </property>
-              <property name="maximum">
-               <number>1000000000</number>
-              </property>
-              <property name="value">
-               <number>50000</number>
-              </property>
-             </widget>
-            </item>
-           </layout>
-          </item>
-          <item row="6" column="0">
-           <layout class="QHBoxLayout" name="horizontalLayout_19">
-            <item>
-             <widget class="QLabel" name="label_22">
-              <property name="text">
-               <string>Error Margin - x0(Hz)</string>
-              </property>
-             </widget>
-            </item>
-            <item>
-             <widget class="ScienDSpinBox" name="esr_errorMarginCenter_SpinBox">
-              <property name="toolTip">
-               <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Can break the measurement  before all repetitions if below this margin.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-              </property>
-              <property name="suffix">
-               <string>Hz</string>
-              </property>
-              <property name="maximum">
-               <double>999999999.000000000000000</double>
-              </property>
-              <property name="value">
-               <double>1000000.000000000000000</double>
-              </property>
-             </widget>
-            </item>
-           </layout>
-          </item>
-          <item row="7" column="0">
-           <layout class="QHBoxLayout" name="horizontalLayout_20">
-            <item>
-             <widget class="QLabel" name="label_23">
-              <property name="text">
-               <string>Error Margin - Contrast(%)</string>
-              </property>
-             </widget>
-            </item>
-            <item>
-             <widget class="ScienDSpinBox" name="esr_errorMarginContrast_SpinBox">
-              <property name="toolTip">
-               <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Can break the measurement  before all repetitions if below this margin.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-              </property>
-              <property name="suffix">
-               <string>%</string>
-              </property>
-              <property name="maximum">
-               <double>100.000000000000000</double>
-              </property>
-              <property name="value">
-               <double>1.000000000000000</double>
-              </property>
-             </widget>
-            </item>
-           </layout>
-          </item>
-          <item row="8" column="0">
-           <layout class="QHBoxLayout" name="horizontalLayout_30">
-            <item>
-             <widget class="QLabel" name="label_28">
-              <property name="text">
-               <string>Error Margin - Offset(c/s)</string>
-              </property>
-             </widget>
-            </item>
-            <item>
-             <widget class="ScienDSpinBox" name="esr_errorMarginOffset_SpinBox">
-              <property name="toolTip">
-               <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Can break the measurement  before all repetitions if below this margin.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-              </property>
-              <property name="suffix">
-               <string>cnts</string>
-              </property>
-              <property name="maximum">
-               <double>9999999.000000000000000</double>
-              </property>
-              <property name="value">
-               <double>10000.000000000000000</double>
-              </property>
-             </widget>
-            </item>
-           </layout>
-          </item>
-          <item row="9" column="0">
-           <layout class="QHBoxLayout" name="horizontalLayout_32">
-            <item>
-             <widget class="QLabel" name="label_30">
-              <property name="text">
-               <string>OptBay Pickiness</string>
-              </property>
-             </widget>
-            </item>
-            <item>
-             <widget class="QSpinBox" name="esr_OptBay_Pickiness_SpinBox">
-              <property name="toolTip">
-               <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Pickiness for the OptBay functions. See documentation for an idea. Lower the pickiness, the more random the freq. choice. Recommended high choice is 20 which makes the most ideal choice, but may be undesirable since it may get stuck.&lt;/p&gt;&lt;p&gt;&lt;br/&gt;&lt;/p&gt;&lt;p&gt;Personal favorite is 5 which is still random until an obvious dip is found.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-              </property>
-              <property name="maximum">
-               <number>20</number>
-              </property>
-              <property name="value">
-               <number>5</number>
-              </property>
-             </widget>
-            </item>
-           </layout>
-          </item>
-         </layout>
-        </widget>
+       <item row="0" column="0">
+        <layout class="QHBoxLayout" name="horizontalLayout">
+         <item>
+          <widget class="QPushButton" name="Start_QM_PushButton">
+           <property name="enabled">
+            <bool>true</bool>
+           </property>
+           <property name="text">
+            <string>Start Quantitative Scan</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="Continue_QM_PushButton">
+           <property name="text">
+            <string>Continue Quantitative</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="Stop_QM_PushButton">
+           <property name="text">
+            <string>Stop Quantitative Scan</string>
+           </property>
+          </widget>
+         </item>
+        </layout>
        </item>
        <item row="1" column="0">
         <widget class="QGroupBox" name="groupBox_2">
@@ -318,33 +61,6 @@
           <string>ESR Parameters</string>
          </property>
          <layout class="QGridLayout" name="gridLayout_3">
-          <item row="3" column="0">
-           <layout class="QHBoxLayout" name="horizontalLayout_24">
-            <item>
-             <widget class="QLabel" name="label_6">
-              <property name="text">
-               <string>ESR Count Frequency (Hz)</string>
-              </property>
-             </widget>
-            </item>
-            <item>
-             <widget class="ScienDSpinBox" name="esr_count_freq_DoubleSpinBox">
-              <property name="toolTip">
-               <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Defines integration time per point&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-              </property>
-              <property name="suffix">
-               <string>Hz</string>
-              </property>
-              <property name="maximum">
-               <double>500.000000000000000</double>
-              </property>
-              <property name="value">
-               <double>200.000000000000000</double>
-              </property>
-             </widget>
-            </item>
-           </layout>
-          </item>
           <item row="0" column="0">
            <layout class="QHBoxLayout" name="horizontalLayout_21">
             <item>
@@ -370,30 +86,6 @@
               </property>
               <property name="value">
                <double>2780000000.000000000000000</double>
-              </property>
-             </widget>
-            </item>
-           </layout>
-          </item>
-          <item row="2" column="0">
-           <layout class="QHBoxLayout" name="horizontalLayout_23">
-            <item>
-             <widget class="QLabel" name="label_5">
-              <property name="text">
-               <string># of Frequency Points</string>
-              </property>
-             </widget>
-            </item>
-            <item>
-             <widget class="ScienSpinBox" name="esr_freq_num_SpinBox">
-              <property name="toolTip">
-               <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Defines frequency step.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-              </property>
-              <property name="maximum">
-               <number>1000000000</number>
-              </property>
-              <property name="value">
-               <number>30</number>
               </property>
              </widget>
             </item>
@@ -429,25 +121,46 @@
             </item>
            </layout>
           </item>
-          <item row="5" column="0">
-           <layout class="QHBoxLayout" name="horizontalLayout_26">
+          <item row="2" column="0">
+           <layout class="QHBoxLayout" name="horizontalLayout_23">
             <item>
-             <widget class="QLabel" name="label_8">
+             <widget class="QLabel" name="label_5">
               <property name="text">
-               <string># of ESR Runs per Pixel</string>
+               <string># of Frequency Points</string>
               </property>
              </widget>
             </item>
             <item>
-             <widget class="ScienSpinBox" name="esr_runs_SpinBox">
-              <property name="toolTip">
-               <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Number of averaging runs.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-              </property>
+             <widget class="ScienSpinBox" name="esr_freq_num_SpinBox">
               <property name="maximum">
-               <number>1000</number>
+               <number>1000000000</number>
               </property>
               <property name="value">
                <number>30</number>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </item>
+          <item row="3" column="0">
+           <layout class="QHBoxLayout" name="horizontalLayout_24">
+            <item>
+             <widget class="QLabel" name="label_6">
+              <property name="text">
+               <string>ESR Count Frequency (Hz)</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="ScienDSpinBox" name="esr_count_freq_DoubleSpinBox">
+              <property name="suffix">
+               <string>Hz</string>
+              </property>
+              <property name="maximum">
+               <double>500.000000000000000</double>
+              </property>
+              <property name="value">
+               <double>200.000000000000000</double>
               </property>
              </widget>
             </item>
@@ -464,9 +177,6 @@
             </item>
             <item>
              <widget class="ScienDSpinBox" name="esr_mw_power_DoubleSpinBox">
-              <property name="toolTip">
-               <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;CW MW power used.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-              </property>
               <property name="suffix">
                <string>dBm</string>
               </property>
@@ -489,7 +199,28 @@
             </item>
            </layout>
           </item>
-          <item row="6" column="0" rowspan="2">
+          <item row="5" column="0">
+           <layout class="QHBoxLayout" name="horizontalLayout_26">
+            <item>
+             <widget class="QLabel" name="label_8">
+              <property name="text">
+               <string># of ESR Runs per Pixel</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="ScienSpinBox" name="esr_runs_SpinBox">
+              <property name="maximum">
+               <number>1000</number>
+              </property>
+              <property name="value">
+               <number>30</number>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </item>
+          <item row="6" column="0">
            <layout class="QHBoxLayout" name="horizontalLayout_27">
             <item>
              <widget class="QRadioButton" name="esr_single_res_RadioButton">
@@ -502,22 +233,6 @@
               <property name="checked">
                <bool>true</bool>
               </property>
-              <attribute name="buttonGroup">
-               <string notr="true">buttonGroup_2</string>
-              </attribute>
-             </widget>
-            </item>
-            <item>
-             <widget class="QRadioButton" name="esr_single_res_gslac_RadioButton">
-              <property name="toolTip">
-               <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Activate for the case that the ms = -1 Peak is investigated for fields higher than the GSLAC of the NV. Thus the calculation of the magnetic field changes.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-              </property>
-              <property name="text">
-               <string>Single Resonance Measure GSLAC</string>
-              </property>
-              <attribute name="buttonGroup">
-               <string notr="true">buttonGroup_2</string>
-              </attribute>
              </widget>
             </item>
             <item>
@@ -528,9 +243,258 @@
               <property name="text">
                <string>Double Resonance Measure</string>
               </property>
-              <attribute name="buttonGroup">
-               <string notr="true">buttonGroup_2</string>
-              </attribute>
+             </widget>
+            </item>
+           </layout>
+          </item>
+         </layout>
+        </widget>
+       </item>
+       <item row="2" column="0">
+        <widget class="QGroupBox" name="optBay_groupBox">
+         <property name="title">
+          <string>Optimal Bayesian Experiment</string>
+         </property>
+         <property name="checkable">
+          <bool>true</bool>
+         </property>
+         <layout class="QGridLayout" name="gridLayout_2">
+          <item row="0" column="0">
+           <layout class="QHBoxLayout" name="horizontalLayout_10">
+            <item>
+             <widget class="QLabel" name="label_15">
+              <property name="text">
+               <string>ESR Contrast (%)</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="ScienDSpinBox" name="esr_contrast_SpinBox">
+              <property name="suffix">
+               <string>%</string>
+              </property>
+              <property name="value">
+               <double>30.000000000000000</double>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </item>
+          <item row="1" column="0">
+           <layout class="QHBoxLayout" name="horizontalLayout_11">
+            <item>
+             <widget class="QLabel" name="label_16">
+              <property name="text">
+               <string>ESR Offset (c/s)</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="ScienDSpinBox" name="esr_offset_SpinBox">
+              <property name="suffix">
+               <string>cnts</string>
+              </property>
+              <property name="maximum">
+               <double>9999999999999999583119736832.000000000000000</double>
+              </property>
+              <property name="value">
+               <double>100000.000000000000000</double>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </item>
+          <item row="2" column="0">
+           <layout class="QHBoxLayout" name="horizontalLayout_12">
+            <item>
+             <widget class="QLabel" name="label_17">
+              <property name="text">
+               <string>Amplitude Noise (c/s)</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="ScienDSpinBox" name="esr_noise_SpinBox">
+              <property name="suffix">
+               <string>cnts</string>
+              </property>
+              <property name="maximum">
+               <double>9999999999999999635896294965248.000000000000000</double>
+              </property>
+              <property name="value">
+               <double>5000.000000000000000</double>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </item>
+          <item row="3" column="0">
+           <layout class="QHBoxLayout" name="horizontalLayout_13">
+            <item>
+             <widget class="QLabel" name="label_20">
+              <property name="text">
+               <string>ESR FWHM (Hz)</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="ScienDSpinBox" name="esr_fwhm_SpinBox">
+              <property name="suffix">
+               <string>Hz</string>
+              </property>
+              <property name="maximum">
+               <double>999999999.000000000000000</double>
+              </property>
+              <property name="value">
+               <double>7000000.000000000000000</double>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </item>
+          <item row="4" column="0">
+           <layout class="QHBoxLayout" name="horizontalLayout_14">
+            <item>
+             <widget class="QLabel" name="label_21">
+              <property name="text">
+               <string>No. OptBay reps.</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QSpinBox" name="esr_optReps_SpinBox">
+              <property name="suffix">
+               <string/>
+              </property>
+              <property name="minimum">
+               <number>1</number>
+              </property>
+              <property name="maximum">
+               <number>1000000000</number>
+              </property>
+              <property name="value">
+               <number>25</number>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </item>
+          <item row="5" column="0">
+           <layout class="QHBoxLayout" name="horizontalLayout_31">
+            <item>
+             <widget class="QLabel" name="label_29">
+              <property name="text">
+               <string>No.of dist. samples</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QSpinBox" name="esr_nSamples_SpinBox">
+              <property name="suffix">
+               <string/>
+              </property>
+              <property name="minimum">
+               <number>1</number>
+              </property>
+              <property name="maximum">
+               <number>1000000000</number>
+              </property>
+              <property name="value">
+               <number>50000</number>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </item>
+          <item row="6" column="0">
+           <layout class="QHBoxLayout" name="horizontalLayout_19">
+            <item>
+             <widget class="QLabel" name="label_22">
+              <property name="text">
+               <string>Error Margin - x0(Hz)</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="ScienDSpinBox" name="esr_errorMarginCenter_SpinBox">
+              <property name="suffix">
+               <string>Hz</string>
+              </property>
+              <property name="maximum">
+               <double>999999999.000000000000000</double>
+              </property>
+              <property name="value">
+               <double>1000000.000000000000000</double>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </item>
+          <item row="7" column="0">
+           <layout class="QHBoxLayout" name="horizontalLayout_20">
+            <item>
+             <widget class="QLabel" name="label_23">
+              <property name="text">
+               <string>Error Margin - Contrast(%)</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="ScienDSpinBox" name="esr_errorMarginContrast_SpinBox">
+              <property name="suffix">
+               <string>%</string>
+              </property>
+              <property name="maximum">
+               <double>100.000000000000000</double>
+              </property>
+              <property name="value">
+               <double>1.000000000000000</double>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </item>
+          <item row="8" column="0">
+           <layout class="QHBoxLayout" name="horizontalLayout_30">
+            <item>
+             <widget class="QLabel" name="label_28">
+              <property name="text">
+               <string>Error Margin - Offset(c/s)</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="ScienDSpinBox" name="esr_errorMarginOffset_SpinBox">
+              <property name="suffix">
+               <string>cnts</string>
+              </property>
+              <property name="maximum">
+               <double>9999999.000000000000000</double>
+              </property>
+              <property name="value">
+               <double>10000.000000000000000</double>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </item>
+          <item row="9" column="0">
+           <layout class="QHBoxLayout" name="horizontalLayout_32">
+            <item>
+             <widget class="QLabel" name="label_30">
+              <property name="text">
+               <string>OptBay Pickiness</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QSpinBox" name="esr_OptBay_Pickiness_SpinBox">
+              <property name="maximum">
+               <number>20</number>
+              </property>
+              <property name="value">
+               <number>5</number>
+              </property>
              </widget>
             </item>
            </layout>
@@ -550,34 +514,6 @@
           </size>
          </property>
         </spacer>
-       </item>
-       <item row="0" column="0">
-        <layout class="QHBoxLayout" name="horizontalLayout">
-         <item>
-          <widget class="QPushButton" name="Start_QM_PushButton">
-           <property name="enabled">
-            <bool>true</bool>
-           </property>
-           <property name="text">
-            <string>Start Quantitative Scan</string>
-           </property>
-          </widget>
-         </item>
-         <item>
-          <widget class="QPushButton" name="Continue_QM_PushButton">
-           <property name="text">
-            <string>Continue Quantitative</string>
-           </property>
-          </widget>
-         </item>
-         <item>
-          <widget class="QPushButton" name="Stop_QM_PushButton">
-           <property name="text">
-            <string>Stop Quantitative Scan</string>
-           </property>
-          </widget>
-         </item>
-        </layout>
        </item>
       </layout>
      </widget>
@@ -631,9 +567,6 @@
             </item>
             <item>
              <widget class="ScienDSpinBox" name="pulsed_mw_power_DoubleSpinBox">
-              <property name="toolTip">
-               <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Microwave power (SMIQ like device output) to be used for all below measurements.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-              </property>
               <property name="suffix">
                <string>dBm</string>
               </property>
@@ -686,9 +619,6 @@
             </item>
             <item>
              <widget class="QComboBox" name="hyperfine_comboBox">
-              <property name="toolTip">
-               <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Different modes of tracking available. &lt;/p&gt;&lt;p&gt;None uses the measure multiple at one tracking freq. and then the next method.&lt;/p&gt;&lt;p&gt;AWG uses the fast switching of the AWG to do &amp;quot;lock-in&amp;quot; like measurement as described by Qi-Chao.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-              </property>
               <item>
                <property name="text">
                 <string>None</string>
@@ -714,9 +644,6 @@
             </item>
             <item>
              <widget class="QSpinBox" name="p_delta_doubleSpinBox">
-              <property name="toolTip">
-               <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Number of tracking repetitions. Allows correction of tracking freq. iteratively.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-              </property>
               <property name="minimum">
                <number>1</number>
               </property>
@@ -735,9 +662,6 @@
             </item>
             <item>
              <widget class="ScienDSpinBox" name="delta0_doubleSpinBox">
-              <property name="toolTip">
-               <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;The measurement for tracking is done at f0-delta and f0+delta.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-              </property>
               <property name="suffix">
                <string>Hz</string>
               </property>
@@ -816,9 +740,6 @@
                </item>
                <item>
                 <widget class="ScienDSpinBox" name="slope2_doubleSpinBox">
-                 <property name="toolTip">
-                  <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Uses this value for the PODMR visibility slopes. Defines how much correction is done from a tracking measurement.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-                 </property>
                  <property name="decimals">
                   <number>6</number>
                  </property>
@@ -832,7 +753,7 @@
              <item row="2" column="0">
               <widget class="QRadioButton" name="retrieve_radioButton">
                <property name="toolTip">
-                <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Uses the value seen in the PODMR module at time of measurement.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+                <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Retrieve PODMR curve from the PODMR qudi module and use as a look up table. Works if PODMR was measured since module load.&lt;/p&gt;&lt;p&gt;&lt;br/&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
                </property>
                <property name="text">
                 <string>Retrieve from PODMR</string>
@@ -845,7 +766,7 @@
           <item row="6" column="0">
            <widget class="QRadioButton" name="mw_list_mode_RadioButton">
             <property name="toolTip">
-             <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;PODMR without the AWG&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+             <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;It is expected that only one resonance peak of the NV is measured.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
             </property>
             <property name="text">
              <string>MW PODMR List Mode</string>
@@ -872,9 +793,6 @@
             </item>
             <item>
              <widget class="ScienDSpinBox" name="pulsed_freq_start_DoubleSpinBox">
-              <property name="toolTip">
-               <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;br/&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-              </property>
               <property name="suffix">
                <string>Hz</string>
               </property>
@@ -935,9 +853,6 @@
             </item>
             <item>
              <widget class="ScienSpinBox" name="pulsed_freq_num_SpinBox">
-              <property name="toolTip">
-               <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Defines frequency step.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-              </property>
               <property name="maximum">
                <number>1000</number>
               </property>
@@ -951,7 +866,7 @@
           <item row="10" column="0">
            <widget class="QRadioButton" name="cw_mode_RadioButton">
             <property name="toolTip">
-             <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;MW will be switched on in CW and the loaded sequence in the pulsed measurements module will be played.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+             <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;It is expected that only one resonance peak of the NV is measured.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
             </property>
             <property name="text">
              <string>MW CW Mode</string>
@@ -1047,9 +962,6 @@
             </item>
             <item>
              <widget class="QSpinBox" name="pulse_repetition_spinBox">
-              <property name="toolTip">
-               <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Number of repetions of the loaded sequence.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-              </property>
               <property name="maximum">
                <number>1000000000</number>
               </property>
@@ -1068,15 +980,12 @@
                <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;The time the scanner should take during an idle move, i.e. when it drives to a new position, or to travel to the next starting position if the end line was reached in a single forward scan.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
               </property>
               <property name="text">
-               <string>Pi duration</string>
+               <string>Pi/2 duration</string>
               </property>
              </widget>
             </item>
             <item>
              <widget class="ScienDSpinBox" name="pi_half_doubleSpinBox">
-              <property name="toolTip">
-               <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Pi pulse duration for all above measurements. Measurements are all hard coded in the logic except for CW mode.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-              </property>
               <property name="suffix">
                <string>s</string>
               </property>
@@ -1150,6 +1059,5 @@
  </connections>
  <buttongroups>
   <buttongroup name="buttonGroup"/>
-  <buttongroup name="buttonGroup_2"/>
  </buttongroups>
 </ui>

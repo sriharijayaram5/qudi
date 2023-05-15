@@ -435,6 +435,7 @@ class SPM_ASC500(Base, ScannerInterface):
             self._dev.base.setParameter(self._dev.base.getConst('ID_SCAN_PSPEED'), time_back*1e9, 0)
             
             while self._dev.base.getParameter(self._dev.base.getConst('ID_PATH_RUNNING'), 0)==1 or self._dev.base.getParameter(self._dev.base.getConst('ID_SCAN_STATUS'), 0)==2:
+                time.sleep(0.1)
                 pass
             
             self._configureSamplePath(line_corr0_start, line_corr0_stop, 

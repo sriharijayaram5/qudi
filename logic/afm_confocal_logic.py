@@ -35,6 +35,7 @@ from collections import deque
 import threading
 import numpy as np
 import os
+import pickle
 import re
 import time
 import datetime
@@ -1410,7 +1411,7 @@ class AFMConfocalLogic(GenericLogic):
 # ==============================================================================
 
     @staticmethod
-    def calc_mag_field_single_res(res_freq, zero_field=2.87e9, e_field=0.0):
+    def calc_mag_field_single_res(res_freq, zero_field=2.87e9, e_field=0.0, gslac = False):
         """ Calculate the magnetic field experience by the NV, assuming low 
             mag. field.
 
@@ -1421,6 +1422,8 @@ class AFMConfocalLogic(GenericLogic):
 
         gyro_nv = 28e9  # gyromagnetic ratio of the NV in Hz/T (would be 28 GHz/T)
 
+        if gslac == True:
+            return np.sqrt(abs(res_freq + zero_field)**2 - e_field**2) / gyro_nv
         return np.sqrt(abs(res_freq - zero_field)**2 - e_field**2) / gyro_nv
 
     @staticmethod
@@ -1513,7 +1516,7 @@ class AFMConfocalLogic(GenericLogic):
                                              mw_power=-25, num_esr_runs=30,
                                              optimize_period=100,
                                              meas_params=['Height(Dac)'],
-                                             single_res=True,
+                                             single_res=True, single_res_gslac = False,
                                              continue_meas=False):
 
         """ QAFM measurement (optical + afm) snake movement for a scan by point.
@@ -1646,7 +1649,7 @@ class AFMConfocalLogic(GenericLogic):
             self._qafm_scan_array[entry]['params']['ESR Count Frequency (Hz)'] = esr_count_freq
             self._qafm_scan_array[entry]['params']['ESR MW power (dBm)'] = mw_power
             self._qafm_scan_array[entry]['params']['ESR Measurement runs (#)'] = num_esr_runs
-            self._qafm_scan_array[entry]['params']['Expect one resonance dip'] = single_res
+            self._qafm_scan_array[entry]['params']['Expect one resonance dip'] = single_res or single_res_gslac
             self._qafm_scan_array[entry]['params']['Optimize Period (s)'] = optimize_period
 
             self._qafm_scan_array[entry]['params']['AFM integration time per pixel (s)'] = int_time_afm
@@ -1722,7 +1725,7 @@ class AFMConfocalLogic(GenericLogic):
                     esr_data_fit = np.zeros(len(esr_meas_mean))
 
                     # perform analysis and fit for the measured data:
-                    if single_res:
+                    if single_res or single_res_gslac:
                         res = self._fitlogic.make_lorentzian_fit(freq_list,
                                                                  esr_meas_mean,
                                                                  estimator=self._fitlogic.estimate_lorentzian_dip)
@@ -1733,7 +1736,7 @@ class AFMConfocalLogic(GenericLogic):
                         #FIXME: use Tesla not Gauss, right not, this is just for display purpose
                         mag_field =  self.calc_mag_field_single_res(res_freq, 
                                                                     self.ZFS, 
-                                                                    self.E_FIELD) * 10000
+                                                                    self.E_FIELD,gslac=single_res_gslac) * 10000
 
 
                     else:    
@@ -1761,7 +1764,7 @@ class AFMConfocalLogic(GenericLogic):
                 self._counter._tagger.sync()
                 t_int = 5 # time for integration in ms 
                 self._counter.countrate.startFor(int(t_int*1e9), clear = True)
-                self._counter.countrate.waitUntilFinished(timeout=int(t_int*10))
+                self._counter.countrate.waitUntilFinished(timeout=int(t_int*20))
                 self._scan_point[0] = np.nan_to_num(self._counter.countrate.getData())
                 self.log.debug(f'Countrate: {self._scan_point[0]}')
     
@@ -1857,7 +1860,7 @@ class AFMConfocalLogic(GenericLogic):
                                              mw_power=-25, num_esr_runs=30, param_estimation = (-30e3,100e3,0.5e3,7e6,1),
                                              optimize_period=100,
                                              meas_params=['Height(Dac)'],
-                                             single_res=True,
+                                             single_res=True, single_res_gslac = False,
                                              continue_meas=False):
 
         """ QAFM measurement (optical + afm) snake movement for a scan by point.
@@ -1986,7 +1989,7 @@ class AFMConfocalLogic(GenericLogic):
             self._qafm_scan_array[entry]['params']['ESR Count Frequency (Hz)'] = esr_count_freq
             self._qafm_scan_array[entry]['params']['ESR MW power (dBm)'] = mw_power
             self._qafm_scan_array[entry]['params']['ESR Measurement runs (#)'] = num_esr_runs
-            self._qafm_scan_array[entry]['params']['Expect one resonance dip'] = single_res
+            self._qafm_scan_array[entry]['params']['Expect one resonance dip'] = single_res or single_res_gslac
             self._qafm_scan_array[entry]['params']['Optimize Period (s)'] = optimize_period
 
             self._qafm_scan_array[entry]['params']['AFM integration time per pixel (s)'] = int_time_afm
@@ -2033,7 +2036,7 @@ class AFMConfocalLogic(GenericLogic):
                 self._counter._tagger.sync()
                 t_int = 5 # time for integration in ms 
                 self._counter.countrate.startFor(int(t_int*1e9), clear = True)
-                self._counter.countrate.waitUntilFinished(timeout=int(t_int*10))
+                self._counter.countrate.waitUntilFinished(timeout=int(t_int*20))
                 self._scan_point[0] = np.nan_to_num(self._counter.countrate.getData())
 
                 b_mean, b_sigma = (self._scan_point[0], background_noise)
@@ -2122,7 +2125,7 @@ class AFMConfocalLogic(GenericLogic):
 
                 try:
                     # perform analysis and fit for the measured data:
-                    if single_res:
+                    if single_res or single_res_gslac:
                         mod,add_params = self._fitlogic.make_lorentzian_model()
                         add_params['sigma'].set(value=param_dict['fwhm']/2, vary=True, min=0, max=param_dict['fwhm'])
                         add_params['amplitude'].set(value=param_dict['amp'], vary=True, max=params[1].max(), min=params[1].min())
@@ -2139,12 +2142,12 @@ class AFMConfocalLogic(GenericLogic):
                         #FIXME: use Tesla not Gauss, right not, this is just for display purpose
                         mag_field =  self.calc_mag_field_single_res(res_freq, 
                                                                     self.ZFS, 
-                                                                    self.E_FIELD) * 10000
+                                                                    self.E_FIELD, single_res_gslac) * 10000
 
                     else:   
                         mag_field =  self.calc_mag_field_single_res(params[0].mean(), 
                                                                     self.ZFS, 
-                                                                    self.E_FIELD) * 10000 
+                                                                    self.E_FIELD, single_res_gslac) * 10000 
 
                 except:
                     self.log.warning(f'Fit was not working at line {line_num} and index {index}. Data needs to be post-processed.')
@@ -2312,7 +2315,7 @@ class AFMConfocalLogic(GenericLogic):
                                                    mw_power=-25, num_esr_runs=30, param_estimation=(-30e3,100e3,0.5e3,7e6,1), optbay=False,
                                                    optimize_period=100,
                                                    meas_params=['Height(Dac)'],
-                                                   single_res=True,
+                                                   single_res=True, single_res_gslac = False,
                                                    continue_meas=False):
 
         if self.check_thread_active():
@@ -2329,7 +2332,7 @@ class AFMConfocalLogic(GenericLogic):
                                                         mw_power, num_esr_runs,
                                                         optimize_period,
                                                         meas_params,
-                                                        single_res,
+                                                        single_res, single_res_gslac,
                                                         continue_meas),
                                                 name='qanti_thread')
         else:
@@ -2343,7 +2346,7 @@ class AFMConfocalLogic(GenericLogic):
                                                         mw_power, num_esr_runs, param_estimation,
                                                         optimize_period,
                                                         meas_params,
-                                                        single_res,
+                                                        single_res, single_res_gslac,
                                                         continue_meas),
                                                 name='qanti_thread')
         self.threadpool.start(self._worker_thread)
@@ -2553,6 +2556,13 @@ class AFMConfocalLogic(GenericLogic):
                 self._qafm_scan_array[entry]['params']['Pulsed stop variable (s) or (Hz)'] = var_stop
                 self._qafm_scan_array[entry]['params']['Pulsed step variable (s) or (Hz)'] = var_incr
                 self._qafm_scan_array[entry]['params']['MW Sweep (True) or CW (False)'] = (mw_list_mode or mw_tracking_mode)
+                self._qafm_scan_array[entry]['params']['MW Tracking mode'] = mw_tracking_mode
+                if mw_tracking_mode:
+                    self._qafm_scan_array[entry]['params']['AWG mode'] = False
+                    self._qafm_scan_array[entry]['params']['Tracking repetitions per point'] = mw_tracking_mode_runs
+                    self._qafm_scan_array[entry]['params']['delta_0'] = delta_0
+                    self._qafm_scan_array[entry]['params']['slope'] = slope2_podmr
+
                 self._qafm_scan_array[entry]['params']['MW power (dBm)'] = mw_power
                 self._qafm_scan_array[entry]['params']['Measurement runs (#)'] = num_runs
                 self._qafm_scan_array[entry]['params']['Optimize Period (s)'] = optimize_period
@@ -2582,6 +2592,8 @@ class AFMConfocalLogic(GenericLogic):
                         if self._pulser.pulse_streamer.hasFinished():
                             break
                 self._pulser._seq = self._podmr_seq
+
+            time_prev = time.monotonic()
 
             # start actual scan
             for line_num, scan_coords in enumerate(scan_arr):
@@ -2646,15 +2658,26 @@ class AFMConfocalLogic(GenericLogic):
                                     self._mw.set_sweep_2(var_start, var_stop, var_incr, mw_power)
                                     self._mw.sweep_on()
 
-                            
+                            if self._counter.recorder.getHistogramIndex()==-1:
+                                self._pulser._seq = self._next_trigger_seq
+                                self._pulser.pulser_on(n=1)
+                                # time.sleep(0.001)
+                                while True:
+                                    # time.sleep(0.001)
+                                    if self._pulser.pulse_streamer.hasFinished():
+                                        break
+                            self._pulser._seq = self._podmr_seq
+
                             # THIS A TRIGGERED PULSER ON COMMAND - will be triggered by ASC500 on the first loop only
                             self._pulser.pulser_on(trigger=True if n==0 else False, n=num_runs, final=self._pulser._mw_trig_final_state)
+                            
 
                         # do movement and height scan
                         # run for n=0 condition only
                         if n==0:
+                            #time.sleep(1)
                             self._debug = self._spm.scan_point()
-                            self.log.debug(f'P0int number {index+1} scan done')
+                            self.log.debug(f'Point number {index+1} scan done')
                             self._scan_point[2:] = self._debug 
 
                         # performe podmr related pulsed measurements after the first freq_point was triggered by the  spm controller
@@ -2703,7 +2726,7 @@ class AFMConfocalLogic(GenericLogic):
                     t_int = 5 # time for integration in ms 
                     self._counter.countrate.clear()
                     self._counter.countrate.startFor(int(t_int*1e9), clear = True)
-                    self._counter.countrate.waitUntilFinished(timeout=int(t_int*10))
+                    self._counter.countrate.waitUntilFinished(timeout=int(t_int*20))
                     self._scan_point[0] = np.nan_to_num(self._counter.countrate.getData())
                     # self.log.debug(f'Countrate: {self._scan_point[0]}')
 
@@ -2724,7 +2747,11 @@ class AFMConfocalLogic(GenericLogic):
                     # self._pulsed_scan_array['pulsed_fw']['data_fit'][line_num][index] = pulsed_ret0
                     self._pulsed_scan_array['pulsed_fw']['data_raw'][line_num][index] = pulsed_meas
 
-                    self.log.info(f'Point: {line_num * coord0_num + index + 1} out of {coord0_num*coord1_num}, {(line_num * coord0_num + index +1)/(coord0_num*coord1_num) * 100:.2f}% finished.')
+                    time_now = time.monotonic()
+                    total_time = round((time_now - time_prev)/(line_num * coord0_num + index + 1) * (coord0_num*coord1_num)/60/60,3)
+                    time_rem = round(total_time - (time_now - time_prev)/60/60,3)
+                
+                    self.log.info(f'Point: {line_num * coord0_num + index + 1} out of {coord0_num*coord1_num}, {(line_num * coord0_num + index +1)/(coord0_num*coord1_num) * 100:.2f}% finished.\nTime remaining: {time_rem}/{total_time}hrs')
 
                     if index != last_elem:
                         self._afm_pos['x'] += x_step
@@ -2949,6 +2976,13 @@ class AFMConfocalLogic(GenericLogic):
                 self._qafm_scan_array[entry]['params']['Pulsed stop variable (s) or (Hz)'] = var_stop
                 self._qafm_scan_array[entry]['params']['Pulsed step variable (s) or (Hz)'] = var_incr
                 self._qafm_scan_array[entry]['params']['MW Sweep (True) or CW (False)'] = (mw_list_mode or mw_tracking_mode)
+                self._qafm_scan_array[entry]['params']['MW Tracking mode'] = mw_tracking_mode
+                if mw_tracking_mode:
+                    self._qafm_scan_array[entry]['params']['AWG mode'] = True
+                    self._qafm_scan_array[entry]['params']['Tracking repetitions per point'] = mw_tracking_mode_runs
+                    self._qafm_scan_array[entry]['params']['delta_0'] = delta_0
+                    self._qafm_scan_array[entry]['params']['slope'] = slope2_podmr
+                
                 self._qafm_scan_array[entry]['params']['MW power (dBm)'] = mw_power
                 self._qafm_scan_array[entry]['params']['Measurement runs (#)'] = num_runs
                 self._qafm_scan_array[entry]['params']['Optimize Period (s)'] = optimize_period
@@ -3054,7 +3088,7 @@ class AFMConfocalLogic(GenericLogic):
                     self._counter._tagger.sync()
                     t_int = 5 # time for integration in ms 
                     self._counter.countrate.startFor(int(t_int*1e9), clear = True)
-                    self._counter.countrate.waitUntilFinished(timeout=int(t_int*10))
+                    self._counter.countrate.waitUntilFinished(timeout=int(t_int*20))
                     self._scan_point[0] = np.nan_to_num(self._counter.countrate.getData())
 
                     for param_index, param_name in enumerate(curr_scan_params):
@@ -4655,7 +4689,9 @@ class AFMConfocalLogic(GenericLogic):
         if timestamp is None:
             timestamp = datetime.datetime.now()
 
-        for entry in scan_params:
+        empty_array = np.ones(len(scan_params))
+
+        for index, entry in enumerate(scan_params):
             parameters = {}
             parameters.update(data[entry]['params'])
             nice_name = data[entry]['nice_name']
@@ -4673,6 +4709,7 @@ class AFMConfocalLogic(GenericLogic):
             # check whether figure has only zeros as data, skip this then
             if not np.any(figure_data):
                 self.log.debug(f'The data array "{entry}" contains only zeros and will be not saved.')
+                empty_array[index] = 0
                 continue
 
             image_extent = [data[entry]['coord0_arr'][0],
@@ -4731,6 +4768,20 @@ class AFMConfocalLogic(GenericLogic):
                                        fmt='%.6e',
                                        delimiter='\t')
             self.increase_save_counter()
+
+        #Save qafm_array in pickle
+        if np.any(empty_array):
+            filelabel = 'qafm_array_raw'
+            if tag is not None:
+                filelabel = f'{tag}_{filelabel}'
+
+            filename = timestamp.strftime('%Y%m%d-%H%M-%S' + '_' + filelabel + '.pickle')
+            pickle_fname = os.path.join(save_path,filename)
+
+            with open(pickle_fname, 'wb') as f:
+                pickle.dump(data, f)
+
+        self.increase_save_counter()
 
         # this method will be anyway skipped, if no data are present.
         self.save_quantitative_data(tag=tag, probe_name=probe_name, sample_name=sample_name,
@@ -4866,8 +4917,10 @@ class AFMConfocalLogic(GenericLogic):
 
         data = self.get_pulsed_data()
 
+        empty_array = np.ones(len(data))
+
         # go basically through the esr_fw and esr_bw scans.
-        for entry in data:
+        for index, entry in enumerate(data):
             tmp = 0
             for alt in ['', '_alternating']:
                 parameters = {}
@@ -4889,6 +4942,7 @@ class AFMConfocalLogic(GenericLogic):
 
                 if not np.any(figure_data):
                     self.log.debug(f'The data array "{entry}" contains only zeros and will be not saved.')
+                    empty_array[index] = 0
                     continue
                 rows, columns, entries = figure_data.shape
                 if tmp == 1:
@@ -4934,6 +4988,20 @@ class AFMConfocalLogic(GenericLogic):
                     self.start_save_to_gwyddion(dataobj=data[entry], gwyobjtype='esr',
                                                 filename=os.path.join(save_path,f"{filename_pfx}_{entry}.gwy"))
                     self.increase_save_counter()
+                
+        #Save pulsed_array in pickle
+        if np.any(empty_array):
+            filelabel = 'pulsed_array_raw'
+            if tag is not None:
+                filelabel = f'{tag}_{filelabel}'
+
+            filename = timestamp.strftime('%Y%m%d-%H%M-%S' + '_' + filelabel + '.pickle')
+            pickle_fname = os.path.join(save_path,filename)
+
+            with open(pickle_fname, 'wb') as f:
+                pickle.dump(data, f)
+
+        self.increase_save_counter()
     
     def save_quantitative_data(self, tag=None, probe_name=None, sample_name=None,
                                use_qudi_savescheme=False, root_path=None, 
@@ -4950,8 +5018,10 @@ class AFMConfocalLogic(GenericLogic):
 
         data = self.get_esr_data()
 
+        empty_array = np.ones(len(data))
+
         # go basically through the esr_fw and esr_bw scans.
-        for entry in data:
+        for index, entry in enumerate(data):
             parameters = {}
             parameters.update(data[entry]['params'])
             nice_name = data[entry]['nice_name']
@@ -4967,6 +5037,7 @@ class AFMConfocalLogic(GenericLogic):
             # check whether figure has only zeros as data, skip this then
             if not np.any(figure_data):
                 self.log.debug(f'The data array "{entry}" contains only zeros and will be not saved.')
+                empty_array[index] = 0
                 continue
             rows, columns, entries = figure_data.shape
 
@@ -5007,6 +5078,20 @@ class AFMConfocalLogic(GenericLogic):
                 self.start_save_to_gwyddion(dataobj=data[entry], gwyobjtype='esr',
                                             filename=os.path.join(save_path,f"{filename_pfx}_{entry}.gwy"))
                 self.increase_save_counter()
+
+        #Save esr_array in pickle
+        if np.any(empty_array):
+            filelabel = 'esr_array_raw'
+            if tag is not None:
+                filelabel = f'{tag}_{filelabel}'
+
+            filename = timestamp.strftime('%Y%m%d-%H%M-%S' + '_' + filelabel + '.pickle')
+            pickle_fname = os.path.join(save_path,filename)
+
+            with open(pickle_fname, 'wb') as f:
+                pickle.dump(data, f)
+
+        self.increase_save_counter()
 
 
 
@@ -5594,7 +5679,6 @@ class AFMConfocalLogic(GenericLogic):
 
         self.sigSaveDataGwyddion.emit(dataobj, gwyobjtype, savefilename, datakeys)
 
-
     def _save_to_gwyddion(self, dataobj, gwyobjtype=None, filename=None, datakeys=None):
         """ 'save_data' method selector (called in thread) 
             - method depends on gwytype specified
@@ -5988,6 +6072,30 @@ class AFMConfocalLogic(GenericLogic):
         self._pulsed_master_AWG.sequencegeneratorlogic().save_ensemble(ensemble)
         self._pulsed_master_AWG.sequencegeneratorlogic().sample_pulse_block_ensemble(ensemblename)
         self._pulsed_master_AWG.sequencegeneratorlogic().load_ensemble(ensemblename)
+    
+    def load_sin(self, channels = [{'name': 'a_ch0', 'amp': 1.00}], dur=1e-6, identifier=''):
+        """
+        Load a sine waveform to be played simultaneously on the specified channels.
+        """
+        ele = []
+        a_ch = {'a_ch0': SF.DC(0), 'a_ch1': SF.DC(0), 'a_ch2': SF.DC(0), 'a_ch3': SF.DC(0)}
+        d_ch = {'d_ch0': False, 'd_ch1': False, 'd_ch2': False, 'd_ch4': False, 'd_ch3': False, 'd_ch5': False}
+        for ch in channels:
+            a_ch[ch['name']] = SF.Sin(amplitude=ch['amp'], frequency=ch['freq'], phase=ch['phase'])
+            
+        ele.append(po.PulseBlockElement(init_length_s=dur,  pulse_function=a_ch, digital_high=d_ch))
+        pulse_block = po.PulseBlock(name=f'SinAutoAFMCon', element_list=ele)
+        self._pulsed_master_AWG.sequencegeneratorlogic().save_block(pulse_block)
+
+        block_list = []
+        block_list.append((pulse_block.name, 0))
+        auto_pulse_CW = po.PulseBlockEnsemble(f'SinAutoAFMCon{identifier}', block_list)
+
+        ensemble = auto_pulse_CW
+        ensemblename = auto_pulse_CW.name
+        self._pulsed_master_AWG.sequencegeneratorlogic().save_ensemble(ensemble)
+        self._pulsed_master_AWG.sequencegeneratorlogic().sample_pulse_block_ensemble(ensemblename)
+        self._pulsed_master_AWG.sequencegeneratorlogic().load_ensemble(ensemblename)
 
     def run_IQ_DC(self):
         """
@@ -6001,6 +6109,27 @@ class AFMConfocalLogic(GenericLogic):
             {'name': 'a_ch1', 'amp': amp*1.2}
             ]
         self.load_dc(channels = ch, dur = 100e-6, identifier = 'A')
+
+        self._AWG.pulser_on()
+
+    def run_IQ_freq(self, LO_freq, target_freq, power):
+        """
+        Runs a simple sin voltage sequence in regular stream mode on the AWG.
+        """
+        self._AWG.pulser_off()
+        self._AWG.instance.init_all_channels()
+        self._mw.off()
+
+        delta = abs(LO_freq - target_freq) # we always use a higher LO and a low shifiting AWG phase for I and Q. Hardcoded below
+
+        ch = [   {'name': 'a_ch0', 'amp': 1.00, 'freq': delta, 'phase': 0.00},
+                 {'name': 'a_ch1', 'amp': 1.20, 'freq': delta, 'phase': 100.00}
+             ]
+        
+        self.load_sin(channels = ch, dur = 5e-6, identifier = 'A')
+
+        self._mw.set_cw(frequency=LO_freq, power=power)
+        self._mw.cw_on()
 
         self._AWG.pulser_on()
 

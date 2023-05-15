@@ -2673,6 +2673,7 @@ class ProteusQGUI(GUIBase):
         esr_mw_power = self._qm.esr_mw_power_DoubleSpinBox.value()
         esr_runs = self._qm.esr_runs_SpinBox.value()
         single_res = self._qm.esr_single_res_RadioButton.isChecked() 
+        single_res_gslac = self._qm.esr_single_res_gslac_RadioButton.isChecked()
 
         contrast = self._qm.esr_contrast_SpinBox.value()
         offset = self._qm.esr_offset_SpinBox.value()
@@ -2695,7 +2696,7 @@ class ProteusQGUI(GUIBase):
             freq_points=esr_freq_num, esr_count_freq=esr_count_freq,
             mw_power=esr_mw_power, num_esr_runs=esr_runs, param_estimation=param_estimation, optbay=optbay,
             optimize_period=None, meas_params=meas_params,
-            single_res=single_res, continue_meas=continue_meas)
+            single_res=single_res, single_res_gslac=single_res_gslac, continue_meas=continue_meas)
 
     def continue_quantitative_measure_clicked(self):
         self.start_quantitative_measure_clicked(continue_meas=True)

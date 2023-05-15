@@ -209,7 +209,7 @@
         </sizepolicy>
        </property>
        <property name="text">
-        <string>Pi/2 Length</string>
+        <string>Pi Length</string>
        </property>
       </widget>
      </item>
@@ -235,6 +235,9 @@
      </item>
      <item row="5" column="1">
       <widget class="QSpinBox" name="average_level_SpinBox">
+       <property name="toolTip">
+        <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Number of repetition of measurement to be done. '0' in AWG mode is measure until stopped.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+       </property>
        <property name="minimum">
         <number>0</number>
        </property>
@@ -303,6 +306,9 @@
      </item>
      <item row="1" column="3">
       <widget class="QRadioButton" name="odmr_derivative_radioButton">
+       <property name="toolTip">
+        <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Plots the calculated visibility.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+       </property>
        <property name="text">
         <string>ODMR visibility</string>
        </property>
@@ -331,6 +337,9 @@
          <bold>false</bold>
         </font>
        </property>
+       <property name="toolTip">
+        <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; vertical-align:sub;&quot;&gt;Slope at the point chosen by the line on the visibility graph.&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+       </property>
        <property name="text">
         <string>0</string>
        </property>
@@ -338,6 +347,9 @@
      </item>
      <item row="1" column="4">
       <widget class="QLabel" name="label_3">
+       <property name="toolTip">
+        <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;br/&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+       </property>
        <property name="text">
         <string>Slope:</string>
        </property>
@@ -570,6 +582,9 @@
    <property name="text">
     <string>AWG Mode</string>
    </property>
+   <property name="toolTip">
+    <string>AWG Mode. Allows measurement using preloaded sequence on AWG. Non-AWG mode requires passthrough of MW CW (afmlogic.run_IQ_...)</string>
+   </property>
    <property name="font">
     <font>
      <weight>75</weight>
@@ -580,14 +595,14 @@
  </widget>
  <customwidgets>
   <customwidget>
-   <class>PlotWidget</class>
-   <extends>QGraphicsView</extends>
-   <header>pyqtgraph</header>
-  </customwidget>
-  <customwidget>
    <class>ScienDSpinBox</class>
    <extends>QDoubleSpinBox</extends>
    <header>qtwidgets.scientific_spinbox.h</header>
+  </customwidget>
+  <customwidget>
+   <class>PlotWidget</class>
+   <extends>QGraphicsView</extends>
+   <header>pyqtgraph</header>
   </customwidget>
   <customwidget>
    <class>FitSettingsComboBox</class>
