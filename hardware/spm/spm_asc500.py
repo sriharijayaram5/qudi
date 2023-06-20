@@ -431,12 +431,12 @@ class SPM_ASC500(Base, ScannerInterface):
             # Here the time_back coming from idle_time will set how was the sample scanner moves around
             # time_forward is set by integration time and will determine time spend at each point. Currently weirdly divided between all points in a line.
 
-            # time back is actually the scan speed from the GUI in m/s
-            self._dev.base.setParameter(self._dev.base.getConst('ID_SCAN_PSPEED'), time_back*1e9, 0)
-            
             while self._dev.base.getParameter(self._dev.base.getConst('ID_PATH_RUNNING'), 0)==1 or self._dev.base.getParameter(self._dev.base.getConst('ID_SCAN_STATUS'), 0)==2:
                 time.sleep(0.1)
                 pass
+
+            # time back is actually the scan speed from the GUI in m/s
+            self._dev.base.setParameter(self._dev.base.getConst('ID_SCAN_PSPEED'), time_back*1e9, 0)
             
             self._configureSamplePath(line_corr0_start, line_corr0_stop, 
                                     line_corr1_start, line_corr1_stop, self._line_points)
@@ -523,7 +523,7 @@ class SPM_ASC500(Base, ScannerInterface):
         self._dev.scanner.setPixelSize(0)
         self._dev.base.setParameter(self._dev.base.getConst('ID_SCAN_ROTATION'), 0, 0)
         
-        self.end_coords = [line_corr0_stop,line_corr1_stop]
+        self.end_coords = [line_corr0_start,line_corr1_start]
         
         for index, val in enumerate(self._coords):
             self._dev.base.setParameter(self._dev.base.getConst('ID_PATH_GUI_X'), int(val[0]/10e-12), index)  # start point is current position

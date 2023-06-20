@@ -761,11 +761,12 @@ class ODMRLogic(GenericLogic):
         self._odmr_counter._pulser.load_swabian_sequence(pulse_dict)
         return self._odmr_counter._pulser._seq
 
-    def set_AWG_sweep(self, mw_start, mw_stop, mw_step, sweep_mw_power):
+    def set_AWG_sweep(self, mw_start, mw_stop, mw_step, sweep_mw_power, pi_pulse=None):
         """
         Sets up the AWG sweep and MW Source CW 
         """
         # upload the IQ signal for + and - delta frequencies. Should be triggerable. Only the CW MW will change during scan
+        
         self._pulsed_master_AWG.toggle_pulse_generator(False)
 
         cw_freq = mw_stop + 2*mw_step
@@ -776,7 +777,9 @@ class ODMRLogic(GenericLogic):
             {'name': 'a_ch1', 'amp': 1.20, 'freq': delta, 'phase': 100.00}
             ]
         IQ_Seq = [IQ_Seq_element(round(delta)) for delta in deltas]
-        dur = (self.pi_half_pulse) + 1.4e-6 + 3e-6 # refer to make PODMR_AWG sequence for PS 
+        pp = pi_pulse if not pi_pulse == None else self.pi_half_pulse
+        dur = pp + 1.4e-6 + 3e-6 # refer to make PODMR_AWG sequence for PS 
+        # self.log.info(f'{(mw_start, mw_stop, mw_step, sweep_mw_power, pp, dur)}')
 
         ensemble_list = []
         for iseq, seq in enumerate(IQ_Seq):
