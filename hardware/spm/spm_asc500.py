@@ -370,6 +370,7 @@ class SPM_ASC500(Base, ScannerInterface):
             return -1
 
         self._line_points = params['line_points']
+        self._lines_num = params['lines_num']
         self._spm_curr_sstyle = scan_style
         self._curr_meas_params = ['Height(Dac)']
     
@@ -501,7 +502,80 @@ class SPM_ASC500(Base, ScannerInterface):
         self._create_objective_line(xOffset=line_corr0_start, yOffset=line_corr1_start, pxSize=abs(line_corr0_stop-line_corr0_start)/self._line_points, columns=self._line_points)
         self._polled_data = np.zeros(self._line_points)
         self._configurePathDataBuffering(sampTime=sT)
-    
+
+    def configure_area(self, 
+                       area_corr0_start,
+                        area_corr0_stop,
+                        area_corr1_start,
+                        area_corr1_stop,
+                        area_corr0_num,
+                        area_corr1_num,
+                       time_forward, time_back):
+        """ Setup the scan line parameters
+        
+        @param float coord0_start: start point for coordinate 0 in m
+        @param float coord0_stop: stop point for coordinate 0 in m
+        @param float coord1_start: start point for coordinate 1 in m
+        @param float coord1_stop: stop point for coordinate 1 in m
+        @param float time_forward: time for forward movement during linescan in s
+                                   For line-scan mode time_forward is equal to 
+                                   the time-interval between starting of the 
+                                   first scanned point and ending of the last 
+                                   scan point. 
+                                   For point-scan tforw is the sum of all 
+                                   time-intervals between scan points.
+        @param float time_back: sets the time-interval for back (idle) movement 
+                                in s when the back displacement is abs equal to 
+                                the forward displacement, it also defines the 
+                                time interval when move to first scan point.
+        
+        @return bool: status variable with: 
+                        False (=0) call failed
+                        True (=1) call successful
+
+        This is a general function, a line is scanned in a previously configured
+        plane. It is possible to set zero scan area, then some reasonable 
+        values for time_forward and time_back will be chosen automatically.
+        """ 
+        if self._spm_curr_mode == ScannerMode.PROBE_CONTACT:
+            scan_range = self.get_sample_scan_range(['X','Y'])
+            axis_dict = {'X': area_corr0_stop, 'Y': area_corr1_stop}
+            for i in scan_range:
+                if axis_dict[i] > scan_range[i]:
+                    self.log.warning(f'Sample scanner {i} to abs. position outside scan range: {axis_dict[i]*1e6:.3f} um')
+                    self.overrange = True
+                    return self.get_sample_pos(list(axis_dict.keys()))
+            self.overrange = False
+
+            sT=time_forward
+            # Here the time_back coming from idle_time will set how was the sample scanner moves around
+            # time_forward is set by integration time and will determine time spend at each point. Currently weirdly divided between all points in a line.
+
+            while self._dev.base.getParameter(self._dev.base.getConst('ID_PATH_RUNNING'), 0)==1 or self._dev.base.getParameter(self._dev.base.getConst('ID_SCAN_STATUS'), 0)==2:
+                time.sleep(0.1)
+                pass
+
+            # time back is actually the scan speed from the GUI in m/s
+            self._dev.base.setParameter(self._dev.base.getConst('ID_SCAN_PSPEED'), time_back*1e9, 0)
+            
+            self._configureSampleAreaPath(area_corr0_start, area_corr0_stop, area_corr1_start, area_corr1_stop, self._line_points, self._lines_num)
+            self._polled_data = np.zeros(self._line_points) # mean is done anyway so linepoints shouldnt affect.  leaving it in since it was this way
+            self._configurePathDataBuffering(sampTime=sT)
+
+            if self._spm_curr_sstyle==ScanStyle.POINT:
+                while True:
+                    if self._dev.base.getParameter(self._dev.base.getConst('ID_SCAN_STATUS'), 0)==8: # should represent idle scan state
+                        break
+                self._dev.base.setParameter(self._dev.base.getConst('ID_SPEC_PATHCTRL'), -1, 0 ) # -1 is grid mode
+                self._dev.scanner.setRelativeOrigin(self.end_coords) # set after path or it will attempt going to origin for some reason
+                self._spm_curr_state =  ScannerState.PROBE_SCANNING
+
+            return
+        
+        else:
+            self.log.warning(f'SPM in wrong mode to do area scan!')
+            return
+
     def set_ext_trigger(self, trig=False):
         self._trig = trig
     
@@ -544,6 +618,42 @@ class SPM_ASC500(Base, ScannerInterface):
             self._dev.base.setParameter(self._dev.base.getConst('ID_PATH_ACTION'), 2, 2)
             self._dev.base.setParameter(self._dev.base.getConst('ID_PATH_ACTION'), 4, 3)
     
+    def _configureSampleAreaPath(self, area_corr0_start, area_corr0_stop, area_corr1_start, area_corr1_stop, line_points, lines_num):
+        self._dev.base.setParameter(self._dev.base.getConst('ID_SPEC_PATHPREP'), 1, 0)
+        self._dev.base.setParameter(self._dev.base.getConst('ID_EXTTRG_TIMEOUT'), self._sync_in_timeout, 0) # 0ms timeout - will wait until SYNC IN is received
+        self._dev.base.setParameter(self._dev.base.getConst('ID_EXTTRG_HS'), 1, 0) # enable trigger
+        self._dev.base.setParameter(self._dev.base.getConst('ID_EXTTRG_EDGE'), 0, 0) # 0 is rising edge
+        # set number of xy grid points
+        self._dev.base.setParameter(self._dev.base.getConst('ID_PATH_GRIDP_X'), line_points, 0)
+        self._dev.base.setParameter(self._dev.base.getConst('ID_PATH_GRIDP_Y'), lines_num, 0)
+        # if going to use grid mode, i.e, ('ID_SPEC_PATHCTRL'), -1, 0, then the GUI_X/Y points of index 0,1,2,3 are the BL,BR,TL,TR coordinates of a parallelogram - BL is start and TR is end
+        # coords = [BL,BR,TL,TR] 
+
+        self._coords = [[area_corr0_start,area_corr1_start],[area_corr0_stop,area_corr1_start],[area_corr0_start,area_corr1_stop],[area_corr0_stop,area_corr1_stop]]
+        
+        self._dev.scanner.setNumberOfColumns(1)
+        self._dev.scanner.setNumberOfLines(1)
+        self._dev.scanner.setPixelSize(0)
+        self._dev.base.setParameter(self._dev.base.getConst('ID_SCAN_ROTATION'), 0, 0)
+        
+        self.end_coords = [area_corr0_start,area_corr1_start]
+        
+        for index, val in enumerate(self._coords):
+            self._dev.base.setParameter(self._dev.base.getConst('ID_PATH_GUI_X'), int(val[0]/10e-12), index)  # start point is current position
+            self._dev.base.setParameter(self._dev.base.getConst('ID_PATH_GUI_Y'), int(val[1]/10e-12), index)  # start point is current position
+
+        # define number path actions at a point ('ID_PATH_ACTION'), no. of actions, 0 
+        if self._spm_curr_sstyle == ScanStyle.LINE:
+            self.log.warning(f'Incorrect scan style for SPM area configuration.')
+        else:
+            # If the scan mode is ESR then one needs to scan point by point mode. This would be non blocking between each point and therefore the manual
+            # handshake makes sure the tip waits at the next point until logic is ready to proceed
+            self._dev.base.setParameter(self._dev.base.getConst('ID_PATH_ACTION'), 3, 0)
+            # define which actions specifically ('ID_PATH_ACTION'), 0=manual handshake/2=Spec 1 dummy engine/4=external handshake, 1=as the first action if no. of actions>=1 
+            self._dev.base.setParameter(self._dev.base.getConst('ID_PATH_ACTION'), 0, 1)
+            self._dev.base.setParameter(self._dev.base.getConst('ID_PATH_ACTION'), 2, 2)
+            self._dev.base.setParameter(self._dev.base.getConst('ID_PATH_ACTION'), 4, 3)
+
     def _create_objective_line(self, xOffset, yOffset, pxSize, columns):
         self.objective_scan_line = {}
         if self._spm_curr_mode == ScannerMode.OBJECTIVE_XY:
@@ -794,6 +904,7 @@ class SPM_ASC500(Base, ScannerInterface):
         @return int: status variable with: 0 = call failed, 1 = call successfull
         """
         self._dev.scanner.sendScannerCommand(self._dev.base.getConst('SCANRUN_OFF'))
+        self._dev.base.setParameter(self._dev.base.getConst('ID_SPEC_PATHCTRL'), 0, 0 ) # -1 is grid mode
         self._spm_curr_state =  ScannerState.IDLE
         if retract:
             self.retract_probe()
