@@ -95,6 +95,7 @@ class PulseStreamer(Base, PulserInterface):
         self.pulsed_trigger = False
         self._regular_seq = None
         self._sync_final_state = ps.OutputState([self._laser_channel,self._sync_in], self._laser_power_voltage, 0)
+        self._pulse_final_state = ps.OutputState([self._laser_channel], self._laser_power_voltage, 0)
         self._mw_trig_final_state = ps.OutputState([self._uw_x_channel, self._pixel_stop, self._laser_channel], self._laser_power_voltage, 0)
         self._mw_trig_sync_final_state = ps.OutputState([self._uw_x_channel, self._pixel_stop, self._laser_channel, self._sync_in], self._laser_power_voltage, 0)
         self._final_state = ps.OutputState([self._laser_channel], self._laser_power_voltage, 0) # DO NOT USE THIS!
@@ -857,3 +858,7 @@ class PulseStreamer(Base, PulserInterface):
     
     def upload_SPM_ensemble(self):
         self._seq = self._pre_SPM_seq
+    
+    def change_sync_final_state_laser_voltage(self, new_voltage):
+        self._sync_final_state = ps.OutputState([self._laser_channel,self._sync_in], new_voltage, 0)
+        self._pulse_final_state = ps.OutputState([self._laser_channel], new_voltage, 0)

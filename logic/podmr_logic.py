@@ -429,7 +429,7 @@ class ODMRLogic(GenericLogic):
 
                 sweep_return = self.set_AWG_sweep(
                     mw_start, mw_stop, mw_step, self.sweep_mw_power)
-                mw_start, mw_stop, mw_step, self.sweep_mw_power, mode = sweep_return
+                mw_start, mw_stop, mw_step, self.sweep_mw_power, mode, freq_points = sweep_return
 
                 param_dict = {'mw_starts': [mw_start], 'mw_stops': [mw_stop],
                               'mw_steps': [mw_step], 'sweep_mw_power': self.sweep_mw_power}
@@ -768,6 +768,7 @@ class ODMRLogic(GenericLogic):
         # upload the IQ signal for + and - delta frequencies. Should be triggerable. Only the CW MW will change during scan
         
         self._pulsed_master_AWG.toggle_pulse_generator(False)
+        self._pulsed_master_AWG.pulsedmeasurementlogic().pulsegenerator().instance.init_all_channels()
 
         cw_freq = mw_stop + 2*mw_step
         deltas = cw_freq - np.arange(mw_start, mw_stop + mw_step, mw_step)
@@ -821,7 +822,7 @@ class ODMRLogic(GenericLogic):
         self._pulsed_master_AWG.pulsedmeasurementlogic().pulsegenerator().load_triggered_multi_replay(ensemble_list) # refer to load_AWG_sine_for_IQ for names
         self._mw_device.set_cw(cw_freq, sweep_mw_power)
 
-        return mw_start, mw_stop, mw_step, sweep_mw_power, None
+        return mw_start, mw_stop, mw_step, sweep_mw_power, None, len(deltas)
 
     def analyse_pulsed_meas(self, analysis_settings, pulsed_meas):
 

@@ -380,20 +380,29 @@
             <item>
              <widget class="QLabel" name="label_5">
               <property name="text">
-               <string># of Frequency Points</string>
+               <string>Frequency Step (Hz)</string>
               </property>
              </widget>
             </item>
             <item>
-             <widget class="ScienSpinBox" name="esr_freq_num_SpinBox">
+             <widget class="ScienDSpinBox" name="esr_freq_num_SpinBox">
               <property name="toolTip">
                <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Defines frequency step.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
               </property>
+              <property name="suffix">
+               <string>Hz</string>
+              </property>
+              <property name="minimum">
+               <double>1.000000000000000</double>
+              </property>
               <property name="maximum">
-               <number>1000000000</number>
+               <double>99999999.000000000000000</double>
+              </property>
+              <property name="singleStep">
+               <double>100000.000000000000000</double>
               </property>
               <property name="value">
-               <number>30</number>
+               <double>1000000.000000000000000</double>
               </property>
              </widget>
             </item>
@@ -645,7 +654,7 @@
                   <string>Slope</string>
                  </property>
                  <property name="checked">
-                  <bool>true</bool>
+                  <bool>false</bool>
                  </property>
                 </widget>
                </item>
@@ -810,20 +819,29 @@
             <item>
              <widget class="QLabel" name="label_13">
               <property name="text">
-               <string># of Frequency Points</string>
+               <string>Frequency Step (Hz)</string>
               </property>
              </widget>
             </item>
             <item>
-             <widget class="ScienSpinBox" name="pulsed_freq_num_SpinBox">
+             <widget class="ScienDSpinBox" name="pulsed_freq_num_SpinBox">
               <property name="toolTip">
                <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Defines frequency step.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
               </property>
+              <property name="suffix">
+               <string>Hz</string>
+              </property>
+              <property name="minimum">
+               <double>1.000000000000000</double>
+              </property>
               <property name="maximum">
-               <number>1000</number>
+               <double>9999999.000000000000000</double>
+              </property>
+              <property name="singleStep">
+               <double>100000.000000000000000</double>
               </property>
               <property name="value">
-               <number>30</number>
+               <double>1000000.000000000000000</double>
               </property>
              </widget>
             </item>
@@ -1129,6 +1147,52 @@
    <header>qtwidgets.scientific_spinbox.h</header>
   </customwidget>
  </customwidgets>
+ <tabstops>
+  <tabstop>tabWidget</tabstop>
+  <tabstop>optBay_groupBox</tabstop>
+  <tabstop>esr_contrast_SpinBox</tabstop>
+  <tabstop>esr_offset_SpinBox</tabstop>
+  <tabstop>esr_noise_SpinBox</tabstop>
+  <tabstop>esr_fwhm_SpinBox</tabstop>
+  <tabstop>esr_optReps_SpinBox</tabstop>
+  <tabstop>esr_nSamples_SpinBox</tabstop>
+  <tabstop>esr_errorMarginCenter_SpinBox</tabstop>
+  <tabstop>esr_errorMarginContrast_SpinBox</tabstop>
+  <tabstop>esr_errorMarginOffset_SpinBox</tabstop>
+  <tabstop>esr_OptBay_Pickiness_SpinBox</tabstop>
+  <tabstop>esr_freq_start_DoubleSpinBox</tabstop>
+  <tabstop>esr_freq_stop_DoubleSpinBox</tabstop>
+  <tabstop>esr_freq_num_SpinBox</tabstop>
+  <tabstop>esr_count_freq_DoubleSpinBox</tabstop>
+  <tabstop>esr_mw_power_DoubleSpinBox</tabstop>
+  <tabstop>esr_runs_SpinBox</tabstop>
+  <tabstop>esr_single_res_RadioButton</tabstop>
+  <tabstop>esr_single_res_gslac_RadioButton</tabstop>
+  <tabstop>esr_double_res_RadioButton</tabstop>
+  <tabstop>Start_QM_PushButton</tabstop>
+  <tabstop>Continue_QM_PushButton</tabstop>
+  <tabstop>Stop_QM_PushButton</tabstop>
+  <tabstop>hyperfine_comboBox</tabstop>
+  <tabstop>pulsed_mw_power_DoubleSpinBox</tabstop>
+  <tabstop>mw_tracking_mode_RadioButton</tabstop>
+  <tabstop>p_delta_doubleSpinBox</tabstop>
+  <tabstop>delta0_doubleSpinBox</tabstop>
+  <tabstop>f0_doubleSpinBox</tabstop>
+  <tabstop>slope2_doubleSpinBox</tabstop>
+  <tabstop>slope_radioButton</tabstop>
+  <tabstop>retrieve_radioButton</tabstop>
+  <tabstop>mw_list_mode_RadioButton</tabstop>
+  <tabstop>pulsed_freq_start_DoubleSpinBox</tabstop>
+  <tabstop>pulsed_freq_stop_DoubleSpinBox</tabstop>
+  <tabstop>pulsed_freq_num_SpinBox</tabstop>
+  <tabstop>cw_mode_RadioButton</tabstop>
+  <tabstop>cw_freq_DoubleSpinBox</tabstop>
+  <tabstop>pulse_repetition_spinBox</tabstop>
+  <tabstop>pi_half_doubleSpinBox</tabstop>
+  <tabstop>Start_Pulsed_PushButton</tabstop>
+  <tabstop>Continue_Pulsed_PushButton</tabstop>
+  <tabstop>Stop_Pulsed_PushButton</tabstop>
+ </tabstops>
  <resources/>
  <connections>
   <connection>
