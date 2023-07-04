@@ -2379,7 +2379,7 @@ class AFMConfocalLogic(GenericLogic):
                                             mw_tracking_mode=False,
                                             mode='None', repetitions=1, delta_0=1e6,
                                             res_freq=2.87e9, slope2_podmr=1, use_slope_track=True,
-                                            mw_cw_mode = False):
+                                            mw_cw_mode = False, podmr_list_mode_tracking = False):
 
             """ QAFM measurement (optical + afm) forward and backward for a scan by point.
 
@@ -2830,7 +2830,7 @@ class AFMConfocalLogic(GenericLogic):
                                             mw_tracking_mode=False,
                                             mode='None', repetitions=1, delta_0=1e6,
                                             res_freq=2.87e9, slope2_podmr=1, use_slope_track=True,
-                                            mw_cw_mode = False):
+                                            mw_cw_mode = False, podmr_list_mode_tracking = False):
 
             """ QAFM measurement (optical + afm) forward and backward for a scan by point.
 
@@ -2899,7 +2899,7 @@ class AFMConfocalLogic(GenericLogic):
                 record_length_s = self._podmr.record_length_s
                 analysis_settings = self._podmr.pulsed_analysis_settings
                 var_list = freq_list
-                move_center_freq = False
+                move_center_freq = podmr_list_mode_tracking
 
             # make the counter for pulsed measurement ready
             # 2 histograms are still working for the AWG mode since we measure the two frequencies alternativels. Max counts must be dealt with
@@ -3367,7 +3367,7 @@ class AFMConfocalLogic(GenericLogic):
                                             mw_tracking_mode=False,
                                             mode='None', repetitions=1, delta_0=1e6,
                                             res_freq=2.87e9, slope2_podmr=1, use_slope_track=False,
-                                            mw_cw_mode = False):
+                                            mw_cw_mode = False, podmr_list_mode_tracking = False):
 
         if self.check_thread_active():
             self.log.error("A measurement is currently running, stop it first!")
@@ -3388,7 +3388,7 @@ class AFMConfocalLogic(GenericLogic):
                                                     mw_tracking_mode,
                                                     mode, repetitions, delta_0,
                                                     res_freq, slope2_podmr, use_slope_track,
-                                                    mw_cw_mode),
+                                                    mw_cw_mode, podmr_list_mode_tracking),
                                             name='quanti_thread')
             self.threadpool.start(self._worker_thread)
 

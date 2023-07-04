@@ -2743,6 +2743,8 @@ class ProteusQGUI(GUIBase):
         pulse_repetition = self._qm.pulse_repetition_spinBox.value()
         pi_half_duration = self._qm.pi_half_doubleSpinBox.value()
 
+        podmr_list_mode_tracking = self._qm.podmr_list_tracking_checkBox.isChecked() and self._qm.podmr_list_tracking_checkBox.isEnabled()
+
         self._qafm_logic.start_scan_area_pulsed_qafm_fw_by_point(
             coord0_start=x_start, coord0_stop=x_stop, coord0_num=res_x, 
             coord1_start=y_start, coord1_stop=y_stop, coord1_num=res_y, 
@@ -2754,7 +2756,7 @@ class ProteusQGUI(GUIBase):
             mw_tracking_mode=mw_tracking_mode,
             mode=mode, repetitions=repetitions, delta_0=delta_0,
             res_freq=res_freq, slope2_podmr=slope2_podmr, use_slope_track=use_slope_track,
-            mw_cw_mode = mw_cw_mode)
+            mw_cw_mode = mw_cw_mode, podmr_list_mode_tracking = podmr_list_mode_tracking)
 
 
     def continue_pulsed_measure_clicked(self):
