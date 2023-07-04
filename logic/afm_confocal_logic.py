@@ -2899,6 +2899,7 @@ class AFMConfocalLogic(GenericLogic):
                 record_length_s = self._podmr.record_length_s
                 analysis_settings = self._podmr.pulsed_analysis_settings
                 var_list = freq_list
+                move_center_freq = False
 
             # make the counter for pulsed measurement ready
             # 2 histograms are still working for the AWG mode since we measure the two frequencies alternativels. Max counts must be dealt with
@@ -2921,7 +2922,8 @@ class AFMConfocalLogic(GenericLogic):
                 self._AWG.load_triggered_multi_replay(['SinSPM0', 'SinSPM1']) # refer to load_AWG_sine_for_IQ for names
             else:
                 self._podmr.set_AWG_sweep(var_start, var_stop, var_incr, mw_power, pi_half_duration)
-                res_estimate = var_stop + 2*var_incr
+                LO_freq = var_stop + 2*var_incr
+                res_estimate = (var_stop - var_start)/2 + var_start
 
             self._pulsed_master_AWG.pulsedmeasurementlogic().pulsegenerator().pulser_on(trigger=True)
 
@@ -2974,8 +2976,8 @@ class AFMConfocalLogic(GenericLogic):
                                                                 coord1_num)
 
             # prepare arrays for specific modes
+            self.res_freq_array = np.ones((coord1_num, coord0_num)) * (res_freq if mw_tracking_mode else res_estimate)
             if mw_tracking_mode:
-                self.res_freq_array = np.ones((coord1_num, coord0_num)) * res_freq
                 self.delta_array = np.ones((coord1_num, coord0_num)) * delta_0
                 self._mw.set_cw_2(res_freq, mw_power)
             else:
@@ -3096,12 +3098,12 @@ class AFMConfocalLogic(GenericLogic):
                             try:
                                 # self._mw.set_cw_2(res_estimate, mw_power) #trying with _3 to minimize unnecessary calls to device
                                 self._mw.set_cw_3(res_estimate, mw_power) # minimal cw set function _3 is used which does not repeat setting of power
-                                # self._mw.cw_on()
                                 self._mw.cw_on_3()
                             except:
                                 self._stop_request = True
                                 self.log.warning('Something has gone wrong with MW device connection!')
-
+                        if not mw_tracking_mode and move_center_freq:
+                            self.find_and_shift_center_freq(var_list, mw_power, line_num, index)
                         # THIS A TRIGGERED PULSER ON COMMAND - will be triggered by ASC500 on the first loop only
                         self._pulser.pulser_on(trigger=True if n==0 else False, n=num_runs, final=self._pulser._sync_final_state if mw_tracking_mode_runs==1 else self._pulser._pulse_final_state)
                                               
@@ -3127,7 +3129,10 @@ class AFMConfocalLogic(GenericLogic):
                         self._pulser.pulser_on(n=2, final=self._pulser._sync_final_state)
 
                     # here the fit parameter can be saved
-                    self._scan_point[1] = self.res_freq_array[line_num, index]/1e9 if mw_tracking_mode else 1
+                    if not mw_tracking_mode:
+                        self.extract_resonance(pulsed_ret0, var_list, line_num, index)
+
+                    self._scan_point[1] = self.res_freq_array[line_num, index]/1e9
                     # self._scan_point[1] = 2.776+(np.random.random()*0.5e6/1e9)
                     # here the counts can be saved:
                     self._counter._tagger.sync()
@@ -3304,7 +3309,52 @@ class AFMConfocalLogic(GenericLogic):
             self._pulsed_master_AWG.sequencegeneratorlogic().save_ensemble(ensemble)
             self._pulsed_master_AWG.sequencegeneratorlogic().sample_pulse_block_ensemble(ensemblename)
             self._pulsed_master_AWG.sequencegeneratorlogic().load_ensemble(ensemblename)
+        
+    def extract_resonance(self, esr_meas_mean, freq_list, line_num, index):
+        fit = False
+        if fit:
+            try:
+                # perform analysis and fit for the measured data:
+                res = self._fitlogic.make_lorentzian_fit(freq_list,
+                                                            esr_meas_mean,
+                                                            estimator=self._fitlogic.estimate_lorentzian_dip)
 
+                res_freq = res.params['center'].value
+                self.res_freq_array[line_num,index] = res_freq
+
+            except:
+                self.log.warning(f'Fit was not working at this point. Data needs to be post-processed.')
+                if line_num==0 and index==0:
+                    coord = (line_num,index)
+                elif line_num!=0 and index==0:
+                    coord = (line_num-1,index)
+                elif index!=0:
+                    coord = (line_num,index-1)      
+                res_freq = self.res_freq_array[coord]
+                self.res_freq_array[line_num,index] = res_freq # new one stays the same as adjacent one
+        else:
+            res_freq = freq_list[np.argmin(esr_meas_mean)]
+            self.res_freq_array[line_num,index] = res_freq
+    
+    def find_and_shift_center_freq(self, var_list, mw_power, line_num, index):
+
+        if line_num==0 and index==0:
+            coord = (line_num,index)
+        elif line_num!=0 and index==0:
+            coord = (line_num-1,index)
+        elif index!=0:
+            coord = (line_num,index-1) 
+        res_freq = self.res_freq_array[coord]
+
+        var_num = len(var_list)
+        var_incr = var_list[1] - var_list[0]
+        LO_freq = res_freq + (var_incr * int(var_num/2)) +  (2 * var_incr)
+
+        # LO_freq = var_stop + 2*var_incr # the initial setting
+        self._mw.set_cw_3(LO_freq, mw_power) # minimal cw set function _3 is used which does not repeat setting of power
+        self._mw.cw_on_3()
+
+    
     def start_scan_area_pulsed_qafm_fw_by_point(self, coord0_start, coord0_stop,
                                             coord0_num, coord1_start, coord1_stop,
                                             coord1_num, int_time_afm=0.1,
