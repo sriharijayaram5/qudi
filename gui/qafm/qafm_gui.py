@@ -340,18 +340,14 @@ class ProteusQGUI(GUIBase):
     
         # connect Quantitative signals 
         self._qm.Start_QM_PushButton.clicked.connect(self.start_quantitative_measure_clicked)
-        self._qm.Continue_QM_PushButton.clicked.connect(self.continue_quantitative_measure_clicked)
         self._qm.Stop_QM_PushButton.clicked.connect(self.stop_quantitative_measure_clicked)
 
         self._qm.Start_QM_PushButton.clicked.connect(self.disable_scan_actions_quanti)
-        self._qm.Continue_QM_PushButton.clicked.connect(self.disable_scan_actions_quanti)
 
         self._qm.Start_Pulsed_PushButton.clicked.connect(self.start_pulsed_measure_clicked)
-        self._qm.Continue_Pulsed_PushButton.clicked.connect(self.continue_pulsed_measure_clicked)
         self._qm.Stop_Pulsed_PushButton.clicked.connect(self.stop_pulsed_measure_clicked)
 
         self._qm.Start_Pulsed_PushButton.clicked.connect(self.disable_scan_actions_quanti)
-        self._qm.Continue_Pulsed_PushButton.clicked.connect(self.disable_scan_actions_quanti)
 
         self._qafm_logic.sigQuantiScanFinished.connect(self.enable_scan_actions_quanti)
         self._qafm_logic.sigQuantiScanFinished.connect(self.autosave_quantitative_measurement)
@@ -399,6 +395,11 @@ class ProteusQGUI(GUIBase):
         self.load_view()
         self.retrieve_status_var()
         self.update_temperature()
+
+        
+        self._qm.mw_tracking_mode_RadioButton.clicked.connect(lambda state, x=0: self.radioButton_behaviour_forGroupBox(state,x))
+        self._qm.mw_list_mode_RadioButton.clicked.connect(lambda state, x=1: self.radioButton_behaviour_forGroupBox(state,x))
+        self._qm.cw_mode_RadioButton.clicked.connect(lambda state, x=2: self.radioButton_behaviour_forGroupBox(state,x))
 
     def on_deactivate(self):
         """ Deactivate the module properly.
@@ -2537,6 +2538,26 @@ class ProteusQGUI(GUIBase):
         self._qafm_logic._spm.objective_lock = state
         self.toggle_obj_actions(not state)
 
+    def radioButton_behaviour_forGroupBox(self, state, x):
+        if x == 0:
+            if state is True:
+                self._qm.mw_list_mode_RadioButton.setChecked(False)
+                self._qm.cw_mode_RadioButton.setChecked(False)
+            else:
+                self._qm.mw_tracking_mode_RadioButton.setChecked(True)
+        if x == 1:
+            if state is True:
+                self._qm.mw_tracking_mode_RadioButton.setChecked(False)
+                self._qm.cw_mode_RadioButton.setChecked(False)
+            else:
+                self._qm.mw_list_mode_RadioButton.setChecked(True)
+        if x == 2:
+            if state is True:
+                self._qm.mw_list_mode_RadioButton.setChecked(False)
+                self._qm.mw_tracking_mode_RadioButton.setChecked(False)
+            else:
+                self._qm.cw_mode_RadioButton.setChecked(True)
+
 
     def update_targetpos_xy(self, event, xy_pos):
 
@@ -2642,12 +2663,10 @@ class ProteusQGUI(GUIBase):
     def enable_scan_actions_quanti(self):
         self.enable_scan_actions()
         self._qm.Start_QM_PushButton.setEnabled(True)
-        self._qm.Continue_QM_PushButton.setEnabled(True)
 
     def disable_scan_actions_quanti(self):
         self.disable_scan_actions()
         self._qm.Start_QM_PushButton.setEnabled(False)
-        self._qm.Continue_QM_PushButton.setEnabled(False)
 
     def start_quantitative_measure_clicked(self, continue_meas=False):
         self.disable_scan_actions_quanti()
@@ -2688,6 +2707,10 @@ class ProteusQGUI(GUIBase):
         pickiness = self._qm.esr_OptBay_Pickiness_SpinBox.value()
         param_estimation = (-(offset*contrast/100),offset,amp_noise,esr_fwhm,opt_reps,err_margin_x0,err_margin_offset,-(offset*err_margin_contrast/100), n_samples, pickiness)
 
+        #liftoff mode
+        liftoff_mode = self._mw.liftOffMode_groupBox.isChecked()
+        liftoff_height = self._mw.liftOffHeight_doubleSpinBox.value()
+
         self._qafm_logic.start_scan_area_quanti_qafm_fw_by_point(
             coord0_start=x_start, coord0_stop=x_stop, coord0_num=res_x, 
             coord1_start=y_start, coord1_stop=y_stop, coord1_num=res_y, 
@@ -2696,10 +2719,8 @@ class ProteusQGUI(GUIBase):
             freq_points=esr_freq_num, esr_count_freq=esr_count_freq,
             mw_power=esr_mw_power, num_esr_runs=esr_runs, param_estimation=param_estimation, optbay=optbay,
             optimize_period=None, meas_params=meas_params,
-            single_res=single_res, single_res_gslac=single_res_gslac, continue_meas=continue_meas)
-
-    def continue_quantitative_measure_clicked(self):
-        self.start_quantitative_measure_clicked(continue_meas=True)
+            single_res=single_res, single_res_gslac=single_res_gslac, continue_meas=continue_meas,
+            liftoff_mode=liftoff_mode, liftoff_height=liftoff_height)
 
     def stop_quantitative_measure_clicked(self):
         self.stop_any_scanning()
@@ -2745,6 +2766,10 @@ class ProteusQGUI(GUIBase):
 
         podmr_list_mode_tracking = self._qm.podmr_list_tracking_checkBox.isChecked() and self._qm.podmr_list_tracking_checkBox.isEnabled()
 
+        #liftoff mode
+        liftoff_mode = self._mw.liftOffMode_groupBox.isChecked()
+        liftoff_height = self._mw.liftOffHeight_doubleSpinBox.value()
+
         self._qafm_logic.start_scan_area_pulsed_qafm_fw_by_point(
             coord0_start=x_start, coord0_stop=x_stop, coord0_num=res_x, 
             coord1_start=y_start, coord1_stop=y_stop, coord1_num=res_y, 
@@ -2756,11 +2781,8 @@ class ProteusQGUI(GUIBase):
             mw_tracking_mode=mw_tracking_mode,
             mode=mode, repetitions=repetitions, delta_0=delta_0,
             res_freq=res_freq, slope2_podmr=slope2_podmr, use_slope_track=use_slope_track,
-            mw_cw_mode = mw_cw_mode, podmr_list_mode_tracking = podmr_list_mode_tracking)
-
-
-    def continue_pulsed_measure_clicked(self):
-        pass
+            mw_cw_mode = mw_cw_mode, podmr_list_mode_tracking = podmr_list_mode_tracking,
+            liftoff_mode=liftoff_mode, liftoff_height=liftoff_height)
 
     def stop_pulsed_measure_clicked(self):
         self.stop_any_scanning()

@@ -1518,7 +1518,9 @@ class AFMConfocalLogic(GenericLogic):
                                              optimize_period=100,
                                              meas_params=['Height(Dac)'],
                                              single_res=True, single_res_gslac = False,
-                                             continue_meas=False):
+                                             continue_meas=False,
+                                            liftoff_mode=False,
+                                            liftoff_height=0):
 
         """ QAFM measurement (optical + afm) snake movement for a scan by point.
 
@@ -1669,7 +1671,9 @@ class AFMConfocalLogic(GenericLogic):
                                      area_corr0_num=coord0_num,
                                      area_corr1_num=coord1_num,
                                      time_forward=scan_speed_per_line,
-                                     time_back=idle_move_time)
+                                     time_back=idle_move_time,
+                                     liftoff_mode=liftoff_mode,
+                                     liftoff_height=liftoff_height)
             
         if self._mw_mode == 'LIST':
             self._mw.list_on()
@@ -1862,7 +1866,9 @@ class AFMConfocalLogic(GenericLogic):
                                              optimize_period=100,
                                              meas_params=['Height(Dac)'],
                                              single_res=True, single_res_gslac = False,
-                                             continue_meas=False):
+                                             continue_meas=False,
+                                            liftoff_mode=False,
+                                            liftoff_height=0):
 
         """ QAFM measurement (optical + afm) snake movement for a scan by point.
 
@@ -2010,7 +2016,9 @@ class AFMConfocalLogic(GenericLogic):
                                      area_corr0_num=coord0_num,
                                      area_corr1_num=coord1_num,
                                      time_forward=scan_speed_per_line,
-                                     time_back=idle_move_time)
+                                     time_back=idle_move_time,
+                                     liftoff_mode=liftoff_mode,
+                                     liftoff_height=liftoff_height)
         
         for line_num, scan_coords in enumerate(scan_arr):
 
@@ -2323,7 +2331,9 @@ class AFMConfocalLogic(GenericLogic):
                                                    optimize_period=100,
                                                    meas_params=['Height(Dac)'],
                                                    single_res=True, single_res_gslac = False,
-                                                   continue_meas=False):
+                                                   continue_meas=False,
+                                            liftoff_mode=False,
+                                            liftoff_height=0):
 
         if self.check_thread_active():
             self.log.error("A measurement is currently running, stop it first!")
@@ -2340,7 +2350,9 @@ class AFMConfocalLogic(GenericLogic):
                                                         optimize_period,
                                                         meas_params,
                                                         single_res, single_res_gslac,
-                                                        continue_meas),
+                                                        continue_meas,
+                                            liftoff_mode,
+                                            liftoff_height),
                                                 name='qanti_thread')
         else:
             self._worker_thread = WorkerThread(target=self.scan_true_area_quanti_bayesian_qafm_fw_by_point,
@@ -2354,7 +2366,9 @@ class AFMConfocalLogic(GenericLogic):
                                                         optimize_period,
                                                         meas_params,
                                                         single_res, single_res_gslac,
-                                                        continue_meas),
+                                                        continue_meas,
+                                            liftoff_mode,
+                                            liftoff_height),
                                                 name='qanti_thread')
         self.threadpool.start(self._worker_thread)
 
@@ -2379,7 +2393,9 @@ class AFMConfocalLogic(GenericLogic):
                                             mw_tracking_mode=False,
                                             mode='None', repetitions=1, delta_0=1e6,
                                             res_freq=2.87e9, slope2_podmr=1, use_slope_track=True,
-                                            mw_cw_mode = False, podmr_list_mode_tracking = False):
+                                            mw_cw_mode = False, podmr_list_mode_tracking = False,
+                                            liftoff_mode=False,
+                                            liftoff_height=0):
 
             """ QAFM measurement (optical + afm) forward and backward for a scan by point.
 
@@ -2612,7 +2628,9 @@ class AFMConfocalLogic(GenericLogic):
                                      area_corr0_num=coord0_num,
                                      area_corr1_num=coord1_num,
                                      time_forward=scan_speed_per_line,
-                                     time_back=idle_move_time)
+                                     time_back=idle_move_time,
+                                     liftoff_mode=liftoff_mode,
+                                     liftoff_height=liftoff_height)
 
             # start actual scan
             for line_num, scan_coords in enumerate(scan_arr):
@@ -2830,7 +2848,9 @@ class AFMConfocalLogic(GenericLogic):
                                             mw_tracking_mode=False,
                                             mode='None', repetitions=1, delta_0=1e6,
                                             res_freq=2.87e9, slope2_podmr=1, use_slope_track=True,
-                                            mw_cw_mode = False, podmr_list_mode_tracking = False):
+                                            mw_cw_mode = False, podmr_list_mode_tracking = False,
+                                            liftoff_mode=False,
+                                            liftoff_height=0):
 
             """ QAFM measurement (optical + afm) forward and backward for a scan by point.
 
@@ -3045,7 +3065,9 @@ class AFMConfocalLogic(GenericLogic):
                                      area_corr0_num=coord0_num,
                                      area_corr1_num=coord1_num,
                                      time_forward=scan_speed_per_line,
-                                     time_back=idle_move_time)
+                                     time_back=idle_move_time,
+                                     liftoff_mode=liftoff_mode,
+                                     liftoff_height=liftoff_height)
     
             for line_num, scan_coords in enumerate(scan_arr):
 
@@ -3367,7 +3389,9 @@ class AFMConfocalLogic(GenericLogic):
                                             mw_tracking_mode=False,
                                             mode='None', repetitions=1, delta_0=1e6,
                                             res_freq=2.87e9, slope2_podmr=1, use_slope_track=False,
-                                            mw_cw_mode = False, podmr_list_mode_tracking = False):
+                                            mw_cw_mode = False, podmr_list_mode_tracking = False,
+                                            liftoff_mode=False,
+                                            liftoff_height=0):
 
         if self.check_thread_active():
             self.log.error("A measurement is currently running, stop it first!")
@@ -3388,7 +3412,9 @@ class AFMConfocalLogic(GenericLogic):
                                                     mw_tracking_mode,
                                                     mode, repetitions, delta_0,
                                                     res_freq, slope2_podmr, use_slope_track,
-                                                    mw_cw_mode, podmr_list_mode_tracking),
+                                                    mw_cw_mode, podmr_list_mode_tracking,
+                                            liftoff_mode,
+                                            liftoff_height),
                                             name='quanti_thread')
             self.threadpool.start(self._worker_thread)
 

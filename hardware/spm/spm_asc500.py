@@ -106,6 +106,9 @@ class SPM_ASC500(Base, ScannerInterface):
         self.objective_lock = False
         self._has_been_set = [False, False]
 
+        self.liftoff_mode = False
+        self.liftoff_height = 0
+
         return
 
     def on_deactivate(self):
@@ -510,7 +513,8 @@ class SPM_ASC500(Base, ScannerInterface):
                         area_corr1_stop,
                         area_corr0_num,
                         area_corr1_num,
-                       time_forward, time_back):
+                       time_forward, time_back,
+                       liftoff_mode, liftoff_height):
         """ Setup the scan line parameters
         
         @param float coord0_start: start point for coordinate 0 in m
@@ -558,7 +562,8 @@ class SPM_ASC500(Base, ScannerInterface):
             # time back is actually the scan speed from the GUI in m/s
             self._dev.base.setParameter(self._dev.base.getConst('ID_SCAN_PSPEED'), time_back*1e9, 0)
             
-            self._configureSampleAreaPath(area_corr0_start, area_corr0_stop, area_corr1_start, area_corr1_stop, self._line_points, self._lines_num)
+            self._configureSampleAreaPath(area_corr0_start, area_corr0_stop, area_corr1_start, area_corr1_stop, self._line_points, self._lines_num,
+                                          liftoff_mode, liftoff_height)
             self._polled_data = np.zeros(self._line_points) # mean is done anyway so linepoints shouldnt affect.  leaving it in since it was this way
             self._configurePathDataBuffering(sampTime=sT)
 
@@ -604,6 +609,8 @@ class SPM_ASC500(Base, ScannerInterface):
             self._dev.base.setParameter(self._dev.base.getConst('ID_PATH_GUI_Y'), int(val[1]/10e-12), index)  # start point is current position
 
         # define number path actions at a point ('ID_PATH_ACTION'), no. of actions, 0 
+        self.liftoff_mode = False
+        self.liftoff_height = 0
         if self._spm_curr_sstyle == ScanStyle.LINE:
             self._dev.base.setParameter(self._dev.base.getConst('ID_PATH_ACTION'), 2 if self._trig else 1, 0)
             # define which actions specifically ('ID_PATH_ACTION'), 0=manual handshake/2=Spec 1 dummy engine/4=external handshake, 1=as the first action if no. of actions>=1 
@@ -618,7 +625,7 @@ class SPM_ASC500(Base, ScannerInterface):
             self._dev.base.setParameter(self._dev.base.getConst('ID_PATH_ACTION'), 2, 2)
             self._dev.base.setParameter(self._dev.base.getConst('ID_PATH_ACTION'), 4, 3)
     
-    def _configureSampleAreaPath(self, area_corr0_start, area_corr0_stop, area_corr1_start, area_corr1_stop, line_points, lines_num):
+    def _configureSampleAreaPath(self, area_corr0_start, area_corr0_stop, area_corr1_start, area_corr1_stop, line_points, lines_num, liftoff_mode, liftoff_height):
         self._dev.base.setParameter(self._dev.base.getConst('ID_SPEC_PATHPREP'), 1, 0)
         self._dev.base.setParameter(self._dev.base.getConst('ID_EXTTRG_TIMEOUT'), self._sync_in_timeout, 0) # 0ms timeout - will wait until SYNC IN is received
         self._dev.base.setParameter(self._dev.base.getConst('ID_EXTTRG_HS'), 1, 0) # enable trigger
@@ -643,8 +650,38 @@ class SPM_ASC500(Base, ScannerInterface):
             self._dev.base.setParameter(self._dev.base.getConst('ID_PATH_GUI_Y'), int(val[1]/10e-12), index)  # start point is current position
 
         # define number path actions at a point ('ID_PATH_ACTION'), no. of actions, 0 
+        self.liftoff_mode = False
+        self.liftoff_height = 0
         if self._spm_curr_sstyle == ScanStyle.LINE:
             self.log.warning(f'Incorrect scan style for SPM area configuration.')
+
+        elif liftoff_mode == True:
+            self.liftoff_mode = liftoff_mode
+            self.liftoff_height = liftoff_height
+            self._dev.base.setParameter(self._dev.base.getConst('ID_PATH_ACTION'), 5, 0)
+            # 0=manual handshake, 1..3=spectroscopy 1..3, 4=ext. handshake, 5=move Z home, 6=auto approach
+            self._dev.base.setParameter(self._dev.base.getConst('ID_PATH_ACTION'), 0, 1)
+            self._dev.base.setParameter(self._dev.base.getConst('ID_PATH_ACTION'), 2, 2)
+            #move home
+            self._dev.base.setParameter(self._dev.base.getConst('ID_PATH_ACTION'), 5, 3)
+            #ext shake
+            self._dev.base.setParameter(self._dev.base.getConst('ID_PATH_ACTION'), 4, 4)
+            #loop on
+            self._dev.base.setParameter(self._dev.base.getConst('ID_PATH_ACTION'), 6, 5)
+
+            #configuration of autoapproach settings
+            # for HFAmpl signal
+            threshold = self._dev.base.getParameter(self._dev.base.getConst('ID_REG_SETP_DISP')) / 1e7
+            self._dev.aap.setAApThreshold(threshold)
+                    
+            # dF     8
+            # HFAmpl       13
+            input_signal = self._dev.base.getParameter(self._dev.base.getConst('ID_REG_INPUT'))
+            threshold_cond = 1 if input_signal==13 else 0        
+            self._dev.aap.setAApStopCondition(threshold_cond) # [0, 1] >threshold/<threshold
+
+            self._dev.aap.setAApAproachMode(1) # [0, 1] Ramp/Loop
+            self._dev.aap.setAApModeAfter(0) # [0, 1, 2] On/Retract/Off
         else:
             # If the scan mode is ESR then one needs to scan point by point mode. This would be non blocking between each point and therefore the manual
             # handshake makes sure the tip waits at the next point until logic is ready to proceed
@@ -746,6 +783,8 @@ class SPM_ASC500(Base, ScannerInterface):
         if self._spm_curr_mode == ScannerMode.PROBE_CONTACT:
             while True:
                 if self._dev.base.getParameter(self._dev.base.getConst('ID_SPEC_PATHMANSTAT'), 0)==1:
+                    if self.liftoff_mode:
+                        self.set_liftoff_height(self.liftoff_height)
                     self._dev.base.setParameter(self._dev.base.getConst('ID_SPEC_PATHPROCEED') ,1 ,0)
                     break
                 else:
@@ -755,6 +794,25 @@ class SPM_ASC500(Base, ScannerInterface):
             return self._polled_data
             
         return 0
+    
+    def set_liftoff_height(self, liftoff_height):
+        """Liftoff_height is the lift height in metres. Positive values means the sample scanner is retracted by given value.
+        """
+        threshold = self._dev.base.getParameter(self._dev.base.getConst('ID_REG_SETP_DISP')) / 1e7
+        self._dev.aap.setAApThreshold(threshold)
+        
+        while self._dev.base.getParameter(self._dev.base.getConst('ID_AAP_CTRL'),0) == 1:
+            #checks whether auto approach is complete. ensures that system is back in contact
+            pass
+
+        cur_height = 0
+        N = 10
+        for i in range(N):
+            cur_height += self._dev.base.getParameter(self._dev.base.getConst('ID_REG_GET_Z_M'),0)*1e-12 # in m
+        cur_height /= N
+        home_position = cur_height-liftoff_height # ASC500 goes to 102pm if negative
+        self._dev.base.setParameter(self._dev.base.getConst('ID_REG_Z_HOME_M'), int(home_position/1e-12), 0)
+
     
     def _configurePathDataBuffering(self, sampTime):
         # The channel configuration and GUI element showing the input for the Specs have little do with each other. Multiple channels can be triggered by a spec. If the GUI channel is the same 
