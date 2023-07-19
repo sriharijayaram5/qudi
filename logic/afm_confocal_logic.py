@@ -4997,8 +4997,14 @@ class AFMConfocalLogic(GenericLogic):
         fig, ax = plt.subplots()
 
         # Create image plot
+        if any([x in signal_name for x in ['Tracked resonance', 'Magnetic']]):
+            color_map = 'bwr'
+        elif any([x in signal_name for x in ['Counts', 'Fluorescence']]):
+            color_map = 'viridis'
+        else:
+            color_map = 'gist_gray'
         cfimage = ax.imshow(scaled_data,
-                            cmap=plt.get_cmap(self._color_map), # reference the right place in qd
+                            cmap=plt.get_cmap(color_map), # reference the right place in qd
                             origin="lower",
                             vmin=draw_cb_range[0],
                             vmax=draw_cb_range[1],

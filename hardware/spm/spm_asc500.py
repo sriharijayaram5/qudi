@@ -679,6 +679,7 @@ class SPM_ASC500(Base, ScannerInterface):
             input_signal = self._dev.base.getParameter(self._dev.base.getConst('ID_REG_INPUT'))
             threshold_cond = 1 if input_signal==13 else 0        
             self._dev.aap.setAApStopCondition(threshold_cond) # [0, 1] >threshold/<threshold
+            self._dev.aap.setAApStepsPerApproach(0)
 
             self._dev.aap.setAApAproachMode(1) # [0, 1] Ramp/Loop
             self._dev.aap.setAApModeAfter(0) # [0, 1, 2] On/Retract/Off
@@ -967,6 +968,10 @@ class SPM_ASC500(Base, ScannerInterface):
         if retract:
             self.retract_probe()
             self.set_sample_scanner_speed(1000)
+
+        self._dev.aap.setAApAproachMode(0) # [0, 1] Ramp/Loop
+        self._dev.aap.setAApModeAfter(1) # [0, 1, 2] On/Retract/Off
+
         return 1
     
     def stop_measurement(self):

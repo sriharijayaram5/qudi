@@ -1435,8 +1435,16 @@ class ProteusQGUI(GUIBase):
             else:
                 image_item = self._create_image_item(obj_name, data_dict[obj_name]['data'])
                 dockwidget.graphicsView_matrix.addItem(image_item)
-                image_item.setLookupTable(c_scale.lut)
+                
 
+                if any([x in obj_name for x in ['fit', 'b_field']]):
+                    c_scale = ColorScaleGen('bwr')
+                elif any([x in obj_name for x in ['counts', 'obj']]):
+                    c_scale = ColorScaleGen('viridis')
+                elif any([x in obj_name for x in ['Height', 'Fluorescence']]):
+                    c_scale = ColorScaleGen('gist_gray')
+
+                image_item.setLookupTable(c_scale.lut)
                 colorbar = self._create_colorbar(obj_name, c_scale)
                 dockwidget.graphicsView_cb.addItem(colorbar)
                 dockwidget.graphicsView_cb.hideAxis('bottom')
