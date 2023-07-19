@@ -1661,6 +1661,8 @@ class AFMConfocalLogic(GenericLogic):
             self._qafm_scan_array[entry]['params']['AFM scan speed (s)'] = idle_move_time
             self._qafm_scan_array[entry]['params']['Measurement parameter list'] = str(curr_scan_params)
             self._qafm_scan_array[entry]['params']['Measurement start'] = start_time_afm_scan.isoformat()
+            self._qafm_scan_array[entry]['params']['Lift-off Mode'] = liftoff_mode
+            self._qafm_scan_array[entry]['params']['Lift-off Height'] = liftoff_height
 
         
         # configuring the scan area with SPM controller
@@ -2007,6 +2009,8 @@ class AFMConfocalLogic(GenericLogic):
             self._qafm_scan_array[entry]['params']['AFM scan speed (s)'] = idle_move_time
             self._qafm_scan_array[entry]['params']['Measurement parameter list'] = str(curr_scan_params)
             self._qafm_scan_array[entry]['params']['Measurement start'] = start_time_afm_scan.isoformat()
+            self._qafm_scan_array[entry]['params']['Lift-off Mode'] = liftoff_mode
+            self._qafm_scan_array[entry]['params']['Lift-off Height'] = liftoff_height
 
         # configuring the scan area with SPM controller
         self._spm.configure_area(area_corr0_start=coord0_start,
@@ -2597,6 +2601,9 @@ class AFMConfocalLogic(GenericLogic):
                 self._qafm_scan_array[entry]['params']['AFM time for idle move (s)'] = idle_move_time
                 self._qafm_scan_array[entry]['params']['Measurement parameter list'] = str(curr_scan_params)
                 self._qafm_scan_array[entry]['params']['Measurement start'] = start_time_afm_scan.isoformat()
+                self._qafm_scan_array[entry]['params']['pi/2 Duration'] = pi_half_duration
+                self._qafm_scan_array[entry]['params']['Lift-off Mode'] = liftoff_mode
+                self._qafm_scan_array[entry]['params']['Lift-off Height'] = liftoff_height
 
             # turn on mw source
             if (mw_list_mode or mw_tracking_mode):
@@ -3036,6 +3043,7 @@ class AFMConfocalLogic(GenericLogic):
                 self._qafm_scan_array[entry]['params']['Pulsed step variable (s) or (Hz)'] = var_incr
                 self._qafm_scan_array[entry]['params']['MW Sweep (True) or CW (False)'] = (mw_list_mode or mw_tracking_mode)
                 self._qafm_scan_array[entry]['params']['MW Tracking mode'] = mw_tracking_mode
+                self._qafm_scan_array[entry]['params']['pi/2 Duration'] = pi_half_duration
                 if mw_tracking_mode:
                     self._qafm_scan_array[entry]['params']['AWG mode'] = True
                     self._qafm_scan_array[entry]['params']['Tracking repetitions per point'] = mw_tracking_mode_runs
@@ -3050,6 +3058,8 @@ class AFMConfocalLogic(GenericLogic):
                 self._qafm_scan_array[entry]['params']['AFM time for idle move (s)'] = idle_move_time
                 self._qafm_scan_array[entry]['params']['Measurement parameter list'] = str(curr_scan_params)
                 self._qafm_scan_array[entry]['params']['Measurement start'] = start_time_afm_scan.isoformat()
+                self._qafm_scan_array[entry]['params']['Lift-off Mode'] = liftoff_mode
+                self._qafm_scan_array[entry]['params']['Lift-off Height'] = liftoff_height
 
             num_runs *= freq_points # necessary for the two frequencies in mode to have enough reps
 

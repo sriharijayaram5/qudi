@@ -2592,8 +2592,8 @@ class ProteusQGUI(GUIBase):
         daily_folder = self._mw.daily_folder_CheckBox.isChecked()
 
         self._qafm_logic.save_obj_data(obj_name_list, tag, probe_name, sample_name,
-                                        use_qudi_savescheme=True,
-                                        daily_folder=daily_folder)
+                                        use_qudi_savescheme=daily_folder,
+                                        daily_folder=True)
 
     def enable_obj_save_button(self):
         """Method making sure the save button is enabled after objective data is saved. 
@@ -2612,8 +2612,8 @@ class ProteusQGUI(GUIBase):
         daily_folder = self._mw.daily_folder_CheckBox.isChecked()
 
         self._qafm_logic.save_qafm_data(tag, probe_name, sample_name,
-                                        use_qudi_savescheme=True,
-                                        daily_folder=daily_folder)
+                                        use_qudi_savescheme=daily_folder,
+                                        daily_folder=True)
 
 
     def autosave_qafm_measurement(self):
@@ -2637,8 +2637,8 @@ class ProteusQGUI(GUIBase):
         daily_folder = self._mw.daily_folder_CheckBox.isChecked()
 
         self._qafm_logic.save_qafm_data(tag, probe_name, sample_name,
-                                        use_qudi_savescheme=True,
-                                        daily_folder=daily_folder)        
+                                        use_qudi_savescheme=daily_folder,
+                                        daily_folder=True)        
 
 
     def enable_qafm_save_button(self):
@@ -2657,8 +2657,8 @@ class ProteusQGUI(GUIBase):
         daily_folder = self._mw.daily_folder_CheckBox.isChecked()
 
         self._qafm_logic.save_optimizer_data(tag, probe_name, sample_name, 
-                                            use_qudi_savescheme=True, 
-                                            daily_folder=daily_folder)
+                                            use_qudi_savescheme=daily_folder, 
+                                            daily_folder=True)
 
     def enable_opti_save_button(self):
         """Method making sure the save button is enabled after opti data is saved. 
