@@ -4829,6 +4829,11 @@ class AFMConfocalLogic(GenericLogic):
 
         data = self.get_qafm_data()
 
+        if sample_name is not None:
+            tag += f'_{sample_name}'
+        if probe_name is not None:
+            tag += f'_{probe_name}'
+
         if timestamp is None:
             timestamp = datetime.datetime.now()
 

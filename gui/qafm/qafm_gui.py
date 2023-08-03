@@ -205,6 +205,8 @@ class ProteusQGUI(GUIBase):
     _afm_range_y_max = StatusVar('afm_range_y_max', default=37e-6)
     _afm_range_y_num = StatusVar('afm_range_y_num', default=100)
 
+    _scan_id = StatusVar('scan_id', default=100)
+
     # save here the period Optimizer value.
     _periodic_opti_time = StatusVar('periodic_opti_time', default=100)
     _periodic_opti_autorun = StatusVar('periodic_opti_autorun', default=False)
@@ -992,6 +994,7 @@ class ProteusQGUI(GUIBase):
         self._mw.afm_y_min_DSpinBox.setValue(self._afm_range_y_min)
         self._mw.afm_y_max_DSpinBox.setValue(self._afm_range_y_max)
         self._mw.afm_y_num_SpinBox.setValue(self._afm_range_y_num)
+        self._mw.scan_id_spinBox.setValue(self._scan_id)
 
         for entry in self._stat_var_meas_params:
             if entry in self._checkbox_container:
@@ -1058,6 +1061,8 @@ class ProteusQGUI(GUIBase):
         self._afm_range_y_min = self._mw.afm_y_min_DSpinBox.value()
         self._afm_range_y_max = self._mw.afm_y_max_DSpinBox.value()
         self._afm_range_y_num = self._mw.afm_y_num_SpinBox.value()
+
+        self._scan_id = self._mw.scan_id_spinBox.value()
 
         # store the selection of the measurement params
         self._stat_var_meas_params = []
@@ -2592,7 +2597,7 @@ class ProteusQGUI(GUIBase):
         daily_folder = self._mw.daily_folder_CheckBox.isChecked()
 
         self._qafm_logic.save_obj_data(obj_name_list, tag, probe_name, sample_name,
-                                        use_qudi_savescheme=daily_folder,
+                                        use_qudi_savescheme=True,
                                         daily_folder=True)
 
     def enable_obj_save_button(self):
@@ -2606,14 +2611,15 @@ class ProteusQGUI(GUIBase):
         """
         self._mw.actionSaveDataQAFM.setEnabled(False)
 
-        tag = self._mw.qafm_save_LineEdit.text()
+        tag = f'scan{self._mw.scan_id_spinBox.value()}_' + self._mw.qafm_save_LineEdit.text() 
         probe_name = self._mw.probename_LineEdit.text()
         sample_name = self._mw.samplename_LineEdit.text()
         daily_folder = self._mw.daily_folder_CheckBox.isChecked()
 
         self._qafm_logic.save_qafm_data(tag, probe_name, sample_name,
-                                        use_qudi_savescheme=daily_folder,
+                                        use_qudi_savescheme=True,
                                         daily_folder=True)
+        self._mw.scan_id_spinBox.setValue(self._mw.scan_id_spinBox.value+1)
 
 
     def autosave_qafm_measurement(self):
@@ -2631,14 +2637,15 @@ class ProteusQGUI(GUIBase):
 
         self._mw.actionSaveDataQAFM.setEnabled(False)
 
-        tag = self._mw.qafm_save_LineEdit.text() + '_autosave'
+        tag = f'scan{self._mw.scan_id_spinBox.value()}_' + self._mw.qafm_save_LineEdit.text() + '_autosave'
         probe_name = self._mw.probename_LineEdit.text()
         sample_name = self._mw.samplename_LineEdit.text()
         daily_folder = self._mw.daily_folder_CheckBox.isChecked()
 
         self._qafm_logic.save_qafm_data(tag, probe_name, sample_name,
-                                        use_qudi_savescheme=daily_folder,
+                                        use_qudi_savescheme=True,
                                         daily_folder=True)        
+        self._mw.scan_id_spinBox.setValue(self._mw.scan_id_spinBox.value+1)
 
 
     def enable_qafm_save_button(self):
@@ -2657,7 +2664,7 @@ class ProteusQGUI(GUIBase):
         daily_folder = self._mw.daily_folder_CheckBox.isChecked()
 
         self._qafm_logic.save_optimizer_data(tag, probe_name, sample_name, 
-                                            use_qudi_savescheme=daily_folder, 
+                                            use_qudi_savescheme=True, 
                                             daily_folder=True)
 
     def enable_opti_save_button(self):
