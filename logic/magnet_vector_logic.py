@@ -488,6 +488,7 @@ class MagnetLogic(GenericLogic):
         #     self.log.debug("Went into while loop in _move_to_curr_pathway_index")
 
         # this function will return to this function if position is reached:
+        self.time_prev = time.monotonic()
         if stepwise_meas:
             # start the Stepwise alignment loop body self._stepwise_loop_body:
             self._sigStepwiseAlignmentNext.emit()
@@ -556,9 +557,14 @@ class MagnetLogic(GenericLogic):
 
             while self._check_is_moving():
                 time.sleep(self._checktime)
-                self.log.debug("Went into while loop in stepwise_loop_body")
+                # self.log.debug("Went into while loop in stepwise_loop_body")
 
-            self.log.info(f'Position: {self._pathway_index+1}/{len(self._pathway)} ({(self._pathway_index+1)/len(self._pathway)*100:.0f}%)')
+            self.log.info(f'Position: {self._pathway_index+1}/{len(self._pathway)} ({(self._pathway_index+1)/len(self._pathway)*100:.2f}%)')
+            time_now = time.monotonic()
+            total_time = round((time_now - self.time_prev)/(self._pathway_index + 1) * (len(self._pathway))/60/60,3)
+            time_rem = round(total_time - (time_now - self.time_prev)/60/60,3)
+            
+            self.log.info(f'Time remaining: {time_rem}/{total_time}hrs')
             curr_pos = self.get_pos(['x','y','z',self.align_2d_axis0_name, self.align_2d_axis1_name, self.align_2d_axis2_name])
             self.sigPosChanged.emit(curr_pos)
 

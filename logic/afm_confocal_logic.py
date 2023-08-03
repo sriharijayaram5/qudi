@@ -1683,6 +1683,7 @@ class AFMConfocalLogic(GenericLogic):
             self._mw.sweep_on()
 
         # measurement begins
+        self.sigQAFMScanInitialized.emit()
         for line_num, scan_coords in enumerate(scan_arr):
 
             num_params = len(curr_scan_params)
@@ -2024,6 +2025,7 @@ class AFMConfocalLogic(GenericLogic):
                                      liftoff_mode=liftoff_mode,
                                      liftoff_height=liftoff_height)
         
+        self.sigQAFMScanInitialized.emit()
         for line_num, scan_coords in enumerate(scan_arr):
 
             # for a continue measurement event, skip the first measurements
@@ -2640,6 +2642,7 @@ class AFMConfocalLogic(GenericLogic):
                                      liftoff_height=liftoff_height)
 
             # start actual scan
+            self.sigQAFMScanInitialized.emit()
             for line_num, scan_coords in enumerate(scan_arr):
 
                 # for a continue measurement event, skip the first measurements
@@ -3079,6 +3082,7 @@ class AFMConfocalLogic(GenericLogic):
                                      liftoff_mode=liftoff_mode,
                                      liftoff_height=liftoff_height)
     
+            self.sigQAFMScanInitialized.emit()
             for line_num, scan_coords in enumerate(scan_arr):
 
                 # for a continue measurement event, skip the first measurements
@@ -3135,7 +3139,7 @@ class AFMConfocalLogic(GenericLogic):
                                 self._stop_request = True
                                 self.log.warning('Something has gone wrong with MW device connection!')
                         if not mw_tracking_mode and move_center_freq:
-                            self.find_and_shift_center_freq(var_list, mw_power, line_num, index)
+                            var_list = self.find_and_shift_center_freq(var_list, mw_power, line_num, index)
                         # THIS A TRIGGERED PULSER ON COMMAND - will be triggered by ASC500 on the first loop only
                         self._pulser.pulser_on(trigger=True if n==0 else False, n=num_runs, final=self._pulser._sync_final_state if mw_tracking_mode_runs==1 else self._pulser._pulse_final_state)
                                               
@@ -3343,30 +3347,30 @@ class AFMConfocalLogic(GenericLogic):
             self._pulsed_master_AWG.sequencegeneratorlogic().load_ensemble(ensemblename)
         
     def extract_resonance(self, esr_meas_mean, freq_list, line_num, index):
-        fit = False
-        if fit:
-            try:
-                # perform analysis and fit for the measured data:
-                res = self._fitlogic.make_lorentzian_fit(freq_list,
-                                                            esr_meas_mean,
-                                                            estimator=self._fitlogic.estimate_lorentzian_dip)
+        # fit = False
+        # if fit:
+        #     try:
+        #         # perform analysis and fit for the measured data:
+        #         res = self._fitlogic.make_lorentzian_fit(freq_list,
+        #                                                     esr_meas_mean,
+        #                                                     estimator=self._fitlogic.estimate_lorentzian_dip)
 
-                res_freq = res.params['center'].value
-                self.res_freq_array[line_num,index] = res_freq
+        #         res_freq = res.params['center'].value
+        #         self.res_freq_array[line_num,index] = res_freq
 
-            except:
-                self.log.warning(f'Fit was not working at this point. Data needs to be post-processed.')
-                if line_num==0 and index==0:
-                    coord = (line_num,index)
-                elif line_num!=0 and index==0:
-                    coord = (line_num-1,index)
-                elif index!=0:
-                    coord = (line_num,index-1)      
-                res_freq = self.res_freq_array[coord]
-                self.res_freq_array[line_num,index] = res_freq # new one stays the same as adjacent one
-        else:
-            res_freq = freq_list[np.argmin(esr_meas_mean)]
-            self.res_freq_array[line_num,index] = res_freq
+        #     except:
+        #         self.log.warning(f'Fit was not working at this point. Data needs to be post-processed.')
+        #         if line_num==0 and index==0:
+        #             coord = (line_num,index)
+        #         elif line_num!=0 and index==0:
+        #             coord = (line_num-1,index)
+        #         elif index!=0:
+        #             coord = (line_num,index-1)      
+        #         res_freq = self.res_freq_array[coord]
+        #         self.res_freq_array[line_num,index] = res_freq # new one stays the same as adjacent one
+        # else:
+        res_freq = freq_list[np.argmin(esr_meas_mean)]
+        self.res_freq_array[line_num,index] = res_freq
     
     def find_and_shift_center_freq(self, var_list, mw_power, line_num, index):
 
@@ -3382,10 +3386,15 @@ class AFMConfocalLogic(GenericLogic):
         var_incr = var_list[1] - var_list[0]
         LO_freq = res_freq + (var_incr * int(var_num/2)) +  (2 * var_incr)
 
+        new_var_start = res_freq - (var_incr * int(var_num/2))
+        new_var_stop = res_freq + (var_incr * int(var_num/2))
+        new_var_list = np.linspace(new_var_start, new_var_stop, var_num, endpoint=True)
+
         # LO_freq = var_stop + 2*var_incr # the initial setting
         self._mw.set_cw_3(LO_freq, mw_power) # minimal cw set function _3 is used which does not repeat setting of power
         self._mw.cw_on_3()
-
+        
+        return new_var_list
     
     def start_scan_area_pulsed_qafm_fw_by_point(self, coord0_start, coord0_stop,
                                             coord0_num, coord1_start, coord1_stop,
