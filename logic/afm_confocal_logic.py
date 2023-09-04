@@ -1773,7 +1773,7 @@ class AFMConfocalLogic(GenericLogic):
                 self._counter.countrate.startFor(int(t_int*1e9), clear = True)
                 self._counter.countrate.waitUntilFinished(timeout=int(t_int*20))
                 self._scan_point[0] = np.nan_to_num(self._counter.countrate.getData())
-                self.log.debug(f'Countrate: {self._scan_point[0]}')
+                # self.log.debug(f'Countrate: {self._scan_point[0]}')
     
                 # here the b_field is saved:
                 self._scan_point[1] = mag_field
@@ -2461,7 +2461,7 @@ class AFMConfocalLogic(GenericLogic):
                     var_incr = freq_step
                     mw_tracking_mode_runs = 1
                 elif mw_tracking_mode and (mode == 'None'):
-                    self.log.debug('set freq points to 2.')
+                    # self.log.debug('set freq points to 2.')
                     freq_points = 2
                     var_start = round(res_freq - delta_0,0)
                     var_stop = round(res_freq + delta_0,0)
@@ -2663,7 +2663,7 @@ class AFMConfocalLogic(GenericLogic):
 
                 for index in range(coord0_num):
 
-                    self.log.debug(f'Point number {index+1} started')
+                    # self.log.debug(f'Point number {index+1} started')
 
                     # first two entries are counts and b_field, remaining entries are the scan parameter
                     self._scan_point = np.zeros(num_params) 
@@ -2716,7 +2716,7 @@ class AFMConfocalLogic(GenericLogic):
                         if n==0:
                             #time.sleep(1)
                             self._debug = self._spm.scan_point()
-                            self.log.debug(f'Point number {index+1} scan done')
+                            # self.log.debug(f'Point number {index+1} scan done')
                             self._scan_point[2:] = self._debug 
 
                         # performe podmr related pulsed measurements after the first freq_point was triggered by the  spm controller
@@ -2899,7 +2899,7 @@ class AFMConfocalLogic(GenericLogic):
 
             #Get parameters for the pulsed measurmeent depending on the mode
             if mw_tracking_mode:
-                self.log.debug('set freq points to 2.')
+                # self.log.debug('set freq points to 2.')
                 freq_points = 2
                 var_start = round(res_freq - delta_0,0)
                 var_stop = round(res_freq + delta_0,0)
@@ -3600,9 +3600,9 @@ class AFMConfocalLogic(GenericLogic):
                                      time_back=time_idle_move)
 
             # self._counter.start_recorder(arm=True)
-            self.log.debug('scan line started')
+            # self.log.debug('scan line started')
             self._spm.scan_line()
-            self.log.debug('scan line ended')
+            # self.log.debug('scan line ended')
             #FIXME: Uncomment for snake like scan, however, not recommended!!!
             #       As it will distort the picture.
             # if line_num % 2 == 0:
@@ -3611,7 +3611,7 @@ class AFMConfocalLogic(GenericLogic):
             #     self._obj_scan_array[arr_name]['data'][line_num] = self._counter.get_measurement()[::-1] / integration_time
 
             counts, int_time = self._spm.get_measurements(),  None
-            self.log.debug('Line data returned for obj')
+            # self.log.debug('Line data returned for obj')
 
             if int_time is None or np.any(np.isclose(int_time,0,atol=1e-12)):
                 int_time = integration_time
@@ -4103,7 +4103,7 @@ class AFMConfocalLogic(GenericLogic):
         self._opti_scan_array['opti_z']['params']['signal at optimal pos (c/s)'] = c_max_z
         self._opti_scan_array['opti_z']['data_fit'] = res.best_fit
 
-        self.log.debug(f'Found maximum at: [{x_max*1e6:.2f}, {y_max*1e6:.2f}, {z_max*1e6:.2f}]')
+        # self.log.debug(f'Found maximum at: [{x_max*1e6:.2f}, {y_max*1e6:.2f}, {z_max*1e6:.2f}]')
 
         self.set_obj_pos({'x': x_max, 'y': y_max, 'z': z_max})
 

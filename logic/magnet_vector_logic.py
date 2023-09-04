@@ -45,6 +45,7 @@ class MagnetLogic(GenericLogic):
     counterlogic = Connector(interface='CounterLogic')
     savelogic = Connector(interface='SaveLogic')
     fitlogic = Connector(interface='FitLogic')
+    qafmlogic = Connector(interface='GenericLogic')
 
     align_2d_axis0_name = StatusVar('align_2d_axis0_name', 'theta')
     align_2d_axis1_name = StatusVar('align_2d_axis1_name', 'phi')
@@ -126,6 +127,7 @@ class MagnetLogic(GenericLogic):
         self._save_logic = self.savelogic()
         self._fit_logic = self.fitlogic()
         self._counter_logic = self.counterlogic()
+        self._qafm_logic = self.qafmlogic()
 
         self.sigMoveAbs.connect(self._magnet_device.move_abs)
         self.sigMoveRel.connect(self._magnet_device.move_rel)
@@ -165,6 +167,11 @@ class MagnetLogic(GenericLogic):
 
         self.alignment_methods = ['2d_fluorescence']
         self._optimize_pos_freq = 0
+        self._start_measurement_time = None
+        self._stop_measurement_time = None
+        self._pathway = None
+        self._backmap = None
+        self._2d_intended_fields = None
 
     def on_deactivate(self):
         """ Deactivate the module properly.
@@ -661,7 +668,7 @@ class MagnetLogic(GenericLogic):
         return
     
     def _do_optimize_pos(self):
-        # self._qafm_logic.default_optimize(run_in_thread=False)
+        self._qafm_logic.default_optimize(run_in_thread=False)
         return 0
 
     def _do_alignment_measurement(self):
@@ -733,24 +740,25 @@ class MagnetLogic(GenericLogic):
         # from the magnet logic
         supplementary_data = OrderedDict()
 
-        axes_names = list(self._saved_pos_before_align)
-
         matrix_data['Alignment Matrix'] = self._2D_data_matrix
 
         parameters = OrderedDict()
-        parameters['Measurement start time'] = self._start_measurement_time
+        if self._start_measurement_time is not None:
+            parameters['Measurement start time'] = self._start_measurement_time
         if self._stop_measurement_time is not None:
             parameters['Measurement stop time'] = self._stop_measurement_time
         parameters['Time at Data save'] = timestamp
         parameters['Pathway of the magnet alignment'] = 'Snake-wise steps'
 
-        for index, entry in enumerate(self._pathway):
-            parameters['index_' + str(index)] = entry
+        if self._pathway:
+            for index, entry in enumerate(self._pathway):
+                parameters['index_' + str(index)] = entry
 
         parameters['Backmap of the magnet alignment'] = 'Index wise display'
 
-        for entry in self._backmap:
-            parameters['related_intex_' + str(entry)] = self._backmap[entry]
+        if self._backmap:
+            for entry in self._backmap:
+                parameters['related_intex_' + str(entry)] = self._backmap[entry]
 
         self._save_logic.save_data(matrix_data, filepath=filepath, parameters=parameters,
                                    filelabel=filelabel, timestamp=timestamp)
@@ -759,11 +767,11 @@ class MagnetLogic(GenericLogic):
 
         figure_data = matrix_data['Alignment Matrix']
         
-        image_extent = [self._2D_axis0_data.min(),
-                        self._2D_axis0_data.max(),
-                        self._2D_axis1_data.min(),
-                        self._2D_axis1_data.max()]
-        axes = ['theta', 'phi']
+        image_extent = [self._2D_axis1_data.min(),
+                        self._2D_axis1_data.max(),
+                        self._2D_axis0_data.min(),
+                        self._2D_axis0_data.max()]
+        axes = ['phi', 'theta']
 
         figs = self.draw_figure(data=figure_data,
                                      image_extent=image_extent,
@@ -837,13 +845,14 @@ class MagnetLogic(GenericLogic):
 
         # self._save_logic.save_data(save_dict, filepath=filepath, filelabel=filelabel3,
         #                            timestamp=timestamp, fmt='%.6e')
-        keys = self._2d_intended_fields[0].keys()
-        intended_fields = OrderedDict()
-        for key in keys:
-            field_values = [coord_dict[key] for coord_dict in self._2d_intended_fields]
-            intended_fields[key] = field_values
+        if self._2d_intended_fields:
+            keys = self._2d_intended_fields[0].keys()
+            intended_fields = OrderedDict()
+            for key in keys:
+                field_values = [coord_dict[key] for coord_dict in self._2d_intended_fields]
+                intended_fields[key] = field_values
 
-        self._save_logic.save_data(intended_fields, filepath=filepath, filelabel=filelabel4,
+            self._save_logic.save_data(intended_fields, filepath=filepath, filelabel=filelabel4,
                                    timestamp=timestamp)
 
         # measured_fields = OrderedDict()
@@ -883,7 +892,10 @@ class MagnetLogic(GenericLogic):
 
         # If no colorbar range was given, take full range of data
         if cbar_range is None:
-            cbar_range = [np.min(data)-np.min(data)*0.005, np.max(data)+np.max(data)*0.005]
+            mask = np.ones_like(data).astype(bool) #same shape as the array
+            mask = np.logical_and(mask, data != 0)
+            cbar_data = data[mask]
+            cbar_range = [np.min(cbar_data)-np.min(cbar_data)*0.005, np.max(cbar_data)+np.max(cbar_data)*0.005]
 
         # Scale color values using SI prefix
         prefix = ['', 'k', 'M', 'G']

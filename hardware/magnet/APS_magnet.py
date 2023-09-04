@@ -676,13 +676,17 @@ class APSMagnet(Base, MagnetInterface):
 
             """
         ask_dict = {'x': "IOUT?\n", 'y': "IOUT?\n", 'z': "IOUT?\n"}
-        answ_dict = self.ask(ask_dict)
+        for i in range(10):
+            answ_dict = self.ask(ask_dict)
+            try:
+                answ_dict['x'] = float(answ_dict['x'][:-2])/10
 
-        answ_dict['x'] = float(answ_dict['x'][:-2])/10
+                answ_dict['y'] = float(answ_dict['y'][:-2])/10
 
-        answ_dict['y'] = float(answ_dict['y'][:-2])/10
-
-        answ_dict['z'] = float(answ_dict['z'][:-2])/10
+                answ_dict['z'] = float(answ_dict['z'][:-2])/10
+                break
+            except ValueError:
+                self.log.warning("ValueError again. Wrong response from APS.")
 
         return answ_dict
 
