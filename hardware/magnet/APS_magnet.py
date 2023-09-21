@@ -338,7 +338,7 @@ class APSMagnet(Base, MagnetInterface):
         check_var = self.check_constraints({mode: {'cart': new_coord}})
 
         # everything in kG. Conversion could be done here from Tesla
-        param_dict = {i:np.round(param_dict[i]*10,6) for i in param_dict.keys()}
+        param_dict = {i:param_dict[i]*10 for i in param_dict.keys()}
 
         if check_var:
             self.log.info(f'Setting in kG: {param_dict}')
@@ -456,9 +456,9 @@ class APSMagnet(Base, MagnetInterface):
 
         transform_dict = {'deg': {'cart': coord_list}}
         coord_list = self.transform_coordinates(transform_dict)
-        set_point_dict = {'x': np.round(coord_list[0],5), 
-                          'y': np.round(coord_list[1],5),
-                          'z': np.round(coord_list[2],5)}
+        set_point_dict = {'x': coord_list[0], 
+                          'y': coord_list[1],
+                          'z': coord_list[2]}
 
         check_val = self.target_field_setpoint(set_point_dict, all_coord)
 

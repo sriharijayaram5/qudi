@@ -770,7 +770,7 @@ class MagnetGui(GUIBase):
             # update the values of the current position viewboxes:
             try:
                 dspinbox_pos_ref = self.get_ref_curr_pos_DoubleSpinBox(axis_label)
-                dspinbox_pos_ref.setValue(round(curr_pos[axis_label],3))
+                dspinbox_pos_ref.setValue(curr_pos[axis_label])
             except:
                 pass
         
@@ -1014,8 +1014,8 @@ class MagnetGui(GUIBase):
 
         self._mw.pos_label.setText('({0}, {1})'.format(axis0_name, axis1_name))
         self._mw.pos_show.setText('({0:.6f}, {1:.6f})'.format(x_pos, y_pos))
-        self._mw.move_abs_theta_DoubleSpinBox.setValue(round(x_pos,3))
-        self._mw.move_abs_phi_DoubleSpinBox.setValue(round(y_pos,3))
+        self._mw.move_abs_theta_DoubleSpinBox.setValue(x_pos)
+        self._mw.move_abs_phi_DoubleSpinBox.setValue(y_pos)
 
     def update_roi_from_abs_movement(self):
         """
@@ -1041,7 +1041,7 @@ class MagnetGui(GUIBase):
         for axis_label in parameters:
             dspinbox = self.get_ref_move_rel_ScienDSpinBox(axis_label)
             dspinbox.blockSignals(True)
-            dspinbox.setValue(round(parameters[axis_label],3))
+            dspinbox.setValue(parameters[axis_label])
             dspinbox.blockSignals(False)
         return parameters
 
