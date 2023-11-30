@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>569</width>
-    <height>667</height>
+    <height>784</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -614,7 +614,7 @@
       <attribute name="title">
        <string>Pulsed Measurements</string>
       </attribute>
-      <layout class="QGridLayout" name="gridLayout_10">
+      <layout class="QGridLayout" name="gridLayout_11">
        <item row="0" column="0">
         <layout class="QHBoxLayout" name="horizontalLayout_3">
          <item>
@@ -673,42 +673,6 @@
           <string>MW Parameters</string>
          </property>
          <layout class="QGridLayout" name="gridLayout_5">
-          <item row="0" column="0">
-           <layout class="QHBoxLayout" name="horizontalLayout_9">
-            <item>
-             <widget class="QLabel" name="label_14">
-              <property name="text">
-               <string>Microwave Power (dBm)</string>
-              </property>
-             </widget>
-            </item>
-            <item>
-             <widget class="ScienDSpinBox" name="pulsed_mw_power_DoubleSpinBox">
-              <property name="toolTip">
-               <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Microwave power (SMIQ like device output) to be used for all below measurements.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-              </property>
-              <property name="suffix">
-               <string>dBm</string>
-              </property>
-              <property name="decimals">
-               <number>2</number>
-              </property>
-              <property name="minimum">
-               <double>-50.000000000000000</double>
-              </property>
-              <property name="maximum">
-               <double>40.000000000000000</double>
-              </property>
-              <property name="singleStep">
-               <double>0.100000000000000</double>
-              </property>
-              <property name="value">
-               <double>-30.000000000000000</double>
-              </property>
-             </widget>
-            </item>
-           </layout>
-          </item>
           <item row="1" column="0">
            <widget class="QGroupBox" name="mw_tracking_mode_RadioButton">
             <property name="title">
@@ -884,7 +848,7 @@
                   <string>Hz</string>
                  </property>
                  <property name="minimum">
-                  <double>2500000000.000000000000000</double>
+                  <double>1000000000.000000000000000</double>
                  </property>
                  <property name="maximum">
                   <double>3500000000.000000000000000</double>
@@ -914,7 +878,7 @@
                   <string>Hz</string>
                  </property>
                  <property name="minimum">
-                  <double>2500000000.000000000000000</double>
+                  <double>1000000000.000000000000000</double>
                  </property>
                  <property name="maximum">
                   <double>3500000000.000000000000000</double>
@@ -972,37 +936,118 @@
             </layout>
            </widget>
           </item>
-          <item row="3" column="0">
-           <widget class="QGroupBox" name="cw_mode_RadioButton">
-            <property name="enabled">
-             <bool>true</bool>
-            </property>
+          <item row="0" column="0">
+           <layout class="QHBoxLayout" name="horizontalLayout_9">
+            <item>
+             <widget class="QLabel" name="label_14">
+              <property name="text">
+               <string>Microwave Power (dBm)</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="ScienDSpinBox" name="pulsed_mw_power_DoubleSpinBox">
+              <property name="toolTip">
+               <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Microwave power (SMIQ like device output) to be used for all below measurements.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+              </property>
+              <property name="suffix">
+               <string>dBm</string>
+              </property>
+              <property name="decimals">
+               <number>2</number>
+              </property>
+              <property name="minimum">
+               <double>-50.000000000000000</double>
+              </property>
+              <property name="maximum">
+               <double>40.000000000000000</double>
+              </property>
+              <property name="singleStep">
+               <double>0.100000000000000</double>
+              </property>
+              <property name="value">
+               <double>-30.000000000000000</double>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </item>
+         </layout>
+        </widget>
+       </item>
+       <item row="3" column="0">
+        <widget class="QGroupBox" name="cw_mode_RadioButton">
+         <property name="enabled">
+          <bool>true</bool>
+         </property>
+         <property name="title">
+          <string>Loaded pulse sequence scan</string>
+         </property>
+         <property name="checkable">
+          <bool>true</bool>
+         </property>
+         <property name="checked">
+          <bool>false</bool>
+         </property>
+         <layout class="QGridLayout" name="gridLayout_10">
+          <item row="0" column="0">
+           <layout class="QHBoxLayout" name="horizontalLayout_8">
+            <item>
+             <widget class="QLabel" name="label_12">
+              <property name="text">
+               <string>CW Frequency (Hz)</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="ScienDSpinBox" name="cw_freq_DoubleSpinBox">
+              <property name="suffix">
+               <string>Hz</string>
+              </property>
+              <property name="minimum">
+               <double>1000000000.000000000000000</double>
+              </property>
+              <property name="maximum">
+               <double>3500000000.000000000000000</double>
+              </property>
+              <property name="singleStep">
+               <double>0.010000000000000</double>
+              </property>
+              <property name="value">
+               <double>2870000000.000000000000000</double>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </item>
+          <item row="1" column="0">
+           <widget class="QGroupBox" name="loadedSeqTrackFreqCheckbox">
             <property name="title">
-             <string>Loaded pulse sequence scan</string>
+             <string>Track resonance - Full spectrum PODMR scan</string>
             </property>
             <property name="checkable">
              <bool>true</bool>
             </property>
-            <property name="checked">
-             <bool>false</bool>
-            </property>
             <layout class="QGridLayout" name="gridLayout_7">
              <item row="0" column="0">
-              <layout class="QHBoxLayout" name="horizontalLayout_8">
+              <layout class="QHBoxLayout" name="horizontalLayout_33">
                <item>
-                <widget class="QLabel" name="label_12">
+                <widget class="QLabel" name="label_31">
                  <property name="text">
-                  <string>CW Frequency (Hz)</string>
+                  <string>Frequency Start (Hz)</string>
                  </property>
                 </widget>
                </item>
                <item>
-                <widget class="ScienDSpinBox" name="cw_freq_DoubleSpinBox">
+                <widget class="ScienDSpinBox" name="loadedTrack_pulsed_freq_start_DoubleSpinBox">
+                 <property name="toolTip">
+                  <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;br/&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+                 </property>
                  <property name="suffix">
                   <string>Hz</string>
                  </property>
                  <property name="minimum">
-                  <double>2500000000.000000000000000</double>
+                  <double>1000000000.000000000000000</double>
                  </property>
                  <property name="maximum">
                   <double>3500000000.000000000000000</double>
@@ -1011,7 +1056,70 @@
                   <double>0.010000000000000</double>
                  </property>
                  <property name="value">
-                  <double>2870000000.000000000000000</double>
+                  <double>2780000000.000000000000000</double>
+                 </property>
+                </widget>
+               </item>
+              </layout>
+             </item>
+             <item row="1" column="0">
+              <layout class="QHBoxLayout" name="horizontalLayout_34">
+               <item>
+                <widget class="QLabel" name="label_32">
+                 <property name="text">
+                  <string>Frequency Stop (Hz)</string>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <widget class="ScienDSpinBox" name="loadedTrack_pulsed_freq_stop_DoubleSpinBox">
+                 <property name="suffix">
+                  <string>Hz</string>
+                 </property>
+                 <property name="minimum">
+                  <double>1000000000.000000000000000</double>
+                 </property>
+                 <property name="maximum">
+                  <double>3500000000.000000000000000</double>
+                 </property>
+                 <property name="singleStep">
+                  <double>0.010000000000000</double>
+                 </property>
+                 <property name="value">
+                  <double>2980000000.000000000000000</double>
+                 </property>
+                </widget>
+               </item>
+              </layout>
+             </item>
+             <item row="2" column="0">
+              <layout class="QHBoxLayout" name="horizontalLayout_35">
+               <item>
+                <widget class="QLabel" name="label_33">
+                 <property name="text">
+                  <string>Frequency Step (Hz)</string>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <widget class="ScienDSpinBox" name="loadedTrack_pulsed_freq_num_SpinBox">
+                 <property name="toolTip">
+                  <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Defines frequency step.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+                 </property>
+                 <property name="suffix">
+                  <string>Hz</string>
+                 </property>
+                 <property name="minimum">
+                  <double>1.000000000000000</double>
+                 </property>
+                 <property name="maximum">
+                  <double>9999999.000000000000000</double>
+                 </property>
+                 <property name="singleStep">
+                  <double>100000.000000000000000</double>
+                 </property>
+                 <property name="value">
+                  <double>1000000.000000000000000</double>
                  </property>
                 </widget>
                </item>
@@ -1023,7 +1131,7 @@
          </layout>
         </widget>
        </item>
-       <item row="3" column="0">
+       <item row="4" column="0">
         <widget class="QGroupBox" name="groupBox_6">
          <property name="title">
           <string>Pulse Parameters</string>
@@ -1119,7 +1227,7 @@
          </layout>
         </widget>
        </item>
-       <item row="4" column="0">
+       <item row="5" column="0">
         <spacer name="verticalSpacer_2">
          <property name="orientation">
           <enum>Qt::Vertical</enum>

@@ -950,7 +950,8 @@ class SPM_ASC500(Base, ScannerInterface):
         return phys_vals
     
     def check_spm_scan_params_by_plane(self, plane, coord0_start, coord0_stop, coord1_start,coord1_stop):
-        return -1 if coord0_start>coord0_stop or coord1_start>coord1_stop else 1
+        return 1
+        # return -1 if coord0_start>coord0_stop or coord1_start>coord1_stop else 1
 
     def finish_scan(self, retract=False):
         """ Request completion of the current scan line 

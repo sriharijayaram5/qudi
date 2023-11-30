@@ -2768,6 +2768,10 @@ class ProteusQGUI(GUIBase):
 
         mw_cw_mode = self._qm.cw_mode_RadioButton.isChecked()
         esr_mw_cw_freq = self._qm.cw_freq_DoubleSpinBox.value()
+        mw_cw_podmr_tracking = self._qm.loadedSeqTrackFreqCheckbox.isChecked()
+        mw_cw_podmr_start_freq = self._qm.loadedTrack_pulsed_freq_start_DoubleSpinBox.value()
+        mw_cw_podmr_stop_freq = self._qm.loadedTrack_pulsed_freq_stop_DoubleSpinBox.value()
+        mw_cw_podmr_freq_step = self._qm.loadedTrack_pulsed_freq_num_SpinBox.value()
 
         pulse_repetition = self._qm.pulse_repetition_spinBox.value()
         pi_half_duration = self._qm.pi_half_doubleSpinBox.value()

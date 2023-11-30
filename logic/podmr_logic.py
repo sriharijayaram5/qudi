@@ -28,7 +28,7 @@ import numpy as np
 import time
 import datetime
 import matplotlib.pyplot as plt
-
+from core.util import units
 from logic.generic_logic import GenericLogic
 from core.util.mutex import Mutex
 from core.connector import Connector
@@ -704,7 +704,7 @@ class ODMRLogic(GenericLogic):
             
             channels = clear(channels)
             channels[a_ch(self._odmr_counter._pulser._laser_analog_channel)] = self._odmr_counter._pulser._laser_power_voltage
-            block_1.append(init_length = 1e-6, channels = channels, repetition = 1)
+            block_1.append(init_length = 1e-6 + self._odmr_counter._pulser._pulse_heating_delay, channels = channels, repetition = 1)
             
             channels = clear(channels)
             channels[d_ch(self._odmr_counter._pulser._laser_channel)] = 1.0
@@ -1033,6 +1033,7 @@ class ODMRLogic(GenericLogic):
                 num_points = len(frequency_arr)
                 data_end_ind = data_start_ind + num_points
                 data['count data (arb.u.)'] = self.odmr_plot_y[nch][data_start_ind:data_end_ind]
+                data['count data error (arb.u.)'] = self.odmr_plot_y_err
                 data_start_ind += num_points
 
                 parameters = OrderedDict()
@@ -1044,6 +1045,11 @@ class ODMRLogic(GenericLogic):
                 parameters['Stop Frequency (Hz)'] = frequency_arr[-1]
                 parameters['Step size (Hz)'] = frequency_arr[1] - frequency_arr[0]
                 parameters['frequency range'] = str(ii)
+
+                key = 'channel: {0}, range: {1}'.format(0, -1)
+                if len(self.fits_performed[key][0])!=0:
+                    result_str = units.create_formatted_output(self.fits_performed[key][2].result_str_dict)
+                    parameters['Fit result'] = result_str
                 parameters.update(self.pulsed_analysis_settings)
 
                 key = 'channel: {0}, range: {1}'.format(nch, ii)
@@ -1052,8 +1058,8 @@ class ODMRLogic(GenericLogic):
                     for name, param in self.fits_performed[key][2].params.items():
                         parameters[name] = str(param)
                 # add all fit parameter to the saved data:
-
-                fig = self.draw_figure(nch, ii,
+                # hard coded in the nchannel and range index for drawing the fit into the figure! oopsie
+                fig = self.draw_figure(0, -1,
                                        cbar_range=colorscale_range,
                                        percentile_range=percentile_range)
 
@@ -1092,10 +1098,11 @@ class ODMRLogic(GenericLogic):
 
         ind_start = cumulative_sum[freq_range]
         ind_end = cumulative_sum[freq_range + 1]
-        count_data = self.odmr_plot_y[channel_number][ind_start:ind_end]
+        count_data = self.odmr_plot_y[channel_number]
         fit_freq_vals = self.frequency_lists[freq_range]
+        fit_freq_vals = np.linspace(fit_freq_vals.min(), fit_freq_vals.max(), len(fit_freq_vals)*10)
         if key in self.fits_performed:
-            fit_count_vals = self.fits_performed[key][2].eval()
+            fit_count_vals = self.fits_performed[key][2].eval(x=fit_freq_vals)
         else:
             fit_count_vals = 0.0
 
@@ -1119,6 +1126,53 @@ class ODMRLogic(GenericLogic):
         # Do not include fit curve if there is no fit calculated.
         if hasattr(fit_count_vals, '__len__'):
             ax_mean.plot(fit_freq_vals, fit_count_vals, marker='None')
+            result_str = units.create_formatted_output(self.fits_performed[key][2].result_str_dict)
+        else:
+            result_str = ''
+        # add then the fit result to the plot:
+
+        # Parameters for the text plot:
+        # The position of the text annotation is controlled with the
+        # relative offset in x direction and the relative length factor
+        # rel_len_fac of the longest entry in one column
+        rel_offset = 0.02
+        rel_len_fac = 0.011
+        entries_per_col = 24
+
+        # do reverse processing to get each entry in a list
+        entry_list = result_str.split('\n')
+        # slice the entry_list in entries_per_col
+        chunks = [entry_list[x:x+entries_per_col] for x in range(0, len(entry_list), entries_per_col)]
+
+        is_first_column = True  # first entry should contain header or \n
+
+        for column in chunks:
+
+            max_length = max(column, key=len)   # get the longest entry
+            column_text = ''
+
+            for entry in column:
+                column_text += entry + '\n'
+
+            column_text = column_text[:-1]  # remove the last new line
+
+            heading = ''
+            if is_first_column:
+                heading = 'Fit results:'
+
+            column_text = heading + '\n' + column_text
+
+            ax_mean.text(1.00 + rel_offset, 0.99, column_text,
+                        verticalalignment='top',
+                        horizontalalignment='left',
+                        transform=ax_mean.transAxes,
+                        fontsize=12)
+
+            # the rel_offset in position of the text is a linear function
+            # which depends on the longest entry in the column
+            rel_offset += rel_len_fac * len(max_length)
+
+            is_first_column = False
 
         ax_mean.set_ylabel('Norm. counts')
         ax_mean.set_xlim(np.min(freq_data), np.max(freq_data))

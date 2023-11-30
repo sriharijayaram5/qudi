@@ -49,6 +49,8 @@ from optbayesexpt import OptBayesExpt
 from numba import njit, float64
 from PIL import Image
 import warnings
+# import telebot
+
 warnings.filterwarnings("ignore", category=RuntimeWarning)
 
 class WorkerThread(QtCore.QRunnable):
@@ -550,6 +552,8 @@ class AFMConfocalLogic(GenericLogic):
     
         self.sigSaveDataGwyddion.connect(self._save_to_gwyddion)
         self.sigSaveDataGwyddionFinished.connect(self.decrease_save_counter)
+        self.sigQAFMScanFinished.connect(self.send_telegram_message)
+        self.sigQuantiScanFinished.connect(self.send_telegram_message)
 
         self._meas_path = os.path.abspath(self._meas_path)
 
@@ -568,6 +572,9 @@ class AFMConfocalLogic(GenericLogic):
         self.start_spm_version_check()
 
         self.sigOptimizeScanFinished.connect(self._optimize_finished)
+
+        # bot_token = '5833065328:AAGdwFd3b3xrX0Ma9NuFBX9uz_Yb5E0ARUw'
+        # self.bot = telebot.TeleBot(token=bot_token)
 
     def on_deactivate(self):
         """ Deinitializations performed during deactivation of the module. """
@@ -1799,18 +1806,6 @@ class AFMConfocalLogic(GenericLogic):
                 self._esr_scan_array['esr_fw']['data_fit'][line_num][index] = esr_data_fit
 
                 # For debugging, display status text:
-                
-                time_now = time.monotonic()
-                total_time = round((time_now - time_prev)/(line_num * coord0_num + index + 1) * (coord0_num*coord1_num)/60/60,3)
-                time_rem = round(total_time - (time_now - time_prev)/60/60,3)
-                
-                self.log.info(f'Point: {line_num * coord0_num + index + 1} out of {coord0_num*coord1_num}, {(line_num * coord0_num + index +1)/(coord0_num*coord1_num) * 100:.2f}% finished.\nTime remaining: {time_rem}/{total_time}hrs')
-
-                # track current AFM position:
-                if index != last_elem:
-                    self._afm_pos['x'] += x_step
-                    self.sigNewAFMPos.emit({'x': self._afm_pos['x']})
-
                 self._scan_counter += 1
 
                 # emit a signal at every point, so that update can happen in real time.
@@ -1823,7 +1818,12 @@ class AFMConfocalLogic(GenericLogic):
                 if self._stop_request:
                     break
 
-            self.log.info(f'Line number {line_num} completed.')
+            time_now = time.monotonic()
+            total_time = round((time_now - time_prev)/(line_num * coord0_num + index + 1) * (coord0_num*coord1_num)/60/60,3)
+            time_rem = round(total_time - (time_now - time_prev)/60/60,3)
+            fut = datetime.datetime.now() + datetime.timedelta(hours=time_rem)
+            fut_str = fut.strftime('%c')
+            self.log.info(f'Line number {line_num} completed. \nTime remaining: {time_rem}/{total_time}hrs \nEstimated finish: {fut_str}')
 
             self.sigQAFMLineScanFinished.emit()   # this triggers repainting of the line
             self.sigQuantiLineFinished.emit()     # this signals line is complete, return to new line
@@ -2197,18 +2197,6 @@ class AFMConfocalLogic(GenericLogic):
                 # self._esr_scan_array['esr_fw']['data_fit'][line_num][index] = esr_data_fit
 
                 # For debugging, display status text:
-                time_now = time.monotonic()
-                total_time = round((time_now - time_prev)/(line_num * coord0_num + index + 1) * (coord0_num*coord1_num)/60/60,3)
-                time_rem = round(total_time - (time_now - time_prev)/60/60,3)
-                
-                self.log.info(f'Point: {line_num * coord0_num + index + 1} out of {coord0_num*coord1_num}, {(line_num * coord0_num + index +1)/(coord0_num*coord1_num) * 100:.2f}% finished.\nTime remaining: {time_rem}/{total_time}hrs')
-                # progress_text = f'Point: {line_num * coord0_num + index + 1} out of {coord0_num * coord1_num }, {(line_num * coord0_num + index + 1) / (coord0_num * coord1_num ) * 100:.2f}% finished.'
-                # self.log.info(progress_text)
-
-                # track current AFM position:
-                if index != last_elem:
-                    self._afm_pos['x'] += x_step
-                    self.sigNewAFMPos.emit({'x': self._afm_pos['x']})
 
                 self._scan_counter += 1
 
@@ -2218,7 +2206,12 @@ class AFMConfocalLogic(GenericLogic):
                 if self._stop_request:
                     break
 
-            self.log.info(f'Line number {line_num} completed.')
+            time_now = time.monotonic()
+            total_time = round((time_now - time_prev)/(line_num * coord0_num + index + 1) * (coord0_num*coord1_num)/60/60,3)
+            time_rem = round(total_time - (time_now - time_prev)/60/60,3)
+            fut = datetime.datetime.now() + datetime.timedelta(hours=time_rem)
+            fut_str = fut.strftime('%c')
+            self.log.info(f'Line number {line_num} completed. \nTime remaining: {time_rem}/{total_time}hrs \nEstimated finish: {fut_str}')
 
             self.sigQAFMLineScanFinished.emit()   # this triggers repainting of the line
             self.sigQuantiLineFinished.emit()     # this signals line is complete, return to new line
@@ -2786,16 +2779,6 @@ class AFMConfocalLogic(GenericLogic):
                     # self._pulsed_scan_array['pulsed_fw']['data_fit'][line_num][index] = pulsed_ret0
                     self._pulsed_scan_array['pulsed_fw']['data_raw'][line_num][index] = pulsed_meas
 
-                    time_now = time.monotonic()
-                    total_time = round((time_now - time_prev)/(line_num * coord0_num + index + 1) * (coord0_num*coord1_num)/60/60,3)
-                    time_rem = round(total_time - (time_now - time_prev)/60/60,3)
-                
-                    self.log.info(f'Point: {line_num * coord0_num + index + 1} out of {coord0_num*coord1_num}, {(line_num * coord0_num + index +1)/(coord0_num*coord1_num) * 100:.2f}% finished.\nTime remaining: {time_rem}/{total_time}hrs')
-
-                    if index != last_elem:
-                        self._afm_pos['x'] += x_step
-                        self.sigNewAFMPos.emit({'x': self._afm_pos['x']})
-
                     self._scan_counter += 1
 
                     # emit a signal at every point, so that update can happen in real time.
@@ -2811,8 +2794,12 @@ class AFMConfocalLogic(GenericLogic):
                     if self._stop_request:
                         break
 
-                # self.log.info(f'Line number {line_num} completed.')
-                self.log.info(f'Line number {line_num} completed.')
+                time_now = time.monotonic()
+                total_time = round((time_now - time_prev)/(line_num * coord0_num + index + 1) * (coord0_num*coord1_num)/60/60,3)
+                time_rem = round(total_time - (time_now - time_prev)/60/60,3)
+                fut = datetime.datetime.now() + datetime.timedelta(hours=time_rem)
+                fut_str = fut.strftime('%c')
+                self.log.info(f'Line number {line_num} completed. \nTime remaining: {time_rem}/{total_time}hrs \nEstimated finish: {fut_str}')
 
                 # store the current line number
                 self._spm_line_num = line_num
@@ -3009,7 +2996,8 @@ class AFMConfocalLogic(GenericLogic):
             self.res_freq_array = np.ones((coord1_num, coord0_num)) * (res_freq if mw_tracking_mode else res_estimate)
             if mw_tracking_mode:
                 self.delta_array = np.ones((coord1_num, coord0_num)) * delta_0
-                self._mw.set_cw_2(res_freq, mw_power)
+                self._mw.set_cw(res_freq, mw_power)
+                self._mw.cw_on()
             else:
                 self._mw.cw_on_3()
 
@@ -3133,8 +3121,8 @@ class AFMConfocalLogic(GenericLogic):
 
                             try:
                                 # self._mw.set_cw_2(res_estimate, mw_power) #trying with _3 to minimize unnecessary calls to device
-                                self._mw.set_cw_3(res_estimate, mw_power) # minimal cw set function _3 is used which does not repeat setting of power
-                                self._mw.cw_on_3()
+                                self._mw.set_cw_tracking(res_estimate, mw_power) # minimal cw set function _3 is used which does not repeat setting of power
+                                # self._mw.cw_on_3() # no need for ON maybe - since never switched OFF
                             except:
                                 self._stop_request = True
                                 self.log.warning('Something has gone wrong with MW device connection!')
@@ -3202,16 +3190,6 @@ class AFMConfocalLogic(GenericLogic):
                     # self._pulsed_scan_array['pulsed_fw']['data_fit'][line_num][index] = pulsed_ret0
                     self._pulsed_scan_array['pulsed_fw']['data_raw'][line_num][index] = pulsed_meas
 
-                    time_now = time.monotonic()
-                    total_time = round((time_now - time_prev)/(line_num * coord0_num + index + 1) * (coord0_num*coord1_num)/60/60,3)
-                    time_rem = round(total_time - (time_now - time_prev)/60/60,3)
-                    
-                    self.log.info(f'Point: {line_num * coord0_num + index + 1} out of {coord0_num*coord1_num}, {(line_num * coord0_num + index +1)/(coord0_num*coord1_num) * 100:.2f}% finished.\nTime remaining: {time_rem}/{total_time}hrs')
-
-                    if index != last_elem:
-                        self._afm_pos['x'] += x_step
-                        self.sigNewAFMPos.emit({'x': self._afm_pos['x']})
-
                     self._scan_counter += 1
 
                     # emit a signal at every point, so that update can happen in real time.
@@ -3220,8 +3198,12 @@ class AFMConfocalLogic(GenericLogic):
                     if self._stop_request:
                         break
 
-                # self.log.info(f'Line number {line_num} completed.')
-                self.log.info(f'Line number {line_num} completed.')
+                time_now = time.monotonic()
+                total_time = round((time_now - time_prev)/(line_num * coord0_num + index + 1) * (coord0_num*coord1_num)/60/60,3)
+                time_rem = round(total_time - (time_now - time_prev)/60/60,3)
+                fut = datetime.datetime.now() + datetime.timedelta(hours=time_rem)
+                fut_str = fut.strftime('%c')
+                self.log.info(f'Line number {line_num} completed. \nTime remaining: {time_rem}/{total_time}hrs \nEstimated finish: {fut_str}')
 
                 # store the current line number
                 self._spm_line_num = line_num
@@ -3395,6 +3377,402 @@ class AFMConfocalLogic(GenericLogic):
         self._mw.cw_on_3()
         
         return new_var_list
+    ###############################################################################TODO
+    def scan_true_area_pulsed_combo_qafm_fw_by_point(self, coord0_start, coord0_stop,
+                                            coord0_num, coord1_start, coord1_stop,
+                                            coord1_num, int_time_afm=0.1,
+                                            idle_move_time=0.1, freq_start=2.77e9,
+                                            freq_stop=2.97e9, freq_step=1e6,
+                                            mw_power=-25, mw_cw_freq=2.87e9, mw_list_mode=False,
+                                            num_runs=30, pi_half_duration=100e-9,
+                                            optimize_period=100,
+                                            meas_params=['Height(Dac)'],
+                                            mw_tracking_mode=False,
+                                            mode='None', repetitions=1, delta_0=1e6,
+                                            res_freq=2.87e9, slope2_podmr=1, use_slope_track=True,
+                                            mw_cw_mode = False, podmr_list_mode_tracking = False,
+                                            liftoff_mode=False,
+                                            liftoff_height=0):
+
+            """ QAFM measurement (optical + afm) forward and backward for a scan by point.
+
+            @param float coord0_start: start coordinate in um
+            @param float coord0_stop: start coordinate in um
+            @param int coord0_num: number of points in coord0 direction
+            @param float coord1_start: start coordinate in um
+            @param float coord1_stop: start coordinate in um
+            @param int coord1_num: start coordinate in um
+            @param int coord0_num: number of points in coord1 direction
+            @param float int_time_afm: integration time for afm operations
+            @param float idle_move_time: time for a movement where nothing is measured
+            @param float var_start: start variable value in Hz or s
+            @param float var_stop: stop variable value in Hz or s
+            @param float var_incr: increment of var in Hz or s
+            @param float mw_power: microwave power during scan
+            @param int num_runs: number of averaging runs/max rollover for timetagger
+            @param float optimize_period: time after which an optimization request 
+                                        is set
+
+            @param list meas_params: list of possible strings of the measurement
+                                    parameter. Have a look at MEAS_PARAMS to see
+                                    the available parameters.
+
+            @return 2D_array: measurement results in a two dimensional list.
+            """
+            self.sigQuantiScanStarted.emit()
+            plane = 'XY'
+
+            freq_list = np.arange(freq_start, freq_stop+freq_step, freq_step) 
+            freq_points = len(freq_list)
+
+            # set up the spm device:
+            # reverse_meas = False
+            self._stop_request = False
+
+            # self._optimize_period = optimize_period
+
+            #Get parameters for the pulsed measurmeent depending on the mode
+            alternating = self._pulsed_master.measurement_settings['alternating']
+            var = self._pulsed_master.measurement_settings['controlled_variable']
+            var_start = var[0]
+            var_stop = var[-1]
+            var_incr = var[1]-var[0]
+            bin_width_s = self._pulsed_master.fast_counter_settings['bin_width']
+            record_length_s = self._pulsed_master.fast_counter_settings['record_length']
+            laser_pulses = self._pulsed_master.measurement_settings['number_of_lasers'] 
+            analysis_settings = self._pulsed_master.analysis_settings
+            var_list = np.linspace(var_start, var_stop, int(laser_pulses/2) if alternating else laser_pulses, endpoint=True)
+            mw_tracking_mode_runs = 1
+
+           
+            var_start = freq_start
+            var_stop = freq_stop
+            var_incr = freq_step
+ 
+            # make the counter for pulsed measurement ready
+            ret_val = self._counter.configure_recorder(
+                mode=HWRecorderMode.GENERAL_PULSED,
+                params={'laser_pulses': freq_points if (mw_list_mode or mw_tracking_mode) else laser_pulses,
+                        'bin_width_s': bin_width_s,
+                        'record_length_s': record_length_s,
+                        'max_counts': 1 if (mw_list_mode or mw_tracking_mode) else (num_runs-1)} )
+
+            self._pulser.prepare_SPM_ensemble()
+            #self._pulser.upload_SPM_ensemble() 
+            if mw_cw_mode:
+                self._pulser.pulser_on(trigger=True, n=num_runs, final=self._pulser._sync_final_state)
+            elif (mw_list_mode or mw_tracking_mode):
+                self._pulser.load_swabian_sequence(self._make_pulse_sequence(mode = 'PODMR', pi_half_pulse = pi_half_duration))
+                self._podmr_seq = self._pulser._seq
+                self._pulser.load_swabian_sequence(self._make_pulse_sequence('NextTrigger'))
+                self._next_trigger_seq = self._pulser._seq
+
+            self.run_IQ_DC()
+            # return to normal operation
+            self.sigHealthCheckStopSkip.emit()
+
+            # scan_speed_per_line = 0.01  # in seconds
+            scan_speed_per_line = int_time_afm
+            scan_arr = self.create_scan_leftright(coord0_start, coord0_stop,
+                                                        coord1_start, coord1_stop, coord1_num)
+
+            ret_val, _, curr_scan_params = self._spm.configure_scanner(mode=ScannerMode.PROBE_CONTACT,
+                                                                    params= {'line_points': coord0_num,
+                                                                             'lines_num': coord1_num,
+                                                                            'meas_params': meas_params},
+                                                                    scan_style=ScanStyle.POINT) 
+
+            curr_scan_params.insert(0, 'fit_param')  # insert the magnetic field (place holder) 
+            curr_scan_params.insert(0, 'counts')  # insert the fluorescence parameter
+
+            # this case is for starting a new measurement:
+            # if (self._spm_line_num == 0):
+            self._spm_line_num = 0
+            self._afm_meas_duration = 0
+
+            # AFM signal
+            self._qafm_scan_array = self.initialize_qafm_scan_array(coord0_start, 
+                                                                    coord0_stop, 
+                                                                    coord0_num,
+                                                                    coord1_start, 
+                                                                    coord1_stop, 
+                                                                    coord1_num)
+            self._scan_counter = 0
+
+            self._pulsed_scan_array = self.initialize_pulsed_scan_array(var_list, alternating,
+                                                                laser_pulses if not (mw_list_mode or mw_tracking_mode) else freq_points,
+                                                                bin_width_s,
+                                                                record_length_s,
+                                                                coord0_start, 
+                                                                coord0_stop, 
+                                                                coord0_num,
+                                                                coord1_start, 
+                                                                coord1_stop, 
+                                                                coord1_num)
+
+            # prepare arrays for specific modes
+            # check input values
+            ret_val |= self._spm.check_spm_scan_params_by_plane(plane, coord0_start, coord0_stop,
+                                                                coord1_start, coord1_stop)
+
+            if ret_val < 1:
+                self.sigQuantiScanFinished.emit()
+                self._pulser.pulser_off()
+                #if not (mw_list_mode or mw_tracking_mode):
+                self._pulser.upload_SPM_ensemble()
+                
+                return self._qafm_scan_array
+
+            start_time_afm_scan = datetime.datetime.now()
+            self._curr_scan_params = curr_scan_params
+            self.scan_dir = 'fw'
+
+            # save the measurement parameter
+            for entry in self._qafm_scan_array:
+                self._qafm_scan_array[entry]['params']['Parameters for'] = 'QAFM measurement'
+                self._qafm_scan_array[entry]['params']['axis name for coord0'] = 'X'
+                self._qafm_scan_array[entry]['params']['axis name for coord1'] = 'Y'
+                self._qafm_scan_array[entry]['params']['measurement plane'] = 'XY'
+                self._qafm_scan_array[entry]['params']['coord0_start (m)'] = coord0_start
+                self._qafm_scan_array[entry]['params']['coord0_stop (m)'] = coord0_stop
+                self._qafm_scan_array[entry]['params']['coord0_num (#)'] = coord0_num
+                self._qafm_scan_array[entry]['params']['coord1_start (m)'] = coord1_start
+                self._qafm_scan_array[entry]['params']['coord1_stop (m)'] = coord1_stop
+                self._qafm_scan_array[entry]['params']['coord1_num (#)'] = coord1_num
+
+                self._qafm_scan_array[entry]['params']['Pulsed start variable (s) or (Hz)'] = var_start
+                self._qafm_scan_array[entry]['params']['Pulsed stop variable (s) or (Hz)'] = var_stop
+                self._qafm_scan_array[entry]['params']['Pulsed step variable (s) or (Hz)'] = var_incr
+                self._qafm_scan_array[entry]['params']['MW Sweep (True) or CW (False)'] = (mw_list_mode or mw_tracking_mode)
+                self._qafm_scan_array[entry]['params']['MW Tracking mode'] = mw_tracking_mode
+                if mw_tracking_mode:
+                    self._qafm_scan_array[entry]['params']['AWG mode'] = False
+                    self._qafm_scan_array[entry]['params']['Tracking repetitions per point'] = mw_tracking_mode_runs
+                    self._qafm_scan_array[entry]['params']['delta_0'] = delta_0
+                    self._qafm_scan_array[entry]['params']['slope'] = slope2_podmr
+
+                self._qafm_scan_array[entry]['params']['MW power (dBm)'] = mw_power
+                self._qafm_scan_array[entry]['params']['Measurement runs (#)'] = num_runs
+                self._qafm_scan_array[entry]['params']['Optimize Period (s)'] = optimize_period
+
+                self._qafm_scan_array[entry]['params']['AFM integration time per pixel (s)'] = int_time_afm
+                self._qafm_scan_array[entry]['params']['AFM time for idle move (s)'] = idle_move_time
+                self._qafm_scan_array[entry]['params']['Measurement parameter list'] = str(curr_scan_params)
+                self._qafm_scan_array[entry]['params']['Measurement start'] = start_time_afm_scan.isoformat()
+                self._qafm_scan_array[entry]['params']['pi/2 Duration'] = pi_half_duration
+                self._qafm_scan_array[entry]['params']['Lift-off Mode'] = liftoff_mode
+                self._qafm_scan_array[entry]['params']['Lift-off Height'] = liftoff_height
+
+            # turn on mw source
+            if (mw_list_mode or mw_tracking_mode):
+                if self._mw_mode == 'LIST':
+                    self._mw.list_on()  
+                elif self._mw_mode == 'SWEEP':
+                    self._mw.sweep_on()
+            else:
+                self._mw.cw_on()
+
+            #this is untested but works in AWG mode - check first if breaks and move back into the SPM loop
+            if (mw_list_mode or mw_tracking_mode):
+                if self._counter.recorder.getHistogramIndex()==-1:
+                    self._pulser._seq = self._next_trigger_seq
+                    self._pulser.pulser_on(n=1)
+                    # time.sleep(0.001)
+                    while True:
+                        # time.sleep(0.001)
+                        if self._pulser.pulse_streamer.hasFinished():
+                            break
+                self._pulser._seq = self._podmr_seq
+
+            time_prev = time.monotonic()
+
+            self._spm.configure_area(area_corr0_start=coord0_start,
+                                     area_corr0_stop=coord0_stop,
+                                     area_corr1_start=coord1_start,
+                                     area_corr1_stop=coord1_stop,
+                                     area_corr0_num=coord0_num,
+                                     area_corr1_num=coord1_num,
+                                     time_forward=scan_speed_per_line,
+                                     time_back=idle_move_time,
+                                     liftoff_mode=liftoff_mode,
+                                     liftoff_height=liftoff_height)
+
+            # start actual scan
+            self.sigQAFMScanInitialized.emit()
+            for line_num, scan_coords in enumerate(scan_arr):
+
+                # for a continue measurement event, skip the first measurements
+                # until one has reached the desired line, then continue from there.
+                # if line_num < self._spm_line_num:
+                #     continue
+
+                num_params = len(curr_scan_params)
+
+                # -1 otherwise it would be more than coord0_num points, since first one is counted too.
+                x_step = (scan_coords[1] - scan_coords[0]) / (coord0_num - 1)
+
+                self._afm_pos = {'x': scan_coords[0], 'y': scan_coords[2]}
+
+                self.sigNewAFMPos.emit(self._afm_pos)
+
+                last_elem = list(range(coord0_num))[-1]
+
+                for index in range(coord0_num):
+
+                    # self.log.debug(f'Point number {index+1} started')
+
+                    # first two entries are counts and b_field, remaining entries are the scan parameter
+                    self._scan_point = np.zeros(num_params) 
+
+                    # arm recorder
+                    #mw_tracking_mode_runs = 1 for all other modes 
+                    for n in range(mw_tracking_mode_runs):
+                        self._counter.start_recorder(arm=True)
+
+                        # prepare mw source, recorder and pulse_streamer at every point if needed
+                        if (mw_list_mode or mw_tracking_mode):
+                            if self._counter.recorder.getHistogramIndex()==-1:
+                                self._pulser._seq = self._next_trigger_seq
+                                self._pulser.pulser_on(n=1)
+                                # time.sleep(0.001)
+                                while True:
+                                    # time.sleep(0.001)
+                                    if self._pulser.pulse_streamer.hasFinished():
+                                        break
+                            self._pulser._seq = self._podmr_seq
+
+                            # THIS A TRIGGERED PULSER ON COMMAND - will be triggered by ASC500 on the first loop only
+                            self._pulser.pulser_on(trigger=True if n==0 else False, n=num_runs, final=self._pulser._mw_trig_final_state)
+                            
+
+                        # do movement and height scan
+                        # run for n=0 condition only
+                        if n==0:
+                            #time.sleep(1)
+                            self._debug = self._spm.scan_point()
+                            # self.log.debug(f'Point number {index+1} scan done')
+                            self._scan_point[2:] = self._debug 
+
+                        # performe podmr related pulsed measurements after the first freq_point was triggered by the  spm controller
+                        # other pulsed measurements are only triggered via the spm controller 
+                        if (mw_list_mode or mw_tracking_mode):
+                            while True:
+                                # time.sleep(0.001)
+                                if self._counter.recorder.getHistogramIndex() > 0:
+                                    break
+                            for i in range(1, freq_points-1):
+                                self._pulser.pulser_on(n=num_runs, final=self._pulser._mw_trig_final_state)
+                                while True:
+                                    time.sleep(0.001)
+                                    if self._counter.recorder.getHistogramIndex() > i:
+                                        break
+                            if mw_tracking_mode:
+                                self._pulser.pulser_on(n=num_runs, final=self._pulser._mw_trig_final_state) # needs to give SPM sync later when satisfied with tracking
+                            else:
+                                self._pulser.pulser_on(n=num_runs, final=self._pulser._mw_trig_sync_final_state)
+
+                        
+                        # obtain pulsed measurement
+                        # self.log.debug(f'self._counter.recorder.getHistogramIndex():{self._counter.recorder.getHistogramIndex()}')
+                        # self.log.debug(f'self._counter.recorder.getCounts():{self._counter.recorder.getCounts()}')
+                        pulsed_meas = self._counter.get_measurements()[0]
+                        # self.log.debug('Timetagger happy')
+                        # self.log.debug(f'self._counter.recorder.getHistogramIndex():{self._counter.recorder.getHistogramIndex()}')
+                        # self.log.debug(f'self._counter.recorder.getCounts():{self._counter.recorder.getCounts()}')
+                
+                        pulsed_ret0, pulsed_ret1 = self.analyse_pulsed_meas(analysis_settings, pulsed_meas, alternating, mw_list_mode, mw_tracking_mode)
+                        self._debug = pulsed_ret0
+                        
+                        if mw_tracking_mode:
+                            track_ret = self.tracking_analysis(pulsed_ret0, line_num, index, slope2_podmr, res_estimate, use_slope_track)
+                            res_estimate, vis = track_ret
+                        # self.set_pulsed_gui_plots(pulsed_ret0, pulsed_ret1)
+
+                    #for nruns loop ends here
+                    if mw_tracking_mode:
+                        self._pulser.pulser_on(n=1, final=self._pulser._mw_trig_sync_final_state)
+
+                    # here the fit parameter can be saved
+                    self._scan_point[1] = self.res_freq_array[line_num, index] if mw_tracking_mode else 1
+                    # here the counts can be saved:
+                    self._counter._tagger.sync()
+                    t_int = 5 # time for integration in ms 
+                    self._counter.countrate.clear()
+                    self._counter.countrate.startFor(int(t_int*1e9), clear = True)
+                    self._counter.countrate.waitUntilFinished(timeout=int(t_int*20))
+                    self._scan_point[0] = np.nan_to_num(self._counter.countrate.getData())
+                    # self.log.debug(f'Countrate: {self._scan_point[0]}')
+
+                    for param_index, param_name in enumerate(curr_scan_params):
+                        name = f'{param_name}_fw'
+                        if mw_tracking_mode:
+                            self._qafm_scan_array[name]['scale_fac'] = 1e-9
+
+                        self._qafm_scan_array[name]['data'][line_num][index] = self._scan_point[param_index] * self._qafm_scan_array[name]['scale_fac']
+
+                    self._pulsed_scan_array['pulsed_fw']['data'][line_num][index] = pulsed_ret0 if not alternating else pulsed_ret0[0]
+                    self._pulsed_scan_array['pulsed_fw']['data_std'][line_num][index] = pulsed_ret1 if not alternating else pulsed_ret0[1]
+                    if alternating:
+                        self._pulsed_scan_array['pulsed_fw']['data_alternating'][line_num][index] = pulsed_ret1[0]
+                        self._pulsed_scan_array['pulsed_fw']['data_alternating_std'][line_num][index] = pulsed_ret1[1]
+                        self._pulsed_scan_array['pulsed_fw']['data_delta'][line_num][index] = pulsed_ret0[0] - pulsed_ret1[0]
+                        
+                    # self._pulsed_scan_array['pulsed_fw']['data_fit'][line_num][index] = pulsed_ret0
+                    self._pulsed_scan_array['pulsed_fw']['data_raw'][line_num][index] = pulsed_meas
+
+                    self._scan_counter += 1
+
+                    # emit a signal at every point, so that update can happen in real time.
+                    self.sigQAFMLineScanFinished.emit()
+
+                    if (mw_list_mode or mw_tracking_mode):
+                        if self._mw_mode == 'LIST':
+                            self._mw.reset_listpos()
+                        elif self._mw_mode == 'SWEEP':
+                            self._mw.reset_sweeppos()
+
+                    # remove possibility to stop during line scan.
+                    if self._stop_request:
+                        break
+
+                time_now = time.monotonic()
+                total_time = round((time_now - time_prev)/(line_num * coord0_num + index + 1) * (coord0_num*coord1_num)/60/60,3)
+                time_rem = round(total_time - (time_now - time_prev)/60/60,3)
+                fut = datetime.datetime.now() + datetime.timedelta(hours=time_rem)
+                fut_str = fut.strftime('%c')
+                self.log.info(f'Line number {line_num} completed. \nTime remaining: {time_rem}/{total_time}hrs \nEstimated finish: {fut_str}')
+
+                # store the current line number
+                self._spm_line_num = line_num
+
+                # break irrespective of the direction of the scan
+                if self._stop_request:
+                    break
+
+            stop_time_afm_scan = datetime.datetime.now()
+            self._afm_meas_duration = self._afm_meas_duration + (stop_time_afm_scan - start_time_afm_scan).total_seconds()
+
+            if line_num == self._spm_line_num:
+                self.log.info(f'Scan finished at {int(self._afm_meas_duration)}s. Yeehaa!')
+            else:
+                self.log.info(f'Scan stopped at {int(self._afm_meas_duration)}s.')
+
+            for entry in self._qafm_scan_array:
+                self._qafm_scan_array[entry]['params']['Measurement stop'] = stop_time_afm_scan.isoformat()
+                self._qafm_scan_array[entry]['params']['Total measurement time (s)'] = self._afm_meas_duration
+
+            # clean up the spm
+            self._spm.finish_scan(retract=True)
+            self._mw.off()
+            self._counter.stop_measurement()
+            self._pulser.pulser_off()
+            #if not (mw_list_mode or mw_tracking_mode):
+            self._pulser.upload_SPM_ensemble()
+            
+            # self.module_state.unlock()
+            self.sigQuantiScanFinished.emit()
+
+            return self._qafm_scan_array
     
     def start_scan_area_pulsed_qafm_fw_by_point(self, coord0_start, coord0_stop,
                                             coord0_num, coord1_start, coord1_stop,
@@ -4347,7 +4725,7 @@ class AFMConfocalLogic(GenericLogic):
             
             channels = clear(channels)
             channels[a_ch(self._pulser._laser_analog_channel)] = self._pulser._laser_power_voltage
-            block_1.append(init_length = 1e-6, channels = channels, repetition = 1)
+            block_1.append(init_length = 1e-6+self._pulser._pulse_heating_delay, channels = channels, repetition = 1)
             
             channels = clear(channels)
             channels[d_ch(self._pulser._laser_channel)] = 1.0
@@ -6287,3 +6665,8 @@ class AFMConfocalLogic(GenericLogic):
 
         self._AWG.pulser_on()
 
+    def send_telegram_message(self):
+        pass
+        # chats = [1532705674, 6340115163]
+        # for id in chats:
+        #     self.bot.send_message(id, f"Scan complete!")

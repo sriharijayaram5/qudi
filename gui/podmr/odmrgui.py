@@ -410,7 +410,7 @@ class ODMRGui(GUIBase):
 
         @return:
         """
-        self.log.debug(data)
+        # self.log.debug(data)
         if np.isnan(data).any():
             return
         laser_data = data

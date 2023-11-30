@@ -67,6 +67,8 @@ class PulseStreamer(Base, PulserInterface):
     __sample_rate = StatusVar(name='sample_rate', default=1e9)
     _laser_power_voltage = StatusVar(name='laser_power_voltage', default=0.5)
 
+    _pulse_heating_delay = StatusVar(name='pulse_heating_delay', default=0)
+
 
     def __init__(self, config, **kwargs):
         super().__init__(config=config, **kwargs)
@@ -99,6 +101,8 @@ class PulseStreamer(Base, PulserInterface):
         self._mw_trig_final_state = ps.OutputState([self._uw_x_channel, self._pixel_stop, self._laser_channel], self._laser_power_voltage, 0)
         self._mw_trig_sync_final_state = ps.OutputState([self._uw_x_channel, self._pixel_stop, self._laser_channel, self._sync_in], self._laser_power_voltage, 0)
         self._final_state = ps.OutputState([self._laser_channel], self._laser_power_voltage, 0) # DO NOT USE THIS!
+
+        self.log.info(f'Laser power voltage: {self._laser_power_voltage}V\nPulse heating delay: {self._pulse_heating_delay}s')
 
     def on_deactivate(self):
         self.reset()

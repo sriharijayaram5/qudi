@@ -309,6 +309,23 @@ class MicrowaveSmbv(Base, MicrowaveInterface):
         self._command_wait(':FREQ {0:f}'.format(frequency))
 
         return 
+    
+    def set_cw_tracking(self, frequency=None, power=None):
+        """
+        Configures the device for cw-mode and optionally sets frequency and/or power
+        !Ensure maximal set-cw is called before!
+
+        @param float frequency: frequency to set in Hz
+
+        """
+        # self.off()
+
+        # # Activate CW mode
+        # self._command_wait(':FREQ:MODE CW')
+        # Set CW frequency
+        self._command_wait(':FREQ {0:f}'.format(frequency))
+
+        return 
 
     def list_on(self):
         """
