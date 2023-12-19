@@ -578,7 +578,7 @@ class APSMagnet(Base, MagnetInterface):
                     self.log.error('Supplied input list for transform_coordinates has to be of length 3: returning [-1,-1,-1]')
                     return [-1, -1, -1]
 
-                while theta >= 180:
+                while theta > 180:
                     phi += 180
                     theta = 360 - theta
 
@@ -587,7 +587,7 @@ class APSMagnet(Base, MagnetInterface):
                     phi += 180
 
                 while phi >= 360:
-                    phi += 360
+                    phi -= 360
 
                 while phi < 0:
                     phi += 360

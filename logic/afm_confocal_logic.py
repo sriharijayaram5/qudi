@@ -561,6 +561,8 @@ class AFMConfocalLogic(GenericLogic):
         self.optimum = False
         self.pickiness = 19
 
+        self.retract_after_scan = True
+
         # safety precaution in case the meas path does not exist
         if not os.path.exists(self._meas_path):
             self._meas_path = self._save_logic.get_path_for_module(module_name='AttoDRY2200_Pi3_SPM')
@@ -1378,7 +1380,7 @@ class AFMConfocalLogic(GenericLogic):
             self._counter.stop_measurement()
 
         # clean up the spm
-        self._spm.finish_scan(retract=True)
+        self._spm.finish_scan(retract=self.retract_after_scan)
         self._mw.off()
         self._pulser.pulser_off()
         self.module_state.unlock()
@@ -1848,7 +1850,7 @@ class AFMConfocalLogic(GenericLogic):
             self._qafm_scan_array[entry]['params']['Total measurement time (s)'] = self._afm_meas_duration
 
         # clean up the spm
-        self._spm.finish_scan(retract=True)
+        self._spm.finish_scan(retract=self.retract_after_scan)
         self._mw.off()
         self._counter.stop_measurement()
         self._pulser.pulser_off()
@@ -2236,7 +2238,7 @@ class AFMConfocalLogic(GenericLogic):
             self._qafm_scan_array[entry]['params']['Total measurement time (s)'] = self._afm_meas_duration
 
         # clean up the spm
-        self._spm.finish_scan(retract=True)
+        self._spm.finish_scan(retract=self.retract_after_scan)
         self._mw.off()
         self._counter.stop_measurement()
         self._pulser.pulser_off()
@@ -2821,7 +2823,7 @@ class AFMConfocalLogic(GenericLogic):
                 self._qafm_scan_array[entry]['params']['Total measurement time (s)'] = self._afm_meas_duration
 
             # clean up the spm
-            self._spm.finish_scan(retract=True)
+            self._spm.finish_scan(retract=self.retract_after_scan)
             self._mw.off()
             self._counter.stop_measurement()
             self._pulser.pulser_off()
@@ -3225,7 +3227,7 @@ class AFMConfocalLogic(GenericLogic):
                 self._qafm_scan_array[entry]['params']['Total measurement time (s)'] = self._afm_meas_duration
 
             # clean up the spm
-            self._spm.finish_scan(retract=True)
+            self._spm.finish_scan(retract=self.retract_after_scan)
             self._mw.off()
             self._counter.stop_measurement()
             self._pulser.pulser_off()
@@ -3762,7 +3764,7 @@ class AFMConfocalLogic(GenericLogic):
                 self._qafm_scan_array[entry]['params']['Total measurement time (s)'] = self._afm_meas_duration
 
             # clean up the spm
-            self._spm.finish_scan(retract=True)
+            self._spm.finish_scan(retract=self.retract_after_scan)
             self._mw.off()
             self._counter.stop_measurement()
             self._pulser.pulser_off()
