@@ -61,6 +61,7 @@ class ODMRLogic(GenericLogic):
     cw_mw_frequency = StatusVar('cw_mw_frequency', 2870e6)
     cw_mw_power = StatusVar('cw_mw_power', -20)
     sweep_mw_power = StatusVar('sweep_mw_power', -20)
+    laser_power_voltage = StatusVar('laser_power_voltage_podmr',0.5)
     fit_range = StatusVar('fit_range', 0)
     mw_starts = StatusVar('mw_starts', [2800e6])
     mw_stops = StatusVar('mw_stops', [2950e6])
@@ -112,6 +113,14 @@ class ODMRLogic(GenericLogic):
         self.cw_mw_frequency = limits.frequency_in_range(self.cw_mw_frequency)
         self.cw_mw_power = limits.power_in_range(self.cw_mw_power)
         self.sweep_mw_power = limits.power_in_range(self.sweep_mw_power)
+
+        if self.laser_power_voltage > 1:
+            self.laser_power_voltage = 1
+        elif self.laser_power_voltage < 0:
+            self.laser_power_voltage = 0
+        else:
+            self.laser_power_voltage = self.laser_power_voltage
+
         self._odmr_counter.oversampling = self._oversampling
         self._odmr_counter.lock_in_active = self._lock_in_active
 
@@ -299,7 +308,7 @@ class ODMRLogic(GenericLogic):
         self.sigParameterUpdated.emit({'average_length': self.lines_to_average})
         return self.lines_to_average
    
-    def set_sweep_parameters(self, starts, stops, steps, power):
+    def set_sweep_parameters(self, starts, stops, steps, power, laser_power_voltage):
         """ Set the desired frequency parameters for list and sweep mode
 
         @param list starts: list of start frequencies to set in Hz
@@ -338,13 +347,22 @@ class ODMRLogic(GenericLogic):
 
             if isinstance(power, (int, float)):
                 self.sweep_mw_power = limits.power_in_range(power)
+
+            if isinstance(laser_power_voltage, (int, float)):
+                if laser_power_voltage > 1:
+                    self.laser_power_voltage = 1
+                elif laser_power_voltage < 0:
+                    self.laser_power_voltage = 0
+                else:
+                    self.laser_power_voltage = laser_power_voltage
+
         else:
             self.log.warning('set_sweep_parameters failed. Logic is locked.')
 
         param_dict = {'mw_starts': self.mw_starts, 'mw_stops': self.mw_stops, 'mw_steps': self.mw_steps,
-                      'sweep_mw_power': self.sweep_mw_power}
+                      'sweep_mw_power': self.sweep_mw_power, 'laser_power_voltage': self.laser_power_voltage}
         self.sigParameterUpdated.emit(param_dict)
-        return self.mw_starts, self.mw_stops, self.mw_steps, self.sweep_mw_power
+        return self.mw_starts, self.mw_stops, self.mw_steps, self.sweep_mw_power, self.laser_power_voltage
 
     def mw_sweep_on(self):
         """
@@ -388,7 +406,7 @@ class ODMRLogic(GenericLogic):
             self.mw_stops = used_stops
             self.mw_steps = used_steps
             param_dict = {'mw_starts': used_starts, 'mw_stops': used_stops,
-                          'mw_steps': used_steps, 'sweep_mw_power': self.sweep_mw_power}
+                          'mw_steps': used_steps, 'sweep_mw_power': self.sweep_mw_power, 'laser_power_voltage': self.laser_power_voltage}
 
             self.sigParameterUpdated.emit(param_dict)
 
@@ -409,7 +427,7 @@ class ODMRLogic(GenericLogic):
                 mw_start, mw_stop, mw_step, self.sweep_mw_power, mode = sweep_return
 
                 param_dict = {'mw_starts': [mw_start], 'mw_stops': [mw_stop],
-                              'mw_steps': [mw_step], 'sweep_mw_power': self.sweep_mw_power}
+                              'mw_steps': [mw_step], 'sweep_mw_power': self.sweep_mw_power, 'laser_power_voltage': self.laser_power_voltage}
                 self.final_freq_list = np.arange(mw_start, mw_stop + mw_step, mw_step)
                 self.log.debug(f'{self.final_freq_list}')
             else:
@@ -432,7 +450,7 @@ class ODMRLogic(GenericLogic):
                 mw_start, mw_stop, mw_step, self.sweep_mw_power, mode, freq_points = sweep_return
 
                 param_dict = {'mw_starts': [mw_start], 'mw_stops': [mw_stop],
-                              'mw_steps': [mw_step], 'sweep_mw_power': self.sweep_mw_power}
+                              'mw_steps': [mw_step], 'sweep_mw_power': self.sweep_mw_power, 'laser_power_voltage': self.laser_power_voltage}
                 self.final_freq_list = np.arange(mw_start, mw_stop + mw_step, mw_step)
                 self.log.debug(f'{self.final_freq_list}')
             else:
@@ -673,47 +691,47 @@ class ODMRLogic(GenericLogic):
         if not self.mw_scanmode == MicrowaveMode.CW:
 
             channels = clear(channels)
-            channels[a_ch(self._odmr_counter._pulser._laser_analog_channel)] = self._odmr_counter._pulser._laser_power_voltage
+            channels[a_ch(self._odmr_counter._pulser._laser_analog_channel)] = self.laser_power_voltage
             channels[d_ch(self._odmr_counter._pulser._mw_switch)] = 1.0
             block_1.append(init_length = pi_pulse, channels = channels, repetition = 1)
             
             channels = clear(channels)
-            channels[a_ch(self._odmr_counter._pulser._laser_analog_channel)] = self._odmr_counter._pulser._laser_power_voltage
+            channels[a_ch(self._odmr_counter._pulser._laser_analog_channel)] = self.laser_power_voltage
             block_1.append(init_length = 1e-6, channels = channels, repetition = 1)
             
             channels = clear(channels)
             channels[d_ch(self._odmr_counter._pulser._laser_channel)] = 1.0
-            channels[a_ch(self._odmr_counter._pulser._laser_analog_channel)] = self._odmr_counter._pulser._laser_power_voltage
+            channels[a_ch(self._odmr_counter._pulser._laser_analog_channel)] = self.laser_power_voltage
             channels[d_ch(self._odmr_counter._pulser._pixel_start)] = 1.0 # pulse to TT channel detect
             block_1.append(init_length = 3e-6, channels = channels, repetition = 1)
             
             channels = clear(channels)
-            channels[a_ch(self._odmr_counter._pulser._laser_analog_channel)] = self._odmr_counter._pulser._laser_power_voltage
+            channels[a_ch(self._odmr_counter._pulser._laser_analog_channel)] = self.laser_power_voltage
             block_1.append(init_length = 1.5e-6, channels = channels, repetition = 1)
         
         else:
             channels = clear(channels)
-            channels[a_ch(self._odmr_counter._pulser._laser_analog_channel)] = self._odmr_counter._pulser._laser_power_voltage
+            channels[a_ch(self._odmr_counter._pulser._laser_analog_channel)] = self.laser_power_voltage
             channels[d_ch(self._odmr_counter._pulser._awg_trig)] = 1.0
             block_1.append(init_length = 1.5e-6, channels = channels, repetition = 1)
             
             channels = clear(channels)
-            channels[a_ch(self._odmr_counter._pulser._laser_analog_channel)] = self._odmr_counter._pulser._laser_power_voltage
+            channels[a_ch(self._odmr_counter._pulser._laser_analog_channel)] = self.laser_power_voltage
             channels[d_ch(self._odmr_counter._pulser._mw_switch)] = 1.0
             block_1.append(init_length = pi_pulse, channels = channels, repetition = 1)
             
             channels = clear(channels)
-            channels[a_ch(self._odmr_counter._pulser._laser_analog_channel)] = self._odmr_counter._pulser._laser_power_voltage
+            channels[a_ch(self._odmr_counter._pulser._laser_analog_channel)] = self.laser_power_voltage
             block_1.append(init_length = 1e-6 + self._odmr_counter._pulser._pulse_heating_delay, channels = channels, repetition = 1)
             
             channels = clear(channels)
             channels[d_ch(self._odmr_counter._pulser._laser_channel)] = 1.0
-            channels[a_ch(self._odmr_counter._pulser._laser_analog_channel)] = self._odmr_counter._pulser._laser_power_voltage
+            channels[a_ch(self._odmr_counter._pulser._laser_analog_channel)] = self.laser_power_voltage
             channels[d_ch(self._odmr_counter._pulser._pixel_start)] = 1.0 # pulse to TT channel detect
             block_1.append(init_length = 3e-6, channels = channels, repetition = 1)
             
             channels = clear(channels)
-            channels[a_ch(self._odmr_counter._pulser._laser_analog_channel)] = self._odmr_counter._pulser._laser_power_voltage
+            channels[a_ch(self._odmr_counter._pulser._laser_analog_channel)] = self.laser_power_voltage
             channels[d_ch(self._odmr_counter._pulser._pixel_stop)] = 1.0 # pulse to TT channel next
             block_1.append(init_length = 0.1e-6, channels = channels, repetition = 1)
 
@@ -742,16 +760,16 @@ class ODMRLogic(GenericLogic):
         block_1 = PulseBlock()
 
         channels = clear(channels)
-        channels[a_ch(self._odmr_counter._pulser._laser_analog_channel)] = self._odmr_counter._pulser._laser_power_voltage
+        channels[a_ch(self._odmr_counter._pulser._laser_analog_channel)] = self.laser_power_voltage
         block_1.append(init_length = 1e-3, channels = channels, repetition = 1)
         
         channels = clear(channels)
-        channels[a_ch(self._odmr_counter._pulser._laser_analog_channel)] = self._odmr_counter._pulser._laser_power_voltage
+        channels[a_ch(self._odmr_counter._pulser._laser_analog_channel)] = self.laser_power_voltage
         channels[d_ch(self._odmr_counter._pulser._pixel_stop)] = 1.0
         block_1.append(init_length = 1e-3, channels = channels, repetition = 1)
         
         channels = clear(channels)
-        channels[a_ch(self._odmr_counter._pulser._laser_analog_channel)] = self._odmr_counter._pulser._laser_power_voltage
+        channels[a_ch(self._odmr_counter._pulser._laser_analog_channel)] = self.laser_power_voltage
         block_1.append(init_length = 1e-3, channels = channels, repetition = 1)
         
         seq.append([(block_1, 1)])
@@ -1005,6 +1023,7 @@ class ODMRLogic(GenericLogic):
             parameters = OrderedDict()
             parameters['Microwave CW Power (dBm)'] = self.cw_mw_power
             parameters['Microwave Sweep Power (dBm)'] = self.sweep_mw_power
+            parameters['Laser Power Votage (V)'] = self.laser_power_voltage
             parameters['Run Time (s)'] = self.elapsed_time
             parameters['Number of frequency sweeps (#)'] = self.elapsed_sweeps
             parameters['Start Frequencies (Hz)'] = self.mw_starts
@@ -1039,6 +1058,7 @@ class ODMRLogic(GenericLogic):
                 parameters = OrderedDict()
                 parameters['Microwave CW Power (dBm)'] = self.cw_mw_power
                 parameters['Microwave Sweep Power (dBm)'] = self.sweep_mw_power
+                parameters['Laser Power Votage (V)'] = self.laser_power_voltage
                 parameters['Run Time (s)'] = self.elapsed_time
                 parameters['Number of frequency sweeps (#)'] = self.elapsed_sweeps
                 parameters['Start Frequency (Hz)'] = frequency_arr[0]
@@ -1192,7 +1212,7 @@ class ODMRLogic(GenericLogic):
         return odmr_matrix_range
 
     def perform_odmr_measurement(self, freq_start, freq_step, freq_stop, power, channel, runtime,
-                                 fit_function='No Fit', save_after_meas=True, name_tag=''):
+                                 fit_function='No Fit', save_after_meas=True, name_tag='', laser_power_voltage=0.1):
         """ An independant method, which can be called by a task with the proper input values
             to perform an odmr measurement.
 
@@ -1209,7 +1229,7 @@ class ODMRLogic(GenericLogic):
                 return tuple()
 
         # set all relevant parameter:
-        self.set_sweep_parameters(freq_start, freq_stop, freq_step, power)
+        self.set_sweep_parameters(freq_start, freq_stop, freq_step, power, laser_power_voltage)
 
         # start the scan
         self.start_odmr_scan()

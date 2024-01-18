@@ -84,7 +84,7 @@ class ODMRGui(GUIBase):
     sigMwOff = QtCore.Signal()
     sigMwPowerChanged = QtCore.Signal(float)
     # sigMwCwParamsChanged = QtCore.Signal(float, float)
-    sigMwSweepParamsChanged = QtCore.Signal(list, list, list, float)
+    sigMwSweepParamsChanged = QtCore.Signal(list, list, list, float, float)
     sigClockFreqChanged = QtCore.Signal(float)
     sigOversamplingChanged = QtCore.Signal(int)
     sigLockInChanged = QtCore.Signal(bool)
@@ -130,6 +130,9 @@ class ODMRGui(GUIBase):
         # self._mw.cw_power_DoubleSpinBox.setMinimum(constraints.min_power)
         self._mw.sweep_power_DoubleSpinBox.setMaximum(constraints.max_power)
         self._mw.sweep_power_DoubleSpinBox.setMinimum(constraints.min_power)
+
+        self._mw.laser_power_voltage_DoubleSpinBox.setMaximum(1) #Maximum Amplitude of pulsestreamer analog output in [V]
+        self._mw.laser_power_voltage_DoubleSpinBox.setMinimum(0) #Minimum Amplitude of pulsestreamer analog output in [V]
 
         # Add grid layout for ranges
         groupBox = QtWidgets.QGroupBox(self._mw.dockWidgetContents_3)
@@ -268,6 +271,7 @@ class ODMRGui(GUIBase):
         # Get the colorscales at set LUT
         my_colors = ColorScaleInferno()
         self._mw.sweep_power_DoubleSpinBox.setValue(self._odmr_logic.sweep_mw_power)
+        self._mw.laser_power_voltage_DoubleSpinBox.setValue(self._odmr_logic.laser_power_voltage)
 
         # self._mw.runtime_DoubleSpinBox.setValue(self._odmr_logic.run_time)
         self._mw.elapsed_time_DisplayWidget.display(int(np.rint(self._odmr_logic.elapsed_time)))
@@ -286,6 +290,7 @@ class ODMRGui(GUIBase):
         # Internal user input changed signals
 
         self._mw.sweep_power_DoubleSpinBox.editingFinished.connect(self.change_sweep_params)
+        self._mw.laser_power_voltage_DoubleSpinBox.editingFinished.connect(self.change_sweep_params)
         self._mw.average_level_SpinBox.valueChanged.connect(self.average_level_changed)
         # Internal trigger signals
         self._mw.action_run_stop.triggered.connect(self.run_stop_odmr)
@@ -313,7 +318,9 @@ class ODMRGui(GUIBase):
         self._odmr_logic.sigOutputStateUpdated.connect(self.update_status,
                                                        QtCore.Qt.QueuedConnection)
         self._odmr_logic.sigOdmrPlotsUpdated.connect(self.update_plots, QtCore.Qt.QueuedConnection)
-        self._mw.odmr_derivative_radioButton.toggled.connect(self.update_for_derivative_plot, QtCore.Qt.QueuedConnection)
+        self._mw.odmr_derivative_none_radioButton.toggled.connect(self.update_for_derivative_plot, QtCore.Qt.QueuedConnection)
+        self._mw.odmr_derivative_lorentzian_radioButton.toggled.connect(self.update_for_derivative_plot, QtCore.Qt.QueuedConnection)
+        self._mw.odmr_derivative_gaussian_radioButton.toggled.connect(self.update_for_derivative_plot, QtCore.Qt.QueuedConnection)
         self._odmr_logic.sigOdmrLaserDataUpdated.connect(self.update_laser_data, QtCore.Qt.QueuedConnection)
         self._odmr_logic.sigOdmrFitUpdated.connect(self.update_fit, QtCore.Qt.QueuedConnection)
         self._odmr_logic.sigOdmrElapsedTimeUpdated.connect(self.update_elapsedtime,
@@ -361,6 +368,7 @@ class ODMRGui(GUIBase):
             [dspinbox_type.editingFinished.disconnect() for dspinbox_type in dspinbox_type_list]
 
         self._mw.sweep_power_DoubleSpinBox.editingFinished.disconnect()
+        self._mw.laser_power_voltage_DoubleSpinBox.editingFinished.disconnect()
         self._mw.average_level_SpinBox.valueChanged.disconnect()
         self._fsd.sigFitsUpdated.disconnect()
         self._mw.fit_range_SpinBox.editingFinished.disconnect()
@@ -609,8 +617,9 @@ class ODMRGui(GUIBase):
         stops = self.get_frequencies_from_spinboxes('stop')
         steps = self.get_frequencies_from_spinboxes('step')
         power = self._mw.sweep_power_DoubleSpinBox.value()
+        laser_power_voltage = self._mw.laser_power_voltage_DoubleSpinBox.value()
 
-        self.sigMwSweepParamsChanged.emit(starts, stops, steps, power)
+        self.sigMwSweepParamsChanged.emit(starts, stops, steps, power, laser_power_voltage)
         self._mw.fit_range_SpinBox.setMaximum(self._odmr_logic.ranges)
         # self._mw.odmr_control_DockWidget.matrix_range_SpinBox.setMaximum(self._odmr_logic.ranges)
         self._odmr_logic.ranges += 1
@@ -643,7 +652,9 @@ class ODMRGui(GUIBase):
         stops = self.get_frequencies_from_spinboxes('stop')
         steps = self.get_frequencies_from_spinboxes('step')
         power = self._mw.sweep_power_DoubleSpinBox.value()
-        self.sigMwSweepParamsChanged.emit(starts, stops, steps, power)
+        laser_power_voltage = self._mw.laser_power_voltage_DoubleSpinBox.value()
+
+        self.sigMwSweepParamsChanged.emit(starts, stops, steps, power, laser_power_voltage)
 
         # in case the removed range is the one selected for fitting right now adjust the value
         self._odmr_logic.ranges -= 1
@@ -716,6 +727,7 @@ class ODMRGui(GUIBase):
             # change the axes appearance according to input values:
             self._mw.odmr_PlotWidget.removeItem(self.odmr_fit_image)
             self._mw.sweep_power_DoubleSpinBox.setEnabled(False)
+            self._mw.laser_power_voltage_DoubleSpinBox.setEnabled(False)
 
             dspinbox_dict = self.get_all_dspinboxes_from_groupbox()
             for identifier_name in dspinbox_dict:
@@ -748,6 +760,7 @@ class ODMRGui(GUIBase):
 
         else:
             self._mw.sweep_power_DoubleSpinBox.setEnabled(True)
+            self._mw.laser_power_voltage_DoubleSpinBox.setEnabled(True)
 
             dspinbox_dict = self.get_all_dspinboxes_from_groupbox()
             for identifier_name in dspinbox_dict:
@@ -781,12 +794,18 @@ class ODMRGui(GUIBase):
         mx = x_data.max()
         self.sweep_start_line.setPos(mn)
         self.sweep_end_line.setPos(mx)
-        if self._mw.odmr_derivative_radioButton.isChecked():
+        if self._mw.odmr_derivative_lorentzian_radioButton.isChecked() or self._mw.odmr_derivative_gaussian_radioButton.isChecked():
             def vis(lm, param, res, delta):
                 c2, c1 = lm.eval(param, x = np.array([res-delta, res+delta]))
                 return (c1-c2)/(c1+c2)
             
-            fit = self._fitlogic.make_lorentzian_fit(x_data,odmr_data_y[self.display_channel],estimator=self._fitlogic.estimate_lorentzian_dip)
+            if self._mw.odmr_derivative_lorentzian_radioButton.isChecked():
+                fit = self._fitlogic.make_lorentzian_fit(x_data,odmr_data_y[self.display_channel],estimator=self._fitlogic.estimate_lorentzian_dip)
+
+            else:
+                fit = self._fitlogic.make_gaussian_fit(x_data,odmr_data_y[self.display_channel],estimator=self._fitlogic.estimate_gaussian_dip)
+
+
             self.vis_arr = np.array([vis(fit.model, fit.params, x, fit.params['fwhm'].value/2) for x in x_data])
 
             self._mw.odmr_PlotWidget.setLabel(axis='left', text='ODMR visibility', units='Events/s²')
@@ -870,7 +889,7 @@ class ODMRGui(GUIBase):
 
     def do_fit(self):
         fit_function = self._mw.fit_methods_ComboBox.getCurrentFit()[0]
-        if self._mw.odmr_derivative_radioButton.isChecked():
+        if self._mw.odmr_derivative_lorentzian_radioButton.isChecked() or self._mw.odmr_derivative_gaussian_radioButton.isChecked():
             odmr_data_x  = self._odmr_logic.odmr_plot_x
             odmr_data_y = self._odmr_logic.odmr_plot_y
             dx = odmr_data_x[1] - odmr_data_x[0]
@@ -932,6 +951,12 @@ class ODMRGui(GUIBase):
             self._mw.sweep_power_DoubleSpinBox.setValue(param)
             self._mw.sweep_power_DoubleSpinBox.blockSignals(False)
 
+        param = param_dict.get('laser_power_voltage')
+        if param is not None:
+            self._mw.laser_power_voltage_DoubleSpinBox.blockSignals(True)
+            self._mw.laser_power_voltage_DoubleSpinBox.setValue(param)
+            self._mw.laser_power_voltage_DoubleSpinBox.blockSignals(False)
+
         mw_starts = param_dict.get('mw_starts')
         mw_steps = param_dict.get('mw_steps')
         mw_stops = param_dict.get('mw_stops')
@@ -985,9 +1010,10 @@ class ODMRGui(GUIBase):
             stops.append(stop)
 
         power = self._mw.sweep_power_DoubleSpinBox.value()
+        laser_power_voltage = self._mw.laser_power_voltage_DoubleSpinBox.value()
         self.sweep_start_line.setPos(starts[0])
         self.sweep_end_line.setPos(stops[0])
-        self.sigMwSweepParamsChanged.emit(starts, stops, steps, power)
+        self.sigMwSweepParamsChanged.emit(starts, stops, steps, power, laser_power_voltage)
         return
 
     def change_fit_range(self):
