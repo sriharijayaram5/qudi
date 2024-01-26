@@ -3299,11 +3299,11 @@ class AFMConfocalLogic(GenericLogic):
         IQ_Seq = [
             [
             {'name': 'a_ch0', 'amp': 1.00, 'freq': delta, 'phase': 0.00},
-            {'name': 'a_ch1', 'amp': 1.20, 'freq': delta, 'phase': 100.00}
+            {'name': 'a_ch1', 'amp': 1.00, 'freq': delta, 'phase': 100.00}
             ],
             [
             {'name': 'a_ch0', 'amp': 1.00, 'freq': delta, 'phase': 100.00},
-            {'name': 'a_ch1', 'amp': 1.20, 'freq': delta, 'phase': 0.00}
+            {'name': 'a_ch1', 'amp': 1.00, 'freq': delta, 'phase': 0.00}
             ]
                             ]
         dur=pi_half_duration + 1.4e-6 + 1e-6 # refer to make PODMR_AWG sequence for PS down below for the timings
@@ -6640,7 +6640,7 @@ class AFMConfocalLogic(GenericLogic):
         amp = 1
         ch = [
             {'name': 'a_ch0', 'amp': amp},
-            {'name': 'a_ch1', 'amp': amp*1.2}
+            {'name': 'a_ch1', 'amp': amp}
             ]
         self.load_dc(channels = ch, dur = 100e-6, identifier = 'A')
 
@@ -6657,7 +6657,7 @@ class AFMConfocalLogic(GenericLogic):
         delta = abs(LO_freq - target_freq) # we always use a higher LO and a low shifiting AWG phase for I and Q. Hardcoded below
 
         ch = [   {'name': 'a_ch0', 'amp': 1.00, 'freq': delta, 'phase': 0.00},
-                 {'name': 'a_ch1', 'amp': 1.20, 'freq': delta, 'phase': 100.00}
+                 {'name': 'a_ch1', 'amp': 1.00, 'freq': delta, 'phase': 100.00}
              ]
         
         self.load_sin(channels = ch, dur = 5e-6, identifier = 'A')

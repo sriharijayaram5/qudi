@@ -1883,6 +1883,7 @@ class SequenceGeneratorLogic(GenericLogic):
                             written_waveforms.update(wfm_list)
 
                             # check if write process was successful
+                            self.log.info(f'Written samples: {written_samples}\nArray length: {array_length}')
                             if written_samples != array_length:
                                 self.log.error('Sampling of block "{0}" in ensemble "{1}" failed. '
                                                'Write to device was unsuccessful.\nThe number of '

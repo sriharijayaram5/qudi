@@ -50,7 +50,7 @@ class AWG663(Base, PulserInterface):
     sequence_folder = ConfigOption(name="sequence_folder",
                                    default=os.path.join(get_home_dir(), 'saved_pulsed_assets', 'sequence'),
                                    missing="warn")
-    invert_channel = ConfigOption(name="invert_channel", default="d_ch2", missing="warn")
+    invert_channel = ConfigOption(name="invert_channel", default="None", missing="warn")
 
     def __init__(self, config, **kwargs):
         super().__init__(config=config, **kwargs)
@@ -385,7 +385,7 @@ class AWG663(Base, PulserInterface):
             self.instance.upload(data_list, data_size, mem_offset=0)
             self.typeloaded = 'waveform'
             # print(data_list[0][0:5])
-        self.log.info('Upload to AWG complete')
+        self.log.info('Loaded waveform!')
         return load_dict
 
     def load_sequence(self, sequence_name):
@@ -456,9 +456,10 @@ class AWG663(Base, PulserInterface):
                 data_size = len(wave_form)
             else:
                 self.log.error(wave_name + ' not in dictionary')
-
+        
         self.instance.upload(data_list, data_size, mem_offset=0)
-
+        self.log.info('Loaded sequence!')
+        #Sequnce mode needs to be implemented for this AWG
         return load_dict
 
     def get_loaded_assets(self):
@@ -847,6 +848,9 @@ class AWG663(Base, PulserInterface):
 
         # data is converted from float64 to int16
         # if name not in wave_dict:
+        self.debug_analog_samples = analog_samples
+        self.debug_convert = {}
+        self.debug_full_signal = {}
         for chan, value in analog_samples.items():
             full_name = '{0}_{1}'.format(name, chan)
             wavename = '{0}.pkl'.format(full_name)
@@ -857,6 +861,7 @@ class AWG663(Base, PulserInterface):
                 ch_amp = self.get_analog_level(amplitude=[chan])
                 convert[0:len(value)] = value * ch_amp[0][chan]
                 value = convert
+                self.debug_convert[chan] = convert
 
             if is_first_chunk:
                 full_signal = np.asarray(value * (2 ** 15 - 1), dtype=np.int16)
@@ -869,6 +874,7 @@ class AWG663(Base, PulserInterface):
             self.my_save_dict(full_signal, path)
             waveforms.append(full_name)
             total_length = len(full_signal)
+            self.debug_full_signal[chan] = full_signal
 
         for chan, value in digital_samples.items():
             # Fix for inverting channel 2 (switch channel)

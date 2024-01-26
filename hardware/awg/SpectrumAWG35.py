@@ -116,7 +116,9 @@ class AWG:
             self.cards.append(Card(self.ip, i))
         self.hub = Hub(_hub_id)
         self.data_list = [None, None, None, None, None, None, None, None, None, None]
+        
         self.init_all_channels()
+        # self.set_external_clock_input()
         self.sequence = None
         self.save_data = True
         # number of samples that are transferred in one data transfer (reduce value to save memory)
@@ -126,6 +128,18 @@ class AWG:
         self.empty_chunk_array_factor = 1.3
         self.uploading = False
         self.temp_sine = ()  # for square cosine debugging purposes
+
+    def set_external_clock_input(self):
+        """Function to switch to external reference clock - assumed to be supplied in this case from the PulseStreamer as a 125MHz reference. 
+        Ensure PulseStreamer is enabled witht this output before AWG init."""
+        for c in self.cards:
+            c.set32(SPC_CLOCKMODE, SPC_CM_EXTREFCLOCK)
+            c.set32(SPC_REFERENCECLOCK, 125000000)
+            self.set_samplerate(1250000000)
+
+        # Use this instead for switching to internall clock
+        # for c in self.cards:
+        #     c.set32(SPC_CLOCKMODE, SPC_CM_INTPLL)
 
     def init_all_channels(self):
         self.set_selected_channels(0b1111)
@@ -1634,6 +1648,70 @@ class Card():
             return -1
         return res
 
+    def upload_new(self, number_of_samples, data=None, data1=None, marker0_data=None, marker1_data=None, marker2_data=None,
+               is_buffered=False, mem_offset=0, block=False, is_seq_segment=False):
+        """ uploads data to the card.
+        Values in 'data' can not exceed -1.0 to 1.0.
+        Values in marker data can only be 0 or 1
+
+        If marker_data parameters are all None the marker outputs will be disabled.
+
+        PS: the current version uses a fixed setting for the markers. Therefore all marker and channels are used
+            all the time, whether they output data or not. This makes the code simpler but also leads to
+            unneccesary upload of zeros...
+        """
+
+        new_samples = number_of_samples
+        data //= 2
+        data1 //= 2
+
+        data += (2**14)
+        data1 += (2**14)
+        # set the commands that are used for the data transfer
+        if block:
+            com = M2CMD_DATA_STARTDMA | M2CMD_DATA_WAITDMA
+        else:
+            com = M2CMD_DATA_STARTDMA
+
+        used_channels = self.get_selected_channels_count()
+        bytes_per_sample = self.get_bytes_per_sample()
+
+        # set the amount of memory that will be used
+        if not is_buffered:
+            while (not (new_samples % 32 == 0)) or (is_seq_segment is True and new_samples < 192):
+                new_samples += 1
+
+            self.set_memory_size(new_samples, is_seq_segment=is_seq_segment)
+
+        # set the buffer
+        BufferSize = uint64(new_samples * bytes_per_sample * used_channels)
+        pvBuffer = create_string_buffer(BufferSize.value)
+        pnBuffer = np.zeros(new_samples * used_channels, dtype=np.int16)
+
+
+        pnBuffer[0:number_of_samples * used_channels:used_channels] = data[0:number_of_samples]
+        pnBuffer[1:number_of_samples * used_channels:used_channels] = data1[0:number_of_samples]
+
+        del data
+        del marker0_data
+        del data1
+        del marker1_data
+        del marker2_data
+   
+        pvBuffer.raw = pnBuffer.tostring()
+
+        # define the data transfer
+        spcm_dwDefTransfer_i64(self.handle, SPCM_BUF_DATA, SPCM_DIR_PCTOCARD, uint32(0), pvBuffer,
+                               uint64(mem_offset * used_channels * bytes_per_sample), BufferSize)
+
+        # execute the transfer
+        self.set32(SPC_M2CMD, com)
+        if block:
+            del pnBuffer, pvBuffer
+        err = self.chkError()
+        # print err
+        return err  # self.chkError()
+
     # @profile
     def upload(self, number_of_samples, data=None, data1=None, marker0_data=None, marker1_data=None, marker2_data=None,
                is_buffered=False, mem_offset=0, block=False, is_seq_segment=False):
@@ -1702,6 +1780,7 @@ class Card():
         # print pnBuffer.dtype
         del marker1_data
         del marker2_data
+        self.debug_pnbuffer = pnBuffer.copy()
         # pdb.set_trace()
         # del data1
         # del data

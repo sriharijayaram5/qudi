@@ -793,7 +793,7 @@ class ODMRLogic(GenericLogic):
         def IQ_Seq_element(delta):
             return [
             {'name': 'a_ch0', 'amp': 1.00, 'freq': delta, 'phase': 0.00},
-            {'name': 'a_ch1', 'amp': 1.20, 'freq': delta, 'phase': 100.00}
+            {'name': 'a_ch1', 'amp': 1.00, 'freq': delta, 'phase': 100.00}
             ]
         IQ_Seq = [IQ_Seq_element(round(delta)) for delta in deltas]
         pp = pi_pulse if not pi_pulse == None else self.pi_half_pulse
@@ -820,7 +820,7 @@ class ODMRLogic(GenericLogic):
                 if not exists:
                     break
 
-            if not exists:
+            if True:#not exists:
                 ele.append(po.PulseBlockElement(init_length_s=dur,  pulse_function=a_ch, digital_high=d_ch))
                 pulse_block = po.PulseBlock(name=f'SinAuto', element_list=ele)
                 

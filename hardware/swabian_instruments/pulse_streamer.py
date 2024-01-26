@@ -90,6 +90,8 @@ class PulseStreamer(Base, PulserInterface):
                 self.pulse_streamer.selectClock(ps.ClockSource.INTERNAL)
             else:
                 self.log.error('pulsestreamer external clock selection not allowed')
+        # self.pulse_streamer.setSquareWave125MHz(channels=[7])
+        # self.log.info("125MHz clock output on PulseStreamer channel 7 ")
         self.__samples_written = 0
         self.__currently_loaded_waveform = ''
         self.current_status = 0
