@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+# 2024-01-30 modified by Sreehari Jayaram and Malik Lenger
 """
 This file contains the Qudi hardware module for Spectrum AWG.
 
@@ -50,87 +51,13 @@ class AWG663(Base, PulserInterface):
     sequence_folder = ConfigOption(name="sequence_folder",
                                    default=os.path.join(get_home_dir(), 'saved_pulsed_assets', 'sequence'),
                                    missing="warn")
-    invert_channel = ConfigOption(name="invert_channel", default="None", missing="warn")
+    invert_channel = ConfigOption(name="invert_channel", default="None")
 
     def __init__(self, config, **kwargs):
         super().__init__(config=config, **kwargs)
 
         self.cards = [0, 1]
         self.hub = 0
-        self.channel_setup = [
-            {
-                'name': 'mw',
-                'ch': 0,
-                'type': 'sin',
-                'amp': 1.0,
-                'phase': 0.0,
-                'freq': 30e6,
-                'freq2': 0.0
-            },
-            {
-                'name': 'mwy',
-                'ch': 1,
-                'type': 'sin',
-                'amp': 1.0,
-                'phase': np.pi / 2.,
-                'freq': 30e6,
-                'freq2': 0.0
-            },
-            {
-                'name': 'rf',
-                'ch': 2,
-                'type': 'DC',
-                'amp': 1.0,
-                'phase': 0.0,  # np.pi/2.,
-                'freq': 0.0,  # 'rf_freq'
-                'freq2': 0.0
-            },
-            {
-                'name': 'mw3',
-                'ch': 3,
-                'type': 'DC',
-                'amp': 1.0,
-                'phase': 0.0,
-                'freq': 0.0,
-                'freq2': 0.0
-            },
-            {
-                'name': 'laser',
-                'ch': 4,
-                'type': 'DC',
-                'amp': 1.0,
-                'phase': 0.0,
-                'freq': 0.0,
-                'freq2': 0.0
-            },
-            {
-                'name': 'aom',
-                'ch': 5,
-                'type': 'DC',
-                'amp': 1.0,
-                'phase': 0.0,
-                'freq': 0.0,
-                'freq2': 0.0
-            },
-            {
-                'name': 'trig',
-                'ch': 6,
-                'type': 'DC',
-                'amp': 1.0,
-                'phase': 0.0,
-                'freq': 0.0,
-                'freq2': 0.0
-            },
-            {
-                'name': 'mw_gate',
-                'ch': 7,
-                'type': 'DC',
-                'amp': 1.0,
-                'phase': 0.0,
-                'freq': 0.0,
-                'freq2': 0.0
-            }
-        ]
         # [card, channel, binary channel for later use]
         self.channels = [[0, 0, 0b1], [0, 1, 0b10], [1, 0, 0b100], [1, 1, 0b1000]]
         self.loaded_assets = {}
@@ -139,17 +66,18 @@ class AWG663(Base, PulserInterface):
 
     def on_activate(self):
         try:
-            self.instance = SpectrumAWG35.AWG(self.awg_ip_address, self.cards, self.hub, self.channel_setup)
+            self.instance = SpectrumAWG35.AWG(self.awg_ip_address, self.cards, self.hub)
         except ValueError:
             self.log.error("Unable to connect to Spectrum AWG. It may be locked by another program.")
             return -1
 
         self.instance.init_all_channels()
         # Set the amplitude of a channel in mV (into 50 Ohms)
-        self.instance.cards[0].set_amplitude(0, 500)
-        self.instance.cards[0].set_amplitude(1, 500)
-        self.instance.cards[1].set_amplitude(0, 100)
-        self.instance.cards[1].set_amplitude(1, 100)
+        max_amplitude = 2000
+        self.instance.cards[0].set_amplitude(0, max_amplitude)
+        self.instance.cards[0].set_amplitude(1, max_amplitude)
+        self.instance.cards[1].set_amplitude(0, max_amplitude)
+        self.instance.cards[1].set_amplitude(1, max_amplitude)
         active_chan = self.get_constraints().activation_config['hira_config']
         self.loaded_assets = dict.fromkeys(active_chan)
 
@@ -188,7 +116,7 @@ class AWG663(Base, PulserInterface):
         constraints.a_ch_amplitude.min = self.__mV_to_V(80)
         constraints.a_ch_amplitude.max = self.__mV_to_V(2000)
         constraints.a_ch_amplitude.step = self.__mV_to_V(1)
-        constraints.a_ch_amplitude.default = self.__mV_to_V(2000)
+        constraints.a_ch_amplitude.default = self.__mV_to_V(0)
         constraints.a_ch_offset.min = 0
         constraints.a_ch_offset.max = 0
         constraints.a_ch_offset.default = 0
@@ -254,10 +182,6 @@ class AWG663(Base, PulserInterface):
         else:
             return -1
 
-    def prepare_ch(self, name, type=None, amp=None, phase=None, freq=None, freq2=None, reset_phase=True):
-        chan = self.instance.ch(name, type, amp, phase, freq, freq2, reset_phase)
-        return chan
-
     def load_waveform(self, load_dict):
         """ Loads a waveform from the waveform folder on disk to all specified channels of the pulsing device.
 
@@ -302,10 +226,6 @@ class AWG663(Base, PulserInterface):
         """
 
         # create new dictionary with keys = num_of_ch and item = waveform
-
-        max_chunk_size = self.instance.max_chunk_size
-        empty_chunk_array_factor = self.instance.empty_chunk_array_factor
-
         if isinstance(load_dict, list):
             new_dict = dict()
             for waveform in load_dict:
@@ -328,19 +248,14 @@ class AWG663(Base, PulserInterface):
         wave_form_list = self.get_waveform_names()
 
         data_list = list()
-        # this looks like 4 analog channels and 6 digital
-        for i in range(4):
-            data_list.append(np.zeros(int(max_chunk_size * empty_chunk_array_factor), np.int16))
-        for i in range(6):
-            data_list.append(np.zeros(int(max_chunk_size * empty_chunk_array_factor), np.bool))
-
+        data_sizes = list()
         for ch, value in load_dict.items():
             if value in wave_form_list:
                 wavefile = '{0}.pkl'.format(value)
                 filepath = os.path.join(path, wavefile)
                 data = self.my_load_dict(filepath)
-                data_list[ch][0:len(data)] = data
-                data_size = len(data)
+                data_list.append(data)
+                data_sizes.append(len(data))
                 if '_a_ch' in value:
                     chan_name = 'a_ch{0}'.format(value.rsplit('a_ch')[1])
                     self.loaded_assets[chan_name] = value[:-6]
@@ -352,18 +267,20 @@ class AWG663(Base, PulserInterface):
                 data_size = 0
 
         # If data sizes don't match the first file, append empty rows
-        # TODO: This will only work for the last size loaded as data_size is a variable, not a list?
+        data_sizes = np.asarray(data_sizes)
+        max_size = np.max(data_sizes)
         new_list = list()
-        if data_size < len(data_list[0]):
+        if np.std(data_sizes)!=0:
             for row in data_list:
-                new_row = row[0:data_size]
+                new_row = np.zeros(max_size, np.int16)
+                new_row[0:len(row)] = row
                 new_list.append(new_row)
             data_list = new_list
 
         # See pg 80 in manual
         count = 0
-        while not data_size % 32 == 0:
-            data_size += 1
+        while not max_size % 32 == 0:
+            max_size += 1
             count += 1
         if not count == 1:
             extra = np.zeros(count, np.int16)
@@ -372,26 +289,18 @@ class AWG663(Base, PulserInterface):
                 new_row = np.concatenate((row, extra), axis=0)
                 new_list.append(new_row)
             data_list = new_list
-
-        self.instance.set_memory_size(int(data_size))
+        self.instance.set_memory_size(int(max_size))
 
         # Runs a threaded method to upload to both cards simultaneously
         # data_list is a list of analog and digital values
-        # data_list[0, 1, 4, 5, 6] goes to card 0
-        # data_list[2, 3, 7, 8, 9] goes to card 1
-        self.log.info(f'Uploading waveform set "{list(self.loaded_assets.values())[0]}" from {self.waveform_folder} '
-                      f'to AWG...')
-        if not data_size == 0:
-            self.instance.upload(data_list, data_size, mem_offset=0)
+        if not max_size == 0:
+            self.instance.upload(data_list, max_size, mem_offset=0)
             self.typeloaded = 'waveform'
-            # print(data_list[0][0:5])
         self.log.info('Loaded waveform!')
         return load_dict
 
     def load_sequence(self, sequence_name):
-        """
-        TODO: Does not appear to work as SequenceFile is left upmapped
-        Loads a sequence to the channels of the device in order to be ready for playback.
+        """ Loads a sequence to the channels of the device in order to be ready for playback.
         For devices that have a workspace (i.e. AWG) this will load the sequence from the device
         workspace into the channels.
         For a device without mass memory this will make the waveform/pattern that has been
@@ -408,59 +317,7 @@ class AWG663(Base, PulserInterface):
 
         @return dict: Dictionary containing the actually loaded waveforms per channel.
         """
-
-        # create new dictionary with keys = num_of_ch and item = waveform
-
-        max_chunk_size = self.instance.max_chunk_size
-        empty_chunk_array_factor = self.instance.empty_chunk_array_factor
-        if isinstance(sequence_name, list):
-            new_dict = dict()
-            for waveform in sequence_name:
-                channel = int(waveform.rsplit('_ch', 1)[1])
-                new_dict[channel] = waveform
-            load_dict = new_dict
-
-        # load possible sequences
-        path = self.SequenceFile
-        wave_form_dict = self.my_load_dict(path)
-
-        # with open(path,'w') as json_file:
-        #     wave_form_dict  = json.load(json_file)
-        # dict_path = os.path.join('awg', 'SequenceDict.pkl')
-        # pkl_file = open(dict_path, 'rb')
-        # wave_form_dict = pickle.load(pkl_file)
-        # pkl_file.close()
-
-        data_list = list()
-        # this looks like 4 analog channels and 6 digital
-        for i in range(4):
-            data_list.append(np.zeros(int(max_chunk_size * empty_chunk_array_factor), np.int16))
-        for i in range(6):
-            data_list.append(np.zeros(int(max_chunk_size * empty_chunk_array_factor), np.bool))
-
-        # key_list = list()
-
-        # for key in wave_form_dict.keys():
-        # key_list.append(key.rsplit('_a',1)[0])
-
-        # find the given sequence in the dictionary and load to the wanted channel
-        for chan, wave_name in load_dict.items():
-            wave_form = wave_form_dict.get(wave_name)
-            if wave_form is not None:
-                # prepare_ch(name=)
-                # self.instance.upload_wave_from_list(wave_form)
-                data = np.asarray(wave_form * (2 ** 15 - 1), dtype=np.int16)
-                data_list[chan][0:len(wave_form)] = data
-                # plt.plot(data)
-                # plt.show()
-                data_size = len(wave_form)
-            else:
-                self.log.error(wave_name + ' not in dictionary')
-        
-        self.instance.upload(data_list, data_size, mem_offset=0)
-        self.log.info('Loaded sequence!')
-        #Sequnce mode needs to be implemented for this AWG
-        return load_dict
+        pass
 
     def get_loaded_assets(self):
         """
@@ -848,36 +705,24 @@ class AWG663(Base, PulserInterface):
 
         # data is converted from float64 to int16
         # if name not in wave_dict:
-        self.debug_analog_samples = analog_samples
-        self.debug_convert = {}
-        self.debug_full_signal = {}
         for chan, value in analog_samples.items():
             full_name = '{0}_{1}'.format(name, chan)
             wavename = '{0}.pkl'.format(full_name)
             path = os.path.join(self.waveform_folder, wavename)
-
-            if not value.dtype == 'float64':
-                convert = np.zeros(len(value), dtype='float64')
-                ch_amp = self.get_analog_level(amplitude=[chan])
-                convert[0:len(value)] = value * ch_amp[0][chan]
-                value = convert
-                self.debug_convert[chan] = convert
+            max_amplitude = self.instance.cards[0].get_amplitude(0)/1e3 # assumed all channels are set to same max amplitude
 
             if is_first_chunk:
-                full_signal = np.asarray(value * (2 ** 15 - 1), dtype=np.int16)
-                # print(value[0:5])
+                full_signal = np.asarray(value/max_amplitude * (2 ** 15 - 1), dtype=np.int16)
             else:
                 old_part = self.my_load_dict(path)
-                new_part = np.asarray(value * (2 ** 15 - 1), dtype=np.int16)
+                new_part = np.asarray(value/max_amplitude * (2 ** 15 - 1), dtype=np.int16)
                 full_signal = np.concatenate((old_part, new_part))
 
             self.my_save_dict(full_signal, path)
             waveforms.append(full_name)
             total_length = len(full_signal)
-            self.debug_full_signal[chan] = full_signal
 
         for chan, value in digital_samples.items():
-            # Fix for inverting channel 2 (switch channel)
             if chan == self.invert_channel:
                 self.log.info(f"Inverting channel {chan}")
                 value = np.invert(value)

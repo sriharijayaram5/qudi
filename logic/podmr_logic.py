@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-
+# 2024-01-30 created by Sreehari Jayaram and Malik Lenger
 """
 This file contains the Qudi Logic module base class.
 
@@ -820,7 +820,7 @@ class ODMRLogic(GenericLogic):
                 if not exists:
                     break
 
-            if True:#not exists:
+            if not exists:
                 ele.append(po.PulseBlockElement(init_length_s=dur,  pulse_function=a_ch, digital_high=d_ch))
                 pulse_block = po.PulseBlock(name=f'SinAuto', element_list=ele)
                 
@@ -834,7 +834,7 @@ class ODMRLogic(GenericLogic):
                 ensemblename = auto_pulse_CW.name
                 self._pulsed_master_AWG.sequencegeneratorlogic().save_ensemble(ensemble)
                 self._pulsed_master_AWG.sequencegeneratorlogic().sample_pulse_block_ensemble(ensemblename)
-                self._pulsed_master_AWG.sequencegeneratorlogic().load_ensemble(ensemblename)
+                # self._pulsed_master_AWG.sequencegeneratorlogic().load_ensemble(ensemblename)
             ensemble_list.append(channel_list)
 
         self._pulsed_master_AWG.pulsedmeasurementlogic().pulsegenerator().load_triggered_multi_replay(ensemble_list) # refer to load_AWG_sine_for_IQ for names

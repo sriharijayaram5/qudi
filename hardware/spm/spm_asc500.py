@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+# 2024-01-30 created by Sreehari Jayaram and Malik Lenger
 """
 SPM ASC500 implementation.
 
