@@ -712,25 +712,35 @@ class ODMRLogic(GenericLogic):
         else:
             channels = clear(channels)
             channels[a_ch(self._odmr_counter._pulser._laser_analog_channel)] = self.laser_power_voltage
-            channels[d_ch(self._odmr_counter._pulser._awg_trig)] = 1.0
+            channels[d_ch(self._odmr_counter._pulser._mw_switch)] = 1.0
             block_1.append(init_length = 1.5e-6, channels = channels, repetition = 1)
             
+            channels = clear(channels)
+            channels[a_ch(self._odmr_counter._pulser._laser_analog_channel)] = self.laser_power_voltage
+            channels[d_ch(self._odmr_counter._pulser._awg_trig)] = 1.0
+            channels[d_ch(self._odmr_counter._pulser._mw_switch)] = 1.0
+            sync_time = self._pulsed_master_AWG.pulsedmeasurementlogic().pulsegenerator().AWG_sync_time
+            block_1.append(init_length = sync_time, channels = channels, repetition = 1)
+
             channels = clear(channels)
             channels[a_ch(self._odmr_counter._pulser._laser_analog_channel)] = self.laser_power_voltage
             channels[d_ch(self._odmr_counter._pulser._mw_switch)] = 1.0
             block_1.append(init_length = pi_pulse, channels = channels, repetition = 1)
             
             channels = clear(channels)
+            channels[d_ch(self._odmr_counter._pulser._mw_switch)] = 1.0
             channels[a_ch(self._odmr_counter._pulser._laser_analog_channel)] = self.laser_power_voltage
             block_1.append(init_length = 1e-6 + self._odmr_counter._pulser._pulse_heating_delay, channels = channels, repetition = 1)
             
             channels = clear(channels)
+            channels[d_ch(self._odmr_counter._pulser._mw_switch)] = 1.0
             channels[d_ch(self._odmr_counter._pulser._laser_channel)] = 1.0
             channels[a_ch(self._odmr_counter._pulser._laser_analog_channel)] = self.laser_power_voltage
             channels[d_ch(self._odmr_counter._pulser._pixel_start)] = 1.0 # pulse to TT channel detect
             block_1.append(init_length = 3e-6, channels = channels, repetition = 1)
             
             channels = clear(channels)
+            channels[d_ch(self._odmr_counter._pulser._mw_switch)] = 1.0
             channels[a_ch(self._odmr_counter._pulser._laser_analog_channel)] = self.laser_power_voltage
             channels[d_ch(self._odmr_counter._pulser._pixel_stop)] = 1.0 # pulse to TT channel next
             block_1.append(init_length = 0.1e-6, channels = channels, repetition = 1)
@@ -788,16 +798,17 @@ class ODMRLogic(GenericLogic):
         self._pulsed_master_AWG.toggle_pulse_generator(False)
         self._pulsed_master_AWG.pulsedmeasurementlogic().pulsegenerator().instance.init_all_channels()
 
-        cw_freq = mw_stop + 2*mw_step
+        cw_freq = mw_stop + 100e6 #2*mw_step - the step method seemed to be giving funny signals 
+        # since the LO would be quite close to resonance and there was LO power possibly leaking to other freq. points
         deltas = cw_freq - np.arange(mw_start, mw_stop + mw_step, mw_step)
         def IQ_Seq_element(delta):
             return [
-            {'name': 'a_ch0', 'amp': 1.00, 'freq': delta, 'phase': 0.00},
-            {'name': 'a_ch1', 'amp': 1.00, 'freq': delta, 'phase': 100.00}
+            {'name': 'a_ch0', 'amp': 2.00, 'freq': delta, 'phase': 0.00},
+            {'name': 'a_ch1', 'amp': 2.00, 'freq': delta, 'phase': 100.00}
             ]
-        IQ_Seq = [IQ_Seq_element(round(delta)) for delta in deltas]
+        IQ_Seq = [IQ_Seq_element(delta) for delta in deltas]
         pp = pi_pulse if not pi_pulse == None else self.pi_half_pulse
-        dur = pp + 1.4e-6 + 3e-6 # refer to make PODMR_AWG sequence for PS 
+        dur = pp# refer to make PODMR_AWG sequence for PS 
         # self.log.info(f'{(mw_start, mw_stop, mw_step, sweep_mw_power, pp, dur)}')
 
         ensemble_list = []
@@ -810,8 +821,7 @@ class ODMRLogic(GenericLogic):
                 freq = ch['freq']
                 a_ch[ch['name']] = SF.Sin(amplitude=ch['amp'], frequency=ch['freq'], phase=ch['phase'])
                 
-            
-            ens = f'SinPODMR_{freq}'
+            ens = f'SinPODMR_{freq,dur}'
             channel_list = [f'{ens}_a_ch{i}.pkl' for i in [0,1]]
 
             for wavefile in channel_list:
@@ -828,14 +838,14 @@ class ODMRLogic(GenericLogic):
 
                 block_list = []
                 block_list.append((pulse_block.name, 0))
-                auto_pulse_CW = po.PulseBlockEnsemble(f'SinPODMR_{freq}', block_list)
+                auto_pulse_CW = po.PulseBlockEnsemble(f'SinPODMR_{freq,dur}', block_list)
                 
                 ensemble = auto_pulse_CW
                 ensemblename = auto_pulse_CW.name
                 self._pulsed_master_AWG.sequencegeneratorlogic().save_ensemble(ensemble)
                 self._pulsed_master_AWG.sequencegeneratorlogic().sample_pulse_block_ensemble(ensemblename)
                 # self._pulsed_master_AWG.sequencegeneratorlogic().load_ensemble(ensemblename)
-            ensemble_list.append(channel_list)
+            ensemble_list.append(ens)
 
         self._pulsed_master_AWG.pulsedmeasurementlogic().pulsegenerator().load_triggered_multi_replay(ensemble_list) # refer to load_AWG_sine_for_IQ for names
         self._mw_device.set_cw(cw_freq, sweep_mw_power)
@@ -1067,16 +1077,19 @@ class ODMRLogic(GenericLogic):
                 parameters['frequency range'] = str(ii)
 
                 key = 'channel: {0}, range: {1}'.format(0, -1)
-                if len(self.fits_performed[key][0])!=0:
-                    result_str = units.create_formatted_output(self.fits_performed[key][2].result_str_dict)
-                    parameters['Fit result'] = result_str
-                parameters.update(self.pulsed_analysis_settings)
+                try:
+                    if len(self.fits_performed[key][0])!=0:
+                        result_str = units.create_formatted_output(self.fits_performed[key][2].result_str_dict)
+                        parameters['Fit result'] = result_str
+                    parameters.update(self.pulsed_analysis_settings)
 
-                key = 'channel: {0}, range: {1}'.format(nch, ii)
-                if key in self.fits_performed.keys():
-                    parameters['Fit function'] = self.fits_performed[key][3]
-                    for name, param in self.fits_performed[key][2].params.items():
-                        parameters[name] = str(param)
+                    key = 'channel: {0}, range: {1}'.format(nch, ii)
+                    if key in self.fits_performed.keys():
+                        parameters['Fit function'] = self.fits_performed[key][3]
+                        for name, param in self.fits_performed[key][2].params.items():
+                            parameters[name] = str(param)
+                except:
+                    self.log.warning('Fit key failed.')
                 # add all fit parameter to the saved data:
                 # hard coded in the nchannel and range index for drawing the fit into the figure! oopsie
                 fig = self.draw_figure(0, -1,

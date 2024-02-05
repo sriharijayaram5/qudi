@@ -64,10 +64,13 @@ class AWG:
         c1.set_trigger_mode(0, 'pos_edge')
         c1.set_trigger_mode(1, 'pos_edge')
 
-        c1.set_trigger_level0(0, 200)
-        c1.set_trigger_level0(1, 200)
+        c1.set_trigger_level0(0, 1300)
+        c1.set_trigger_level0(1, 1300)
         c0.set_trigger_ormask(0, 0)
         c1.set_trigger_ormask(1, 1)
+
+        c0.set32(SPC_TRIG_TERM, 1) # '0' is 1MOhm termination - '1' is 50Ohm termination for the trigger input
+        c1.set32(SPC_TRIG_TERM, 1) # '0' is 1MOhm termination - '1' is 50Ohm termination for the trigger input
 
     def run_in_sequence_mode(self, seq):
         self.uploading = True

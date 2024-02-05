@@ -79,6 +79,7 @@ class AWG663(Base, PulserInterface):
         self.instance.cards[1].set_amplitude(0, max_amplitude)
         self.instance.cards[1].set_amplitude(1, max_amplitude)
         active_chan = self.get_constraints().activation_config['hira_config']
+        self.AWG_sync_time = 16e-9 + 476.5/1.25e9 # 476.5 sample clocks +16ns -- value in seconds
         self.loaded_assets = dict.fromkeys(active_chan)
 
     def on_deactivate(self):
@@ -282,7 +283,7 @@ class AWG663(Base, PulserInterface):
         while not max_size % 32 == 0:
             max_size += 1
             count += 1
-        if not count == 1:
+        if count>0:
             extra = np.zeros(count, np.int16)
             new_list = list()
             for row in data_list:
@@ -1024,7 +1025,7 @@ class AWG663(Base, PulserInterface):
             while not data_size % 32 == 0:
                 data_size += 1
                 count += 1
-            if not count == 1:
+            if count>0:
                 extra = np.zeros(count, np.int16)
                 new_list = list()
                 for row in data_list:

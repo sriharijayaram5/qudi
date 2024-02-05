@@ -222,7 +222,7 @@ class NetworkStream(QZMQStream):
         msg_frames = wire_msg[delim_idx + 2:]
 
         def jdecode(msg):
-            return json.loads(msg.decode('ascii'))
+            return json.loads(msg.decode('utf-8'))
 
         m = {'header': jdecode(msg_frames[0]), 'parent_header': jdecode(msg_frames[1]),
              'metadata': jdecode(msg_frames[2]), 'content': jdecode(msg_frames[3])}
