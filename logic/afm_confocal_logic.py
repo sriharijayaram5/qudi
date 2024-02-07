@@ -2938,6 +2938,7 @@ class AFMConfocalLogic(GenericLogic):
                 # upload the IQ signal for + and - delta frequencies. Should be triggerable. Only the CW MW will change during scan
                 self._pulsed_master_AWG.toggle_pulse_generator(False)
                 self._AWG.instance.init_all_channels()
+                LO_freq = res_freq + 100e6
                 self.load_AWG_sine_for_IQ(delta_0, pi_half_duration)            
                 self._AWG.load_triggered_multi_replay(['SinSPM0', 'SinSPM1']) # refer to load_AWG_sine_for_IQ for names
             else:
@@ -2999,7 +3000,7 @@ class AFMConfocalLogic(GenericLogic):
             self.res_freq_array = np.ones((coord1_num, coord0_num)) * (res_freq if mw_tracking_mode else res_estimate)
             if mw_tracking_mode:
                 self.delta_array = np.ones((coord1_num, coord0_num)) * delta_0
-                self._mw.set_cw(res_freq, mw_power)
+                self._mw.set_cw(LO_freq, mw_power)
                 self._mw.cw_on()
             else:
                 self._mw.cw_on_3()
@@ -3124,7 +3125,7 @@ class AFMConfocalLogic(GenericLogic):
 
                             try:
                                 # self._mw.set_cw_2(res_estimate, mw_power) #trying with _3 to minimize unnecessary calls to device
-                                self._mw.set_cw_tracking(res_estimate, mw_power) # minimal cw set function _3 is used which does not repeat setting of power
+                                self._mw.set_cw_tracking(res_estimate + 100e6, mw_power) # minimal cw set function _3 is used which does not repeat setting of power
                                 # self._mw.cw_on_3() # no need for ON maybe - since never switched OFF
                             except:
                                 self._stop_request = True
@@ -3299,15 +3300,15 @@ class AFMConfocalLogic(GenericLogic):
         """
         IQ_Seq = [
             [
-            {'name': 'a_ch0', 'amp': 1.00, 'freq': delta, 'phase': 0.00},
-            {'name': 'a_ch1', 'amp': 1.00, 'freq': delta, 'phase': 100.00}
+            {'name': 'a_ch0', 'amp': 2.00, 'freq': 100e6 + delta, 'phase': 0.00},
+            {'name': 'a_ch1', 'amp': 2.00, 'freq': 100e6 + delta, 'phase': 100.00}
             ],
             [
-            {'name': 'a_ch0', 'amp': 1.00, 'freq': delta, 'phase': 100.00},
-            {'name': 'a_ch1', 'amp': 1.00, 'freq': delta, 'phase': 0.00}
+            {'name': 'a_ch0', 'amp': 2.00, 'freq': 100e6 - delta, 'phase': 0.00},
+            {'name': 'a_ch1', 'amp': 2.00, 'freq': 100e6 - delta, 'phase': 100.00}
             ]
                             ]
-        dur=pi_half_duration + 1.4e-6 + 1e-6 # refer to make PODMR_AWG sequence for PS down below for the timings
+        dur=pi_half_duration # refer to make PODMR_AWG sequence for PS down below for the timings
 
         for iseq, seq in enumerate(IQ_Seq):
             ele = []
@@ -3329,7 +3330,6 @@ class AFMConfocalLogic(GenericLogic):
             ensemblename = auto_pulse_CW.name
             self._pulsed_master_AWG.sequencegeneratorlogic().save_ensemble(ensemble)
             self._pulsed_master_AWG.sequencegeneratorlogic().sample_pulse_block_ensemble(ensemblename)
-            self._pulsed_master_AWG.sequencegeneratorlogic().load_ensemble(ensemblename)
         
     def extract_resonance(self, esr_meas_mean, freq_list, line_num, index):
         # fit = False
@@ -3369,7 +3369,7 @@ class AFMConfocalLogic(GenericLogic):
 
         var_num = len(var_list)
         var_incr = var_list[1] - var_list[0]
-        LO_freq = res_freq + (var_incr * int(var_num/2)) +  (2 * var_incr)
+        LO_freq = res_freq + (var_incr * int(var_num/2)) +  100e6
 
         new_var_start = res_freq - (var_incr * int(var_num/2))
         new_var_stop = res_freq + (var_incr * int(var_num/2))
@@ -4718,25 +4718,34 @@ class AFMConfocalLogic(GenericLogic):
 
             channels = clear(channels)
             channels[a_ch(self._pulser._laser_analog_channel)] = self._podmr.laser_power_voltage
-            channels[d_ch(self._pulser._awg_trig)] = 1.0
+            channels[d_ch(self._pulser._mw_switch)] = 1.0
             block_1.append(init_length = 1.4e-6, channels = channels, repetition = 1)
             
+            channels = clear(channels)
+            channels[a_ch(self._pulser._laser_analog_channel)] = self._podmr.laser_power_voltage
+            channels[d_ch(self._pulser._mw_switch)] = 1.0
+            channels[d_ch(self._pulser._awg_trig)] = 1.0
+            block_1.append(init_length = self._AWG.AWG_sync_time, channels = channels, repetition = 1)
+
             channels = clear(channels)
             channels[a_ch(self._pulser._laser_analog_channel)] = self._podmr.laser_power_voltage
             channels[d_ch(self._pulser._mw_switch)] = 1.0
             block_1.append(init_length = pi_half_pulse, channels = channels, repetition = 1)
             
             channels = clear(channels)
+            channels[d_ch(self._pulser._mw_switch)] = 1.0
             channels[a_ch(self._pulser._laser_analog_channel)] = self._podmr.laser_power_voltage
             block_1.append(init_length = 1e-6+self._pulser._pulse_heating_delay, channels = channels, repetition = 1)
             
             channels = clear(channels)
+            channels[d_ch(self._pulser._mw_switch)] = 1.0
             channels[d_ch(self._pulser._laser_channel)] = 1.0
             channels[a_ch(self._pulser._laser_analog_channel)] = self._podmr.laser_power_voltage
             channels[d_ch(self._pulser._pixel_start)] = 1.0 # pulse to TT channel detect
             block_1.append(init_length = 3e-6, channels = channels, repetition = 1)
             
             channels = clear(channels)
+            channels[d_ch(self._pulser._mw_switch)] = 1.0
             channels[a_ch(self._pulser._laser_analog_channel)] = self._podmr.laser_power_voltage
             channels[d_ch(self._pulser._pixel_stop)] = 1.0 # pulse to TT channel next
             block_1.append(init_length = 0.1e-6, channels = channels, repetition = 1)
@@ -6657,8 +6666,8 @@ class AFMConfocalLogic(GenericLogic):
 
         delta = abs(LO_freq - target_freq) # we always use a higher LO and a low shifiting AWG phase for I and Q. Hardcoded below
 
-        ch = [   {'name': 'a_ch0', 'amp': 1.00, 'freq': delta, 'phase': 0.00},
-                 {'name': 'a_ch1', 'amp': 1.00, 'freq': delta, 'phase': 100.00}
+        ch = [   {'name': 'a_ch0', 'amp': 2.00, 'freq': delta, 'phase': 0.00},
+                 {'name': 'a_ch1', 'amp': 2.00, 'freq': delta, 'phase': 100.00}
              ]
         
         self.load_sin(channels = ch, dur = 5e-6, identifier = 'A')

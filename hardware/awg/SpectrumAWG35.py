@@ -69,8 +69,8 @@ class AWG:
         c0.set_trigger_ormask(0, 0)
         c1.set_trigger_ormask(1, 1)
 
-        c0.set32(SPC_TRIG_TERM, 1) # '0' is 1MOhm termination - '1' is 50Ohm termination for the trigger input
-        c1.set32(SPC_TRIG_TERM, 1) # '0' is 1MOhm termination - '1' is 50Ohm termination for the trigger input
+        c0.set32(SPC_TRIG_TERM, 1) # '0' is 1kOhm termination - '1' is 50Ohm termination for the trigger input
+        c1.set32(SPC_TRIG_TERM, 1) # '0' is 1kOhm termination - '1' is 50Ohm termination for the trigger input
 
     def run_in_sequence_mode(self, seq):
         self.uploading = True
