@@ -75,6 +75,7 @@ class MicrowaveSgs(Base, MicrowaveInterface):
         self._command_wait('*CLS')
         self._command_wait('*RST')
         self._command_wait(':LOCK? 72349234')
+        self.set_IQ_mode(mode=1)
         return
 
     def on_deactivate(self):
@@ -104,14 +105,14 @@ class MicrowaveSgs(Base, MicrowaveInterface):
         limits.supported_modes = (MicrowaveMode.CW, MicrowaveMode.SWEEP)
 
         # values for SMBV100A
-        limits.min_power = -145
-        limits.max_power = 30
+        limits.min_power = -125
+        limits.max_power = 4 #actually the range is +25dbm. However, the used amplifier only allows up to +5dbm
 
         limits.min_frequency = 9e3
         limits.max_frequency = 6e9
 
         if self.model == 'SGS100A':
-            limits.max_frequency = 3.2e9
+            limits.max_frequency = 12.75e9
 
         limits.list_minstep = 0.1
         limits.list_maxstep = limits.max_frequency - limits.min_frequency
@@ -394,4 +395,13 @@ class MicrowaveSgs(Base, MicrowaveInterface):
 
         self._connection.write('*TRG')
         time.sleep(self._FREQ_SWITCH_SPEED)  # that is the switching speed
+        return 0
+
+    def set_IQ_mode(self, mode=1):
+        """
+        Switches on (mode=1) the IQ modulation inbuilt into the SGS100A
+
+        @return int: error code (0:OK, -1:error)
+        """
+        self._command_wait(f':IQ:STAT {mode}')
         return 0

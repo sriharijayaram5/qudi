@@ -803,8 +803,8 @@ class ODMRLogic(GenericLogic):
         deltas = cw_freq - np.arange(mw_start, mw_stop + mw_step, mw_step)
         def IQ_Seq_element(delta):
             return [
-            {'name': 'a_ch0', 'amp': 2.00, 'freq': delta, 'phase': 0.00},
-            {'name': 'a_ch1', 'amp': 2.00, 'freq': delta, 'phase': 100.00}
+            {'name': 'a_ch0', 'amp': 0.50, 'freq': delta, 'phase': 0.00},
+            {'name': 'a_ch1', 'amp': 0.50, 'freq': delta, 'phase': 100.00}
             ]
         IQ_Seq = [IQ_Seq_element(delta) for delta in deltas]
         pp = pi_pulse if not pi_pulse == None else self.pi_half_pulse
@@ -1096,6 +1096,7 @@ class ODMRLogic(GenericLogic):
                                        cbar_range=colorscale_range,
                                        percentile_range=percentile_range)
 
+                fig.suptitle(f'{filepath}\{filelabel}', fontsize=8)
                 self._save_logic.save_data(data,
                                            filepath=filepath,
                                            parameters=parameters,

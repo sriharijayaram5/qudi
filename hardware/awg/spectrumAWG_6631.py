@@ -73,7 +73,7 @@ class AWG663(Base, PulserInterface):
 
         self.instance.init_all_channels()
         # Set the amplitude of a channel in mV (into 50 Ohms)
-        max_amplitude = 2000
+        max_amplitude = 500 # IQ Mixer cannot handle more than 5dBm
         self.instance.cards[0].set_amplitude(0, max_amplitude)
         self.instance.cards[0].set_amplitude(1, max_amplitude)
         self.instance.cards[1].set_amplitude(0, max_amplitude)

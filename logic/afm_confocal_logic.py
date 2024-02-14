@@ -287,6 +287,7 @@ class AFMConfocalLogic(GenericLogic):
     fitlogic = Connector(interface='FitLogic')
     pulser = Connector(interface='PulserInterface')
     microwave = Connector(interface='MicrowaveInterface')
+    microwave1 = Connector(interface='MicrowaveInterface')
     pulsed_master = Connector(interface='PulsedMasterLogic')
     pulsed_master_AWG = Connector(interface='PulsedMasterLogic')
     podmr = Connector(interface='ODMRLogic')
@@ -514,6 +515,7 @@ class AFMConfocalLogic(GenericLogic):
         self._fitlogic = self.fitlogic()
         self._pulser = self.pulser()
         self._mw = self.microwave()
+        self._mw1 = self.microwave1()
         self._pulsed_master = self.pulsed_master()
         self._pulsed_master_AWG = self.pulsed_master_AWG()
         self._AWG = self._pulsed_master_AWG.pulsedmeasurementlogic().pulsegenerator()
@@ -3300,12 +3302,12 @@ class AFMConfocalLogic(GenericLogic):
         """
         IQ_Seq = [
             [
-            {'name': 'a_ch0', 'amp': 2.00, 'freq': 100e6 + delta, 'phase': 0.00},
-            {'name': 'a_ch1', 'amp': 2.00, 'freq': 100e6 + delta, 'phase': 100.00}
+            {'name': 'a_ch0', 'amp': 0.50, 'freq': 100e6 + delta, 'phase': 0.00},
+            {'name': 'a_ch1', 'amp': 0.50, 'freq': 100e6 + delta, 'phase': 100.00}
             ],
             [
-            {'name': 'a_ch0', 'amp': 2.00, 'freq': 100e6 - delta, 'phase': 0.00},
-            {'name': 'a_ch1', 'amp': 2.00, 'freq': 100e6 - delta, 'phase': 100.00}
+            {'name': 'a_ch0', 'amp': 0.50, 'freq': 100e6 - delta, 'phase': 0.00},
+            {'name': 'a_ch1', 'amp': 0.50, 'freq': 100e6 - delta, 'phase': 100.00}
             ]
                             ]
         dur=pi_half_duration # refer to make PODMR_AWG sequence for PS down below for the timings
@@ -5275,6 +5277,8 @@ class AFMConfocalLogic(GenericLogic):
 
             if tag is not None:
                 filelabel = f'{tag}_{filelabel}'
+            
+            fig.suptitle(f'{save_path}\{filelabel}', fontsize=8)
 
             fig = self._save_logic.save_data(image_data,
                                        filepath=save_path,
@@ -6666,8 +6670,8 @@ class AFMConfocalLogic(GenericLogic):
 
         delta = abs(LO_freq - target_freq) # we always use a higher LO and a low shifiting AWG phase for I and Q. Hardcoded below
 
-        ch = [   {'name': 'a_ch0', 'amp': 2.00, 'freq': delta, 'phase': 0.00},
-                 {'name': 'a_ch1', 'amp': 2.00, 'freq': delta, 'phase': 100.00}
+        ch = [   {'name': 'a_ch0', 'amp': 0.50, 'freq': delta, 'phase': 0.00},
+                 {'name': 'a_ch1', 'amp': 0.50, 'freq': delta, 'phase': 100.00}
              ]
         
         self.load_sin(channels = ch, dur = 5e-6, identifier = 'A')

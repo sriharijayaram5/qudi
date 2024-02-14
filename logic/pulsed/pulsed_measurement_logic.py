@@ -1558,7 +1558,7 @@ class PulsedMeasurementLogic(GenericLogic):
                 #            mode="expand", borderaxespad=0.)
             else:
                 fig = None
-
+            fig.suptitle(f'{filepath}\{filelabel}', fontsize=8)
             self.savelogic().save_data(data, timestamp=timestamp,
                                        parameters=parameters, fmt='%.15e',
                                        filepath=filepath, filelabel=filelabel, filetype='text',

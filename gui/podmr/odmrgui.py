@@ -356,6 +356,10 @@ class ODMRGui(GUIBase):
         self.sigDoFit.disconnect()
         self.sigMwSweepParamsChanged.disconnect()
 
+        self._mw.odmr_derivative_none_radioButton.toggled.disconnect()
+        self._mw.odmr_derivative_lorentzian_radioButton.toggled.disconnect()
+        self._mw.odmr_derivative_gaussian_radioButton.toggled.disconnect()
+
         self.sigSaveMeasurement.disconnect()
         self.sigAverageLinesChanged.disconnect()
         self._mw.action_run_stop.triggered.disconnect()
@@ -724,6 +728,7 @@ class ODMRGui(GUIBase):
     def run_stop_odmr(self, is_checked):
         """ Manages what happens if odmr scan is started/stopped. """
         if is_checked:
+            self._mw.odmr_derivative_none_radioButton.setChecked(True)
             # change the axes appearance according to input values:
             self._mw.odmr_PlotWidget.removeItem(self.odmr_fit_image)
             self._mw.sweep_power_DoubleSpinBox.setEnabled(False)
@@ -794,6 +799,10 @@ class ODMRGui(GUIBase):
         mx = x_data.max()
         self.sweep_start_line.setPos(mn)
         self.sweep_end_line.setPos(mx)
+
+        if self._mw.odmr_derivative_none_radioButton.isChecked():
+            self._mw.odmr_PlotWidget.enableAutoRange()
+
         if self._mw.odmr_derivative_lorentzian_radioButton.isChecked() or self._mw.odmr_derivative_gaussian_radioButton.isChecked():
             def vis(lm, param, res, delta):
                 c2, c1 = lm.eval(param, x = np.array([res-delta, res+delta]))
