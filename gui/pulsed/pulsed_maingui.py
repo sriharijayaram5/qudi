@@ -446,6 +446,7 @@ class PulsedMeasurementGui(GUIBase):
         self.pulsedmasterlogic().sigGeneratorSettingsUpdated.connect(self.pulse_generator_settings_updated)
         self.pulsedmasterlogic().sigSamplingSettingsUpdated.connect(self.generation_parameters_updated)
         self.pulsedmasterlogic().sigPredefinedSequenceGenerated.connect(self.predefined_generated)
+        self.pulsedmasterlogic().sigUpdateSaveTag.connect(lambda tag: self._mw.save_tag_LineEdit.setText(tag))
         return
 
     def _disconnect_main_window_signals(self):

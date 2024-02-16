@@ -273,6 +273,7 @@ class ODMRLogic(GenericLogic):
         if toggle:
             self.mw_scanmode = MicrowaveMode.CW
         else:
+            self.log.warning('This mode only works if there is a MW switch in the circuit! AWG allows continous passthrough of MW.')
             self.mw_scanmode = self.default_mode
     
     def set_trigger(self, trigger_pol, frequency):
