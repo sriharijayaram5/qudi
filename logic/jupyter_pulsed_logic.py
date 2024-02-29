@@ -127,6 +127,7 @@ class PulsedJupyterLogic(GenericLogic):
             for idx, ensemble in enumerate(large_seq):
                 ele = []
                 for step in ensemble:
+                    self.log.debug(step)
                     channels = step['channel_info']
                     dur = step['duration']
 
@@ -289,7 +290,7 @@ class PulsedJupyterLogic(GenericLogic):
             large_sequences.append(seq_part)
             names.append(name)
 
-        self.load_large_sin_seq(large_seq=large_sequences, identifier=names)
+        self.load_large_sin_seq(large_seq=[large_sequences], identifier=names)
         self.AWG_start()
     
     def Single_Freq(self, MW_0=False, MW_1=False):
@@ -338,7 +339,7 @@ class PulsedJupyterLogic(GenericLogic):
             #Break after Initalisation/read out
             self.ElementPS(channels={}, length=self.laser_waiting_time) 
             #Pi pulse - reference
-            self.ElementPS(channels={'MW_1':True}, length=self.pi_pulse, freq_1=tau)
+            self.ElementPS(channels={'MW_0':True}, length=self.pi_pulse, freq_0=tau)
             #Waiting time - tau
             self.ElementPS(channels={'TT_Next':True}, length=self.mw_waiting_time)
             #Read out
