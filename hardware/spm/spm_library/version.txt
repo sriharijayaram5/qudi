@@ -1,2 +1,0 @@
-smart spm library
-version 3.5.150b

@@ -71,7 +71,7 @@ class AWG663(Base, PulserInterface):
             self.log.error("Unable to connect to Spectrum AWG. It may be locked by another program.")
             return -1
 
-        self.instance.init_all_channels()
+        # self.instance.init_all_channels()
         # Set the amplitude of a channel in mV (into 50 Ohms)
         max_amplitude = 500 # IQ Mixer cannot handle more than 5dBm
         self.instance.cards[0].set_amplitude(0, max_amplitude)

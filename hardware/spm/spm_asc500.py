@@ -32,9 +32,6 @@ from interface.scanner_interface import ScannerInterface, ScannerMode, ScanStyle
                                         ScannerState, ScannerConstraints, ScannerMeasurements  
 from core.configoption import ConfigOption
 
-_binPath = 'C:\\Users\\yy3\\Documents\\Software\\qudi\\hardware\\spm\\spm_library\\ASC500_Python_Control\\Installer\\ASC500CL-V2.7.13'
-_dllPath = 'C:\\Users\\yy3\\Documents\\Software\\qudi\\hardware\\spm\\spm_library\\ASC500_Python_Control\\64bit_lib\\ASC500CL-LIB-WIN64-V2.7.13\\daisybase\\lib\\'
-
 class SPM_ASC500(Base, ScannerInterface):
     """SPM wrapper for the communication with the ASC500 module.
 
@@ -55,6 +52,8 @@ class SPM_ASC500(Base, ScannerInterface):
     sigCollectObjectiveCounts = QtCore.Signal()
 
     _sync_in_timeout = ConfigOption('sync_in_timeout', missing='warn', default=0)
+    _binPath = ConfigOption('binPath', missing='error', default=0)
+    _dllPath = ConfigOption('dllPath', missing='error', default=0)
 
     def __init__(self, config, **kwargs):
         """ Create CounterLogic object with connectors.
@@ -80,7 +79,7 @@ class SPM_ASC500(Base, ScannerInterface):
     def on_activate(self):
         """ Prepare and activate the spm module. """
 
-        self._dev = Device(_binPath, _dllPath)
+        self._dev = Device(self._binPath, self._dllPath)
 
         self._dev.base.startServer()
 
@@ -88,15 +87,16 @@ class SPM_ASC500(Base, ScannerInterface):
         self._spm_curr_state = ScannerState.UNCONFIGURED
 
         self._objective_x_volt, self._objective_y_volt, self._objective_z_volt = 0.0, 0.0, 0.0
-        self._dev.base.setParameter(self._dev.base.getConst('ID_GENDAC_LIMIT_RT'), 3e6, 0)
-        self._dev.base.setParameter(self._dev.base.getConst('ID_GENDAC_LIMIT_RT'), 3e6, 1)
-        self._dev.base.setParameter(self._dev.base.getConst('ID_GENDAC_LIMIT_RT'), 3e6, 2)
-        self._dev.base.setParameter(self._dev.base.getConst('ID_GENDAC_LIMIT_RT'), 3e6, 3)
+        self._obj_volt_ulim = 3e6 #in uV
+        self._dev.base.setParameter(self._dev.base.getConst('ID_GENDAC_LIMIT_RT'), self._obj_volt_ulim, 0)
+        self._dev.base.setParameter(self._dev.base.getConst('ID_GENDAC_LIMIT_RT'), self._obj_volt_ulim, 1)
+        self._dev.base.setParameter(self._dev.base.getConst('ID_GENDAC_LIMIT_RT'), self._obj_volt_ulim, 2)
+        self._dev.base.setParameter(self._dev.base.getConst('ID_GENDAC_LIMIT_RT'), self._obj_volt_ulim, 3)
 
-        self._dev.base.setParameter(self._dev.base.getConst('ID_GENDAC_LIMIT_LT'), 7.5e6, 0)
-        self._dev.base.setParameter(self._dev.base.getConst('ID_GENDAC_LIMIT_LT'), 7.5e6, 1)
-        self._dev.base.setParameter(self._dev.base.getConst('ID_GENDAC_LIMIT_LT'), 7.5e6, 2)
-        self._dev.base.setParameter(self._dev.base.getConst('ID_GENDAC_LIMIT_LT'), 7.5e6, 3)
+        self._dev.base.setParameter(self._dev.base.getConst('ID_GENDAC_LIMIT_LT'), self._obj_volt_ulim, 0)
+        self._dev.base.setParameter(self._dev.base.getConst('ID_GENDAC_LIMIT_LT'), self._obj_volt_ulim, 1)
+        self._dev.base.setParameter(self._dev.base.getConst('ID_GENDAC_LIMIT_LT'), self._obj_volt_ulim, 2)
+        self._dev.base.setParameter(self._dev.base.getConst('ID_GENDAC_LIMIT_LT'), self._obj_volt_ulim, 3)
 
         self.slew_rates = {'X2':None, 'Y2':None, 'Z2':None}
         # self.set_obj_slew_rate({'Z2':1})
@@ -246,7 +246,7 @@ class SPM_ASC500(Base, ScannerInterface):
     
     def _objective_piezo_act_pos(self):
         piezo_range = self._objective_piezo_act_range()
-        u_lim = self._dev.base.getParameter(self._dev.base.getConst('ID_GENDAC_LIMIT_CT'), 0)/1e6  
+        u_lim = self._obj_volt_ulim/1e6  
         obj_volt_range = np.array([0, u_lim])
         pos_interp_xy = interp1d(obj_volt_range, np.array([0.0 ,piezo_range[0]]), kind='linear', fill_value="extrapolate")
         pos_interp_z = interp1d(obj_volt_range, np.array([0.0 ,piezo_range[2]]), kind='linear', fill_value="extrapolate")
@@ -267,7 +267,7 @@ class SPM_ASC500(Base, ScannerInterface):
 
     def _objective_volt_for_pos(self, pos, xy):
         piezo_range = self._objective_piezo_act_range()
-        u_lim = self._dev.base.getParameter(self._dev.base.getConst('ID_GENDAC_LIMIT_CT'), 0)/1e6  
+        u_lim = self._obj_volt_ulim/1e6  
         obj_volt_range = np.array([0, u_lim])
         check_range = np.array([0.0 ,piezo_range[0]]) if xy else np.array([0.0 ,piezo_range[2]])
         if not (pos>=check_range.min() and pos<=check_range.max()):

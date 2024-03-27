@@ -25,6 +25,9 @@ class AWG:
         self.data_list = [None, None, None, None, None, None, None, None, None, None]
         self.set_external_clock_input()
         self.init_all_channels()
+        for c in self.cards:
+            c.init_markers(disable=False)
+            c.init_markers(disable=False)
         self.sequence = None
         self.save_data = True
         self.uploading = False
@@ -420,7 +423,6 @@ class Card():
             return
         self.serial = self.get_serial()
         self.digital_markers_enabled = False
-        self.init_markers(disable=False)
         self.temp_data = ()  # added this for debugging purposes and future plotting of data
 
     def init_markers(self, disable=False):
@@ -451,7 +453,7 @@ class Card():
         # print(str(self.ip))
         # print(str(self.cardNo))
         if 1:
-            address = "TCPIP::{0}::INST{1}::INSTR".format(self.ip, self.cardNo)
+            address = "TCPIP::{0}::inst{1}".format(self.ip, self.cardNo)
         else:
             address = "{0}{1}".format(self.ip, self.cardNo)
         self.handle = spcm_hOpen(create_string_buffer(bytes(address, 'utf8')))
