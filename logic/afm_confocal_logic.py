@@ -3985,7 +3985,7 @@ class AFMConfocalLogic(GenericLogic):
             # self._counter.start_recorder(arm=True)
             # self.log.debug('scan line started')
             self._spm.scan_line()
-            # self.log.debug('scan line ended')
+            self.log.debug('scan line ended')
             #FIXME: Uncomment for snake like scan, however, not recommended!!!
             #       As it will distort the picture.
             # if line_num % 2 == 0:
@@ -3994,7 +3994,7 @@ class AFMConfocalLogic(GenericLogic):
             #     self._obj_scan_array[arr_name]['data'][line_num] = self._counter.get_measurement()[::-1] / integration_time
 
             counts, int_time = self._spm.get_measurements(),  None
-            # self.log.debug('Line data returned for obj')
+            self.log.debug('Line data returned for obj')
 
             if int_time is None or np.any(np.isclose(int_time,0,atol=1e-12)):
                 int_time = integration_time
@@ -4463,12 +4463,13 @@ class AFMConfocalLogic(GenericLogic):
         #                                                res=res_z,
         #                                                integration_time=int_time_z,
         #                                                wait_first_point=True)
-        opti_scan_arr = self.scan_line_obj_by_line_opti(coord1_start=x_max,
-                                                        coord1_stop=x_max,
-                                                        coord0_start=z_start,
-                                                        coord0_stop=z_stop,
-                                                        res=res_z,
-                                                        integration_time=int_time_z)
+        if not self._spm._galvo_mode:
+            opti_scan_arr = self.scan_line_obj_by_line_opti(coord1_start=x_max,
+                                                            coord1_stop=x_max,
+                                                            coord0_start=z_start,
+                                                            coord0_stop=z_stop,
+                                                            res=res_z,
+                                                            integration_time=int_time_z)
 
         if self._stop_request:
             
@@ -4478,34 +4479,40 @@ class AFMConfocalLogic(GenericLogic):
             
             self.sigOptimizeScanFinished.emit()
             return
+        
+        if not self._spm._galvo_mode:
+            z_max, c_max_z, res = self._calc_max_val_z(opti_scan_arr['opti_z']['data'], 
+                                                z_start, z_stop)
 
-        z_max, c_max_z, res = self._calc_max_val_z(opti_scan_arr['opti_z']['data'], 
-                                              z_start, z_stop)
+            self._opti_scan_array['opti_z']['params']['coord0 optimal pos (nm)'] = z_max
+            self._opti_scan_array['opti_z']['params']['signal at optimal pos (c/s)'] = c_max_z
+            self._opti_scan_array['opti_z']['data_fit'] = res.best_fit
 
-        self._opti_scan_array['opti_z']['params']['coord0 optimal pos (nm)'] = z_max
-        self._opti_scan_array['opti_z']['params']['signal at optimal pos (c/s)'] = c_max_z
-        self._opti_scan_array['opti_z']['data_fit'] = res.best_fit
+            # self.log.debug(f'Found maximum at: [{x_max*1e6:.2f}, {y_max*1e6:.2f}, {z_max*1e6:.2f}]')
 
-        # self.log.debug(f'Found maximum at: [{x_max*1e6:.2f}, {y_max*1e6:.2f}, {z_max*1e6:.2f}]')
-
-        self.set_obj_pos({'x': x_max, 'y': y_max, 'z': z_max})
+            self.set_obj_pos({'x': x_max, 'y': y_max, 'z': z_max})
 
 
+            self._optimizer_z_target_pos = z_max
         self._optimizer_x_target_pos = x_max
         self._optimizer_y_target_pos = y_max
-        self._optimizer_z_target_pos = z_max
-
-        self._opt_val = [x_max, y_max, c_max, z_max, c_max_z]
-        
+    
+        if not self._spm._galvo_mode:
+            self._opt_val = [x_max, y_max, c_max, z_max, c_max_z]
+        else:
+            self._opt_val = [x_max, y_max, c_max, 0, 0]
         # only unlock, if it is a standalone call.
         if optimizer_standalone_call:
             self.module_state.unlock()
 
-        self.sigOptimizeLineScanFinished.emit('opti_z')
+        if not self._spm._galvo_mode:
+            self.sigOptimizeLineScanFinished.emit('opti_z')
         self.sigOptimizeScanFinished.emit()
         # self._counter.stop_measurement()
-
-        return x_max, y_max, c_max, z_max, c_max_z
+        if not self._spm._galvo_mode:
+            return x_max, y_max, c_max, z_max, c_max_z
+        else:
+            return x_max, y_max, c_max, 0, 0
 
 
     def start_optimize_pos(self, x_start, x_stop, res_x, y_start, y_stop, res_y, 

@@ -744,3 +744,16 @@ class MicrowaveSMR(Base, MicrowaveInterface):
         if wait:
             self._gpib_connection.write('*WAI')
         return statuscode
+    
+    def _command_wait(self, command_str):
+        """
+        Writes the command in command_str via ressource manager and waits until the device has finished
+        processing it.
+
+        @param command_str: The command to be written
+        """
+        self._gpib_connection.write(command_str)
+        self._gpib_connection.write('*WAI')
+        while int(float(self._gpib_connection.query('*OPC?'))) != 1:
+            time.sleep(0.02)
+        return

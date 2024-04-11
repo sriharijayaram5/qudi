@@ -259,6 +259,7 @@ class ProteusQGUI(GUIBase):
 
         self.initMainUI()      # initialize the main GUI
         #self.default_view()
+        self._galvo_mode = self._qafm_logic._spm._galvo_mode
 
         self._qafm_logic.sigQAFMScanInitialized.connect(self.adjust_qafm_image)
         self._qafm_logic.sigQAFMLineScanFinished.connect(self._update_qafm_data)
@@ -283,6 +284,9 @@ class ProteusQGUI(GUIBase):
         self._mw.actionStart_Obj_XY_scan.triggered.connect(self.start_obj_scan_xy_scan_clicked )
         self._mw.actionStart_Obj_XZ_scan.triggered.connect(self.start_obj_scan_xz_scan_clicked )
         self._mw.actionStart_Obj_YZ_scan.triggered.connect(self.start_obj_scan_yz_scan_clicked )
+        if self._galvo_mode:
+            self._mw.actionStart_Obj_XZ_scan.setEnabled(False)
+            self._mw.actionStart_Obj_YZ_scan.setEnabled(False)
 
 
         self._qafm_logic.sigOptimizeScanInitialized.connect(self.adjust_optimizer_image)
@@ -902,12 +906,12 @@ class ProteusQGUI(GUIBase):
         z_target = self._mw.obj_target_z_DSpinBox.value()
         start = z_target-sd['optimizer_z_range']/2
         stop = z_target+sd['optimizer_z_range']/2
-        if start<0:
+        if start<0 and not self._galvo_mode:
             self.log.warning('Z position too low for optimize range')
             ret_val = False
 
         z_range = self._qafm_logic._spm.get_objective_scan_range(['Z2'])['Z2']
-        if stop>z_range:
+        if stop>z_range and not self._galvo_mode:
             self.log.warning('Z position too high for optimize range')
             ret_val = False
         
@@ -2433,8 +2437,8 @@ class ProteusQGUI(GUIBase):
 
     def toggle_obj_actions(self, toggle):
         self._mw.actionStart_Obj_XY_scan.setEnabled(toggle)
-        self._mw.actionStart_Obj_XZ_scan.setEnabled(toggle)
-        self._mw.actionStart_Obj_YZ_scan.setEnabled(toggle)
+        self._mw.actionStart_Obj_XZ_scan.setEnabled(False if self._galvo_mode else toggle)
+        self._mw.actionStart_Obj_YZ_scan.setEnabled(False if self._galvo_mode else toggle)
         self._mw.actionGo_To_Obj_pos.setEnabled(toggle)
         self._mw.actionOptimize_Pos.setEnabled(toggle)
         self._dockwidget_container[f'obj_xy'].graphicsView_matrix.toggle_crosshair(toggle)
@@ -2445,8 +2449,8 @@ class ProteusQGUI(GUIBase):
         toggle = not self._mw.actionLock_Obj.isChecked()
         self._mw.actionStart_QAFM_Scan.setEnabled(True)
         self._mw.actionStart_Obj_XY_scan.setEnabled(toggle)
-        self._mw.actionStart_Obj_XZ_scan.setEnabled(toggle)
-        self._mw.actionStart_Obj_YZ_scan.setEnabled(toggle)
+        self._mw.actionStart_Obj_XZ_scan.setEnabled(False if self._galvo_mode else toggle)
+        self._mw.actionStart_Obj_YZ_scan.setEnabled(False if self._galvo_mode else toggle)
         self._mw.actionGo_To_AFM_pos.setEnabled(True)
         self._mw.actionGo_To_Obj_pos.setEnabled(toggle)
         self._mw.actionLock_Obj.setEnabled(True)
@@ -2825,10 +2829,11 @@ class ProteusQGUI(GUIBase):
 
     def update_temperature(self):
         ranges = self._qafm_logic._spm.get_sample_scan_range()
+        obj_ranges = self._qafm_logic._spm.get_objective_scan_range()
 
-        self._obj_range_x_max = ranges['X']
-        self._obj_range_y_max = ranges['Y']
-        self._obj_range_z_max = ranges['Z']
+        self._obj_range_x_max = obj_ranges['X2']
+        self._obj_range_y_max = obj_ranges['Y2']
+        self._obj_range_z_max = obj_ranges['Z2']
 
         self._afm_range_x_max = ranges['X']
         self._afm_range_y_max = ranges['Y']

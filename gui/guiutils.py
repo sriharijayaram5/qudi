@@ -21,7 +21,7 @@ top-level directory of this distribution and at <https://github.com/Ulm-IQO/qudi
 """
 
 import pyqtgraph as pg
-
+import numpy as np
 
 class ColorBar(pg.GraphicsObject):
     """ Create a ColorBar according to a previously defined color map.
@@ -85,7 +85,8 @@ class ColorBar(pg.GraphicsObject):
         # then it should be adjusted according to the full screen.
         if vb is not None:
             # vb.updateAutoRange()
-            vb.setRange(pg.QtCore.QRectF(0, cb_min, width, cb_max-cb_min))
+            if all(np.isfinite([cb_min, width, cb_max-cb_min])):
+                vb.setRange(pg.QtCore.QRectF(0, cb_min, width, cb_max-cb_min))
             # vb.enableAutoRange()
 
     def paint(self, p, *args):

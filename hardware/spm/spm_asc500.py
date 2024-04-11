@@ -52,6 +52,13 @@ class SPM_ASC500(Base, ScannerInterface):
     sigCollectObjectiveCounts = QtCore.Signal()
 
     _sync_in_timeout = ConfigOption('sync_in_timeout', missing='warn', default=0)
+    _galvo_mode = ConfigOption('galvo_mode', missing='warn', default=False)
+    _obj_volt_ulim = ConfigOption('obj_volt_ulim_uV', missing='warn', default=3e6)
+    _galvo_range_ulim = ConfigOption('galvo_range_ulim', missing='warn', default=20e-6) # for scanner system this is simply the same as the sample scanner range so a config argument is not necessary
+    
+    _sample_scan_range = ConfigOption('sample_scan_range', missing='warn', default=None)
+    _sample_voltage_range = ConfigOption('sample_voltage_range', missing='warn', default=None)
+
     _binPath = ConfigOption('binPath', missing='error', default=0)
     _dllPath = ConfigOption('dllPath', missing='error', default=0)
 
@@ -87,7 +94,15 @@ class SPM_ASC500(Base, ScannerInterface):
         self._spm_curr_state = ScannerState.UNCONFIGURED
 
         self._objective_x_volt, self._objective_y_volt, self._objective_z_volt = 0.0, 0.0, 0.0
-        self._obj_volt_ulim = 3e6 #in uV
+        
+        # Set sample scan and voltage range if provided in config - ensure that Qudi startup of SPM will have the good output limits
+        if self._sample_scan_range:
+            self.set_sample_scan_range(self._sample_scan_range)
+        if self._sample_voltage_range:
+            self.set_sample_voltage_range(self._sample_voltage_range)
+
+        self.set_sample_scanner_speed(100) # start up with a reasonably slow value
+
         self._dev.base.setParameter(self._dev.base.getConst('ID_GENDAC_LIMIT_RT'), self._obj_volt_ulim, 0)
         self._dev.base.setParameter(self._dev.base.getConst('ID_GENDAC_LIMIT_RT'), self._obj_volt_ulim, 1)
         self._dev.base.setParameter(self._dev.base.getConst('ID_GENDAC_LIMIT_RT'), self._obj_volt_ulim, 2)
@@ -109,6 +124,8 @@ class SPM_ASC500(Base, ScannerInterface):
 
         self.liftoff_mode = False
         self.liftoff_height = 0
+
+        self.log.info("ASC500 Ready!")
 
         return
 
@@ -242,6 +259,8 @@ class SPM_ASC500(Base, ScannerInterface):
         
     def _objective_piezo_act_range(self):
         dict = self.get_sample_scan_range()
+        if self._galvo_mode:
+            dict = {'X': self._galvo_range_ulim,'Y': self._galvo_range_ulim,'Z': self._galvo_range_ulim}
         return dict['X'], dict['Y'], dict['Z']
     
     def _objective_piezo_act_pos(self):
@@ -256,12 +275,15 @@ class SPM_ASC500(Base, ScannerInterface):
                 return np.round(x,-1*int(np.ceil(np.log10(x))-4)) * 1e-6
             except OverflowError:
                 return np.round(x,0) * 1e-6
-            
-        self._objective_x_volt = rounder(self._dev.base.getParameter(self._dev.base.getConst('ID_DAC_VALUE'), 0) * 305.2)
-
-        self._objective_y_volt = rounder(self._dev.base.getParameter(self._dev.base.getConst('ID_DAC_VALUE'), 1) * 305.2)
-
-        self._objective_z_volt = rounder(self._dev.base.getParameter(self._dev.base.getConst('ID_DAC_VALUE'), 2) * 305.2)
+        
+        if self._galvo_mode:
+            self._objective_x_volt = rounder(self._dev.base.getParameter(self._dev.base.getConst('ID_DAC_VALUE'), 0) * 305.2)
+            self._objective_y_volt = rounder(self._dev.base.getParameter(self._dev.base.getConst('ID_DAC_VALUE'), 2) * 305.2)
+            self._objective_z_volt = u_lim/2 # hardcoding a dummy value -  not zero so the limit checks wont complain
+        else:
+            self._objective_x_volt = rounder(self._dev.base.getParameter(self._dev.base.getConst('ID_DAC_VALUE'), 0) * 305.2)
+            self._objective_y_volt = rounder(self._dev.base.getParameter(self._dev.base.getConst('ID_DAC_VALUE'), 1) * 305.2)
+            self._objective_z_volt = rounder(self._dev.base.getParameter(self._dev.base.getConst('ID_DAC_VALUE'), 2) * 305.2)
 
         return float(pos_interp_xy(self._objective_x_volt)), float(pos_interp_xy(self._objective_y_volt)), float(pos_interp_z(self._objective_z_volt))
 
@@ -333,7 +355,7 @@ class SPM_ASC500(Base, ScannerInterface):
         
         ret_val = 1
 
-        self._dev.scanner.resetScannerCoordSystem()
+        # self._dev.scanner.resetScannerCoordSystem()
         self._dev.scanner.setOutputsActive()
         self._dev.scanner.setDataEnable(1)
 
@@ -349,16 +371,22 @@ class SPM_ASC500(Base, ScannerInterface):
             # Objective scanning returns no parameters
             self._spm_curr_state =  ScannerState.IDLE
             self._chn_no = 13 # counter channel
+            if self._galvo_mode:
+                self.log.warning('Currently using galvo scanners. No Z axis scan available.')
 
         elif mode == ScannerMode.OBJECTIVE_YZ:
             # Objective scanning returns no parameters
             self._spm_curr_state =  ScannerState.IDLE
             self._chn_no = 13 # counter channel
+            if self._galvo_mode:
+                self.log.warning('Currently using galvo scanners. No Z axis scan available.')
         
         elif mode == ScannerMode.OBJECTIVE_ZX:
             # Objective scanning returns no parameters
             self._spm_curr_state =  ScannerState.IDLE
             self._chn_no = 13 # counter channel
+            if self._galvo_mode:
+                self.log.warning('Currently using galvo scanners. No Z axis scan available.')
 
         elif mode == ScannerMode.PROBE_CONTACT:
             # Scanner library specific style is always "LINE_STYLE" 
@@ -450,7 +478,7 @@ class SPM_ASC500(Base, ScannerInterface):
 
             if self._spm_curr_sstyle==ScanStyle.POINT:
                 while True:
-                    if self._dev.base.getParameter(self._dev.base.getConst('ID_SCAN_STATUS'), 0)==8: # should represent idle scan state
+                    if self._dev.base.getParameter(self._dev.base.getConst('ID_SCAN_STATUS'), 0)==0: #SCAN_STATUS=1 movement of scanner between points in v2, SCAN_STATUS=0 all other states
                         break
                 self._dev.base.setParameter(self._dev.base.getConst('ID_SPEC_PATHCTRL'), -1, 0 ) # -1 is grid mode
                 self._dev.scanner.setRelativeOrigin(self.end_coords) # set after path or it will attempt going to origin for some reason
@@ -556,7 +584,7 @@ class SPM_ASC500(Base, ScannerInterface):
             # Here the time_back coming from idle_time will set how was the sample scanner moves around
             # time_forward is set by integration time and will determine time spend at each point. Currently weirdly divided between all points in a line.
 
-            while self._dev.base.getParameter(self._dev.base.getConst('ID_PATH_RUNNING'), 0)==1 or self._dev.base.getParameter(self._dev.base.getConst('ID_SCAN_STATUS'), 0)==2:
+            while self._dev.base.getParameter(self._dev.base.getConst('ID_PATH_RUNNING'), 0)==1 or self._dev.base.getParameter(self._dev.base.getConst('ID_SCAN_STATUS'), 0)==1: #SCAN_STATUS=1 movement of scanner between points in v2, SCAN_STATUS=0 all other states
                 time.sleep(0.1)
                 pass
 
@@ -570,7 +598,7 @@ class SPM_ASC500(Base, ScannerInterface):
 
             if self._spm_curr_sstyle==ScanStyle.POINT:
                 while True:
-                    if self._dev.base.getParameter(self._dev.base.getConst('ID_SCAN_STATUS'), 0)==8: # should represent idle scan state
+                    if self._dev.base.getParameter(self._dev.base.getConst('ID_SCAN_STATUS'), 0)==0: #SCAN_STATUS=1 movement of scanner between points in v2, SCAN_STATUS=0 all other states
                         break
                 self._dev.base.setParameter(self._dev.base.getConst('ID_SPEC_PATHCTRL'), -1, 0 ) # -1 is grid mode
                 self._dev.scanner.setRelativeOrigin(self.end_coords) # set after path or it will attempt going to origin for some reason
@@ -671,7 +699,7 @@ class SPM_ASC500(Base, ScannerInterface):
             self._dev.base.setParameter(self._dev.base.getConst('ID_PATH_ACTION'), 6, 5)
 
             #configuration of autoapproach settings
-            # for HFAmpl signal
+            # for HFAmpl signal - due to the unit conversion specific to this (1e7), other signals for the loop might not work correctly - must check
             threshold = self._dev.base.getParameter(self._dev.base.getConst('ID_REG_SETP_DISP')) / 1e7
             self._dev.aap.setAApThreshold(threshold)
                     
@@ -729,7 +757,7 @@ class SPM_ASC500(Base, ScannerInterface):
 
         if self._spm_curr_mode == ScannerMode.PROBE_CONTACT:
             while True:
-                if self._dev.base.getParameter(self._dev.base.getConst('ID_PATH_RUNNING'), 0)==1 or self._dev.base.getParameter(self._dev.base.getConst('ID_SCAN_STATUS'), 0)==2:
+                if self._dev.base.getParameter(self._dev.base.getConst('ID_PATH_RUNNING'), 0)==1 or self._dev.base.getParameter(self._dev.base.getConst('ID_SCAN_STATUS'), 0)==1: #SCAN_STATUS=1 movement of scanner between points in v2, SCAN_STATUS=0 all other states
                     pass
                 else:
                     break
@@ -752,6 +780,11 @@ class SPM_ASC500(Base, ScannerInterface):
         axis_dict[keys[0]] = self.objective_scan_line[keys[0]][0]
         axis_dict[keys[1]] = self.objective_scan_line[keys[1]][0]
         self.set_objective_pos_abs(axis_dict)
+        while True:
+            if self._dev.base.getParameter(self._dev.base.getConst('ID_SPEC_STATUS'), self.spec_engine_dummy) == 1:
+                time.sleep(0.001)
+            else:
+                break
         self._dev.base.setParameter(self._dev.base.getConst('ID_SPEC_STATUS'), 1, self.spec_engine_dummy)
         self._poll_path_data()
 
@@ -1215,6 +1248,10 @@ class SPM_ASC500(Base, ScannerInterface):
     
     def _move_objective(self, axis, volt, move_time):
         axes = {'X2':0, 'Y2':1, 'Z2':2}
+        if self._galvo_mode:
+            axes = {'X2':0, 'Y2':2, 'Z2':3} # Z DAC is a dummy
+            if axis == 'Z2':
+                return self.get_objective_pos([axis]) # do not perform any movement  if Z is to be moved and in galvo mode        
         curr_volt = self._dev.base.getParameter(self._dev.base.getConst('ID_DAC_VALUE'), axes[axis])*305.2/1e6
         move_time=0.0
         if move_time==0:
@@ -1260,6 +1297,45 @@ class SPM_ASC500(Base, ScannerInterface):
 
     # Probe scanner Axis/Movement functions
     # ==============================
+    def set_sample_scan_range(self, axis_dict={'X': 21e-6,'Y': 21e-6,'Z': 7e-6}):
+        """ Set the sample scanner range for the provided axis label list. Only necessary if there is a bug which  makes Daisy forget the limits on restart
+
+        @param list axis_label_list: the axis label string list, entries either 
+                                     capitalized or lower case, possible values: 
+                                        ['X', 'X', 'Y', 'Y', 'Z', 'Z'] 
+                                     or postfixed with a '1':
+                                        ['X', 'X', 'Y', 'Y', 'Z', 'Z'] 
+
+        @return dict: sample scanner range dict with requested entries in m 
+                      (SI units).
+        """
+        ret_dict = {'X': self._dev.base.setParameter(self._dev.base.getConst('ID_PIEZO_RANGE_X'), axis_dict['X']/(1e-12),0), 
+                'Y': self._dev.base.setParameter(self._dev.base.getConst('ID_PIEZO_RANGE_Y'), axis_dict['Y']/(1e-12),0), 
+                'Z': self._dev.base.setParameter(self._dev.base.getConst('ID_REG_ZABS_LIMM_A'), axis_dict['Z']/(1e-12),0)}
+        
+        self._dev.base.setParameter(self._dev.base.getConst('ID_PIEZO_RANGE_X'), axis_dict['X']/(1e-12),1)
+        self._dev.base.setParameter(self._dev.base.getConst('ID_PIEZO_RANGE_Y'), axis_dict['Y']/(1e-12),1)
+        self._dev.base.setParameter(self._dev.base.getConst('ID_REG_ZABS_LIMM_A'), axis_dict['Z']/(1e-12),1)
+        return {i : ret_dict[i[0]] for i in axis_dict.keys()}
+    
+    def set_sample_voltage_range(self, axis_dict={'X': 3,'Y': 3,'Z': 6}):
+        """ Set the sample scanner voltage range for the provided axis label list. Only necessary if there is a bug which  makes Daisy forget the limits on restart
+
+        @param list axis_label_list: the axis label string list, entries either 
+                                     capitalized or lower case, possible values: 
+                                        ['X', 'X', 'Y', 'Y', 'Z', 'Z'] 
+                                     or postfixed with a '1':
+                                        ['X', 'X', 'Y', 'Y', 'Z', 'Z'] 
+
+        @return dict: sample scanner range dict with requested entries in V 
+                      (SI units).
+        """
+        ret_dict = {'X': self._dev.base.setParameter(4105, int(axis_dict['X']/(305.2e-6)),0),  # the registry value in the header file is seemingly wrong. 4105 is found by testing to be correct
+                'Y': self._dev.base.setParameter(4105, int(axis_dict['Y']/(305.2e-6)),0),  # the registry value in the header file is seemingly wrong. 4105 is found by testing to be correct
+                'Z': self._dev.base.setParameter(self._dev.base.getConst('ID_REG_ZABS_LIM_A'), int(axis_dict['Z']/(19.07e-6)),0)}
+        self._dev.base.setParameter(4105, int(axis_dict['X']/(305.2e-6)),1)
+        self._dev.base.setParameter(self._dev.base.getConst('ID_REG_ZABS_LIM_A'), int(axis_dict['Z']/(19.07e-6)),1)
+        return {i : ret_dict[i[0]] for i in axis_dict.keys()}
 
     def get_sample_scan_range(self, axis_label_list=['X','Y','Z']):
         """ Get the sample scanner range for the provided axis label list. 
@@ -1273,8 +1349,8 @@ class SPM_ASC500(Base, ScannerInterface):
         @return dict: sample scanner range dict with requested entries in m 
                       (SI units).
         """
-        ret_dict = {'X': self._dev.base.getParameter(self._dev.base.getConst('ID_PIEZO_ACTRG_X'), 0)*1e-11, 
-                'Y': self._dev.base.getParameter(self._dev.base.getConst('ID_PIEZO_ACTRG_Y'), 0)*1e-11, 
+        ret_dict = {'X': self._dev.base.getParameter(self._dev.base.getConst('ID_PIEZO_ACTRG_X'), 0)*1e-12, 
+                'Y': self._dev.base.getParameter(self._dev.base.getConst('ID_PIEZO_ACTRG_Y'), 0)*1e-12, 
                 'Z': self._dev.base.getParameter(self._dev.base.getConst('ID_REG_ZABS_LIMM'), 0)*1e-12}
         return {i : ret_dict[i[0]] for i in axis_label_list}
 
