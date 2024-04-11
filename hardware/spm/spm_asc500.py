@@ -723,8 +723,9 @@ class SPM_ASC500(Base, ScannerInterface):
 
     def _create_objective_line(self, xOffset, yOffset, pxSize, columns):
         self.objective_scan_line = {}
+        range = self.get_objective_scan_range()
         if self._spm_curr_mode == ScannerMode.OBJECTIVE_XY:
-            self.objective_scan_line['X2'] = np.linspace(xOffset, xOffset + pxSize*columns, columns)
+            self.objective_scan_line['X2'] = np.linspace(xOffset, min(xOffset + pxSize*columns, range['X2']), columns)
             self.objective_scan_line['Y2'] = np.ones(columns)*yOffset
         
         elif self._spm_curr_mode == ScannerMode.OBJECTIVE_XZ:

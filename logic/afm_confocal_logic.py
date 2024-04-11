@@ -3985,7 +3985,7 @@ class AFMConfocalLogic(GenericLogic):
             # self._counter.start_recorder(arm=True)
             # self.log.debug('scan line started')
             self._spm.scan_line()
-            self.log.debug('scan line ended')
+            # self.log.debug('scan line ended')
             #FIXME: Uncomment for snake like scan, however, not recommended!!!
             #       As it will distort the picture.
             # if line_num % 2 == 0:
@@ -3994,7 +3994,7 @@ class AFMConfocalLogic(GenericLogic):
             #     self._obj_scan_array[arr_name]['data'][line_num] = self._counter.get_measurement()[::-1] / integration_time
 
             counts, int_time = self._spm.get_measurements(),  None
-            self.log.debug('Line data returned for obj')
+            # self.log.debug('Line data returned for obj')
 
             if int_time is None or np.any(np.isclose(int_time,0,atol=1e-12)):
                 int_time = integration_time
