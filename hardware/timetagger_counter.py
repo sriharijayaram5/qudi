@@ -127,6 +127,14 @@ class TimeTaggerCounter(Base, SlowCounterInterface, RecorderInterface):
             )
         else:
             self._mode = 2
+            self.channel_combined = tt.Combiner(self._tagger, channels = [self._channel_apd_0, self._channel_apd_1])
+            self._channel_apd = self.channel_combined.getChannel()
+            self._pixelclock_click_chn = self._channel_apd
+            self.countrate = tt.Countrate(
+                self._tagger,
+                channels=[self._channel_apd]
+            )
+            self.log.info('Virtual maDE')
 
     def on_deactivate(self):
         """ Shut down the TimeTagger.
