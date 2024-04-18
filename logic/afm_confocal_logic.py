@@ -6651,7 +6651,7 @@ class AFMConfocalLogic(GenericLogic):
         """
         self._AWG.pulser_off()
         self._AWG.instance.init_all_channels()
-        amp = 1
+        amp = 0.5
         ch = [
             {'name': 'a_ch0', 'amp': amp},
             {'name': 'a_ch1', 'amp': amp}

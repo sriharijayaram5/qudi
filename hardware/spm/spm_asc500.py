@@ -586,6 +586,7 @@ class SPM_ASC500(Base, ScannerInterface):
         self._trig = trig
     
     def _configureSamplePath(self, line_corr0_start, line_corr0_stop, line_corr1_start, line_corr1_stop, line_points):
+        self._dev.base.setParameter(self._dev.base.getConst('ID_SPEC_PATHCTRL'), 0, 0)
         self._dev.base.setParameter(self._dev.base.getConst('ID_SPEC_PATHPREP'), 1, 0)
         self._dev.base.setParameter(self._dev.base.getConst('ID_EXTTRG_TIMEOUT'), self._sync_in_timeout, 0) # 0ms timeout - will wait until SYNC IN is received
         self._dev.base.setParameter(self._dev.base.getConst('ID_EXTTRG_HS'), 1, 0) # enable trigger
@@ -627,6 +628,7 @@ class SPM_ASC500(Base, ScannerInterface):
             self._dev.base.setParameter(self._dev.base.getConst('ID_PATH_ACTION'), 4, 3)
     
     def _configureSampleAreaPath(self, area_corr0_start, area_corr0_stop, area_corr1_start, area_corr1_stop, line_points, lines_num, liftoff_mode, liftoff_height):
+        self._dev.base.setParameter(self._dev.base.getConst('ID_SPEC_PATHCTRL'), 0, 0)
         self._dev.base.setParameter(self._dev.base.getConst('ID_SPEC_PATHPREP'), 1, 0)
         self._dev.base.setParameter(self._dev.base.getConst('ID_EXTTRG_TIMEOUT'), self._sync_in_timeout, 0) # 0ms timeout - will wait until SYNC IN is received
         self._dev.base.setParameter(self._dev.base.getConst('ID_EXTTRG_HS'), 1, 0) # enable trigger
