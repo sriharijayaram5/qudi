@@ -153,7 +153,9 @@ class Positioner(Base, MotorInterface):
                     'pos_step': 1e-9,
                     'vel_min': 1,
                     'vel_max': 1000,
-                    'vel_step': 10}
+                    'vel_step': 10,
+                    'volt_min': 1,
+                    'volt_max': 50}
             constraints[axis0['label']] = axis0
             # assign the parameter container for x to a name which will identify it
 
