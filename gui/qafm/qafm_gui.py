@@ -1870,22 +1870,24 @@ class ProteusQGUI(GUIBase):
 
             if ('fw' in entry) or ('bw' in entry):
 
-                image = self._image_container[entry]
-                xy_viewbox = image.getViewBox()
+                if entry in qafm_data:
 
-                xMin = qafm_data[entry]['coord0_arr'][0]
-                xMax = qafm_data[entry]['coord0_arr'][-1]
-                yMin = qafm_data[entry]['coord1_arr'][0]
-                yMax = qafm_data[entry]['coord1_arr'][-1]
+                    image = self._image_container[entry]
+                    xy_viewbox = image.getViewBox()
 
-                res_x = len(qafm_data[entry]['coord0_arr'])
-                res_y = len(qafm_data[entry]['coord1_arr'])
+                    xMin = qafm_data[entry]['coord0_arr'][0]
+                    xMax = qafm_data[entry]['coord0_arr'][-1]
+                    yMin = qafm_data[entry]['coord1_arr'][0]
+                    yMax = qafm_data[entry]['coord1_arr'][-1]
 
-                px_size = ((xMax - xMin) / (res_x - 1), (yMax - yMin) / (res_y - 1))
-                image.set_image_extent(((xMin - px_size[0] / 2, xMax + px_size[0] / 2),
-                                        (yMin - px_size[1] / 2, yMax + px_size[1] / 2)))
-                xy_viewbox.updateAutoRange()
-                xy_viewbox.updateViewRange()
+                    res_x = len(qafm_data[entry]['coord0_arr'])
+                    res_y = len(qafm_data[entry]['coord1_arr'])
+
+                    px_size = ((xMax - xMin) / (res_x - 1), (yMax - yMin) / (res_y - 1))
+                    image.set_image_extent(((xMin - px_size[0] / 2, xMax + px_size[0] / 2),
+                                            (yMin - px_size[1] / 2, yMax + px_size[1] / 2)))
+                    xy_viewbox.updateAutoRange()
+                    xy_viewbox.updateViewRange()
 
 
     def adjust_all_obj_images(self):

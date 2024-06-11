@@ -35,6 +35,9 @@ from core.configoption import ConfigOption
 _binPath = 'C:\\Users\\yy3\\Documents\\Software\\qudi\\hardware\\spm\\spm_library\\ASC500_Python_Control\\Installer\\ASC500CL-V2.7.13'
 _dllPath = 'C:\\Users\\yy3\\Documents\\Software\\qudi\\hardware\\spm\\spm_library\\ASC500_Python_Control\\64bit_lib\\ASC500CL-LIB-WIN64-V2.7.13\\daisybase\\lib\\'
 
+_binPath = 'C:\\Users\\yy3\\Documents\\Software\\qudi\\hardware\\spm\\spm_library\\ASC500_Python_Control\\V2.7.16_Files'
+# _dllPath = 'C:\\Users\\yy3\\Documents\\Software\\qudi\\hardware\\spm\\spm_library\\ASC500_Python_Control\\V2.7.16_Files\\daisybase\\lib\\'
+
 class SPM_ASC500(Base, ScannerInterface):
     """SPM wrapper for the communication with the ASC500 module.
 
@@ -567,6 +570,11 @@ class SPM_ASC500(Base, ScannerInterface):
                                           liftoff_mode, liftoff_height)
             self._polled_data = np.zeros(self._line_points) # mean is done anyway so linepoints shouldnt affect.  leaving it in since it was this way
             self._configurePathDataBuffering(sampTime=sT)
+
+            #Move the sample scanner to the second point of the scan befor the path mode starts. A bug appears if the path mode starting position is the same like the current position.
+            x_pos = (area_corr0_stop-area_corr0_start)/self._line_points+area_corr0_start
+            y_pos = area_corr1_start
+            self.set_sample_pos_abs({'X': x_pos,'Y': y_pos})
 
             if self._spm_curr_sstyle==ScanStyle.POINT:
                 while True:

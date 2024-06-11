@@ -212,6 +212,8 @@ class SequenceGeneratorLogic(GenericLogic):
 
         self.__sequence_generation_in_progress = False
 
+        self.print_log_info = True
+
         return
 
     def on_deactivate(self):
@@ -1883,7 +1885,8 @@ class SequenceGeneratorLogic(GenericLogic):
                             written_waveforms.update(wfm_list)
 
                             # check if write process was successful
-                            self.log.info(f'Written samples: {written_samples}\nArray length: {array_length}')
+                            if self.print_log_info:
+                                self.log.info(f'Written samples: {written_samples}\nArray length: {array_length}')
                             if written_samples != array_length:
                                 self.log.error('Sampling of block "{0}" in ensemble "{1}" failed. '
                                                'Write to device was unsuccessful.\nThe number of '
@@ -1926,13 +1929,14 @@ class SequenceGeneratorLogic(GenericLogic):
             ensemble.sampling_information['waveforms'] = natural_sort(written_waveforms)
             self.save_ensemble(ensemble)
 
-        self.log.info('Time needed for sampling and writing PulseBlockEnsemble {0} to device: {1} sec'
-                      ''.format(ensemble.name, int(np.rint(time.time() - start_time))))
-        self.log.debug('Estimated {:.3f} s from current estimated write speed {:.2f} MSa/s'
-                       ' from {} benchmarks'.format(
-            self._benchmark_write.estimate_time(ensemble_info['number_of_samples']),
-            self._benchmark_write.estimate_speed() / 1e6,
-            self._benchmark_write.n_benchmarks))
+        if self.print_log_info:
+            self.log.info('Time needed for sampling and writing PulseBlockEnsemble {0} to device: {1} sec'
+                        ''.format(ensemble.name, int(np.rint(time.time() - start_time))))
+            self.log.debug('Estimated {:.3f} s from current estimated write speed {:.2f} MSa/s'
+                        ' from {} benchmarks'.format(
+                self._benchmark_write.estimate_time(ensemble_info['number_of_samples']),
+                self._benchmark_write.estimate_speed() / 1e6,
+                self._benchmark_write.n_benchmarks))
 
         self._benchmark_write.add_benchmark(time.time() - start_time, ensemble_info['number_of_samples'])
 
@@ -2080,8 +2084,9 @@ class SequenceGeneratorLogic(GenericLogic):
                                                                sequence_param_dict_list]
         self.save_sequence(sequence)
 
-        self.log.info('Time needed for sampling and writing PulseSequence {0} to device: {1} sec.'
-                      ''.format(sequence.name, int(np.rint(time.time() - start_time))))
+        if self.print_log_info:
+            self.log.info('Time needed for sampling and writing PulseSequence {0} to device: {1} sec.'
+                        ''.format(sequence.name, int(np.rint(time.time() - start_time))))
 
         # unlock module
         self.module_state.unlock()

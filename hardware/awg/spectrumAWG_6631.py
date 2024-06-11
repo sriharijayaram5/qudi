@@ -82,6 +82,8 @@ class AWG663(Base, PulserInterface):
         self.AWG_sync_time = 16e-9 + 476.5/1.25e9 # 476.5 sample clocks +16ns -- value in seconds
         self.loaded_assets = dict.fromkeys(active_chan)
 
+        self.print_log_info = True
+
     def on_deactivate(self):
         """ Method called when module is deactivated. If not overridden
             this method returns an error.
@@ -1037,6 +1039,6 @@ class AWG663(Base, PulserInterface):
             if not data_size == 0:
                 self.instance.upload(data_list, segment_size, segment_size * iseq)
                 self.typeloaded = 'waveform'
-
-        self.log.info('Upload to AWG complete')
+        if self.print_log_info:
+            self.log.info('Upload to AWG complete')
         del seqs
