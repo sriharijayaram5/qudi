@@ -291,6 +291,7 @@ class AFMConfocalLogic(GenericLogic):
     pulsed_master = Connector(interface='PulsedMasterLogic')
     pulsed_master_AWG = Connector(interface='PulsedMasterLogic')
     podmr = Connector(interface='ODMRLogic')
+    _pulsed_jupyter_logic = Connector(interface='GenericLogic')
 
     # configuration parameters/options for the logic. In the config file you
     # have to specify the parameter, here: 'conf_1'
@@ -520,6 +521,7 @@ class AFMConfocalLogic(GenericLogic):
         self._pulsed_master_AWG = self.pulsed_master_AWG()
         self._AWG = self._pulsed_master_AWG.pulsedmeasurementlogic().pulsegenerator()
         self._podmr = self.podmr()
+        self.pulsed_jupyter_logic = self._pulsed_jupyter_logic()
 
         self._qafm_scan_array = self.initialize_qafm_scan_array(0, 100e-6, 10, 
                                                                 0, 100e-6, 10)
@@ -2882,46 +2884,28 @@ class AFMConfocalLogic(GenericLogic):
             self.sigQuantiScanStarted.emit()
             plane = 'XY'
 
-            freq_list = np.arange(freq_start, freq_stop+freq_step, freq_step) 
-            freq_points = len(freq_list)
-
             # set up the spm device:
             # reverse_meas = False
             self._stop_request = False
 
             #Get parameters for the pulsed measurmeent depending on the mode
-            if mw_tracking_mode:
-                # self.log.debug('set freq points to 2.')
-                freq_points = 2
-                var_start = round(res_freq - delta_0,0)
-                var_stop = round(res_freq + delta_0,0)
-                var_incr = round((var_stop-var_start)/freq_points,0)
-                self.mw_tracking_mode_runs = repetitions
-                mw_tracking_mode_runs = self.mw_tracking_mode_runs
-                alternating = False
-                laser_pulses = freq_points # is normally not used for mw_list_mode or mw_tracking_mode
-                bin_width_s = self._podmr.bin_width_s
-                record_length_s = self._podmr.record_length_s
-                analysis_settings = self._podmr.pulsed_analysis_settings
-                var_list = np.linspace(var_start, var_stop, freq_points, endpoint=True)
+            # mw_tracking_mode
+            # self.log.debug('set freq points to 2.')
+            freq_points = 2
+            var_start = round(res_freq - delta_0,0)
+            var_stop = round(res_freq + delta_0,0)
+            var_incr = round((var_stop-var_start)/freq_points,0)
+            self.mw_tracking_mode_runs = repetitions
+            mw_tracking_mode_runs = self.mw_tracking_mode_runs
+            alternating = False
+            laser_pulses = freq_points # is normally not used for mw_list_mode or mw_tracking_mode
+            bin_width_s = self._podmr.bin_width_s
+            record_length_s = self._podmr.record_length_s
+            analysis_settings = self._podmr.pulsed_analysis_settings
+            var_list = np.linspace(var_start, var_stop, freq_points, endpoint=True)
 
-                if not use_slope_track:
-                    slope2_podmr = self._podmr.vis_slope
-
-            else:
-                var_start = freq_start
-                var_stop = freq_stop
-                var_incr = freq_step
-                self.mw_tracking_mode_runs = 1 #for PODMR mode, perform only one measurement per pixel
-                mw_tracking_mode_runs = self.mw_tracking_mode_runs
-                alternating = False
-                laser_pulses = freq_points # is normally not used for mw_list_mode or mw_tracking_mode
-                self.log.info(f'MW List mode: {mw_list_mode}')
-                bin_width_s = self._podmr.bin_width_s
-                record_length_s = self._podmr.record_length_s
-                analysis_settings = self._podmr.pulsed_analysis_settings
-                var_list = freq_list
-                move_center_freq = podmr_list_mode_tracking
+            if not use_slope_track:
+                slope2_podmr = self._podmr.vis_slope
 
             # make the counter for pulsed measurement ready
             # 2 histograms are still working for the AWG mode since we measure the two frequencies alternativels. Max counts must be dealt with
@@ -2934,27 +2918,13 @@ class AFMConfocalLogic(GenericLogic):
                     'record_length_s': record_length_s,
                     'max_counts': int(num_runs-1)} )
 
-            self._pulser.prepare_SPM_ensemble()
-
-            if mw_tracking_mode:    
-                # upload the IQ signal for + and - delta frequencies. Should be triggerable. Only the CW MW will change during scan
-                self._pulsed_master_AWG.toggle_pulse_generator(False)
-                self._AWG.instance.init_all_channels()
-                LO_freq = res_freq + 100e6
-                self.load_AWG_sine_for_IQ(delta_0, pi_half_duration)            
-                self._AWG.load_triggered_multi_replay(['SinSPM0', 'SinSPM1']) # refer to load_AWG_sine_for_IQ for names
-            else:
-                self._podmr.set_AWG_sweep(var_start, var_stop, var_incr, mw_power, pi_half_duration)
-                LO_freq = var_stop + 2*var_incr
-                res_estimate = (var_stop - var_start)/2 + var_start
-
+            # mw_tracking_mode
+            # upload the IQ signal for + and - delta frequencies. Should be triggerable. Only the CW MW will change during scan
+            LO_freq = res_freq + 100e6 #AWG will play 100MHz +- delta_0 #this is the convention for us
+            self.pulsed_jupyter_logic.sample_load_ready_AWG_for_SPM_tracking(LO_freq, delta_0, repetitions, pi_half_duration)
+            self.pulsed_jupyter_logic.sample_load_ready_pulsestreamer(name='read_out_jptr')
             self._pulsed_master_AWG.pulsedmeasurementlogic().pulsegenerator().pulser_on(trigger=True)
-
-            #everything else can remain the same
-            self._pulser.load_swabian_sequence(self._make_pulse_sequence(mode = 'PODMR_AWG', pi_half_pulse = pi_half_duration))
-            self._podmr_seq = self._pulser._seq
-            self._pulser.load_swabian_sequence(self._make_pulse_sequence('NextTrigger'))
-            self._next_trigger_seq = self._pulser._seq
+            awg_running = True
     
             # return to normal operation
             self.sigHealthCheckStopSkip.emit()
@@ -3000,13 +2970,10 @@ class AFMConfocalLogic(GenericLogic):
 
             # prepare arrays for specific modes
             self.res_freq_array = np.ones((coord1_num, coord0_num)) * (res_freq if mw_tracking_mode else res_estimate)
-            if mw_tracking_mode:
-                self.delta_array = np.ones((coord1_num, coord0_num)) * delta_0
-                self._mw.set_cw(LO_freq, mw_power)
-                self._mw.cw_on()
-            else:
-                self._mw.cw_on_3()
-
+            # mw_tracking_mode
+            self.delta_array = np.ones((coord1_num, coord0_num)) * delta_0
+            self._mw.set_cw(LO_freq, mw_power)
+            self._mw.cw_on()
             # check input values
             ret_val |= self._spm.check_spm_scan_params_by_plane(plane, coord0_start, coord0_stop,
                                                                 coord1_start, coord1_stop)
@@ -3058,8 +3025,6 @@ class AFMConfocalLogic(GenericLogic):
                 self._qafm_scan_array[entry]['params']['Lift-off Mode'] = liftoff_mode
                 self._qafm_scan_array[entry]['params']['Lift-off Height'] = liftoff_height
 
-            num_runs *= freq_points # necessary for the two frequencies in mode to have enough reps
-
             # start actual scan
 
             time_prev = time.monotonic()
@@ -3096,80 +3061,57 @@ class AFMConfocalLogic(GenericLogic):
                 last_elem = list(range(coord0_num))[-1]
 
                 for index in range(coord0_num):
-
                     # first two entries are counts and b_field, remaining entries are the scan parameter
                     self._scan_point = np.zeros(num_params) 
 
                     # arm recorder
-                    #mw_tracking_mode_runs = 1 for all other modes 
                     for n in range(mw_tracking_mode_runs):
-        
                         self._counter.start_recorder(arm=True)
-
-                        if self._counter.recorder.getHistogramIndex()==-1:
-                            self._pulser._seq = self._next_trigger_seq
-                            self._pulser.pulser_on(n=1,final = self._pulser._pulse_final_state)
-                            while True:
-                                if self._pulser.pulse_streamer.hasFinished():
-                                    break
-                            self._pulser._seq = self._podmr_seq
-
                         # prepare mw source, recorder and pulse_streamer at every point if neede
                         # set_list takes 273ms but can work for all HF modes but sweep is faster although works only for evenly spaced hence no HF mode
-                        if mw_tracking_mode:
-                            if line_num==0 and index==0:
-                                coord = (line_num,index)
-                            elif line_num!=0 and index==0:
-                                coord = (line_num-1,index)
-                            elif index!=0:
-                                coord = (line_num,index-1)      
-                            res_estimate = self.res_freq_array[coord] if n==0 else res_estimate
+                        # mw_tracking_mode
+                        if line_num==0 and index==0:
+                            coord = (line_num,index)
+                        elif line_num!=0 and index==0:
+                            coord = (line_num-1,index)
+                        elif index!=0:
+                            coord = (line_num,index-1)      
+                        res_estimate = self.res_freq_array[coord] if n==0 else res_estimate
 
-                            try:
-                                # self._mw.set_cw_2(res_estimate, mw_power) #trying with _3 to minimize unnecessary calls to device
-                                self._mw.set_cw_tracking(res_estimate + 100e6, mw_power) # minimal cw set function _3 is used which does not repeat setting of power
-                                # self._mw.cw_on_3() # no need for ON maybe - since never switched OFF
-                            except:
-                                self._stop_request = True
-                                self.log.warning('Something has gone wrong with MW device connection!')
-                        if not mw_tracking_mode and move_center_freq:
-                            var_list = self.find_and_shift_center_freq(var_list, mw_power, line_num, index)
-                        # THIS A TRIGGERED PULSER ON COMMAND - will be triggered by ASC500 on the first loop only
-                        self._pulser.pulser_on(trigger=True if n==0 else False, n=num_runs, final=self._pulser._sync_final_state if mw_tracking_mode_runs==1 else self._pulser._pulse_final_state)
-                                              
+                        try:
+                            # self._mw.set_cw_2(res_estimate, mw_power) #trying with _3 to minimize unnecessary calls to device
+                            self._mw.set_cw_tracking(res_estimate + 100e6, mw_power) # minimal cw set function _3 is used which does not repeat setting of power
+                            # self._mw.cw_on_3() # no need for ON maybe - since never switched OFF
+                        except:
+                            self._stop_request = True
+                            self.log.warning('Something has gone wrong with MW device connection!')
+
                         # do movement and height scan
                         # run for n=0 condition only
                         if n==0:
-                            self._debug = self._spm.scan_point()
-                            self._scan_point[2:] = self._debug 
+                            self._debug = self._spm.scan_point() #allows moving of AFM and hence sync out trigger
+                            self._scan_point[2:] = self._debug
+                        else:
+                            self._pulsed_master_AWG.pulsedmeasurementlogic().pulsegenerator().instance.set_sequence_start_step(1) #this is the measurement step with card end
+                            self._pulsed_master_AWG.pulsedmeasurementlogic().pulsegenerator().pulser_on(trigger=True)
                         
                         # obtain pulsed measurement
-                        pulsed_meas = self._counter.get_measurements()[0]
+                        pulsed_meas = self._counter.get_measurements()[0] # this is the blocking statement
                 
-                        pulsed_ret0, pulsed_ret1 = self.analyse_pulsed_meas(analysis_settings, pulsed_meas, alternating, mw_list_mode, mw_tracking_mode)
+                        pulsed_ret0, pulsed_ret1, ref_data, ref_time = self.analyse_pulsed_meas(analysis_settings, pulsed_meas, alternating, mw_list_mode, mw_tracking_mode)
                         self._debug = pulsed_ret0
 
-                        if mw_tracking_mode:
-                            track_ret = self.tracking_analysis(pulsed_ret0, line_num, index, slope2_podmr, res_estimate, use_slope_track)
-                            res_estimate, vis = track_ret
-
-                    #for nruns loop ends here
-                    # just to give the sync pulse. n=2 so that it would work for the AWG tracking mode as well
-                    if mw_tracking_mode_runs>1:
-                        self._pulser.pulser_on(n=2, final=self._pulser._sync_final_state)
-
-                    # here the fit parameter can be saved
-                    if not mw_tracking_mode:
-                        self.extract_resonance(pulsed_ret0, var_list, line_num, index)
-
+                        # mw_tracking_mode
+                        track_ret = self.tracking_analysis(pulsed_ret0, line_num, index, slope2_podmr, res_estimate, use_slope_track)
+                        res_estimate, vis = track_ret
+                    
+                    self._pulsed_master_AWG.pulsedmeasurementlogic().pulsegenerator().instance.set_sequence_start_step(2) #this is the trigger out step
+                    self._pulsed_master_AWG.pulsedmeasurementlogic().pulsegenerator().pulser_on(trigger=True)
+                    
                     self._scan_point[1] = self.res_freq_array[line_num, index]/1e9
                     # self._scan_point[1] = 2.776+(np.random.random()*0.5e6/1e9)
                     # here the counts can be saved:
-                    self._counter._tagger.sync()
-                    t_int = 5 # time for integration in ms 
-                    self._counter.countrate.startFor(int(t_int*1e9), clear = True)
-                    self._counter.countrate.waitUntilFinished(timeout=int(t_int*20))
-                    self._scan_point[0] = np.nan_to_num(self._counter.countrate.getData())
+                    self._scan_point[0] = ref_data/(ref_time*repetitions)
 
                     for param_index, param_name in enumerate(curr_scan_params):
                         name = f'{param_name}_fw'
@@ -3234,20 +3176,18 @@ class AFMConfocalLogic(GenericLogic):
             self._spm.finish_scan(retract=self.retract_after_scan)
             self._mw.off()
             self._counter.stop_measurement()
-            self._pulser.pulser_off()
-            #if not (mw_list_mode or mw_tracking_mode):
-            self._pulser.upload_SPM_ensemble()
-            
+            self._pulsed_master_AWG.pulsedmeasurementlogic().pulsegenerator().pulser_off()
+            self._pulsed_master.pulsedmeasurementlogic().pulsegenerator().pulser_off()      
             # self.module_state.unlock()
             self.sigQuantiScanFinished.emit()
 
             return self._qafm_scan_array
 
     def analyse_pulsed_meas(self, analysis_settings, pulsed_meas, alternating=False, mw_list_mode=False, mw_tracking_mode=False):
-        
+        ref_data, ref_time = (0,0)
         if (mw_list_mode or mw_tracking_mode):
             args = [pulsed_meas, analysis_settings['signal_start'], analysis_settings['signal_end'], analysis_settings['norm_start'], analysis_settings['norm_end']]
-            data, err = self._podmr.analyse_mean_norm_new(*args) #new is the only numpy operations version of the mean norm
+            data, err, ref_data, ref_time = self._podmr.analyse_mean_norm_new(*args) #new is the only numpy operations version of the mean norm
 
         else:
             method = analysis_settings['method']
@@ -3287,7 +3227,7 @@ class AFMConfocalLogic(GenericLogic):
                 data0, err0 = analysis_method(*args0)
                 data1, err1 = analysis_method(*args1)
 
-        return (data, err) if not alternating else ((data0, err0), (data1, err1))
+        return (data, err, ref_data, ref_time) if not alternating else ((data0, err0, ref_data, ref_time), (data1, err1, ref_data, ref_time))
     
     def tracking_analysis(self, pulsed_ret0, line_num, index, slope2_podmr, prev, use_slope_track):
         visibility = (pulsed_ret0[1] - pulsed_ret0[0])/(pulsed_ret0[1] + pulsed_ret0[0])

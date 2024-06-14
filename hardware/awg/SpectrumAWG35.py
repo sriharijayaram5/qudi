@@ -109,6 +109,10 @@ class AWG:
     def init_sequence_mode(self, number_of_segments):
         for card in self.cards:
             card.init_sequence_mode(number_of_segments)
+    
+    def set_sequence_start_step(self, start_step):
+        for card in self.cards:
+            card.set_sequence_start_step(start_step)
 
     def get_marker_data(self, channel, duration, sample_rate, start_position):
         length = int(duration * 1e-9 * sample_rate)
@@ -791,6 +795,9 @@ class Card():
         self.set_mode('sequence')
         self.set32(SPC_SEQMODE_MAXSEGMENTS, max_segments)
         self.set32(SPC_SEQMODE_STARTSTEP, 0)
+    
+    def set_sequence_start_step(self, start_step):
+        self.set32(SPC_SEQMODE_STARTSTEP, start_step)
 
     def set_segment_size(self, size):
         self.set32(SPC_SEGMENTSIZE, size)
