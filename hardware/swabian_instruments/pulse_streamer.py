@@ -98,6 +98,7 @@ class PulseStreamer(Base, PulserInterface):
         self._seq = None
         self.pulsed_trigger = False
         self._regular_seq = None
+        self.AWG_master_final_state = ps.OutputState([], self._laser_power_voltage, 0)
         self._sync_final_state = ps.OutputState([self._laser_channel,self._sync_in], self._laser_power_voltage, 0)
         self._pulse_final_state = ps.OutputState([self._laser_channel], self._laser_power_voltage, 0)
         self._mw_trig_final_state = ps.OutputState([self._uw_x_channel, self._pixel_stop, self._laser_channel], self._laser_power_voltage, 0)

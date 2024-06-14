@@ -203,9 +203,18 @@ class SequenceGeneratorLogic(GenericLogic):
         self._saved_pulse_blocks = OrderedDict()
         self._saved_pulse_block_ensembles = OrderedDict()
         self._saved_pulse_sequences = OrderedDict()
-        self._update_blocks_from_file()
-        self._update_ensembles_from_file()
-        self._update_sequences_from_file()
+        try:
+            self._update_blocks_from_file()
+        except:
+            self.log.warning('Block file update failed!')
+        try:
+            self._update_ensembles_from_file()
+        except:
+            self.log.warning('Ensemble file update failed!')
+        try:
+            self._update_sequences_from_file()
+        except:
+            self.log.warning('Sequence file update failed!')
 
         # Get instance of PulseObjectGenerator which takes care of collecting all predefined methods
         self._pog = PulseObjectGenerator(sequencegeneratorlogic=self)
