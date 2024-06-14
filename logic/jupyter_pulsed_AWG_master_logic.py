@@ -172,9 +172,15 @@ class PulsedJupyterLogic(GenericLogic):
         self.afm_scanner_logic._pulsed_master_AWG.set_fast_counter_settings(record_length=self.read_out_time, number_of_gates=tau_num)
 
         large_seq = []
+        use_MW_0 = False
+        use_MW_1 = False
 
         for Element in self.BlockAWG:
             phase_0, phase_1, duration, user_MW_0_true, user_MW_1_true, freq_0, freq_1, channels = Element
+            if user_MW_0_true:
+                use_MW_0 = True
+            if user_MW_1_true:
+                use_MW_1 = True
             delta_0 = abs(self.LO_freq_0 - (self.target_freq_0 if freq_0 is None else freq_0))
             delta_1 = abs(self.LO_freq_1 - (self.target_freq_1 if freq_1 is None else freq_1))
             
@@ -203,7 +209,13 @@ class PulsedJupyterLogic(GenericLogic):
 
         self.debug_sequence_step_list = sequence_step_list
         self.afm_scanner_logic._AWG.load_ready_sequence_mode(sequence_step_list)
-        self.MW_start(change_freq)
+
+
+        if use_MW_0:
+            self.afm_scanner_logic._pulsed_master_AWG.set_ext_microwave_settings(use_ext_microwave=True, 
+                                            frequency=self.LO_freq_0,
+                                            power=self.power_0)
+        #self.MW_start(change_freq,use_MW_0,use_MW_1)
 
         return ensemble_list
     
@@ -251,14 +263,19 @@ class PulsedJupyterLogic(GenericLogic):
         self.afm_scanner_logic._mw.off()
         self.afm_scanner_logic._mw1.off()
         
-    def MW_start(self, change_freq = True):
+    def MW_start(self, change_freq = True ,user_MW_0_true = False, user_MW_1_true = False):
         """ Starts AWG in triggered mode, sets and starts LO
         """
-        if change_freq:
-            self.afm_scanner_logic._mw.set_cw(frequency=self.LO_freq_0, power=self.power_0)
-            self.afm_scanner_logic._mw1.set_cw(frequency=self.LO_freq_1, power=self.power_1)
-        self.afm_scanner_logic._mw.cw_on()
-        self.afm_scanner_logic._mw1.cw_on()
+        
+        if user_MW_0_true:
+            if change_freq:
+                self.afm_scanner_logic._mw.set_cw(frequency=self.LO_freq_0, power=self.power_0)
+            self.afm_scanner_logic._mw.cw_on()
+
+        if user_MW_1_true:
+            if change_freq:
+                self.afm_scanner_logic._mw1.set_cw(frequency=self.LO_freq_1, power=self.power_1)
+            self.afm_scanner_logic._mw1.cw_on()
 
     def start_measurement(self, measurement_type = 'test', tip_name = '', sample = '', temperature = '', b_field = '', contact = '', extra = '', printing = True):
         save_tag = measurement_type
@@ -277,6 +294,7 @@ class PulsedJupyterLogic(GenericLogic):
             save_tag += '_'+extra
         
         self.afm_scanner_logic._pulsed_master_AWG.sigUpdateSaveTag.emit(save_tag)
+        self.afm_scanner_logic._pulsed_master_AWG.sigUpdateLoadedAssetLabel.emit('  '+measurement_type)
         self.afm_scanner_logic._pulsed_master_AWG.toggle_pulsed_measurement(start=True)
         if printing:
             self.log.info(save_tag)
@@ -295,22 +313,15 @@ class PulsedJupyterLogic(GenericLogic):
         freq_sweep=False
         self.tau_arr = [100e-6]
 
-        #Create pulse sequence for the pulse streamer
-        self.BlockPS = []
-        self.PhaseDuration = []
+        #Create pulse sequence for the AWG streamer
+        self.BlockAWG = []
 
-        #Trigger AWG to play its sequence, which includes one complete sweep of all waiting times        
-        self.ElementPS(channels={'AWG_Trig':True}, length=self.awg_sync_time)
+        for tau in self.tau_arr:
+            self.ElementAWG(channels={'MW_0':MW_0, 'MW_1':MW_1}, length=tau)
 
-        #Pi pulse - reference
-        self.ElementPS(channels={'MW_0':MW_0, 'MW_1':MW_1}, length=100e-6)
-        #Pi pulse - reference
-        self.ElementPS(channels={}, length=1e-6)
-
-        self.sample_load_ready_pulsed_measurement(name=name, 
-                                             element_list=self.BlockPS, tau_arr=self.tau_arr, alternating=alternating, freq_sweep=freq_sweep)
+        self.sample_load_ready_pulsestreamer(name='read_out_jptr')
         
-        ensemble_list = self.sample_load_large_sine_AWG(name)
+        ensemble_list = self.sample_load_ready_AWG(name, self.tau_arr, alternating, freq_sweep, change_freq = True)
 
         return ensemble_list, name, self.tau_arr, alternating, freq_sweep
     
@@ -330,28 +341,21 @@ class PulsedJupyterLogic(GenericLogic):
         self.tau_arr = np.linspace(mw_start, end_freq, num_steps + 1)
         
         self.LO_freq_0 = end_freq + 100e6
-        
-        #Create pulse sequence for the pulse streamer
-        self.BlockPS = []
-        self.PhaseDuration = []
 
-        #Trigger AWG to play its sequence, which includes one complete sweep of all waiting times        
-        self.ElementPS(channels={'AWG_Trig':True}, length=self.awg_sync_time)
-        
+        #Create pulse sequence for the AWG streamer
+        self.BlockAWG = []
+
         for tau in self.tau_arr:
             #Break after Initalisation/read out
-            self.ElementPS(channels={}, length=self.laser_waiting_time) 
+            self.ElementAWG(channels={}, length=self.laser_waiting_time) 
             #Pi pulse - reference
-            self.ElementPS(channels={'MW_0':True}, length=self.pi_pulse, freq_0=tau)
-            #Waiting time - tau
-            self.ElementPS(channels={'TT_Next':True}, length=self.mw_waiting_time)
-            #Read out
-            self.ElementPS(channels={'Laser':True, 'TT_Start':True}, length=self.read_out_time)
+            self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse, freq_0=tau)
+            #Waiting time + read-out
+            self.ElementAWG(channels={'PS_Trig':True}, length=self.mw_waiting_time + self.read_out_time)
 
-        self.sample_load_ready_pulsed_measurement(name=name, 
-                                             element_list=self.BlockPS, tau_arr=self.tau_arr, alternating=alternating, freq_sweep=freq_sweep)
+        self.sample_load_ready_pulsestreamer(name='read_out_jptr')
         
-        ensemble_list = self.sample_load_large_sine_AWG(name)
+        ensemble_list = self.sample_load_ready_AWG(name, self.tau_arr, alternating, freq_sweep, change_freq = True)
 
         return ensemble_list, name, self.tau_arr, alternating, freq_sweep
 
@@ -373,27 +377,20 @@ class PulsedJupyterLogic(GenericLogic):
         
         self.LO_freq_0 = res_freq + 100e6
         
-        #Create pulse sequence for the pulse streamer
-        self.BlockPS = []
-        self.PhaseDuration = []
+        #Create pulse sequence for the AWG streamer
+        self.BlockAWG = []
 
-        #Trigger AWG to play its sequence, which includes one complete sweep of all waiting times        
-        self.ElementPS(channels={'AWG_Trig':True}, length=self.awg_sync_time)
-        
         for tau in self.tau_arr:
             #Break after Initalisation/read out
-            self.ElementPS(channels={}, length=self.laser_waiting_time) 
+            self.ElementAWG(channels={}, length=self.laser_waiting_time) 
             #Pi pulse - reference
-            self.ElementPS(channels={'MW_0':True}, length=self.pi_pulse, freq_0=tau)
-            #Waiting time - tau
-            self.ElementPS(channels={'TT_Next':True}, length=self.mw_waiting_time)
-            #Read out
-            self.ElementPS(channels={'Laser':True, 'TT_Start':True}, length=self.read_out_time)
+            self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse, freq_0=tau)
+            #Waiting time + read-out
+            self.ElementAWG(channels={'PS_Trig':True}, length=self.mw_waiting_time + self.read_out_time)
 
-        self.sample_load_ready_pulsed_measurement(name=name, 
-                                             element_list=self.BlockPS, tau_arr=self.tau_arr, alternating=alternating, freq_sweep=freq_sweep)
+        self.sample_load_ready_pulsestreamer(name='read_out_jptr')
         
-        ensemble_list = self.sample_load_large_sine_AWG(name, change_freq)
+        ensemble_list = self.sample_load_ready_AWG(name, self.tau_arr, alternating, freq_sweep, change_freq = True)
 
         return ensemble_list, name, self.tau_arr, alternating, freq_sweep
     
@@ -410,7 +407,7 @@ class PulsedJupyterLogic(GenericLogic):
         freq_sweep=False
         self.tau_arr = np.linspace(tau_start, tau_stop, num=tau_num)
         
-        #Create pulse sequence for the pulse streamer
+        #Create pulse sequence for the AWG streamer
         self.BlockAWG = []
 
         for tau in self.tau_arr:
@@ -423,9 +420,7 @@ class PulsedJupyterLogic(GenericLogic):
 
         self.sample_load_ready_pulsestreamer(name='read_out_jptr')
         
-
         ensemble_list = self.sample_load_ready_AWG(name, self.tau_arr, alternating, freq_sweep, change_freq = True)
-        # ensemble_list = self.sample_load_large_sine_AWG(name)
 
         return ensemble_list, name, self.tau_arr, alternating, freq_sweep
     
@@ -777,45 +772,37 @@ class PulsedJupyterLogic(GenericLogic):
         alternating = True
         freq_sweep=False
         self.tau_arr = np.linspace(tau_start, tau_stop, num=tau_num)
-        
-        #Create pulse sequence for the pulse streamer
-        self.BlockPS = []
-        self.PhaseDuration = []
 
-        #Trigger AWG to play its sequence, which includes one complete sweep of all waiting times        
-        self.ElementPS(channels={'AWG_Trig':True}, length=self.awg_sync_time)
+        #Create pulse sequence for the AWG streamer
+        self.BlockAWG = []
         
         for tau in self.tau_arr:
             #Break after Initalisation/read out
-            self.ElementPS(channels={}, length=self.laser_waiting_time)
+            self.ElementAWG(channels={}, length=self.laser_waiting_time)
             #Pi/2 pulse
-            self.ElementPS(channels={'MW_0':True}, length=self.pi_pulse/2)
+            self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse/2)
             #First waiting time - tau
-            self.ElementPS(channels={}, length=tau)
+            self.ElementAWG(channels={}, length=tau)
             #Pi/2 pulse
-            self.ElementPS(channels={'MW_0':True}, length=self.pi_pulse/2)
-            #Waiting time
-            self.ElementPS(channels={'TT_Next':True}, length=self.mw_waiting_time)
-            #Read out
-            self.ElementPS(channels={'Laser':True, 'TT_Start':True}, length=self.read_out_time)
+            self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse/2)
+            #Waiting time + read-out
+            self.ElementAWG(channels={'PS_Trig':True}, length=self.mw_waiting_time + self.read_out_time)
             
             #Alternating run
             #Break after Initalisation/read out
-            self.ElementPS(channels={}, length=self.laser_waiting_time)
+            self.ElementAWG(channels={}, length=self.laser_waiting_time)
             #Pi/2 pulse
-            self.ElementPS(channels={'MW_0':True}, length=self.pi_pulse/2)
+            self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse/2)
             #Second waiting time + tau
-            self.ElementPS(channels={}, length=tau)
+            self.ElementAWG(channels={}, length=tau)
             #Pi/2 pulse Phase change cause -pi/2 pulse - done by AWG
-            self.ElementPS(channels={'MW_0':True}, length=self.pi_pulse/2, phase_0=180)
-            #Waiting time
-            self.ElementPS(channels={'TT_Next':True}, length=self.mw_waiting_time)
-            #Read out
-            self.ElementPS(channels={'Laser':True, 'TT_Start':True}, length=self.read_out_time)
+            self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse/2, phase_0=180)
+            #Waiting time + read-out
+            self.ElementAWG(channels={'PS_Trig':True}, length=self.mw_waiting_time + self.read_out_time)
         
-        self.sample_load_ready_pulsed_measurement(name=name, 
-                                             element_list=self.BlockPS, tau_arr=self.tau_arr, alternating=alternating, freq_sweep=freq_sweep)
-        ensemble_list = self.sample_load_large_sine_AWG(name)
+        self.sample_load_ready_pulsestreamer(name='read_out_jptr')
+        
+        ensemble_list = self.sample_load_ready_AWG(name, self.tau_arr, alternating, freq_sweep, change_freq = True)
 
         return ensemble_list, name, self.tau_arr, alternating, freq_sweep
     
@@ -837,53 +824,45 @@ class PulsedJupyterLogic(GenericLogic):
             print('!!!Given configuration of pi-pulse duration, number of pulses and tau_start resulting in negativ values!!!')
             return
         self.tau_arr = np.linspace(tau_start, tau_stop, num=tau_num) - self.pi_pulse #Pi pulse duration is subtracted and thus total tau includes the Pi pulse
-        
-        #Create pulse sequence for the pulse streamer
-        self.BlockPS = []
-        self.PhaseDuration = []
 
-        #Trigger AWG to play its sequence, which includes one complete sweep of all waiting times        
-        self.ElementPS(channels={'AWG_Trig':True}, length=self.awg_sync_time)
-        
+        #Create pulse sequence for the AWG streamer
+        self.BlockAWG = []
+
         for tau in self.tau_arr:
             #Break after Initalisation/read out
-            self.ElementPS(channels={}, length=self.laser_waiting_time)
+            self.ElementAWG(channels={}, length=self.laser_waiting_time)
             #Pi/2 pulse
-            self.ElementPS(channels={'MW_0':True}, length=self.pi_pulse/2)
+            self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse/2)
             #First waiting time + tau/2
-            self.ElementPS(channels={}, length=tau/2)
+            self.ElementAWG(channels={}, length=tau/2)
             #Pi pulse
-            self.ElementPS(channels={'MW_0':True}, length=self.pi_pulse)
+            self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse)
             #Second waiting time + tau/2
-            self.ElementPS(channels={}, length=tau/2)
+            self.ElementAWG(channels={}, length=tau/2)
             #Pi/2 pulse
-            self.ElementPS(channels={'MW_0':True}, length=self.pi_pulse/2)
-            #Waiting time
-            self.ElementPS(channels={'TT_Next':True}, length=self.mw_waiting_time)
-            #Read out
-            self.ElementPS(channels={'Laser':True, 'TT_Start':True}, length=self.read_out_time)
+            self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse/2)
+            #Waiting time + read-out
+            self.ElementAWG(channels={'PS_Trig':True}, length=self.mw_waiting_time + self.read_out_time)
             
             #Alternating run
             #Break after Initalisation/read out
-            self.ElementPS(channels={}, length=self.laser_waiting_time)
+            self.ElementAWG(channels={}, length=self.laser_waiting_time)
             #Pi/2 pulse
-            self.ElementPS(channels={'MW_0':True}, length=self.pi_pulse/2)
+            self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse/2)
             #First waiting time + tau/2
-            self.ElementPS(channels={}, length=tau/2)
+            self.ElementAWG(channels={}, length=tau/2)
             #Pi pulse
-            self.ElementPS(channels={'MW_0':True}, length=self.pi_pulse)
+            self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse)
             #Second waiting time + tau/2
-            self.ElementPS(channels={}, length=tau/2)
+            self.ElementAWG(channels={}, length=tau/2)
             #Pi/2 pulse Phase change cause -pi/2 pulse - done by AWG
-            self.ElementPS(channels={'MW_0':True}, length=self.pi_pulse/2, phase_0=180)
-            #Waiting time
-            self.ElementPS(channels={'TT_Next':True}, length=self.mw_waiting_time)
-            #Read out
-            self.ElementPS(channels={'Laser':True, 'TT_Start':True}, length=self.read_out_time)
+            self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse/2, phase_0=180)
+            #Waiting time + read-out
+            self.ElementAWG(channels={'PS_Trig':True}, length=self.mw_waiting_time + self.read_out_time)
         
-        self.sample_load_ready_pulsed_measurement(name=name, 
-                                             element_list=self.BlockPS, tau_arr=self.tau_arr, alternating=alternating, freq_sweep = freq_sweep)
-        ensemble_list = self.sample_load_large_sine_AWG(name)
+        self.sample_load_ready_pulsestreamer(name='read_out_jptr')
+        
+        ensemble_list = self.sample_load_ready_AWG(name, self.tau_arr, alternating, freq_sweep, change_freq = True)
 
         return ensemble_list, name, self.tau_arr + self.pi_pulse, alternating, freq_sweep #Pi pulse duration is subtracted and thus total tau includes the Pi pulse
     
@@ -907,52 +886,44 @@ class PulsedJupyterLogic(GenericLogic):
             return
         self.tau_arr = np.linspace(tau_start, tau_stop, num=tau_num) - self.pi_pulse
         
-        #Create pulse sequence for the pulse streamer
-        self.BlockPS = []
-        self.PhaseDuration = []
+        #Create pulse sequence for the AWG streamer
+        self.BlockAWG = []
 
-        #Trigger AWG to play its sequence, which includes one complete sweep of all waiting times        
-        self.ElementPS(channels={'AWG_Trig':True}, length=self.awg_sync_time)
-        
         for tau in self.tau_arr:
             #Break after Initalisation/read out
-            self.ElementPS(channels={}, length=self.laser_waiting_time)
+            self.ElementAWG(channels={}, length=self.laser_waiting_time)
             #Pi/2 pulse
-            self.ElementPS(channels={'MW_0':True}, length=self.pi_pulse/2)
+            self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse/2)
             #First waiting time + tau/2
-            self.ElementPS(channels={}, length=tau/2)
+            self.ElementAWG(channels={}, length=tau/2)
             #Pi pulse
-            self.ElementPS(channels={'MW_0':True}, length=self.pi_pulse)
+            self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse)
             #Second waiting time + tau/2
-            self.ElementPS(channels={}, length=tau/2)
+            self.ElementAWG(channels={}, length=tau/2)
             #Pi/2 pulse
-            self.ElementPS(channels={'MW_0':True}, length=self.pi_pulse/2)
-            #Waiting time
-            self.ElementPS(channels={'TT_Next':True}, length=self.mw_waiting_time)
-            #Read out
-            self.ElementPS(channels={'Laser':True, 'TT_Start':True}, length=self.read_out_time)
+            self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse/2)
+            #Waiting time + read-out
+            self.ElementAWG(channels={'PS_Trig':True}, length=self.mw_waiting_time + self.read_out_time)
             
             #Alternating run
             #Break after Initalisation/read out
-            self.ElementPS(channels={}, length=self.laser_waiting_time)
+            self.ElementAWG(channels={}, length=self.laser_waiting_time)
             #Pi/2 pulse
-            self.ElementPS(channels={'MW_0':True}, length=self.pi_pulse/2)
+            self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse/2)
             #First waiting time + tau/2
-            self.ElementPS(channels={}, length=tau/2)
+            self.ElementAWG(channels={}, length=tau/2)
             #Pi pulse
-            self.ElementPS(channels={'MW_0':True}, length=self.pi_pulse)
+            self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse)
             #Second waiting time + tau/2
-            self.ElementPS(channels={}, length=tau/2)
-            #Pi/2 pulse Phase change cause -pi/2 pulse - done by AWG
-            self.ElementPS(channels={'MW_0':True}, length=3*self.pi_pulse/2)
-            #Waiting time
-            self.ElementPS(channels={'TT_Next':True}, length=self.mw_waiting_time)
-            #Read out
-            self.ElementPS(channels={'Laser':True, 'TT_Start':True}, length=self.read_out_time)
+            self.ElementAWG(channels={}, length=tau/2)
+            #3*Pi/2 pulse 
+            self.ElementAWG(channels={'MW_0':True}, length=3*self.pi_pulse/2)
+            #Waiting time + read-out
+            self.ElementAWG(channels={'PS_Trig':True}, length=self.mw_waiting_time + self.read_out_time)
         
-        self.sample_load_ready_pulsed_measurement(name=name, 
-                                             element_list=self.BlockPS, tau_arr=self.tau_arr, alternating=alternating, freq_sweep=freq_sweep)
-        ensemble_list = self.sample_load_large_sine_AWG(name)
+        self.sample_load_ready_pulsestreamer(name='read_out_jptr')
+        
+        ensemble_list = self.sample_load_ready_AWG(name, self.tau_arr, alternating, freq_sweep, change_freq = True)
 
         return ensemble_list, name, self.tau_arr+ self.pi_pulse, alternating, freq_sweep
         
@@ -987,56 +958,48 @@ class PulsedJupyterLogic(GenericLogic):
         
         self.LO_freq_1 = end_freq + 100e6
         
-        #Create pulse sequence for the pulse streamer
-        self.BlockPS = []
-        self.PhaseDuration = []
-
-        #Trigger AWG to play its sequence, which includes one complete sweep of all waiting times        
-        self.ElementPS(channels={'AWG_Trig':True}, length=self.awg_sync_time)
+        #Create pulse sequence for the AWG streamer
+        self.BlockAWG = []
         
         for tau in self.tau_arr:
             #Break after Initalisation/read out
-            self.ElementPS(channels={}, length=self.laser_waiting_time)
+            self.ElementAWG(channels={}, length=self.laser_waiting_time)
             #Pi/2 pulse
-            self.ElementPS(channels={'MW_0':True}, length=self.pi_pulse/2)
+            self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse/2)
             #First waiting time + tau/2
-            self.ElementPS(channels={}, length=tau_NV/2)
+            self.ElementAWG(channels={}, length=tau_NV/2)
             #Pi pulse
-            self.ElementPS(channels={'MW_0':True}, length=self.pi_pulse)
+            self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse)
             #Pi pulse for dark spin
-            self.ElementPS(channels={'MW_1':True}, length=pi_pulse_dark_spin, freq_1 = tau)
+            self.ElementAWG(channels={'MW_1':True}, length=pi_pulse_dark_spin, freq_1 = tau)
             #Second waiting time + tau/2
-            self.ElementPS(channels={}, length=tau_NV/2-pi_pulse_dark_spin)
+            self.ElementAWG(channels={}, length=tau_NV/2-pi_pulse_dark_spin)
             #Pi/2 pulse
-            self.ElementPS(channels={'MW_0':True}, length=self.pi_pulse/2)
-            #Waiting time
-            self.ElementPS(channels={'TT_Next':True}, length=self.mw_waiting_time)
-            #Read out
-            self.ElementPS(channels={'Laser':True, 'TT_Start':True}, length=self.read_out_time)
+            self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse/2)
+            #Waiting time + read-out
+            self.ElementAWG(channels={'PS_Trig':True}, length=self.mw_waiting_time + self.read_out_time)
             
             #Alternating
             #Break after Initalisation/read out
-            self.ElementPS(channels={}, length=self.laser_waiting_time)
+            self.ElementAWG(channels={}, length=self.laser_waiting_time)
             #Pi/2 pulse
-            self.ElementPS(channels={'MW_0':True}, length=self.pi_pulse/2)
+            self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse/2)
             #First waiting time + tau/2
-            self.ElementPS(channels={}, length=tau_NV/2)
+            self.ElementAWG(channels={}, length=tau_NV/2)
             #Pi pulse
-            self.ElementPS(channels={'MW_0':True}, length=self.pi_pulse)
+            self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse)
             #Pi pulse for dark spin
-            self.ElementPS(channels={'MW_1':True}, length=pi_pulse_dark_spin, freq_1 = tau)
+            self.ElementAWG(channels={'MW_1':True}, length=pi_pulse_dark_spin, freq_1 = tau)
             #Second waiting time + tau/2
-            self.ElementPS(channels={}, length=tau_NV/2-pi_pulse_dark_spin)
+            self.ElementAWG(channels={}, length=tau_NV/2-pi_pulse_dark_spin)
             #-Pi/2 pulse
-            self.ElementPS(channels={'MW_0':True}, length=self.pi_pulse/2, phase_0=180)
-            #Waiting time
-            self.ElementPS(channels={'TT_Next':True}, length=self.mw_waiting_time)
-            #Read out
-            self.ElementPS(channels={'Laser':True, 'TT_Start':True}, length=self.read_out_time)
+            self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse/2, phase_0=180)
+            #Waiting time + read-out
+            self.ElementAWG(channels={'PS_Trig':True}, length=self.mw_waiting_time + self.read_out_time)
             
-        self.sample_load_ready_pulsed_measurement(name=name, 
-                                             element_list=self.BlockPS, tau_arr=self.tau_arr, alternating=alternating, freq_sweep=freq_sweep)
-        ensemble_list = self.sample_load_large_sine_AWG(name)
+        self.sample_load_ready_pulsestreamer(name='read_out_jptr')
+        
+        ensemble_list = self.sample_load_ready_AWG(name, self.tau_arr, alternating, freq_sweep, change_freq = True)
 
         return ensemble_list, name, self.tau_arr, alternating, freq_sweep
         
@@ -1060,67 +1023,59 @@ class PulsedJupyterLogic(GenericLogic):
         alternating = True
         freq_sweep=False
         self.tau_arr = np.linspace(tau_start, tau_stop, num=tau_num) - 2*N*self.pi_pulse #compensating the pi_pulse run time
-        
-        #Create pulse sequence for the pulse streamer
-        self.BlockPS = []
-        self.PhaseDuration = []
 
-        #Trigger AWG to play its sequence, which includes one complete sweep of all waiting times        
-        self.ElementPS(channels={'AWG_Trig':True}, length=self.awg_sync_time)
+        #Create pulse sequence for the AWG streamer
+        self.BlockAWG = []
         
         for tau in self.tau_arr:
             #Break after Initalisation/read out
-            self.ElementPS(channels={}, length=self.laser_waiting_time)
+            self.ElementAWG(channels={}, length=self.laser_waiting_time)
             #Pi/2 pulse
-            self.ElementPS(channels={'MW_0':True}, length=self.pi_pulse/2)
+            self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse/2)
             
             for i in range(N):
                 #First waiting time + tau/2
-                self.ElementPS(channels={}, length=tau/(4*N))
+                self.ElementAWG(channels={}, length=tau/(4*N))
                 #Pi pulse
-                self.ElementPS(channels={'MW_0':True}, length=self.pi_pulse, phase_0=90)
+                self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse, phase_0=90)
                 #Second waiting time + tau/2
-                self.ElementPS(channels={}, length=tau/(2*N))
+                self.ElementAWG(channels={}, length=tau/(2*N))
                 #Pi pulse
-                self.ElementPS(channels={'MW_0':True}, length=self.pi_pulse, phase_0=90)
+                self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse, phase_0=90)
                 #Second waiting time + tau/2
-                self.ElementPS(channels={}, length=tau/(4*N))
+                self.ElementAWG(channels={}, length=tau/(4*N))
                                
-            #Pi/2 pulse
-            self.ElementPS(channels={'MW_0':True}, length=self.pi_pulse/2, phase_0=180)
-            #Waiting time
-            self.ElementPS(channels={'TT_Next':True}, length=self.mw_waiting_time)
-            #Read out
-            self.ElementPS(channels={'Laser':True, 'TT_Start':True}, length=self.read_out_time)
+            #Pi/2 pulse Phase change cause -pi/2 pulse - done by AWG
+            self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse/2, phase_0=180)
+            #Waiting time + read-out
+            self.ElementAWG(channels={'PS_Trig':True}, length=self.mw_waiting_time + self.read_out_time)
             
             #Alternating run
             #Break after Initalisation/read out
-            self.ElementPS(channels={}, length=self.laser_waiting_time)
+            self.ElementAWG(channels={}, length=self.laser_waiting_time)
             #Pi/2 pulse
-            self.ElementPS(channels={'MW_0':True}, length=self.pi_pulse/2)
+            self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse/2)
                                
             for i in range(N):
                 #First waiting time + tau/2
-                self.ElementPS(channels={}, length=tau/(4*N))
+                self.ElementAWG(channels={}, length=tau/(4*N))
                 #Pi pulse
-                self.ElementPS(channels={'MW_0':True}, length=self.pi_pulse, phase_0=90)
+                self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse, phase_0=90)
                 #Second waiting time + tau/2
-                self.ElementPS(channels={}, length=tau/(2*N))
+                self.ElementAWG(channels={}, length=tau/(2*N))
                 #Pi pulse
-                self.ElementPS(channels={'MW_0':True}, length=self.pi_pulse, phase_0=90)
+                self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse, phase_0=90)
                 #Second waiting time + tau/2
-                self.ElementPS(channels={}, length=tau/(4*N))
+                self.ElementAWG(channels={}, length=tau/(4*N))
                                
-            #Pi/2 pulse Phase change cause -pi/2 pulse - done by AWG
-            self.ElementPS(channels={'MW_0':True}, length=self.pi_pulse/2)
-            #Waiting time
-            self.ElementPS(channels={'TT_Next':True}, length=self.mw_waiting_time)
-            #Read out
-            self.ElementPS(channels={'Laser':True, 'TT_Start':True}, length=self.read_out_time)
+            #Pi/2 pulse
+            self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse/2)
+            #Waiting time + read-out
+            self.ElementAWG(channels={'PS_Trig':True}, length=self.mw_waiting_time + self.read_out_time)
         
-        self.sample_load_ready_pulsed_measurement(name=name, 
-                                             element_list=self.BlockPS, tau_arr=self.tau_arr+ 2*N*self.pi_pulse, alternating=alternating, freq_sweep=freq_sweep)
-        ensemble_list = self.sample_load_large_sine_AWG(name)
+        self.sample_load_ready_pulsestreamer(name='read_out_jptr')
+        
+        ensemble_list = self.sample_load_ready_AWG(name, self.tau_arr, alternating, freq_sweep, change_freq = True)
 
         return ensemble_list, name, self.tau_arr + 2*N*self.pi_pulse, alternating, freq_sweep
         
@@ -1151,70 +1106,62 @@ class PulsedJupyterLogic(GenericLogic):
         
         tau_NV -= 2*N*self.pi_pulse
         
-        #Create pulse sequence for the pulse streamer
-        self.BlockPS = []
-        self.PhaseDuration = []
-
-        #Trigger AWG to play its sequence, which includes one complete sweep of all waiting times        
-        self.ElementPS(channels={'AWG_Trig':True}, length=self.awg_sync_time)
+        #Create pulse sequence for the AWG streamer
+        self.BlockAWG = []
         
         for tau in self.tau_arr:
             #Break after Initalisation/read out
-            self.ElementPS(channels={}, length=self.laser_waiting_time)
+            self.ElementAWG(channels={}, length=self.laser_waiting_time)
             #Pi/2 pulse
-            self.ElementPS(channels={'MW_0':True}, length=self.pi_pulse/2)
+            self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse/2)
             
             for i in range(N):
                 #First waiting time + tau/2
-                self.ElementPS(channels={}, length=tau_NV/(4*N))
+                self.ElementAWG(channels={}, length=tau_NV/(4*N))
                 #Pi pulse
-                self.ElementPS(channels={'MW_0':True}, length=self.pi_pulse, phase_0=90)
+                self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse, phase_0=90)
                 #Pi pulse for dark spin
-                self.ElementPS(channels={'MW_1':True}, length=pi_pulse_dark_spin, freq_1 = tau)
+                self.ElementAWG(channels={'MW_1':True}, length=pi_pulse_dark_spin, freq_1 = tau)
                 #Second waiting time + tau/2
-                self.ElementPS(channels={}, length=tau_NV/(2*N)-pi_pulse_dark_spin)
+                self.ElementAWG(channels={}, length=tau_NV/(2*N)-pi_pulse_dark_spin)
                 #Pi pulse
-                self.ElementPS(channels={'MW_0':True}, length=self.pi_pulse, phase_0=90)
+                self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse, phase_0=90)
                 #Second waiting time + tau/2
-                self.ElementPS(channels={}, length=tau_NV/(4*N))
+                self.ElementAWG(channels={}, length=tau_NV/(4*N))
                                
             #Pi/2 pulse
-            self.ElementPS(channels={'MW_0':True}, length=self.pi_pulse/2, phase_0=180)
-            #Waiting time
-            self.ElementPS(channels={'TT_Next':True}, length=self.mw_waiting_time)
-            #Read out
-            self.ElementPS(channels={'Laser':True, 'TT_Start':True}, length=self.read_out_time)
+            self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse/2, phase_0=180)
+            #Waiting time + read-out
+            self.ElementAWG(channels={'PS_Trig':True}, length=self.mw_waiting_time + self.read_out_time)
             
             #Alternating run
             #Break after Initalisation/read out
-            self.ElementPS(channels={}, length=self.laser_waiting_time)
+            self.ElementAWG(channels={}, length=self.laser_waiting_time)
             #Pi/2 pulse
-            self.ElementPS(channels={'MW_0':True}, length=self.pi_pulse/2)
+            self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse/2)
                                
             for i in range(N):
                 #First waiting time + tau/2
-                self.ElementPS(channels={}, length=tau_NV/(4*N))
+                self.ElementAWG(channels={}, length=tau_NV/(4*N))
                 #Pi pulse
-                self.ElementPS(channels={'MW_0':True}, length=self.pi_pulse, phase_0=90)
+                self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse, phase_0=90)
                 #Pi pulse for dark spin
-                self.ElementPS(channels={'MW_1':True}, length=pi_pulse_dark_spin, freq_1 = tau)
+                self.ElementAWG(channels={'MW_1':True}, length=pi_pulse_dark_spin, freq_1 = tau)
                 #Second waiting time + tau/2
-                self.ElementPS(channels={}, length=tau_NV/(2*N)-pi_pulse_dark_spin)
+                self.ElementAWG(channels={}, length=tau_NV/(2*N)-pi_pulse_dark_spin)
                 #Pi pulse
-                self.ElementPS(channels={'MW_0':True}, length=self.pi_pulse, phase_0=90)
+                self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse, phase_0=90)
                 #Second waiting time + tau/2
-                self.ElementPS(channels={}, length=tau_NV/(4*N))
+                self.ElementAWG(channels={}, length=tau_NV/(4*N))
                                
             #Pi/2 pulse Phase change cause -pi/2 pulse - done by AWG
-            self.ElementPS(channels={'MW_0':True}, length=self.pi_pulse/2)
-            #Waiting time
-            self.ElementPS(channels={'TT_Next':True}, length=self.mw_waiting_time)
-            #Read out
-            self.ElementPS(channels={'Laser':True, 'TT_Start':True}, length=self.read_out_time)
+            self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse/2)
+            #Waiting time + read-out
+            self.ElementAWG(channels={'PS_Trig':True}, length=self.mw_waiting_time + self.read_out_time)
         
-        self.sample_load_ready_pulsed_measurement(name=name, 
-                                             element_list=self.BlockPS, tau_arr=self.tau_arr, alternating=alternating, freq_sweep=freq_sweep)
-        ensemble_list = self.sample_load_large_sine_AWG(name)
+        self.sample_load_ready_pulsestreamer(name='read_out_jptr')
+        
+        ensemble_list = self.sample_load_ready_AWG(name, self.tau_arr, alternating, freq_sweep, change_freq = True)
 
         return ensemble_list, name, self.tau_arr, alternating, freq_sweep
         
@@ -1239,64 +1186,56 @@ class PulsedJupyterLogic(GenericLogic):
         freq_sweep=False
         self.tau_arr = np.linspace(tau_start, tau_stop, num=tau_num) - 4*N*self.pi_pulse #compensating the pi_pulse run time
         
-        #Create pulse sequence for the pulse streamer
-        self.BlockPS = []
-        self.PhaseDuration = []
-
         #Trigger AWG to play its sequence, which includes one complete sweep of all waiting times        
-        self.ElementPS(channels={'AWG_Trig':True}, length=self.awg_sync_time)
+        self.ElementAWG(channels={'AWG_Trig':True}, length=self.awg_sync_time)
         
         for tau in self.tau_arr:
             #Break after Initalisation/read out
-            self.ElementPS(channels={}, length=self.laser_waiting_time)
+            self.ElementAWG(channels={}, length=self.laser_waiting_time)
             #Pi/2 pulse
-            self.ElementPS(channels={'MW_0':True}, length=self.pi_pulse/2)
+            self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse/2)
             
             for i in range(N):       
-                self.ElementPS(channels={}, length=tau/(2*4*N))
-                self.ElementPS(channels={'MW_0':True}, length=self.pi_pulse)
-                self.ElementPS(channels={}, length=tau/(1*4*N))
-                self.ElementPS(channels={'MW_0':True}, length=self.pi_pulse, phase_0=90)
-                self.ElementPS(channels={}, length=tau/(1*4*N))
-                self.ElementPS(channels={'MW_0':True}, length=self.pi_pulse)
-                self.ElementPS(channels={}, length=tau/(1*4*N))
-                self.ElementPS(channels={'MW_0':True}, length=self.pi_pulse, phase_0=90)
-                self.ElementPS(channels={}, length=tau/(2*4*N))
+                self.ElementAWG(channels={}, length=tau/(2*4*N))
+                self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse)
+                self.ElementAWG(channels={}, length=tau/(1*4*N))
+                self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse, phase_0=90)
+                self.ElementAWG(channels={}, length=tau/(1*4*N))
+                self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse)
+                self.ElementAWG(channels={}, length=tau/(1*4*N))
+                self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse, phase_0=90)
+                self.ElementAWG(channels={}, length=tau/(2*4*N))
                 
-            #Pi/2 pulse
-            self.ElementPS(channels={'MW_0':True}, length=self.pi_pulse/2, phase_0=180)
-            #Waiting time
-            self.ElementPS(channels={'TT_Next':True}, length=self.mw_waiting_time)
-            #Read out
-            self.ElementPS(channels={'Laser':True, 'TT_Start':True}, length=self.read_out_time)
+            #-Pi/2 pulse
+            self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse/2, phase_0=180)
+            #Waiting time + read-out
+            self.ElementAWG(channels={'PS_Trig':True}, length=self.mw_waiting_time + self.read_out_time)
             
             #Alternating run
             #Break after Initalisation/read out
-            self.ElementPS(channels={}, length=self.laser_waiting_time)
+            self.ElementAWG(channels={}, length=self.laser_waiting_time)
             #Pi/2 pulse
-            self.ElementPS(channels={'MW_0':True}, length=self.pi_pulse/2)
+            self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse/2)
                                
             for i in range(N):
-                self.ElementPS(channels={}, length=tau/(2*4*N))
-                self.ElementPS(channels={'MW_0':True}, length=self.pi_pulse)
-                self.ElementPS(channels={}, length=tau/(1*4*N))
-                self.ElementPS(channels={'MW_0':True}, length=self.pi_pulse, phase_0=90)
-                self.ElementPS(channels={}, length=tau/(1*4*N))
-                self.ElementPS(channels={'MW_0':True}, length=self.pi_pulse)
-                self.ElementPS(channels={}, length=tau/(1*4*N))
-                self.ElementPS(channels={'MW_0':True}, length=self.pi_pulse, phase_0=90)
-                self.ElementPS(channels={}, length=tau/(2*4*N))
+                self.ElementAWG(channels={}, length=tau/(2*4*N))
+                self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse)
+                self.ElementAWG(channels={}, length=tau/(1*4*N))
+                self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse, phase_0=90)
+                self.ElementAWG(channels={}, length=tau/(1*4*N))
+                self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse)
+                self.ElementAWG(channels={}, length=tau/(1*4*N))
+                self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse, phase_0=90)
+                self.ElementAWG(channels={}, length=tau/(2*4*N))
                                
-            #Pi/2 pulse Phase change cause -pi/2 pulse - done by AWG
-            self.ElementPS(channels={'MW_0':True}, length=self.pi_pulse/2)
-            #Waiting time
-            self.ElementPS(channels={'TT_Next':True}, length=self.mw_waiting_time)
-            #Read out
-            self.ElementPS(channels={'Laser':True, 'TT_Start':True}, length=self.read_out_time)
+            #Pi/2 pulse
+            self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse/2)
+            #Waiting time + read-out
+            self.ElementAWG(channels={'PS_Trig':True}, length=self.mw_waiting_time + self.read_out_time)
         
-        self.sample_load_ready_pulsed_measurement(name=name, 
-                                             element_list=self.BlockPS, tau_arr=self.tau_arr, alternating=alternating, freq_sweep=freq_sweep)
-        ensemble_list = self.sample_load_large_sine_AWG(name)
+        self.sample_load_ready_pulsestreamer(name='read_out_jptr')
+        
+        ensemble_list = self.sample_load_ready_AWG(name, self.tau_arr, alternating, freq_sweep, change_freq = True)
 
         return ensemble_list, name, self.tau_arr+ 4*N*self.pi_pulse, alternating, freq_sweep
     
@@ -1321,80 +1260,72 @@ class PulsedJupyterLogic(GenericLogic):
         freq_sweep=False
         self.tau_arr = np.linspace(tau_start, tau_stop, num=tau_num) - 8*N*self.pi_pulse #compensating the pi_pulse run time
         
-        #Create pulse sequence for the pulse streamer
-        self.BlockPS = []
-        self.PhaseDuration = []
-
-        #Trigger AWG to play its sequence, which includes one complete sweep of all waiting times        
-        self.ElementPS(channels={'AWG_Trig':True}, length=self.awg_sync_time)
+        #Create pulse sequence for the AWG streamer
+        self.BlockAWG = []
         
         for tau in self.tau_arr:
             #Break after Initalisation/read out
-            self.ElementPS(channels={}, length=self.laser_waiting_time)
+            self.ElementAWG(channels={}, length=self.laser_waiting_time)
             #Pi/2 pulse
-            self.ElementPS(channels={'MW_0':True}, length=self.pi_pulse/2)
+            self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse/2)
             
             for i in range(N):       
-                self.ElementPS(channels={}, length=tau/(2*8*N))
-                self.ElementPS(channels={'MW_0':True}, length=self.pi_pulse, phase_0=90)
-                self.ElementPS(channels={}, length=tau/(1*8*N))
-                self.ElementPS(channels={'MW_0':True}, length=self.pi_pulse)
-                self.ElementPS(channels={}, length=tau/(1*8*N))
-                self.ElementPS(channels={'MW_0':True}, length=self.pi_pulse, phase_0=90)
-                self.ElementPS(channels={}, length=tau/(1*8*N))
-                self.ElementPS(channels={'MW_0':True}, length=self.pi_pulse)
-                self.ElementPS(channels={}, length=tau/(1*8*N))
-                self.ElementPS(channels={'MW_0':True}, length=self.pi_pulse)
-                self.ElementPS(channels={}, length=tau/(1*8*N))
-                self.ElementPS(channels={'MW_0':True}, length=self.pi_pulse, phase_0=90)
-                self.ElementPS(channels={}, length=tau/(1*8*N))
-                self.ElementPS(channels={'MW_0':True}, length=self.pi_pulse)
-                self.ElementPS(channels={}, length=tau/(1*8*N))
-                self.ElementPS(channels={'MW_0':True}, length=self.pi_pulse, phase_0=90)
-                self.ElementPS(channels={}, length=tau/(2*8*N))
+                self.ElementAWG(channels={}, length=tau/(2*8*N))
+                self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse, phase_0=90)
+                self.ElementAWG(channels={}, length=tau/(1*8*N))
+                self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse)
+                self.ElementAWG(channels={}, length=tau/(1*8*N))
+                self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse, phase_0=90)
+                self.ElementAWG(channels={}, length=tau/(1*8*N))
+                self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse)
+                self.ElementAWG(channels={}, length=tau/(1*8*N))
+                self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse)
+                self.ElementAWG(channels={}, length=tau/(1*8*N))
+                self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse, phase_0=90)
+                self.ElementAWG(channels={}, length=tau/(1*8*N))
+                self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse)
+                self.ElementAWG(channels={}, length=tau/(1*8*N))
+                self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse, phase_0=90)
+                self.ElementAWG(channels={}, length=tau/(2*8*N))
                 
-            #Pi/2 pulse
-            self.ElementPS(channels={'MW_0':True}, length=self.pi_pulse/2, phase_0=180)
-            #Waiting time
-            self.ElementPS(channels={'TT_Next':True}, length=self.mw_waiting_time)
-            #Read out
-            self.ElementPS(channels={'Laser':True, 'TT_Start':True}, length=self.read_out_time)
+            #-Pi/2 pulse
+            self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse/2, phase_0=180)
+            #Waiting time + read-out
+            self.ElementAWG(channels={'PS_Trig':True}, length=self.mw_waiting_time + self.read_out_time)
             
             #Alternating run
             #Break after Initalisation/read out
-            self.ElementPS(channels={}, length=self.laser_waiting_time)
+            self.ElementAWG(channels={}, length=self.laser_waiting_time)
             #Pi/2 pulse
-            self.ElementPS(channels={'MW_0':True}, length=self.pi_pulse/2)
+            self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse/2)
                                
             for i in range(N):
-                self.ElementPS(channels={}, length=tau/(2*8*N))
-                self.ElementPS(channels={'MW_0':True}, length=self.pi_pulse, phase_0=90)
-                self.ElementPS(channels={}, length=tau/(1*8*N))
-                self.ElementPS(channels={'MW_0':True}, length=self.pi_pulse)
-                self.ElementPS(channels={}, length=tau/(1*8*N))
-                self.ElementPS(channels={'MW_0':True}, length=self.pi_pulse, phase_0=90)
-                self.ElementPS(channels={}, length=tau/(1*8*N))
-                self.ElementPS(channels={'MW_0':True}, length=self.pi_pulse)
-                self.ElementPS(channels={}, length=tau/(1*8*N))
-                self.ElementPS(channels={'MW_0':True}, length=self.pi_pulse)
-                self.ElementPS(channels={}, length=tau/(1*8*N))
-                self.ElementPS(channels={'MW_0':True}, length=self.pi_pulse, phase_0=90)
-                self.ElementPS(channels={}, length=tau/(1*8*N))
-                self.ElementPS(channels={'MW_0':True}, length=self.pi_pulse)
-                self.ElementPS(channels={}, length=tau/(1*8*N))
-                self.ElementPS(channels={'MW_0':True}, length=self.pi_pulse, phase_0=90)
-                self.ElementPS(channels={}, length=tau/(2*8*N))
+                self.ElementAWG(channels={}, length=tau/(2*8*N))
+                self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse, phase_0=90)
+                self.ElementAWG(channels={}, length=tau/(1*8*N))
+                self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse)
+                self.ElementAWG(channels={}, length=tau/(1*8*N))
+                self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse, phase_0=90)
+                self.ElementAWG(channels={}, length=tau/(1*8*N))
+                self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse)
+                self.ElementAWG(channels={}, length=tau/(1*8*N))
+                self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse)
+                self.ElementAWG(channels={}, length=tau/(1*8*N))
+                self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse, phase_0=90)
+                self.ElementAWG(channels={}, length=tau/(1*8*N))
+                self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse)
+                self.ElementAWG(channels={}, length=tau/(1*8*N))
+                self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse, phase_0=90)
+                self.ElementAWG(channels={}, length=tau/(2*8*N))
                                
-            #Pi/2 pulse Phase change cause -pi/2 pulse - done by AWG
-            self.ElementPS(channels={'MW_0':True}, length=self.pi_pulse/2)
-            #Waiting time
-            self.ElementPS(channels={'TT_Next':True}, length=self.mw_waiting_time)
-            #Read out
-            self.ElementPS(channels={'Laser':True, 'TT_Start':True}, length=self.read_out_time)
+            #Pi/2 pulse
+            self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse/2)
+            #Waiting time + read-out
+            self.ElementAWG(channels={'PS_Trig':True}, length=self.mw_waiting_time + self.read_out_time)
         
-        self.sample_load_ready_pulsed_measurement(name=name, 
-                                             element_list=self.BlockPS, tau_arr=self.tau_arr, alternating=alternating, freq_sweep=freq_sweep)
-        ensemble_list = self.sample_load_large_sine_AWG(name)
+        self.sample_load_ready_pulsestreamer(name='read_out_jptr')
+        
+        ensemble_list = self.sample_load_ready_AWG(name, self.tau_arr, alternating, freq_sweep, change_freq = True)
 
         return ensemble_list, name, self.tau_arr+ 8*N*self.pi_pulse, alternating, freq_sweep
         
@@ -1419,111 +1350,103 @@ class PulsedJupyterLogic(GenericLogic):
         freq_sweep=False
         self.tau_arr = np.linspace(tau_start, tau_stop, num=tau_num) - 16*N*self.pi_pulse #compensating the pi_pulse run time
         
-        #Create pulse sequence for the pulse streamer
-        self.BlockPS = []
-        self.PhaseDuration = []
-
-        #Trigger AWG to play its sequence, which includes one complete sweep of all waiting times        
-        self.ElementPS(channels={'AWG_Trig':True}, length=self.awg_sync_time)
+        #Create pulse sequence for the AWG streamer
+        self.BlockAWG = []
         
         for tau in self.tau_arr:
             #Break after Initalisation/read out
-            self.ElementPS(channels={}, length=self.laser_waiting_time)
+            self.ElementAWG(channels={}, length=self.laser_waiting_time)
             #Pi/2 pulse
-            self.ElementPS(channels={'MW_0':True}, length=self.pi_pulse/2)
+            self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse/2)
             
             for i in range(N):       
-                self.ElementPS(channels={}, length=tau/(2*16*N))
-                self.ElementPS(channels={'MW_0':True}, length=self.pi_pulse, phase_0=90)
-                self.ElementPS(channels={}, length=tau/(1*16*N))
-                self.ElementPS(channels={'MW_0':True}, length=self.pi_pulse)
-                self.ElementPS(channels={}, length=tau/(1*16*N))
-                self.ElementPS(channels={'MW_0':True}, length=self.pi_pulse, phase_0=90)
-                self.ElementPS(channels={}, length=tau/(1*16*N))
-                self.ElementPS(channels={'MW_0':True}, length=self.pi_pulse)
-                self.ElementPS(channels={}, length=tau/(1*16*N))
-                self.ElementPS(channels={'MW_0':True}, length=self.pi_pulse)
-                self.ElementPS(channels={}, length=tau/(1*16*N))
-                self.ElementPS(channels={'MW_0':True}, length=self.pi_pulse, phase_0=90)
-                self.ElementPS(channels={}, length=tau/(1*16*N))
-                self.ElementPS(channels={'MW_0':True}, length=self.pi_pulse)
-                self.ElementPS(channels={}, length=tau/(1*16*N))
-                self.ElementPS(channels={'MW_0':True}, length=self.pi_pulse, phase_0=90)
-                self.ElementPS(channels={}, length=tau/(1*16*N))
-                self.ElementPS(channels={'MW_0':True}, length=self.pi_pulse, phase_0=90+180)
-                self.ElementPS(channels={}, length=tau/(1*16*N))
-                self.ElementPS(channels={'MW_0':True}, length=self.pi_pulse, phase_0=180)
-                self.ElementPS(channels={}, length=tau/(1*16*N))
-                self.ElementPS(channels={'MW_0':True}, length=self.pi_pulse, phase_0=90+180)
-                self.ElementPS(channels={}, length=tau/(1*16*N))
-                self.ElementPS(channels={'MW_0':True}, length=self.pi_pulse, phase_0=180)
-                self.ElementPS(channels={}, length=tau/(1*16*N))
-                self.ElementPS(channels={'MW_0':True}, length=self.pi_pulse, phase_0=180)
-                self.ElementPS(channels={}, length=tau/(1*16*N))
-                self.ElementPS(channels={'MW_0':True}, length=self.pi_pulse, phase_0=90+180)
-                self.ElementPS(channels={}, length=tau/(1*16*N))
-                self.ElementPS(channels={'MW_0':True}, length=self.pi_pulse, phase_0=180)
-                self.ElementPS(channels={}, length=tau/(1*16*N))
-                self.ElementPS(channels={'MW_0':True}, length=self.pi_pulse, phase_0=90+180)
-                self.ElementPS(channels={}, length=tau/(2*16*N))
+                self.ElementAWG(channels={}, length=tau/(2*16*N))
+                self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse, phase_0=90)
+                self.ElementAWG(channels={}, length=tau/(1*16*N))
+                self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse)
+                self.ElementAWG(channels={}, length=tau/(1*16*N))
+                self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse, phase_0=90)
+                self.ElementAWG(channels={}, length=tau/(1*16*N))
+                self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse)
+                self.ElementAWG(channels={}, length=tau/(1*16*N))
+                self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse)
+                self.ElementAWG(channels={}, length=tau/(1*16*N))
+                self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse, phase_0=90)
+                self.ElementAWG(channels={}, length=tau/(1*16*N))
+                self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse)
+                self.ElementAWG(channels={}, length=tau/(1*16*N))
+                self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse, phase_0=90)
+                self.ElementAWG(channels={}, length=tau/(1*16*N))
+                self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse, phase_0=90+180)
+                self.ElementAWG(channels={}, length=tau/(1*16*N))
+                self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse, phase_0=180)
+                self.ElementAWG(channels={}, length=tau/(1*16*N))
+                self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse, phase_0=90+180)
+                self.ElementAWG(channels={}, length=tau/(1*16*N))
+                self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse, phase_0=180)
+                self.ElementAWG(channels={}, length=tau/(1*16*N))
+                self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse, phase_0=180)
+                self.ElementAWG(channels={}, length=tau/(1*16*N))
+                self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse, phase_0=90+180)
+                self.ElementAWG(channels={}, length=tau/(1*16*N))
+                self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse, phase_0=180)
+                self.ElementAWG(channels={}, length=tau/(1*16*N))
+                self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse, phase_0=90+180)
+                self.ElementAWG(channels={}, length=tau/(2*16*N))
                 
-            #Pi/2 pulse
-            self.ElementPS(channels={'MW_0':True}, length=self.pi_pulse/2, phase_0=180)
-            #Waiting time
-            self.ElementPS(channels={'TT_Next':True}, length=self.mw_waiting_time)
-            #Read out
-            self.ElementPS(channels={'Laser':True, 'TT_Start':True}, length=self.read_out_time)
+            #-Pi/2 pulse
+            self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse/2, phase_0=180)
+            #Waiting time + read-out
+            self.ElementAWG(channels={'PS_Trig':True}, length=self.mw_waiting_time + self.read_out_time)
             
             #Alternating run
             #Break after Initalisation/read out
-            self.ElementPS(channels={}, length=self.laser_waiting_time)
+            self.ElementAWG(channels={}, length=self.laser_waiting_time)
             #Pi/2 pulse
-            self.ElementPS(channels={'MW_0':True}, length=self.pi_pulse/2)
+            self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse/2)
                                
             for i in range(N):
-                self.ElementPS(channels={}, length=tau/(2*16*N))
-                self.ElementPS(channels={'MW_0':True}, length=self.pi_pulse, phase_0=90)
-                self.ElementPS(channels={}, length=tau/(1*16*N))
-                self.ElementPS(channels={'MW_0':True}, length=self.pi_pulse)
-                self.ElementPS(channels={}, length=tau/(1*16*N))
-                self.ElementPS(channels={'MW_0':True}, length=self.pi_pulse, phase_0=90)
-                self.ElementPS(channels={}, length=tau/(1*16*N))
-                self.ElementPS(channels={'MW_0':True}, length=self.pi_pulse)
-                self.ElementPS(channels={}, length=tau/(1*16*N))
-                self.ElementPS(channels={'MW_0':True}, length=self.pi_pulse)
-                self.ElementPS(channels={}, length=tau/(1*16*N))
-                self.ElementPS(channels={'MW_0':True}, length=self.pi_pulse, phase_0=90)
-                self.ElementPS(channels={}, length=tau/(1*16*N))
-                self.ElementPS(channels={'MW_0':True}, length=self.pi_pulse)
-                self.ElementPS(channels={}, length=tau/(1*16*N))
-                self.ElementPS(channels={'MW_0':True}, length=self.pi_pulse, phase_0=90)
-                self.ElementPS(channels={}, length=tau/(1*16*N))
-                self.ElementPS(channels={'MW_0':True}, length=self.pi_pulse, phase_0=90+180)
-                self.ElementPS(channels={}, length=tau/(1*16*N))
-                self.ElementPS(channels={'MW_0':True}, length=self.pi_pulse, phase_0=180)
-                self.ElementPS(channels={}, length=tau/(1*16*N))
-                self.ElementPS(channels={'MW_0':True}, length=self.pi_pulse, phase_0=90+180)
-                self.ElementPS(channels={}, length=tau/(1*16*N))
-                self.ElementPS(channels={'MW_0':True}, length=self.pi_pulse, phase_0=180)
-                self.ElementPS(channels={}, length=tau/(1*16*N))
-                self.ElementPS(channels={'MW_0':True}, length=self.pi_pulse, phase_0=180)
-                self.ElementPS(channels={}, length=tau/(1*16*N))
-                self.ElementPS(channels={'MW_0':True}, length=self.pi_pulse, phase_0=90+180)
-                self.ElementPS(channels={}, length=tau/(1*16*N))
-                self.ElementPS(channels={'MW_0':True}, length=self.pi_pulse, phase_0=180)
-                self.ElementPS(channels={}, length=tau/(1*16*N))
-                self.ElementPS(channels={'MW_0':True}, length=self.pi_pulse, phase_0=90+180)
-                self.ElementPS(channels={}, length=tau/(2*16*N))
+                self.ElementAWG(channels={}, length=tau/(2*16*N))
+                self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse, phase_0=90)
+                self.ElementAWG(channels={}, length=tau/(1*16*N))
+                self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse)
+                self.ElementAWG(channels={}, length=tau/(1*16*N))
+                self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse, phase_0=90)
+                self.ElementAWG(channels={}, length=tau/(1*16*N))
+                self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse)
+                self.ElementAWG(channels={}, length=tau/(1*16*N))
+                self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse)
+                self.ElementAWG(channels={}, length=tau/(1*16*N))
+                self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse, phase_0=90)
+                self.ElementAWG(channels={}, length=tau/(1*16*N))
+                self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse)
+                self.ElementAWG(channels={}, length=tau/(1*16*N))
+                self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse, phase_0=90)
+                self.ElementAWG(channels={}, length=tau/(1*16*N))
+                self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse, phase_0=90+180)
+                self.ElementAWG(channels={}, length=tau/(1*16*N))
+                self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse, phase_0=180)
+                self.ElementAWG(channels={}, length=tau/(1*16*N))
+                self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse, phase_0=90+180)
+                self.ElementAWG(channels={}, length=tau/(1*16*N))
+                self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse, phase_0=180)
+                self.ElementAWG(channels={}, length=tau/(1*16*N))
+                self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse, phase_0=180)
+                self.ElementAWG(channels={}, length=tau/(1*16*N))
+                self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse, phase_0=90+180)
+                self.ElementAWG(channels={}, length=tau/(1*16*N))
+                self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse, phase_0=180)
+                self.ElementAWG(channels={}, length=tau/(1*16*N))
+                self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse, phase_0=90+180)
+                self.ElementAWG(channels={}, length=tau/(2*16*N))
                                
-            #Pi/2 pulse Phase change cause -pi/2 pulse - done by AWG
-            self.ElementPS(channels={'MW_0':True}, length=self.pi_pulse/2)
-            #Waiting time
-            self.ElementPS(channels={'TT_Next':True}, length=self.mw_waiting_time)
-            #Read out
-            self.ElementPS(channels={'Laser':True, 'TT_Start':True}, length=self.read_out_time)
+            #Pi/2 pulse
+            self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse/2)
+            #Waiting time + read-out
+            self.ElementAWG(channels={'PS_Trig':True}, length=self.mw_waiting_time + self.read_out_time)
         
-        self.sample_load_ready_pulsed_measurement(name=name, 
-                                             element_list=self.BlockPS, tau_arr=self.tau_arr, alternating=alternating, freq_sweep=freq_sweep)
-        ensemble_list = self.sample_load_large_sine_AWG(name)
+        self.sample_load_ready_pulsestreamer(name='read_out_jptr')
+        
+        ensemble_list = self.sample_load_ready_AWG(name, self.tau_arr, alternating, freq_sweep, change_freq = True)
 
         return ensemble_list, name, self.tau_arr+ 16*N*self.pi_pulse, alternating, freq_sweep

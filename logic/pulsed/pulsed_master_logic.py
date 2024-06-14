@@ -109,6 +109,7 @@ class PulsedMasterLogic(GenericLogic):
     sigPredefinedSequenceGenerated = QtCore.Signal(object, bool)
 
     sigUpdateSaveTag  = QtCore.Signal(str)
+    sigUpdateLoadedAssetLabel = QtCore.Signal(str)
 
     def __init__(self, config, **kwargs):
         """ Create PulsedMasterLogic object with connectors.
