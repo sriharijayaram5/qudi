@@ -677,7 +677,7 @@ class ODMRLogic(GenericLogic):
         args = [pulsed_meas, analysis_settings['signal_start'], analysis_settings['signal_end'], analysis_settings['norm_start'], analysis_settings['norm_end']]
            
         try:
-            data, err = analysis_method(*args)
+            data, err, ref_data, ref_time = analysis_method(*args)
         except:
             self.log.warning('Something went wrong with the laser data. Run measurement again.')
             return (0,0)
@@ -778,12 +778,14 @@ class ODMRLogic(GenericLogic):
         tmp_signal = laser_data[:,signal_start_bin:signal_end_bin]
         if np.count_nonzero(tmp_signal):
             signal_data = np.mean(tmp_signal, axis=1)/np.mean(tmp_ref, axis=1)
+            ref_data = np.mean(tmp_ref, axis=1)
             error_data = signal_data * np.sqrt(1/np.sum(tmp_signal, axis=1) + 1/np.sum(tmp_ref, axis=1))
         else:
             signal_data = np.zeros(num_of_lasers)
             error_data = np.zeros(num_of_lasers)
-        
-        return signal_data, error_data
+            ref_data = np.zeros(num_of_lasers)
+        ref_time = (norm_end-norm_start)
+        return signal_data, error_data, ref_data, ref_time
     
     def get_fit_functions(self):
         """ Return the hardware constraints/limits
