@@ -184,7 +184,7 @@
                </widget>
               </item>
               <item>
-               <widget class="ScienDSpinBox" name="pi_half_DoubleSpinBox">
+               <widget class="ScienDSpinBox" name="pi_length_DoubleSpinBox">
                 <property name="sizePolicy">
                  <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
                   <horstretch>0</horstretch>

@@ -32,6 +32,7 @@ class ODMRCounterInterfuse(GenericLogic, ODMRCounterInterface):
 
     slowcounter = Connector(interface='RecorderInterface')
     pulser = Connector(interface='PulserInterface')
+    AWG = Connector(interface='PulserInterface')
 
     def __init__(self, config, **kwargs):
         super().__init__(config=config, **kwargs)
@@ -40,6 +41,7 @@ class ODMRCounterInterfuse(GenericLogic, ODMRCounterInterface):
     def on_activate(self):
         """ Initialisation performed during activation of the module."""
         self._pulser = self.pulser()
+        self._AWG =self.AWG()
         self._sc_device = self.slowcounter()  # slow counter device
 
         self._lock_in_active = False

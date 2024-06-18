@@ -94,7 +94,7 @@ class ODMRGui(GUIBase):
     sigDoFit = QtCore.Signal(str, object, object, int, int)
     sigSaveMeasurement = QtCore.Signal(str)
     sigAverageLinesChanged = QtCore.Signal(int)
-    pi_half = StatusVar('pi_half', default=0)
+    pi_length = StatusVar('pi_length', default=0)
 
     def __init__(self, config, **kwargs):
         super().__init__(config=config, **kwargs)
@@ -330,8 +330,8 @@ class ODMRGui(GUIBase):
         self._connect_extraction_tab_signals()
         self._odmr_logic.sigAnalysisSettingsUpdated.connect(self.analysis_settings_updated)
         self.analysis_settings_updated(self._odmr_logic.pulsed_analysis_settings)
-        self._mw.pi_half_DoubleSpinBox.setValue(self.pi_half)
-        self._mw.pi_half_DoubleSpinBox.setMaximum(100e-6)
+        self._mw.pi_length_DoubleSpinBox.setValue(self.pi_length)
+        self._mw.pi_length_DoubleSpinBox.setMaximum(100e-6)
 
         # Show the Main ODMR GUI:
         self.show()
@@ -341,7 +341,7 @@ class ODMRGui(GUIBase):
 
         @return int: error code (0:OK, -1:error)
         """
-        self.pi_half = self._mw.pi_half_DoubleSpinBox.value()
+        self.pi_length = self._mw.pi_length_DoubleSpinBox.value()
         # Disconnect signals
         self._odmr_logic.sigParameterUpdated.disconnect()
         self._odmr_logic.sigOutputStateUpdated.disconnect()
@@ -739,7 +739,7 @@ class ODMRGui(GUIBase):
                 dspinbox_type_list = dspinbox_dict[identifier_name]
                 [dspinbox_type.setEnabled(False) for dspinbox_type in dspinbox_type_list]
 
-            self._odmr_logic.pi_half_pulse = self._mw.pi_half_DoubleSpinBox.value()
+            self._odmr_logic.pi_length_pulse = self._mw.pi_length_DoubleSpinBox.value()
             self.sigStartOdmrScan.emit()
         else:
             self.sigStopOdmrScan.emit()
