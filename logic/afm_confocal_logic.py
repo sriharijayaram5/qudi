@@ -2921,11 +2921,10 @@ class AFMConfocalLogic(GenericLogic):
             # mw_tracking_mode
             # upload the IQ signal for + and - delta frequencies. Should be triggerable. Only the CW MW will change during scan
             LO_freq = res_freq + 100e6 #AWG will play 100MHz +- delta_0 #this is the convention for us
+            self.pulsed_jupyter_logic.initialize_ensemble()
             self.pulsed_jupyter_logic.sample_load_ready_AWG_for_SPM_tracking(LO_freq, delta_0, repetitions, pi_half_duration)
             self.pulsed_jupyter_logic.sample_load_ready_pulsestreamer(name='read_out_jptr')
-            self._pulsed_master_AWG.pulsedmeasurementlogic().pulsegenerator().pulser_on(trigger=True)
-            awg_running = True
-    
+
             # return to normal operation
             self.sigHealthCheckStopSkip.emit()
 
@@ -3091,9 +3090,8 @@ class AFMConfocalLogic(GenericLogic):
                         if n==0:
                             self._debug = self._spm.scan_point() #allows moving of AFM and hence sync out trigger
                             self._scan_point[2:] = self._debug
-                        else:
-                            self._pulsed_master_AWG.pulsedmeasurementlogic().pulsegenerator().instance.set_sequence_start_step(1) #this is the measurement step with card end
-                            self._pulsed_master_AWG.pulsedmeasurementlogic().pulsegenerator().pulser_on(trigger=True)
+
+                        self._pulsed_master_AWG.pulsedmeasurementlogic().pulsegenerator().pulser_on()
                         
                         # obtain pulsed measurement
                         pulsed_meas = self._counter.get_measurements()[0] # this is the blocking statement
@@ -3105,8 +3103,7 @@ class AFMConfocalLogic(GenericLogic):
                         track_ret = self.tracking_analysis(pulsed_ret0, line_num, index, slope2_podmr, res_estimate, use_slope_track)
                         res_estimate, vis = track_ret
                     
-                    self._pulsed_master_AWG.pulsedmeasurementlogic().pulsegenerator().instance.set_sequence_start_step(2) #this is the trigger out step
-                    self._pulsed_master_AWG.pulsedmeasurementlogic().pulsegenerator().pulser_on(trigger=True)
+                    self._spm.scan_point(move_along=True)
                     
                     self._scan_point[1] = self.res_freq_array[line_num, index]/1e9
                     # self._scan_point[1] = 2.776+(np.random.random()*0.5e6/1e9)
