@@ -126,12 +126,19 @@ class AWG:
         self.hub.sync_all_cards()
 
     def start_normal(self):
+        """
+        This Start method is starting the card without changing the status of the Trigger engine.
+        There is a bug appering with this start, where every second start is not working as expected. The other to starts are not suffering from this bug.
+        """
+        
         return self.hub.start()
 
-    def start(self):
+    def start_triggered(self): 
+        """This Start method is starting the card, enables the trigger engine and forces one trigger event."""
         return self.hub.start_triggered()
 
-    def start_enable_trigger(self):
+    def start(self): 
+        """This is the prefered start, which starts the card and enables the trigger engine."""
         return self.hub.start_enable_trigger()
 
     def stop(self):

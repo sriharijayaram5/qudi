@@ -37,7 +37,8 @@ from logic.pulsed.sampling_functions import SamplingFunctions as SF
 
 class PulsedJupyterLogic(GenericLogic):
 
-    _afm_scanner_logic = Connector(interface='GenericLogic')
+    _pulsed_master = Connector(interface='GenericLogic')
+    _pulsed_master_AWG = Connector(interface='GenericLogic')
 
     def __init__(self, config, **kwargs):
         """ 
@@ -48,7 +49,12 @@ class PulsedJupyterLogic(GenericLogic):
         return
     
     def on_activate(self):
-        self.afm_scanner_logic = self._afm_scanner_logic()
+        self.pulsed_master = self._pulsed_master()
+        self.pulser = self.pulsed_master.pulsedmeasurementlogic().pulsegenerator()
+        self.pulsed_master_AWG = self._pulsed_master_AWG()
+        self.AWG = self.pulsed_master_AWG.pulsedmeasurementlogic().pulsegenerator()
+        self.mw = self.pulsed_master.pulsedmeasurementlogic().microwave()
+        self.mw1 = self.pulsed_master.pulsedmeasurementlogic().microwave1()
 
         self.channel_names_PS = {'Laser': 'd_ch1',
                                  'TT_Start': 'd_ch2',
@@ -75,7 +81,7 @@ class PulsedJupyterLogic(GenericLogic):
     def on_deactivate(self):
         return
     
-    def initialize_ensemble(self, pi_pulse=1e-9, pi_half_pulse=1e-9, three_pi_half_pulse=1e-9, awg_sync_time=16e-9 + 476.5/1.25e9, 
+    def initialize_ensemble(self, laser_power_volatge = 0.08, pi_pulse=1e-9, pi_half_pulse=1e-9, three_pi_half_pulse=1e-9, awg_sync_time=16e-9 + 476.5/1.25e9, 
                             laser_waiting_time=1.5e-6, mw_waiting_time=1e-6, read_out_time=3e-6,
                             LO_freq_0=3e9, target_freq_0=2.88e9, power_0=-20, LO_freq_1=3e9, target_freq_1=2.88e9, power_1=-100, printing = True):
         
@@ -86,7 +92,7 @@ class PulsedJupyterLogic(GenericLogic):
         self.laser_waiting_time = laser_waiting_time
         self.mw_waiting_time = mw_waiting_time
         self.read_out_time = read_out_time
-        self.laser_volt = self.afm_scanner_logic._podmr.laser_power_voltage
+        self.laser_volt = laser_power_volatge
         self.LO_freq_0 = LO_freq_0
         self.target_freq_0 = target_freq_0
         self.power_0 = power_0
@@ -134,23 +140,23 @@ class PulsedJupyterLogic(GenericLogic):
 
     def sample_load_ready_pulsestreamer(self, name = 'read_out_jptr'):
         
-        self.afm_scanner_logic._pulser.pulser_off()
+        self.pulser.pulser_off()
         self.BlockPS = []
         #Read out sequence
         self.ElementPS(channels={'TT_Next':True}, length=self.mw_waiting_time)
         self.ElementPS(channels={'Laser':True, 'TT_Start':True}, length=self.read_out_time)
         
         pulse_block = po.PulseBlock(name=name, element_list=self.BlockPS)
-        self.afm_scanner_logic._pulsed_master.sequencegeneratorlogic().save_block(pulse_block)
+        self.pulsed_master.sequencegeneratorlogic().save_block(pulse_block)
         
         block_list = []
         block_list.append((pulse_block.name, 0))
         pulse_block_ensemble = po.PulseBlockEnsemble(name, block_list)
         
-        self.afm_scanner_logic._pulsed_master.sequencegeneratorlogic().save_ensemble(pulse_block_ensemble)
-        self.afm_scanner_logic._pulsed_master.sequencegeneratorlogic().sample_pulse_block_ensemble(name)
-        self.afm_scanner_logic._pulsed_master.sequencegeneratorlogic().load_ensemble(name)
-        self.afm_scanner_logic._pulser.pulser_on(trigger=True, n=1, final=self.afm_scanner_logic._pulser.AWG_master_final_state)  
+        self.pulsed_master.sequencegeneratorlogic().save_ensemble(pulse_block_ensemble)
+        self.pulsed_master.sequencegeneratorlogic().sample_pulse_block_ensemble(name)
+        self.pulsed_master.sequencegeneratorlogic().load_ensemble(name)
+        self.pulser.pulser_on(trigger=True, n=1, final=self.pulser.AWG_master_final_state)  
 
     def sample_load_ready_AWG(self, name, tau_arr, alternating, freq_sweep, change_freq = True, setup_gui = True):
         """Function to loop through the PhaseDuration list defined with ElementPS/AWG for each measurement.
@@ -196,23 +202,23 @@ class PulsedJupyterLogic(GenericLogic):
                     }
             sequence_step_list.append(step)
 
-        self.afm_scanner_logic._AWG.load_ready_sequence_mode(sequence_step_list)
+        self.AWG.load_ready_sequence_mode(sequence_step_list)
 
         #Setup TimeTagger
         tau_num = len(tau_arr) * 2 if alternating else len(tau_arr)
-        self.afm_scanner_logic._pulsed_master_AWG.set_fast_counter_settings(record_length=self.read_out_time, number_of_gates=tau_num)
+        self.pulsed_master_AWG.set_fast_counter_settings(record_length=self.read_out_time, number_of_gates=tau_num)
 
         #Setup pulsed GUI
         if setup_gui:
-            self.afm_scanner_logic._pulsed_master_AWG.set_measurement_settings(invoke_settings=False, 
+            self.pulsed_master_AWG.set_measurement_settings(invoke_settings=False, 
                                                 controlled_variable=tau_arr,
                                                 number_of_lasers=tau_num, 
                                                 laser_ignore_list=[], 
                                                 alternating=alternating, 
                                                 units=('Hz' if freq_sweep else 's', 'arb. u.'))
-            self.afm_scanner_logic._pulsed_master_AWG.pulsedmeasurementlogic().alternative_data_type = 'None'
+            self.pulsed_master_AWG.pulsedmeasurementlogic().alternative_data_type = 'None'
             if use_MW_0:
-                self.afm_scanner_logic._pulsed_master_AWG.set_ext_microwave_settings(use_ext_microwave=True, 
+                self.pulsed_master_AWG.set_ext_microwave_settings(use_ext_microwave=True, 
                                                 frequency=self.LO_freq_0,
                                                 power=self.power_0)
         #self.MW_start(change_freq,use_MW_0,use_MW_1)
@@ -221,15 +227,15 @@ class PulsedJupyterLogic(GenericLogic):
     
     def setup_gui(self, tau_arr, alternating, freq_sweep, use_MW_0, use_MW_1):
         tau_num = len(tau_arr) * 2 if alternating else len(tau_arr)
-        self.afm_scanner_logic._pulsed_master_AWG.set_measurement_settings(invoke_settings=False, 
+        self.pulsed_master_AWG.set_measurement_settings(invoke_settings=False, 
                                     controlled_variable=tau_arr,
                                     number_of_lasers=tau_num, 
                                     laser_ignore_list=[], 
                                     alternating=alternating, 
                                     units=('Hz' if freq_sweep else 's', 'arb. u.'))
-        self.afm_scanner_logic._pulsed_master_AWG.pulsedmeasurementlogic().alternative_data_type = 'None'
+        self.pulsed_master_AWG.pulsedmeasurementlogic().alternative_data_type = 'None'
         if use_MW_0:
-            self.afm_scanner_logic._pulsed_master_AWG.set_ext_microwave_settings(use_ext_microwave=True, 
+            self.pulsed_master_AWG.set_ext_microwave_settings(use_ext_microwave=True, 
                                             frequency=self.LO_freq_0,
                                             power=self.power_0)
     
@@ -255,7 +261,7 @@ class PulsedJupyterLogic(GenericLogic):
 
                     ele.append(po.PulseBlockElement(init_length_s=dur,  pulse_function=a_ch, digital_high=d_ch))
                 pulse_block = po.PulseBlock(name=f'Jupyter-block-{identifier[idx]}', element_list=ele)
-                self.afm_scanner_logic._pulsed_master_AWG.sequencegeneratorlogic().save_block(pulse_block)
+                self.pulsed_master_AWG.sequencegeneratorlogic().save_block(pulse_block)
 
                 block_list = []
                 block_list.append((pulse_block.name, 0))
@@ -263,8 +269,8 @@ class PulsedJupyterLogic(GenericLogic):
 
                 ensemble = auto_pulse_CW
                 ensemblename = auto_pulse_CW.name
-                self.afm_scanner_logic._pulsed_master_AWG.sequencegeneratorlogic().save_ensemble(ensemble)
-                self.afm_scanner_logic._pulsed_master_AWG.sequencegeneratorlogic().sample_pulse_block_ensemble(ensemblename)
+                self.pulsed_master_AWG.sequencegeneratorlogic().save_ensemble(ensemble)
+                self.pulsed_master_AWG.sequencegeneratorlogic().sample_pulse_block_ensemble(ensemblename)
                 ensemble_list.append(ensemblename)
 
             return ensemble_list              
@@ -272,10 +278,10 @@ class PulsedJupyterLogic(GenericLogic):
     def AWG_MW_reset(self):
         """ Resets all pulsing
         """
-        self.afm_scanner_logic._AWG.pulser_off()
-        self.afm_scanner_logic._AWG.instance.init_all_channels()
-        self.afm_scanner_logic._mw.off()
-        self.afm_scanner_logic._mw1.off()
+        self.AWG.pulser_off()
+        self.AWG.instance.init_all_channels()
+        self.mw.off()
+        self.mw1.off()
         
     def MW_start(self, change_freq = True ,user_MW_0_true = False, user_MW_1_true = False):
         """ Starts AWG in triggered mode, sets and starts LO
@@ -283,13 +289,13 @@ class PulsedJupyterLogic(GenericLogic):
         
         if user_MW_0_true:
             if change_freq:
-                self.afm_scanner_logic._mw.set_cw(frequency=self.LO_freq_0, power=self.power_0)
-            self.afm_scanner_logic._mw.cw_on()
+                self.mw.set_cw(frequency=self.LO_freq_0, power=self.power_0)
+            self.mw.cw_on()
 
         if user_MW_1_true:
             if change_freq:
-                self.afm_scanner_logic._mw1.set_cw(frequency=self.LO_freq_1, power=self.power_1)
-            self.afm_scanner_logic._mw1.cw_on()
+                self.mw1.set_cw(frequency=self.LO_freq_1, power=self.power_1)
+            self.mw1.cw_on()
 
     def start_measurement(self, measurement_type = 'test', tip_name = '', sample = '', temperature = '', b_field = '', contact = '', extra = '', printing = True):
         save_tag = measurement_type
@@ -307,9 +313,9 @@ class PulsedJupyterLogic(GenericLogic):
         if extra:
             save_tag += '_'+extra
         
-        self.afm_scanner_logic._pulsed_master_AWG.sigUpdateSaveTag.emit(save_tag)
-        self.afm_scanner_logic._pulsed_master_AWG.sigUpdateLoadedAssetLabel.emit('  '+measurement_type)
-        self.afm_scanner_logic._pulsed_master_AWG.toggle_pulsed_measurement(start=True)
+        self.pulsed_master_AWG.sigUpdateSaveTag.emit(save_tag)
+        self.pulsed_master_AWG.sigUpdateLoadedAssetLabel.emit('  '+measurement_type)
+        self.pulsed_master_AWG.toggle_pulsed_measurement(start=True)
         if printing:
             self.log.info(save_tag)
 
@@ -1549,5 +1555,5 @@ class PulsedJupyterLogic(GenericLogic):
         self.debug_ensemble_list = ensemble_list
         sequence_step_list = explicit_steps_list
         self.debug_sequence_step_list = sequence_step_list
-        self.afm_scanner_logic._AWG.load_ready_sequence_mode(sequence_step_list)
+        self.AWG.load_ready_sequence_mode(sequence_step_list)
         return ensemble_list, sequence_step_list

@@ -664,7 +664,7 @@ class ODMRLogic(GenericLogic):
         # upload the IQ signal for + and - delta frequencies. Should be triggerable. Only the CW MW will change during scan
         pp = pi_pulse if not pi_pulse == None else self.pi_length_pulse
         cw_freq = mw_stop + 100e6
-        self.pulse_creator.initialize(pi_pulse = pp, LO_freq_0 = cw_freq, target_freq_0 = mw_start, power_0 = sweep_mw_power, printing = False)
+        self.pulse_creator.initialize_ensemble(laser_power_volatge = self.laser_power_voltage, pi_pulse = pp, LO_freq_0 = cw_freq, target_freq_0 = mw_start, power_0 = sweep_mw_power, printing = False)
         ensemble_list, name, var_list, alternating, freq_sweep = self.pulse_creator.PODMR(mw_start, mw_stop, mw_step, setup_gui = False) #Preparing TimeTagger, Pulsestreamer and AWG without  setting up the pulse measurement GUI
 
         self._mw_device.set_cw(self.pulse_creator.LO_freq_0, sweep_mw_power)

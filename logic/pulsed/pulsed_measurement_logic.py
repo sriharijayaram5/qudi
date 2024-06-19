@@ -49,6 +49,7 @@ class PulsedMeasurementLogic(GenericLogic):
     savelogic = Connector(interface='SaveLogic')
     fastcounter = Connector(interface='FastCounterInterface')
     microwave = Connector(interface='MicrowaveInterface')
+    microwave1 = Connector(interface='MicrowaveInterface')
     pulsegenerator = Connector(interface='PulserInterface')
 
     # Config options
