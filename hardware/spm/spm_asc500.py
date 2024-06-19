@@ -676,7 +676,7 @@ class SPM_ASC500(Base, ScannerInterface):
             #move home
             self._dev.base.setParameter(self._dev.base.getConst('ID_PATH_ACTION'), 5, 3)
             #ext shake
-            self._dev.base.setParameter(self._dev.base.getConst('ID_PATH_ACTION'), 4, 4)
+            self._dev.base.setParameter(self._dev.base.getConst('ID_PATH_ACTION'), 0, 4)
             #loop on
             self._dev.base.setParameter(self._dev.base.getConst('ID_PATH_ACTION'), 6, 5)
 
@@ -701,7 +701,7 @@ class SPM_ASC500(Base, ScannerInterface):
             # define which actions specifically ('ID_PATH_ACTION'), 0=manual handshake/2=Spec 1 dummy engine/4=external handshake, 1=as the first action if no. of actions>=1 
             self._dev.base.setParameter(self._dev.base.getConst('ID_PATH_ACTION'), 0, 1)
             self._dev.base.setParameter(self._dev.base.getConst('ID_PATH_ACTION'), 2, 2)
-            self._dev.base.setParameter(self._dev.base.getConst('ID_PATH_ACTION'), 4, 3)
+            self._dev.base.setParameter(self._dev.base.getConst('ID_PATH_ACTION'), 0, 3)
 
     def _create_objective_line(self, xOffset, yOffset, pxSize, columns):
         self.objective_scan_line = {}
@@ -765,7 +765,7 @@ class SPM_ASC500(Base, ScannerInterface):
         self._dev.base.setParameter(self._dev.base.getConst('ID_SPEC_STATUS'), 1, self.spec_engine_dummy)
         self._poll_path_data()
 
-    def scan_point(self, num_params=None):
+    def scan_point(self, move_along=False):
         """ Obtain measurments from a point
         (blocking method, required configure_scan_line to be called prior)
         Performed after setting up the scanner perform a scan of a point. 
@@ -802,8 +802,9 @@ class SPM_ASC500(Base, ScannerInterface):
                 else:
                     pass
             
-            self._poll_point_data()
-            return self._polled_data
+            if not move_along:
+                self._poll_point_data()
+                return self._polled_data
             
         return 0
     

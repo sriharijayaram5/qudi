@@ -1472,11 +1472,6 @@ class PulsedJupyterLogic(GenericLogic):
         return ensemble_list, name, self.tau_arr+ 16*N*self.pi_pulse, alternating, freq_sweep
     
     def sample_load_ready_AWG_for_SPM_tracking(self, LO_freq, delta_freq, repetitions, pi_duration):
-        """Function to loop through the PhaseDuration list defined with ElementPS/AWG for each measurement.
-            A list of all these small steps are made into an ensemble by load_large_sine_seq and is ready to be 
-            played by trigger.
-            One big ensemble covering the entire tau sweep that is triggered once before every sweep. Not before every tau instance.
-        """
         def make_segment_block():
             large_seq = []
 
@@ -1502,19 +1497,7 @@ class PulsedJupyterLogic(GenericLogic):
         #Create large pulse block for the AWG
         explicit_steps_list = []
         ensemble_list_raw = []
-        names = ["trig", "meas", "trigout"]
-
-        #Create pulse sequence for the AWG - trigger in block
-        self.BlockAWG = []
-        #Trigger waiting block
-        self.ElementAWG(channels={}, length=10e-6) 
-        ensemble_list_raw.append(make_segment_block())
-        explicit_steps_list.append({"step_index" : 0,
-                    "step_segment" : "Jupyter-ensemble-"+names[0],
-                    "step_loops" : 1,
-                    "next_step_index" : 1,
-                    "step_end_cond" : 'on-trig'
-                    })
+        names = ["meas"]
         
         #Create pulse sequence for the AWG - measurement block
         self.BlockAWG = []
@@ -1531,23 +1514,11 @@ class PulsedJupyterLogic(GenericLogic):
             #Waiting time + read-out
             self.ElementAWG(channels={'PS_Trig':True}, length=self.mw_waiting_time + self.read_out_time)
         ensemble_list_raw.append(make_segment_block())
-        explicit_steps_list.append({"step_index" : 1,
-                    "step_segment" : "Jupyter-ensemble-"+names[1],
+        explicit_steps_list.append({"step_index" : 0,
+                    "step_segment" : "Jupyter-ensemble-"+names[0],
                     "step_loops" : repetitions,
-                    "next_step_index" : 1,
-                    "step_end_cond" : 'stop'
-                    })
-        
-        #Create pulse sequence for the AWG - trigger out block
-        self.BlockAWG = []
-        #Trigger waiting block
-        self.ElementAWG(channels={'ASC_Trig':True}, length=10e-6) 
-        ensemble_list_raw.append(make_segment_block())
-        explicit_steps_list.append({"step_index" : 2,
-                    "step_segment" : "Jupyter-ensemble-"+names[2],
-                    "step_loops" : 1,
                     "next_step_index" : 0,
-                    "step_end_cond" : 'always'
+                    "step_end_cond" : 'stop'
                     })
         #################################################################################
 
