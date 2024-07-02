@@ -85,7 +85,10 @@ class ColorBar(pg.GraphicsObject):
         # then it should be adjusted according to the full screen.
         if vb is not None:
             # vb.updateAutoRange()
-            vb.setRange(pg.QtCore.QRectF(0, cb_min, width, cb_max-cb_min))
+            try:
+                vb.setRange(pg.QtCore.QRectF(0, cb_min, width, cb_max-cb_min))
+            except:
+                pass
             # vb.enableAutoRange()
 
     def paint(self, p, *args):

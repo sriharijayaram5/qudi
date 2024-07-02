@@ -61,6 +61,8 @@ class AWG663(Base, PulserInterface):
         # [card, channel, binary channel for later use]
         self.channels = [[0, 0, 0b1], [0, 1, 0b10], [1, 0, 0b100], [1, 1, 0b1000]]
         self.loaded_assets = {}
+        self._current_uploaded_ensembles = []
+        self._current_uploaded_sequence_step_list = []
         self.CurrentUpload = os.path.join(os.getcwd(), 'hardware', 'awg', 'CurrentUpload.pkl')
         self.typeloaded = None
 
@@ -81,6 +83,8 @@ class AWG663(Base, PulserInterface):
         active_chan = self.get_constraints().activation_config['hira_config']
         self.AWG_sync_time = 16e-9 + 476.5/1.25e9 # 476.5 sample clocks +16ns -- value in seconds
         self.loaded_assets = dict.fromkeys(active_chan)
+        self._current_uploaded_ensembles = []
+        self._current_uploaded_sequence_step_list =  []
 
         self.print_log_info = True
 
@@ -300,6 +304,8 @@ class AWG663(Base, PulserInterface):
             self.instance.upload(data_list, max_size, mem_offset=0)
             self.typeloaded = 'waveform'
         self.log.info('Loaded waveform!')
+        self._current_uploaded_ensembles = load_dict
+        self._current_uploaded_sequence_step_list = []
         return load_dict
 
     def load_sequence(self, sequence_name):
@@ -1041,6 +1047,8 @@ class AWG663(Base, PulserInterface):
                 self.typeloaded = 'waveform'
         if self.print_log_info:
             self.log.info('Upload to AWG complete')
+        self._current_uploaded_ensembles = seqs
+        self._current_uploaded_sequence_step_list = []
         del seqs
 
     def load_sequence_segment(self, seqs, memsize_seq=None, segment_index=0):
@@ -1219,7 +1227,8 @@ class AWG663(Base, PulserInterface):
         
         for iseg, seg in enumerate(segments):
             self.load_sequence_segment(seqs=[seg], memsize_seq=None, segment_index=segment_and_index[seg])
-                
+        self._current_uploaded_ensembles = segments
+
         for istep, step in enumerate(sequence_step_list):
             step_index = step['step_index']
             mem_segment_index = segment_and_index[step['step_segment']]
@@ -1227,5 +1236,6 @@ class AWG663(Base, PulserInterface):
             goto = step['next_step_index']
             next_condition = step['step_end_cond']
             self.instance.write_sequence_step(step_index, mem_segment_index, loops, goto, next_condition)
+        self._current_uploaded_sequence_step_list = sequence_step_list
         
     

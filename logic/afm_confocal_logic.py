@@ -2921,8 +2921,8 @@ class AFMConfocalLogic(GenericLogic):
             # mw_tracking_mode
             # upload the IQ signal for + and - delta frequencies. Should be triggerable. Only the CW MW will change during scan
             LO_freq = res_freq + 100e6 #AWG will play 100MHz +- delta_0 #this is the convention for us
-            self.pulsed_jupyter_logic.initialize_ensemble()
-            self.pulsed_jupyter_logic.sample_load_ready_AWG_for_SPM_tracking(LO_freq, delta_0, repetitions, pi_half_duration)
+            self.pulsed_jupyter_logic.initialize_ensemble(laser_power_voltage = self._podmr.laser_power_voltage, pi_pulse=pi_half_duration, LO_freq_0=LO_freq, target_freq_0=res_freq, power_0=mw_power)
+            self.pulsed_jupyter_logic.sample_load_ready_AWG_for_SPM_tracking(res_freq, delta_0, num_runs)
             self.pulsed_jupyter_logic.sample_load_ready_pulsestreamer(name='read_out_jptr')
 
             # return to normal operation
@@ -3088,7 +3088,7 @@ class AFMConfocalLogic(GenericLogic):
                         # do movement and height scan
                         # run for n=0 condition only
                         if n==0:
-                            self._debug = self._spm.scan_point() #allows moving of AFM and hence sync out trigger
+                            self._debug = self._spm.scan_point() #allows moving of AFM
                             self._scan_point[2:] = self._debug
 
                         self._pulsed_master_AWG.pulsedmeasurementlogic().pulsegenerator().pulser_on()
@@ -3104,12 +3104,10 @@ class AFMConfocalLogic(GenericLogic):
                         res_estimate, vis = track_ret
                     
                     self._spm.scan_point(move_along=True)
-                    
                     self._scan_point[1] = self.res_freq_array[line_num, index]/1e9
                     # self._scan_point[1] = 2.776+(np.random.random()*0.5e6/1e9)
                     # here the counts can be saved:
-                    self._scan_point[0] = ref_data/(ref_time*repetitions)
-
+                    self._scan_point[0] = np.mean(ref_data)/ref_time
                     for param_index, param_name in enumerate(curr_scan_params):
                         name = f'{param_name}_fw'
 
@@ -3187,44 +3185,22 @@ class AFMConfocalLogic(GenericLogic):
             data, err, ref_data, ref_time = self._podmr.analyse_mean_norm_new(*args) #new is the only numpy operations version of the mean norm
 
         else:
-            method = analysis_settings['method']
-
-            analysis_method = self._pulsed_master.analysis_methods[method]
+            analysis_method = self._podmr.analyse_mean_norm_new
             if alternating:
                 pulsed_meas_full = pulsed_meas.copy()
                 pulsed_meas0 = pulsed_meas_full[::2,:]
                 pulsed_meas1 = pulsed_meas_full[1::2,:]
-            if method == 'mean':
-                args = [pulsed_meas, analysis_settings['signal_start'], analysis_settings['signal_end']]
-                if alternating:
-                    args0 = [pulsed_meas0, analysis_settings['signal_start'], analysis_settings['signal_end']]
-                    args1 = [pulsed_meas1, analysis_settings['signal_start'], analysis_settings['signal_end']]
-            elif method == 'mean_norm':
-                args = [pulsed_meas, analysis_settings['signal_start'], analysis_settings['signal_end'], analysis_settings['norm_start'], analysis_settings['norm_end']]
-                if alternating:
-                    args0 = [pulsed_meas0, analysis_settings['signal_start'], analysis_settings['signal_end'], analysis_settings['norm_start'], analysis_settings['norm_end']]
-                    args1 = [pulsed_meas1, analysis_settings['signal_start'], analysis_settings['signal_end'], analysis_settings['norm_start'], analysis_settings['norm_end']]
-            elif method == 'mean_reference':
-                args = [pulsed_meas, analysis_settings['signal_start'], analysis_settings['signal_end'], analysis_settings['norm_start'], analysis_settings['norm_end']]
-                if alternating:
-                    args0 = [pulsed_meas0, analysis_settings['signal_start'], analysis_settings['signal_end'], analysis_settings['norm_start'], analysis_settings['norm_end']]
-                    args1 = [pulsed_meas1, analysis_settings['signal_start'], analysis_settings['signal_end'], analysis_settings['norm_start'], analysis_settings['norm_end']]
-            elif method == 'passthrough':
-                args = [pulsed_meas]
-                if alternating:
-                    args0 = [pulsed_meas0]
-                    args1 = [pulsed_meas1]
-            elif method == 'sum':
-                args = [pulsed_meas, analysis_settings['signal_start'], analysis_settings['signal_end']]
-                if alternating:
-                    args0 = [pulsed_meas0, analysis_settings['signal_start'], analysis_settings['signal_end']]
-                    args1 = [pulsed_meas1, analysis_settings['signal_start'], analysis_settings['signal_end']]
-            data, err = analysis_method(*args)
+           
+            args = [pulsed_meas, analysis_settings['signal_start'], analysis_settings['signal_end'], analysis_settings['norm_start'], analysis_settings['norm_end']]
             if alternating:
-                data0, err0 = analysis_method(*args0)
-                data1, err1 = analysis_method(*args1)
+                args0 = [pulsed_meas0, analysis_settings['signal_start'], analysis_settings['signal_end'], analysis_settings['norm_start'], analysis_settings['norm_end']]
+                args1 = [pulsed_meas1, analysis_settings['signal_start'], analysis_settings['signal_end'], analysis_settings['norm_start'], analysis_settings['norm_end']]
+            data, err, ref_data, ref_time = analysis_method(*args)
+            if alternating:
+                data0, err0, ref_data0, ref_time0 = analysis_method(*args0)
+                data1, err1, ref_data1, ref_time1 = analysis_method(*args1)
 
-        return (data, err, ref_data, ref_time) if not alternating else ((data0, err0, ref_data, ref_time), (data1, err1, ref_data, ref_time))
+        return (data, err, ref_data, ref_time) if not alternating else ((data0, err0, ref_data0, ref_time0), (data1, err1, ref_data1, ref_time1))
     
     def tracking_analysis(self, pulsed_ret0, line_num, index, slope2_podmr, prev, use_slope_track):
         visibility = (pulsed_ret0[1] - pulsed_ret0[0])/(pulsed_ret0[1] + pulsed_ret0[0])

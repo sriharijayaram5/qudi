@@ -298,8 +298,7 @@ class ODMRGui(GUIBase):
         self._mw.action_RestoreDefault.triggered.connect(self.restore_defaultview)
         self._mw.do_fit_PushButton.clicked.connect(self.do_fit)
         self._mw.fit_range_SpinBox.editingFinished.connect(self.update_fit_range)
-        self._mw.actionAWG_Mode.toggled.connect(self._odmr_logic.change_MW_mode)
-        self._mw.actionAWG_Mode.toggle()
+
         # Control/values-changed signals to logic
         self.sigMwOff.connect(self._odmr_logic.mw_off, QtCore.Qt.QueuedConnection)
         self.sigClearData.connect(self._odmr_logic.clear_odmr_data, QtCore.Qt.QueuedConnection)
@@ -826,8 +825,8 @@ class ODMRGui(GUIBase):
             
             self._mw.odmr_PlotWidget.removeItem(self.signal_image_error_bars)
             self._mw.odmr_PlotWidget.removeItem(self.odmr_fit_image)
-            self._mw.odmr_PlotWidget.addItem(self.odmr_slope_line)
-            self._mw.odmr_PlotWidget.addItem(self.slope_start_line)
+            if not self.odmr_slope_line in self._mw.odmr_PlotWidget.items(): self._mw.odmr_PlotWidget.addItem(self.odmr_slope_line)
+            if not self.slope_start_line in self._mw.odmr_PlotWidget.items(): self._mw.odmr_PlotWidget.addItem(self.slope_start_line)
             self.slope_fit_changed()
             
         else:
@@ -842,7 +841,7 @@ class ODMRGui(GUIBase):
                 beamwidth = 0
             del tmp_array
             beamwidth /= 3
-            self._mw.odmr_PlotWidget.addItem(self.signal_image_error_bars)
+            if not self.signal_image_error_bars in self._mw.odmr_PlotWidget.items(): self._mw.odmr_PlotWidget.addItem(self.signal_image_error_bars)
             self._mw.odmr_PlotWidget.removeItem(self.odmr_slope_line)
             self._mw.odmr_PlotWidget.removeItem(self.slope_start_line)
             self._mw.slope_label.setText('{:.2e}'.format(0))
