@@ -69,7 +69,7 @@ class ODMRCounterInterfuse(GenericLogic, ODMRCounterInterface):
         @return int: error code (0:OK, -1:error)
         """
         if self._IQ:
-            run_IQ_status=self._pulse_creator.run_IQ_DC()
+            run_IQ_status, ensemblename =self._pulse_creator.run_IQ_DC()
             if run_IQ_status<0:
                 return -1
 

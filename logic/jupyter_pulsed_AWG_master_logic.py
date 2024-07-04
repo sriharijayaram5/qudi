@@ -221,10 +221,10 @@ class PulsedJupyterLogic(GenericLogic):
         else:
             self.log.warning('Nothing was uploaded during run_IQ_DC')
             return -1
-        self.load_dc(channels = ch, dur = 10e-6, identifier = 'A')
+        ensemble_list = self.load_dc(channels = ch, dur = 10e-6, identifier = 'A')
 
         self.AWG.pulser_on()
-        return 0
+        return 0, ensemble_list
 
     def load_dc(self, channels = [{'name': 'a_ch0', 'amp': 1.00}], dur=1e-6, identifier=''):
         """
@@ -249,6 +249,8 @@ class PulsedJupyterLogic(GenericLogic):
         self.pulsed_master_AWG.sequencegeneratorlogic().save_ensemble(ensemble)
         self.pulsed_master_AWG.sequencegeneratorlogic().sample_pulse_block_ensemble(ensemblename)
         self.pulsed_master_AWG.sequencegeneratorlogic().load_ensemble(ensemblename)
+
+        return ensemblename
 
     def sample_load_ready_AWG(self, name, tau_arr, alternating, freq_sweep, change_freq = True, stop_AWG = False):
         """Function to loop through the PhaseDuration list defined with ElementPS/AWG for each measurement.
@@ -283,8 +285,8 @@ class PulsedJupyterLogic(GenericLogic):
         
         ensemble_list = self.sample_ensembles(large_seq=[large_seq], identifier=[name])
 
+        sequence_step_list = []
         if self.upload:
-            sequence_step_list = []
             for idx, ensemble in enumerate(ensemble_list):
                 step = {"step_index" : idx,
                         "step_segment" : ensemble,
@@ -475,27 +477,22 @@ class PulsedJupyterLogic(GenericLogic):
 ## Beginning of Measurement methods ##
 ####################################################################################################################
 
-    def Single_Freq(self, MW_0=False, MW_1=False, name = None):
+    def Single_Freq(self, MW_0=False, MW_0_freq = 2.88e9 , MW_0_power = -20, MW_1=False, MW_1_freq = 2.88e9, MW_1_power = -20):
         '''
         '''        
-        if name is None:
-            name = 'single-freq-juptr'
-        
         alternating = False
         freq_sweep=False
-        self.tau_arr = [100e-6]
+        name = 'single_freq_jptr'
+        self.tau_arr = []
+        sequence_step_list = []
 
-        #Create pulse sequence for the AWG streamer
-        self.BlockAWG = []
+        status, ensemble_list = self.run_IQ_DC(self, MW0 = MW_0, MW1 = MW_1)
+        if MW_0:
+            self.mw.set_cw(MW_0_freq,MW_0_power)
+        if MW_1:
+            self.mw.set_cw(MW_1_freq,MW_1_power)
 
-        for tau in self.tau_arr:
-            self.ElementAWG(channels={'MW_0':MW_0, 'MW_1':MW_1}, length=tau)
-
-        self.sample_load_ready_pulsestreamer(name='read_out_jptr')
-        
-        ensemble_list = self.sample_load_ready_AWG(name, self.tau_arr, alternating, freq_sweep, change_freq = True)
-
-        return ensemble_list, name, self.tau_arr, alternating, freq_sweep
+        return ensemble_list, sequence_step_list, name, self.tau_arr, alternating, freq_sweep
     
     def CW_ODMR(self, mw_start, mw_stop, mw_step, clock_frequency=None, name = None):
         '''
@@ -595,7 +592,7 @@ class PulsedJupyterLogic(GenericLogic):
         
         ensemble_list, sequence_step_list = self.sample_load_ready_AWG(name, self.tau_arr, alternating, freq_sweep, change_freq = True)
 
-        return ensemble_list, name, self.tau_arr, alternating, freq_sweep
+        return ensemble_list, sequence_step_list, name, self.tau_arr, alternating, freq_sweep
 
     def Tracking(self, res_freq, delta_freq, change_freq = True, name = None):
         '''
@@ -630,7 +627,7 @@ class PulsedJupyterLogic(GenericLogic):
         
         ensemble_list, sequence_step_list = self.sample_load_ready_AWG(name, self.tau_arr, alternating, freq_sweep, change_freq = True)
 
-        return ensemble_list, name, self.tau_arr, alternating, freq_sweep
+        return ensemble_list, sequence_step_list, name, self.tau_arr, alternating, freq_sweep
     
     def Rabi(self, tau_start, tau_stop, tau_num, name = None):
         '''
@@ -660,7 +657,7 @@ class PulsedJupyterLogic(GenericLogic):
         
         ensemble_list, sequence_step_list = self.sample_load_ready_AWG(name, self.tau_arr, alternating, freq_sweep, change_freq = True)
 
-        return ensemble_list, name, self.tau_arr, alternating, freq_sweep
+        return ensemble_list, sequence_step_list, name, self.tau_arr, alternating, freq_sweep
     
     def T1_optical_exp(self, tau_start, tau_stop, tau_num, name = None):
         '''
@@ -675,75 +672,58 @@ class PulsedJupyterLogic(GenericLogic):
         freq_sweep=False
         self.tau_arr = np.logspace(np.log10(tau_start), np.log10(tau_stop), num=tau_num)
         
-        #Create pulse sequence for the pulse streamer
-        self.BlockPS = []
-        self.PhaseDuration = []
+        #Create pulse sequence for the AWG streamer
+        self.segments = {}
+        self.sequence_step_list = []
+
+        #Define read out segment
+        self.BlockAWG = []
+        read_out_name = name+'-read_out'
+        self.ElementAWG(channels={'PS_Trig':True}, length=self.mw_waiting_time + self.read_out_time)
+        self.ElementAWG(channels={}, length=self.laser_waiting_time)
+        self.segments[read_out_name] = self.BlockAWG
+
+        #Define waiting Segment
+        self.BlockAWG = []
+        waiting_name = name+'-waiting'
+        #It is recommended to use a multiple of 32, as the AWG only allows to upload sample size with modulus 32 == 0.
+        #Otherwise it will fill up the segment with empty samples, making the waiting time not predictable.
+        waiting_samples = 32*12
+        if waiting_samples <32*12:
+            print('!!!Given configuration of waiting samples results in an value, which cannot be uploaded to the AWG!!!')
+            return
+        waiting_time = waiting_samples/1.25e9
+        self.ElementAWG(channels={}, length=waiting_time)
+        self.segments[waiting_name] = self.BlockAWG
+
+        #Define Sequence with sequence_step_list
+        real_tau_arr = []
+        for idx, tau in enumerate(self.tau_arr):
+            num_waiting_loops = int(np.rint(tau/waiting_time))
+            real_tau_arr.append(waiting_time*num_waiting_loops)
+
+            step = {"step_index" : 2*idx,
+                        "step_segment" : 'Jupyter-ensemble-'+waiting_name,
+                        "step_loops" : num_waiting_loops,
+                        "next_step_index" : 2*idx+1,
+                        "step_end_cond" : 'always'
+                        }
+            self.sequence_step_list.append(step)
+            step = {"step_index" : 2*idx+1,
+                        "step_segment" : 'Jupyter-ensemble-'+read_out_name,
+                        "step_loops" : 1,
+                        "next_step_index" : 0 if tau == self.tau_arr[-1] else 2*idx+2,
+                        "step_end_cond" : 'always'
+                        }
+            self.sequence_step_list.append(step)
+
+        self.tau_arr = real_tau_arr
+ 
+        self.sample_load_ready_pulsestreamer(name='read_out_jptr')
         
-        for tau in self.tau_arr:
-            #Break after Initalisation/read out
-            self.ElementPS(channels={}, length=self.laser_waiting_time) 
-            #Waiting time - tau
-            self.ElementPS(channels={'TT_Next':True}, length=tau)
-            #Read out
-            self.ElementPS(channels={'Laser':True, 'TT_Start':True}, length=self.read_out_time)
+        ensemble_list, sequence_step_list = self.sample_load_ready_AWG_sequence(self.segments, self.sequence_step_list, self.tau_arr, alternating, freq_sweep, change_freq = True)
 
-        self.sample_load_ready_pulsed_measurement(name=name, 
-                                             element_list=self.BlockPS, tau_arr=self.tau_arr, alternating=alternating, freq_sweep=freq_sweep)
-        
-        ensemble_list = []
-
-        return ensemble_list, name, self.tau_arr, alternating, freq_sweep
-    
-    def T1_alt_exp_long(self, tau_start, tau_stop, tau_num, name = None):
-        '''
-        Laser(532):       ▇▇▇▇▇▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▇▇▇▇▇
-        MW:               ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
-                                                      t             
-        Laser(532):       ▇▇▇▇▇▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▇▇▇▇▇
-        MW:               ▁▁▁▁▁▁▁▇pi▇▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
-                                      X               t       
-        
-        This is loading a full long sequence onto the AWG. Will be too big a sequence for large taus like 30ms.
-        '''        
-        if name is None:    
-            name = 't1-alt-exp-long-juptr'
-
-        alternating = True
-        freq_sweep=False
-        self.tau_arr = np.logspace(np.log10(tau_start), np.log10(tau_stop), num=tau_num)
-        
-        #Create pulse sequence for the pulse streamer
-        self.BlockPS = []
-        self.PhaseDuration = []
-
-        #Trigger AWG to play its sequence, which includes one complete sweep of all waiting times        
-        self.ElementPS(channels={'AWG_Trig':True}, length=self.awg_sync_time)
-        
-        for tau in self.tau_arr:
-            #Break after Initalisation/read out
-            self.ElementPS(channels={}, length=self.laser_waiting_time) 
-            #Pi pulse - reference
-            self.ElementPS(channels={}, length=self.pi_pulse)
-            #Waiting time - tau
-            self.ElementPS(channels={'TT_Next':True}, length=tau)
-            #Read out
-            self.ElementPS(channels={'Laser':True, 'TT_Start':True}, length=self.read_out_time)
-            
-            #Alternating
-            #Break after Initalisation/read out
-            self.ElementPS(channels={}, length=self.laser_waiting_time)
-            #Pi pulse - reference
-            self.ElementPS(channels={'MW_0':True}, length=self.pi_pulse)
-            #Waiting time - tau
-            self.ElementPS(channels={'TT_Next':True}, length=tau)
-            #Read out
-            self.ElementPS(channels={'Laser':True, 'TT_Start':True}, length=self.read_out_time)
-
-        self.sample_load_ready_pulsed_measurement(name=name, 
-                                             element_list=self.BlockPS, tau_arr=self.tau_arr, alternating=alternating, freq_sweep=freq_sweep)
-        ensemble_list = self.sample_load_large_sine_AWG(name)
-
-        return ensemble_list, name, self.tau_arr, alternating, freq_sweep
+        return ensemble_list, sequence_step_list, name, self.tau_arr, alternating, freq_sweep
         
     def T1_alt_exp(self, tau_start, tau_stop, tau_num, name = None):
         '''
@@ -760,42 +740,100 @@ class PulsedJupyterLogic(GenericLogic):
         alternating = True
         freq_sweep=False
         self.tau_arr = np.logspace(np.log10(tau_start), np.log10(tau_stop), num=tau_num)
-        
-        #Create pulse sequence for the pulse streamer
-        self.BlockPS = []
-        self.PhaseDuration = []
-        
-        for tau in self.tau_arr:
-            #Break after Initalisation/read out
-            self.ElementPS(channels={}, length=self.laser_waiting_time) 
-            #Pi pulse - reference
-            self.ElementPS(channels={}, length=self.pi_pulse)
-            #Waiting time - tau
-            self.ElementPS(channels={'TT_Next':True}, length=tau)
-            #Read out
-            self.ElementPS(channels={'Laser':True, 'TT_Start':True}, length=self.read_out_time)
-            
-            #Alternating
-            #Break after Initalisation/read out
-            self.ElementPS(channels={'AWG_Trig':True}, length=self.laser_waiting_time)
-            #Pi pulse - reference
-            self.ElementPS(channels={'MW_0':True}, length=self.pi_pulse)
-            #Waiting time - tau
-            self.ElementPS(channels={'TT_Next':True}, length=tau)
-            #Read out
-            self.ElementPS(channels={'Laser':True, 'TT_Start':True}, length=self.read_out_time)
 
-        self.sample_load_ready_pulsed_measurement(name=name, 
-                                             element_list=self.BlockPS, tau_arr=self.tau_arr, alternating=alternating, freq_sweep=freq_sweep)
-        
-        params_for_AWG_seq = []
-        duration = self.pi_pulse
-        #params_for_AWG_seq.append(Name_str, duration_float, MW_0_bool, MW_1_bool, freq_0, freq_1)
-        params_for_AWG_seq.append(("Pi", duration, True, False, None, None))
-        
-        ensemble_list = self.sample_load_multi_short_sine_AWG(params=params_for_AWG_seq)
+        #Create pulse sequence for the AWG streamer
+        self.segments = {}
+        self.sequence_step_list = []
 
-        return ensemble_list, name, self.tau_arr, alternating, freq_sweep
+        #Define Pi pulse segment
+        self.BlockAWG = []
+        pi_pulse_name = name+'-pi_pulse'
+        #Adding the Laser waiting time to the segment to make sure that the segment will always be long enough independend on the pi pulse duration
+        self.ElementAWG(channels={}, length=self.laser_waiting_time)
+        self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse)
+        self.segments[pi_pulse_name] = self.BlockAWG
+
+        #Define Pi pulse replacement segment for keeping the alternating measurement of the same duration
+        self.BlockAWG = []
+        replacement_name = name+'-replacement'
+        #Adding the Laser waiting time to the segment to make sure that the segment will always be long enough independend on the pi pulse duration
+        self.ElementAWG(channels={}, length=self.laser_waiting_time+self.pi_pulse)
+        self.segments[replacement_name] = self.BlockAWG
+
+        #Define read out segment
+        self.BlockAWG = []
+        read_out_name = name+'-read_out'
+        self.ElementAWG(channels={'PS_Trig':True}, length=self.mw_waiting_time + self.read_out_time)
+        self.segments[read_out_name] = self.BlockAWG
+
+        #Define waiting Segment
+        self.BlockAWG = []
+        waiting_name = name+'-waiting'
+        #It is recommended to use a multiple of 32, as the AWG only allows to upload sample size with modulus 32 == 0.
+        #Otherwise it will fill up the segment with empty samples, making the waiting time not predictable.
+        waiting_samples = 32*12
+        if waiting_samples <32*12:
+            print('!!!Given configuration of waiting samples results in an value, which cannot be uploaded to the AWG!!!')
+            return
+        waiting_time = waiting_samples/1.25e9
+        self.ElementAWG(channels={}, length=waiting_time)
+        self.segments[waiting_name] = self.BlockAWG
+
+        #Define Sequence with sequence_step_list
+        real_tau_arr = []
+        for idx, tau in enumerate(self.tau_arr):
+            num_waiting_loops = int(np.rint(tau/waiting_time))
+            real_tau_arr.append(waiting_time*num_waiting_loops)
+
+            step = {"step_index" : 6*idx,
+                        "step_segment" : 'Jupyter-ensemble-'+replacement_name,
+                        "step_loops" : 1,
+                        "next_step_index" : 6*idx+1,
+                        "step_end_cond" : 'always'
+                        }
+            self.sequence_step_list.append(step)
+            step = {"step_index" : 6*idx+1,
+                        "step_segment" : 'Jupyter-ensemble-'+waiting_name,
+                        "step_loops" : num_waiting_loops,
+                        "next_step_index" : 6*idx+2,
+                        "step_end_cond" : 'always'
+                        }
+            self.sequence_step_list.append(step)
+            step = {"step_index" : 6*idx+2,
+                        "step_segment" : 'Jupyter-ensemble-'+read_out_name,
+                        "step_loops" : 1,
+                        "next_step_index" : 6*idx+3,
+                        "step_end_cond" : 'always'
+                        }
+            step = {"step_index" : 6*idx+3,
+                        "step_segment" : 'Jupyter-ensemble-'+pi_pulse_name,
+                        "step_loops" : 1,
+                        "next_step_index" : 6*idx+4,
+                        "step_end_cond" : 'always'
+                        }
+            self.sequence_step_list.append(step)
+            step = {"step_index" : 6*idx+4,
+                        "step_segment" : 'Jupyter-ensemble-'+waiting_name,
+                        "step_loops" : num_waiting_loops,
+                        "next_step_index" : 6*idx+5,
+                        "step_end_cond" : 'always'
+                        }
+            self.sequence_step_list.append(step)
+            step = {"step_index" : 6*idx+5,
+                        "step_segment" : 'Jupyter-ensemble-'+read_out_name,
+                        "step_loops" : 1,
+                        "next_step_index" : 0 if tau == self.tau_arr[-1] else 6*idx+6,
+                        "step_end_cond" : 'always'
+                        }
+            self.sequence_step_list.append(step)
+
+        self.tau_arr = real_tau_arr
+ 
+        self.sample_load_ready_pulsestreamer(name='read_out_jptr')
+        
+        ensemble_list, sequence_step_list = self.sample_load_ready_AWG_sequence(self.segments, self.sequence_step_list, self.tau_arr, alternating, freq_sweep, change_freq = True)
+
+        return ensemble_list, sequence_step_list, name, self.tau_arr, alternating, freq_sweep
         
     def T1_dark_init_alt_exp(self, tau_start, tau_stop, tau_num, name = None):
         '''
@@ -812,58 +850,103 @@ class PulsedJupyterLogic(GenericLogic):
         alternating = True
         freq_sweep=False
         self.tau_arr = np.logspace(np.log10(tau_start), np.log10(tau_stop), num=tau_num)
-        
-        #Create pulse sequence for the pulse streamer
-        self.BlockPS = []
-        self.PhaseDuration = []
-        
-        for tau in self.tau_arr:
-            #Break after Initalisation/read out
-            self.ElementPS(channels={}, length=self.laser_waiting_time)
-            #Waiting time - awg sync
-            self.ElementPS(channels={'AWG_Trig':True}, length=self.awg_sync_time)
-            #Pi pulse
-            self.ElementPS(channels={'MW_0':True}, length=self.pi_pulse)
-            #Waiting time - tau
-            self.ElementPS(channels={}, length=tau)
-            #Waiting time - awg sync
-            self.ElementPS(channels={'AWG_Trig':True}, length=self.awg_sync_time)
-            #Pi pulse
-            self.ElementPS(channels={'MW_0':True}, length=self.pi_pulse)
-            #Read out
-            self.ElementPS(channels={'TT_Next':True}, length=self.mw_waiting_time)
-            #Read out
-            self.ElementPS(channels={'Laser':True, 'TT_Start':True}, length=self.read_out_time)
-            
-            #Alternating
-            #Break after Initalisation/read out
-            self.ElementPS(channels={}, length=self.laser_waiting_time)
-            #Waiting time - awg sync
-            self.ElementPS(channels={'AWG_Trig':True}, length=self.awg_sync_time)
-            #Pi pulse
-            self.ElementPS(channels={'MW_0':True}, length=self.pi_pulse)
-            #Waiting time - tau
-            self.ElementPS(channels={}, length=tau)
-            #Waiting time - awg sync
-            self.ElementPS(channels={}, length=self.awg_sync_time)
-            #Pi pulse - reference
-            self.ElementPS(channels={}, length=self.pi_pulse)
-            #Waiting time
-            self.ElementPS(channels={'TT_Next':True}, length=self.mw_waiting_time)
-            #Read out
-            self.ElementPS(channels={'Laser':True, 'TT_Start':True}, length=self.read_out_time)
 
-        self.sample_load_ready_pulsed_measurement(name=name, 
-                                             element_list=self.BlockPS, tau_arr=self.tau_arr, alternating=alternating, freq_sweep=freq_sweep)
-        
-        params_for_AWG_seq = []
-        duration = self.pi_pulse
-        #params_for_AWG_seq.append(Name_str, duration_float, MW_0_bool, MW_1_bool, freq_0, freq_1)
-        params_for_AWG_seq.append(("Pi", duration, True, False, None, None))
-        
-        ensemble_list = self.sample_load_multi_short_sine_AWG(params=params_for_AWG_seq)
+        #Create pulse sequence for the AWG streamer
+        self.segments = {}
+        self.sequence_step_list = []
 
-        return ensemble_list, name, self.tau_arr, alternating, freq_sweep
+        #Define Pi pulse intitialzation segment
+        self.BlockAWG = []
+        pi_pulse_init_name = name+'-pi_pulse_init'
+        #Adding the Laser waiting time to the segment to make sure that the segment will always be long enough independend on the pi pulse duration
+        self.ElementAWG(channels={}, length=self.laser_waiting_time)
+        self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse)
+        self.segments[pi_pulse_init_name] = self.BlockAWG
+
+        #Define Pi pulse + read out segment 
+        self.BlockAWG = []
+        pi_pulse_read_out_name = name+'-pi_pulse_read_out'
+        #Adding the Laser waiting time to the segment to make sure that the segment will always be long enough independend on the pi pulse duration
+        self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse)
+        self.ElementAWG(channels={'PS_Trig':True}, length=self.mw_waiting_time + self.read_out_time)
+        self.segments[pi_pulse_read_out_name] = self.BlockAWG
+
+        #Define Pi pulse replacement + read out segment 
+        self.BlockAWG = []
+        pi_pulse_replacement_read_out_name = name+'-pi_pulse_replacement_read_out'
+        #Adding the Laser waiting time to the segment to make sure that the segment will always be long enough independend on the pi pulse duration
+        self.ElementAWG(channels={}, length=self.pi_pulse)
+        self.ElementAWG(channels={'PS_Trig':True}, length=self.mw_waiting_time + self.read_out_time)
+        self.segments[pi_pulse_replacement_read_out_name] = self.BlockAWG
+
+        #Define waiting Segment
+        self.BlockAWG = []
+        waiting_name = name+'-waiting'
+        #It is recommended to use a multiple of 32, as the AWG only allows to upload sample size with modulus 32 == 0.
+        #Otherwise it will fill up the segment with empty samples, making the waiting time not predictable.
+        waiting_samples = 32*12
+        if waiting_samples <32*12:
+            print('!!!Given configuration of waiting samples results in an value, which cannot be uploaded to the AWG!!!')
+            return
+        waiting_time = waiting_samples/1.25e9
+        self.ElementAWG(channels={}, length=waiting_time)
+        self.segments[waiting_name] = self.BlockAWG
+
+        #Define Sequence with sequence_step_list
+        real_tau_arr = []
+        for idx, tau in enumerate(self.tau_arr):
+            num_waiting_loops = int(np.rint(tau/waiting_time))
+            real_tau_arr.append(waiting_time*num_waiting_loops)
+
+            step = {"step_index" : 6*idx,
+                        "step_segment" : 'Jupyter-ensemble-'+pi_pulse_init_name,
+                        "step_loops" : 1,
+                        "next_step_index" : 6*idx+1,
+                        "step_end_cond" : 'always'
+                        }
+            self.sequence_step_list.append(step)
+            step = {"step_index" : 6*idx+1,
+                        "step_segment" : 'Jupyter-ensemble-'+waiting_name,
+                        "step_loops" : num_waiting_loops,
+                        "next_step_index" : 6*idx+2,
+                        "step_end_cond" : 'always'
+                        }
+            self.sequence_step_list.append(step)
+            step = {"step_index" : 6*idx+2,
+                        "step_segment" : 'Jupyter-ensemble-'+pi_pulse_read_out_name,
+                        "step_loops" : 1,
+                        "next_step_index" : 6*idx+3,
+                        "step_end_cond" : 'always'
+                        }
+            step = {"step_index" : 6*idx+3,
+                        "step_segment" : 'Jupyter-ensemble-'+pi_pulse_init_name,
+                        "step_loops" : 1,
+                        "next_step_index" : 6*idx+4,
+                        "step_end_cond" : 'always'
+                        }
+            self.sequence_step_list.append(step)
+            step = {"step_index" : 6*idx+4,
+                        "step_segment" : 'Jupyter-ensemble-'+waiting_name,
+                        "step_loops" : num_waiting_loops,
+                        "next_step_index" : 6*idx+5,
+                        "step_end_cond" : 'always'
+                        }
+            self.sequence_step_list.append(step)
+            step = {"step_index" : 6*idx+5,
+                        "step_segment" : 'Jupyter-ensemble-'+pi_pulse_replacement_read_out_name,
+                        "step_loops" : 1,
+                        "next_step_index" : 0 if tau == self.tau_arr[-1] else 6*idx+6,
+                        "step_end_cond" : 'always'
+                        }
+            self.sequence_step_list.append(step)
+
+        self.tau_arr = real_tau_arr
+ 
+        self.sample_load_ready_pulsestreamer(name='read_out_jptr')
+        
+        ensemble_list, sequence_step_list = self.sample_load_ready_AWG_sequence(self.segments, self.sequence_step_list, self.tau_arr, alternating, freq_sweep, change_freq = True)
+
+        return ensemble_list, sequence_step_list, name, self.tau_arr, alternating, freq_sweep
         
     def T1_DQ_alt_exp(self, tau_start, tau_stop, tau_num, name = None):
         '''
@@ -880,60 +963,103 @@ class PulsedJupyterLogic(GenericLogic):
         alternating = True
         freq_sweep=False
         self.tau_arr = np.logspace(np.log10(tau_start), np.log10(tau_stop), num=tau_num)
-        
-        #Create pulse sequence for the pulse streamer
-        self.BlockPS = []
-        self.PhaseDuration = []
-        
-        for tau in self.tau_arr:
-            #Break after Initalisation/read out
-            self.ElementPS(channels={}, length=self.laser_waiting_time)
-            #Waiting time - awg sync
-            self.ElementPS(channels={'AWG_Trig':True}, length=self.awg_sync_time)
-            #Pi pulse (0,-1) - reference
-            self.ElementPS(channels={'MW_0':True}, length=self.pi_pulse)
-            #Waiting time - tau
-            self.ElementPS(channels={}, length=tau)
-            #Waiting time - awg sync
-            self.ElementPS(channels={'AWG_Trig':True}, length=self.awg_sync_time)
-            #Pi pulse (0,-1) - reference
-            self.ElementPS(channels={'MW_0':True}, length=self.pi_pulse)
-            #Read out
-            self.ElementPS(channels={'TT_Next':True}, length=self.mw_waiting_time)
-            #Read out
-            self.ElementPS(channels={'Laser':True, 'TT_Start':True}, length=self.read_out_time)
-            
-            #Alternating
-            #Break after Initalisation/read out
-            self.ElementPS(channels={}, length=self.laser_waiting_time)
-            #Waiting time - awg sync
-            self.ElementPS(channels={'AWG_Trig':True}, length=self.awg_sync_time)
-            #Pi pulse (0,-1) - reference
-            self.ElementPS(channels={'MW_0':True}, length=self.pi_pulse)
-            #Waiting time - tau
-            self.ElementPS(channels={}, length=tau)
-            #Waiting time - awg sync
-            self.ElementPS(channels={'AWG_Trig':True}, length=self.awg_sync_time)
-            #Pi pulse (0,+1) - reference!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-            self.ElementPS(channels={'MW_0':True}, length=self.pi_pulse)
-            #Waiting time
-            self.ElementPS(channels={'TT_Next':True}, length=self.mw_waiting_time)
-            #Read out
-            self.ElementPS(channels={'Laser':True, 'TT_Start':True}, length=self.read_out_time)
 
-        self.sample_load_ready_pulsed_measurement(name=name, 
-                                             element_list=self.BlockPS, tau_arr=self.tau_arr, alternating=alternating, freq_sweep=freq_sweep)
-        
-        params_for_AWG_seq = []
-        #params_for_AWG_seq.append(Name_str, duration_float, MW_0_bool, MW_1_bool, freq_0, freq_1)
-        params_for_AWG_seq.append(("Pi-0m1-A", self.pi_pulse, True, False, None, None))
-        params_for_AWG_seq.append(("Pi-0m1-B", self.pi_pulse, True, False, None, None))
-        params_for_AWG_seq.append(("Pi-0m1-A-alt", self.pi_pulse, True, False, None, None))
-        params_for_AWG_seq.append(("Pi-0p1-B-alt", self.pi_pulse, False, True, None, None))
-        
-        ensemble_list = self.sample_load_multi_short_sine_AWG(params=params_for_AWG_seq)
+        #Create pulse sequence for the AWG streamer
+        self.segments = {}
+        self.sequence_step_list = []
 
-        return ensemble_list, name, self.tau_arr, alternating, freq_sweep
+        #Define Pi pulse peak 0 (MW0) intitialzation segment
+        self.BlockAWG = []
+        pi_pulse_peak0_init_name = name+'-pi_pulse_peak0_init'
+        #Adding the Laser waiting time to the segment to make sure that the segment will always be long enough independend on the pi pulse duration
+        self.ElementAWG(channels={}, length=self.laser_waiting_time)
+        self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse)
+        self.segments[pi_pulse_peak0_init_name] = self.BlockAWG
+
+        #Define Pi pulse peak 0 (MW0) + read out segment 
+        self.BlockAWG = []
+        pi_pulse_peak0_read_out_name = name+'-pi_pulse_peak0_read_out'
+        #Adding the Laser waiting time to the segment to make sure that the segment will always be long enough independend on the pi pulse duration
+        self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse)
+        self.ElementAWG(channels={'PS_Trig':True}, length=self.mw_waiting_time + self.read_out_time)
+        self.segments[pi_pulse_peak0_read_out_name] = self.BlockAWG
+
+        #Define Pi pulse peak 1 (MW1) + read out segment 
+        self.BlockAWG = []
+        pi_pulse_peak1_read_out_name = name+'-pi_pulse_peak1_read_out'
+        #Adding the Laser waiting time to the segment to make sure that the segment will always be long enough independend on the pi pulse duration
+        self.ElementAWG(channels={'MW_1':True}, length=self.pi_pulse)
+        self.ElementAWG(channels={'PS_Trig':True}, length=self.mw_waiting_time + self.read_out_time)
+        self.segments[pi_pulse_peak1_read_out_name] = self.BlockAWG
+
+        #Define waiting Segment
+        self.BlockAWG = []
+        waiting_name = name+'-waiting'
+        #It is recommended to use a multiple of 32, as the AWG only allows to upload sample size with modulus 32 == 0.
+        #Otherwise it will fill up the segment with empty samples, making the waiting time not predictable.
+        waiting_samples = 32*12
+        if waiting_samples <32*12:
+            print('!!!Given configuration of waiting samples results in an value, which cannot be uploaded to the AWG!!!')
+            return
+        waiting_time = waiting_samples/1.25e9
+        self.ElementAWG(channels={}, length=waiting_time)
+        self.segments[waiting_name] = self.BlockAWG
+
+        #Define Sequence with sequence_step_list
+        real_tau_arr = []
+        for idx, tau in enumerate(self.tau_arr):
+            num_waiting_loops = int(np.rint(tau/waiting_time))
+            real_tau_arr.append(waiting_time*num_waiting_loops)
+
+            step = {"step_index" : 6*idx,
+                        "step_segment" : 'Jupyter-ensemble-'+pi_pulse_peak0_init_name,
+                        "step_loops" : 1,
+                        "next_step_index" : 6*idx+1,
+                        "step_end_cond" : 'always'
+                        }
+            self.sequence_step_list.append(step)
+            step = {"step_index" : 6*idx+1,
+                        "step_segment" : 'Jupyter-ensemble-'+waiting_name,
+                        "step_loops" : num_waiting_loops,
+                        "next_step_index" : 6*idx+2,
+                        "step_end_cond" : 'always'
+                        }
+            self.sequence_step_list.append(step)
+            step = {"step_index" : 6*idx+2,
+                        "step_segment" : 'Jupyter-ensemble-'+pi_pulse_peak0_read_out_name,
+                        "step_loops" : 1,
+                        "next_step_index" : 6*idx+3,
+                        "step_end_cond" : 'always'
+                        }
+            step = {"step_index" : 6*idx+3,
+                        "step_segment" : 'Jupyter-ensemble-'+pi_pulse_peak0_init_name,
+                        "step_loops" : 1,
+                        "next_step_index" : 6*idx+4,
+                        "step_end_cond" : 'always'
+                        }
+            self.sequence_step_list.append(step)
+            step = {"step_index" : 6*idx+4,
+                        "step_segment" : 'Jupyter-ensemble-'+waiting_name,
+                        "step_loops" : num_waiting_loops,
+                        "next_step_index" : 6*idx+5,
+                        "step_end_cond" : 'always'
+                        }
+            self.sequence_step_list.append(step)
+            step = {"step_index" : 6*idx+5,
+                        "step_segment" : 'Jupyter-ensemble-'+pi_pulse_peak1_read_out_name,
+                        "step_loops" : 1,
+                        "next_step_index" : 0 if tau == self.tau_arr[-1] else 6*idx+6,
+                        "step_end_cond" : 'always'
+                        }
+            self.sequence_step_list.append(step)
+
+        self.tau_arr = real_tau_arr
+ 
+        self.sample_load_ready_pulsestreamer(name='read_out_jptr')
+        
+        ensemble_list, sequence_step_list = self.sample_load_ready_AWG_sequence(self.segments, self.sequence_step_list, self.tau_arr, alternating, freq_sweep, change_freq = True)
+
+        return ensemble_list, sequence_step_list, name, self.tau_arr, alternating, freq_sweep
         
     def T1_SQ_alt_exp(self, tau_start, tau_stop, tau_num, name = None):
         '''
@@ -950,50 +1076,102 @@ class PulsedJupyterLogic(GenericLogic):
         alternating = True
         freq_sweep=False
         self.tau_arr = np.logspace(np.log10(tau_start), np.log10(tau_stop), num=tau_num)
-        
-        #Create pulse sequence for the pulse streamer
-        self.BlockPS = []
-        self.PhaseDuration = []
-        
-        for tau in self.tau_arr:
-            #Break after Initalisation/read out
-            self.ElementPS(channels={}, length=self.laser_waiting_time) 
-            #Waiting time - tau
-            self.ElementPS(channels={}, length=tau)
-            #Waiting time - awg sync
-            self.ElementPS(channels={}, length=self.awg_sync_time)
-            #Pi pulse - reference
-            self.ElementPS(channels={}, length=self.pi_pulse)
-            #Read out
-            self.ElementPS(channels={'TT_Next':True}, length=self.mw_waiting_time)
-            #Read out
-            self.ElementPS(channels={'Laser':True, 'TT_Start':True}, length=self.read_out_time)
-            
-            #Alternating
-            #Break after Initalisation/read out
-            self.ElementPS(channels={}, length=self.laser_waiting_time)
-            #Waiting time - tau
-            self.ElementPS(channels={}, length=tau)
-            #Waiting time - awg sync
-            self.ElementPS(channels={'AWG_Trig':True}, length=self.awg_sync_time)
-            #Pi pulse - reference
-            self.ElementPS(channels={'MW_0':True}, length=self.pi_pulse)
-            #Waiting time
-            self.ElementPS(channels={'TT_Next':True}, length=self.mw_waiting_time)
-            #Read out
-            self.ElementPS(channels={'Laser':True, 'TT_Start':True}, length=self.read_out_time)
 
-        self.sample_load_ready_pulsed_measurement(name=name, 
-                                             element_list=self.BlockPS, tau_arr=self.tau_arr, alternating=alternating, freq_sweep=freq_sweep)
-        
-        params_for_AWG_seq = []
-        duration = self.pi_pulse
-        #params_for_AWG_seq.append(Name_str, duration_float, MW_0_bool, MW_1_bool, freq_0, freq_1)
-        params_for_AWG_seq.append(("Pi", duration, True, False, None, None))
-        
-        ensemble_list = self.sample_load_multi_short_sine_AWG(params=params_for_AWG_seq)
+        #Create pulse sequence for the AWG streamer
+        self.segments = {}
+        self.sequence_step_list = []
 
-        return ensemble_list, name, self.tau_arr, alternating, freq_sweep
+        #Define laser waiting segment segment
+        self.BlockAWG = []
+        laser_waiting_name = name+'-laser_waiting'
+        #Adding the Laser waiting time to the segment to make sure that the segment will always be long enough independend on the pi pulse duration
+        self.ElementAWG(channels={}, length=self.laser_waiting_time)
+        self.segments[laser_waiting_name] = self.BlockAWG
+
+        #Define Pi pulse + read out segment 
+        self.BlockAWG = []
+        pi_pulse_read_out_name = name+'-pi_pulse_read_out'
+        #Adding the Laser waiting time to the segment to make sure that the segment will always be long enough independend on the pi pulse duration
+        self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse)
+        self.ElementAWG(channels={'PS_Trig':True}, length=self.mw_waiting_time + self.read_out_time)
+        self.segments[pi_pulse_read_out_name] = self.BlockAWG
+
+        #Define Pi pulse replacement + read out segment 
+        self.BlockAWG = []
+        pi_pulse_replacement_read_out_name = name+'-pi_pulse_replacement_read_out'
+        #Adding the Laser waiting time to the segment to make sure that the segment will always be long enough independend on the pi pulse duration
+        self.ElementAWG(channels={}, length=self.pi_pulse)
+        self.ElementAWG(channels={'PS_Trig':True}, length=self.mw_waiting_time + self.read_out_time)
+        self.segments[pi_pulse_replacement_read_out_name] = self.BlockAWG
+
+        #Define waiting Segment
+        self.BlockAWG = []
+        waiting_name = name+'-waiting'
+        #It is recommended to use a multiple of 32, as the AWG only allows to upload sample size with modulus 32 == 0.
+        #Otherwise it will fill up the segment with empty samples, making the waiting time not predictable.
+        waiting_samples = 32*12
+        if waiting_samples <32*12:
+            print('!!!Given configuration of waiting samples results in an value, which cannot be uploaded to the AWG!!!')
+            return
+        waiting_time = waiting_samples/1.25e9
+        self.ElementAWG(channels={}, length=waiting_time)
+        self.segments[waiting_name] = self.BlockAWG
+
+        #Define Sequence with sequence_step_list
+        real_tau_arr = []
+        for idx, tau in enumerate(self.tau_arr):
+            num_waiting_loops = int(np.rint(tau/waiting_time))
+            real_tau_arr.append(waiting_time*num_waiting_loops)
+
+            step = {"step_index" : 6*idx,
+                        "step_segment" : 'Jupyter-ensemble-'+laser_waiting_name,
+                        "step_loops" : 1,
+                        "next_step_index" : 6*idx+1,
+                        "step_end_cond" : 'always'
+                        }
+            self.sequence_step_list.append(step)
+            step = {"step_index" : 6*idx+1,
+                        "step_segment" : 'Jupyter-ensemble-'+waiting_name,
+                        "step_loops" : num_waiting_loops,
+                        "next_step_index" : 6*idx+2,
+                        "step_end_cond" : 'always'
+                        }
+            self.sequence_step_list.append(step)
+            step = {"step_index" : 6*idx+2,
+                        "step_segment" : 'Jupyter-ensemble-'+pi_pulse_replacement_read_out_name,
+                        "step_loops" : 1,
+                        "next_step_index" : 6*idx+3,
+                        "step_end_cond" : 'always'
+                        }
+            step = {"step_index" : 6*idx+3,
+                        "step_segment" : 'Jupyter-ensemble-'+laser_waiting_name,
+                        "step_loops" : 1,
+                        "next_step_index" : 6*idx+4,
+                        "step_end_cond" : 'always'
+                        }
+            self.sequence_step_list.append(step)
+            step = {"step_index" : 6*idx+4,
+                        "step_segment" : 'Jupyter-ensemble-'+waiting_name,
+                        "step_loops" : num_waiting_loops,
+                        "next_step_index" : 6*idx+5,
+                        "step_end_cond" : 'always'
+                        }
+            self.sequence_step_list.append(step)
+            step = {"step_index" : 6*idx+5,
+                        "step_segment" : 'Jupyter-ensemble-'+pi_pulse_read_out_name,
+                        "step_loops" : 1,
+                        "next_step_index" : 0 if tau == self.tau_arr[-1] else 6*idx+6,
+                        "step_end_cond" : 'always'
+                        }
+            self.sequence_step_list.append(step)
+
+        self.tau_arr = real_tau_arr
+ 
+        self.sample_load_ready_pulsestreamer(name='read_out_jptr')
+        
+        ensemble_list, sequence_step_list = self.sample_load_ready_AWG_sequence(self.segments, self.sequence_step_list, self.tau_arr, alternating, freq_sweep, change_freq = True)
+
+        return ensemble_list, sequence_step_list, name, self.tau_arr, alternating, freq_sweep
     
     def Ramsey_alt_phased(self, tau_start, tau_stop, tau_num, name = None):
         '''
@@ -1042,7 +1220,7 @@ class PulsedJupyterLogic(GenericLogic):
         
         ensemble_list, sequence_step_list = self.sample_load_ready_AWG(name, self.tau_arr, alternating, freq_sweep, change_freq = True)
 
-        return ensemble_list, name, self.tau_arr, alternating, freq_sweep
+        return ensemble_list, sequence_step_list, name, self.tau_arr, alternating, freq_sweep
     
     def Hecho_alt_phased(self, tau_start, tau_stop, tau_num, name = None):
         '''
@@ -1102,7 +1280,7 @@ class PulsedJupyterLogic(GenericLogic):
         
         ensemble_list, sequence_step_list = self.sample_load_ready_AWG(name, self.tau_arr, alternating, freq_sweep, change_freq = True)
 
-        return ensemble_list, name, self.tau_arr + self.pi_pulse, alternating, freq_sweep #Pi pulse duration is subtracted and thus total tau includes the Pi pulse
+        return ensemble_list, sequence_step_list, name, self.tau_arr + self.pi_pulse, alternating, freq_sweep #Pi pulse duration is subtracted and thus total tau includes the Pi pulse
     
     def Hecho_alt(self, tau_start, tau_stop, tau_num, name = None):
         '''
@@ -1163,7 +1341,7 @@ class PulsedJupyterLogic(GenericLogic):
         
         ensemble_list, sequence_step_list = self.sample_load_ready_AWG(name, self.tau_arr, alternating, freq_sweep, change_freq = True)
 
-        return ensemble_list, name, self.tau_arr+ self.pi_pulse, alternating, freq_sweep
+        return ensemble_list, sequence_step_list, name, self.tau_arr+ self.pi_pulse, alternating, freq_sweep
         
     def DEER_alt_phased(self, tau_NV, pi_pulse_dark_spin, mw_start, mw_stop, mw_step, name = None):
         '''
@@ -1239,7 +1417,7 @@ class PulsedJupyterLogic(GenericLogic):
         
         ensemble_list, sequence_step_list = self.sample_load_ready_AWG(name, self.tau_arr, alternating, freq_sweep, change_freq = True)
 
-        return ensemble_list, name, self.tau_arr, alternating, freq_sweep
+        return ensemble_list, sequence_step_list, name, self.tau_arr, alternating, freq_sweep
         
     def CPMG_alt_phased(self, tau_start, tau_stop, tau_num, N, name = None):
         '''
@@ -1315,7 +1493,7 @@ class PulsedJupyterLogic(GenericLogic):
         
         ensemble_list, sequence_step_list = self.sample_load_ready_AWG(name, self.tau_arr, alternating, freq_sweep, change_freq = True)
 
-        return ensemble_list, name, self.tau_arr + 2*N*self.pi_pulse, alternating, freq_sweep
+        return ensemble_list, sequence_step_list, name, self.tau_arr + 2*N*self.pi_pulse, alternating, freq_sweep
         
     def DEER_CPMG_alt_phased(self, tau_NV, pi_pulse_dark_spin, mw_start, mw_stop, mw_step, N, name = None):
         '''
@@ -1401,7 +1579,7 @@ class PulsedJupyterLogic(GenericLogic):
         
         ensemble_list, sequence_step_list = self.sample_load_ready_AWG(name, self.tau_arr, alternating, freq_sweep, change_freq = True)
 
-        return ensemble_list, name, self.tau_arr, alternating, freq_sweep
+        return ensemble_list, sequence_step_list, name, self.tau_arr, alternating, freq_sweep
         
     def XY4_alt_phased(self, tau_start, tau_stop, tau_num, N, name = None):
         '''
@@ -1475,7 +1653,7 @@ class PulsedJupyterLogic(GenericLogic):
         
         ensemble_list, sequence_step_list = self.sample_load_ready_AWG(name, self.tau_arr, alternating, freq_sweep, change_freq = True)
 
-        return ensemble_list, name, self.tau_arr+ 4*N*self.pi_pulse, alternating, freq_sweep
+        return ensemble_list, sequence_step_list, name, self.tau_arr+ 4*N*self.pi_pulse, alternating, freq_sweep
     
     def XY8_alt_phased(self, tau_start, tau_stop, tau_num, N, name = None):
         '''
@@ -1565,7 +1743,7 @@ class PulsedJupyterLogic(GenericLogic):
         
         ensemble_list, sequence_step_list = self.sample_load_ready_AWG(name, self.tau_arr, alternating, freq_sweep, change_freq = True)
 
-        return ensemble_list, name, self.tau_arr+ 8*N*self.pi_pulse, alternating, freq_sweep
+        return ensemble_list, sequence_step_list, name, self.tau_arr+ 8*N*self.pi_pulse, alternating, freq_sweep
         
     def XY16_alt_phased(self, tau_start, tau_stop, tau_num, N, name = None):
         '''
@@ -1687,7 +1865,7 @@ class PulsedJupyterLogic(GenericLogic):
         
         ensemble_list, sequence_step_list = self.sample_load_ready_AWG(name, self.tau_arr, alternating, freq_sweep, change_freq = True)
 
-        return ensemble_list, name, self.tau_arr+ 16*N*self.pi_pulse, alternating, freq_sweep
+        return ensemble_list, sequence_step_list, name, self.tau_arr+ 16*N*self.pi_pulse, alternating, freq_sweep
     
     def sample_load_ready_AWG_for_SPM_tracking(self, res_freq, delta_freq, repetitions):
 
