@@ -83,7 +83,8 @@ class PulsedJupyterLogic(GenericLogic):
     
     def initialize_ensemble(self, laser_power_voltage = 0.08, pi_pulse=1e-9, pi_half_pulse=1e-9, three_pi_half_pulse=1e-9, awg_sync_time=16e-9 + 476.5/1.25e9, 
                             laser_waiting_time=1.5e-6, mw_waiting_time=1e-6, read_out_time=3e-6,
-                            LO_freq_0=3e9, target_freq_0=2.88e9, power_0=-20, LO_freq_1=3e9, target_freq_1=2.88e9, power_1=-100, printing = True, upload = True, set_up_measurement = True, check_current_sequence = False):
+                            LO_freq_0=3e9, target_freq_0=2.88e9, power_0=-20, LO_freq_1=3e9, target_freq_1=2.88e9, power_1=-100,
+                            printing = True, upload = True, set_up_measurement = True, check_current_sequence = False):
         
         self.pi_pulse = pi_pulse
         self.pi_half_pulse = pi_half_pulse
@@ -333,7 +334,7 @@ class PulsedJupyterLogic(GenericLogic):
         sample_sequence = True
         ensemble_name_list = self.pulsed_master_AWG.sequencegeneratorlogic()._saved_pulse_block_ensembles.keys()
 
-        if self.check_current_sequence: #Set this flag, if the last uploaded sequence and the memory of sampled pulse blocks shut be checked
+        if self.check_current_sequence: #Set this flag, if the last uploaded sequence and the memory of sampled pulse blocks should be checked
             if sequence_step_list == self.AWG._current_uploaded_sequence_step_list:
                 segment_and_index, ensemble_list = self.find_unique_segments(sequence_step_list)
                 sample_sequence = False
@@ -468,7 +469,7 @@ class PulsedJupyterLogic(GenericLogic):
             save_tag += '_'+extra
         
         self.pulsed_master_AWG.sigUpdateSaveTag.emit(save_tag)
-        self.pulsed_master_AWG.sigUpdateLoadedAssetLabel.emit('  '+measurement_type)
+        self.pulsed_master_AWG.sigUpdateLoadedAssetLabel.emit('  '+measurement_type, '')
         self.pulsed_master_AWG.toggle_pulsed_measurement(start=True)
         if printing:
             self.log.info(save_tag)
@@ -693,6 +694,12 @@ class PulsedJupyterLogic(GenericLogic):
             print('!!!Given configuration of waiting samples results in an value, which cannot be uploaded to the AWG!!!')
             return
         waiting_time = waiting_samples/1.25e9
+        if waiting_time>tau_start:
+            print(f'!!!tau_start is smaller than the minimum waiting time. Please select a tau_start>{waiting_time}!!!')
+            return
+        if waiting_time>self.tau_arr[1]-self.tau_arr[0]:
+            print(f'!!!First step between two taus is smaller than the minimum waiting time, causing a completly wrong tau_arr. Please select a larger tau_step>{waiting_time}!!!')
+            return
         self.ElementAWG(channels={}, length=waiting_time)
         self.segments[waiting_name] = self.BlockAWG
 
@@ -776,6 +783,12 @@ class PulsedJupyterLogic(GenericLogic):
             print('!!!Given configuration of waiting samples results in an value, which cannot be uploaded to the AWG!!!')
             return
         waiting_time = waiting_samples/1.25e9
+        if waiting_time>tau_start:
+            print(f'!!!tau_start is smaller than the minimum waiting time. Please select a tau_start>{waiting_time}!!!')
+            return
+        if waiting_time>self.tau_arr[1]-self.tau_arr[0]:
+            print(f'!!!First step between two taus is smaller than the minimum waiting time, causing a completly wrong tau_arr. Please select a larger tau_step>{waiting_time}!!!')
+            return
         self.ElementAWG(channels={}, length=waiting_time)
         self.segments[waiting_name] = self.BlockAWG
 
@@ -805,6 +818,7 @@ class PulsedJupyterLogic(GenericLogic):
                         "next_step_index" : 6*idx+3,
                         "step_end_cond" : 'always'
                         }
+            self.sequence_step_list.append(step)
             step = {"step_index" : 6*idx+3,
                         "step_segment" : 'Jupyter-ensemble-'+pi_pulse_name,
                         "step_loops" : 1,
@@ -889,6 +903,12 @@ class PulsedJupyterLogic(GenericLogic):
             print('!!!Given configuration of waiting samples results in an value, which cannot be uploaded to the AWG!!!')
             return
         waiting_time = waiting_samples/1.25e9
+        if waiting_time>tau_start:
+            print(f'!!!tau_start is smaller than the minimum waiting time. Please select a tau_start>{waiting_time}!!!')
+            return
+        if waiting_time>self.tau_arr[1]-self.tau_arr[0]:
+            print(f'!!!First step between two taus is smaller than the minimum waiting time, causing a completly wrong tau_arr. Please select a larger tau_step>{waiting_time}!!!')
+            return
         self.ElementAWG(channels={}, length=waiting_time)
         self.segments[waiting_name] = self.BlockAWG
 
@@ -918,6 +938,7 @@ class PulsedJupyterLogic(GenericLogic):
                         "next_step_index" : 6*idx+3,
                         "step_end_cond" : 'always'
                         }
+            self.sequence_step_list.append(step)
             step = {"step_index" : 6*idx+3,
                         "step_segment" : 'Jupyter-ensemble-'+pi_pulse_init_name,
                         "step_loops" : 1,
@@ -1002,6 +1023,12 @@ class PulsedJupyterLogic(GenericLogic):
             print('!!!Given configuration of waiting samples results in an value, which cannot be uploaded to the AWG!!!')
             return
         waiting_time = waiting_samples/1.25e9
+        if waiting_time>tau_start:
+            print(f'!!!tau_start is smaller than the minimum waiting time. Please select a tau_start>{waiting_time}!!!')
+            return
+        if waiting_time>self.tau_arr[1]-self.tau_arr[0]:
+            print(f'!!!First step between two taus is smaller than the minimum waiting time, causing a completly wrong tau_arr. Please select a larger tau_step>{waiting_time}!!!')
+            return
         self.ElementAWG(channels={}, length=waiting_time)
         self.segments[waiting_name] = self.BlockAWG
 
@@ -1031,6 +1058,7 @@ class PulsedJupyterLogic(GenericLogic):
                         "next_step_index" : 6*idx+3,
                         "step_end_cond" : 'always'
                         }
+            self.sequence_step_list.append(step)
             step = {"step_index" : 6*idx+3,
                         "step_segment" : 'Jupyter-ensemble-'+pi_pulse_peak0_init_name,
                         "step_loops" : 1,
@@ -1114,6 +1142,12 @@ class PulsedJupyterLogic(GenericLogic):
             print('!!!Given configuration of waiting samples results in an value, which cannot be uploaded to the AWG!!!')
             return
         waiting_time = waiting_samples/1.25e9
+        if waiting_time>tau_start:
+            print(f'!!!tau_start is smaller than the minimum waiting time. Please select a tau_start>{waiting_time}!!!')
+            return
+        if waiting_time>self.tau_arr[1]-self.tau_arr[0]:
+            print(f'!!!First step between two taus is smaller than the minimum waiting time, causing a completly wrong tau_arr. Please select a larger tau_step>{waiting_time}!!!')
+            return
         self.ElementAWG(channels={}, length=waiting_time)
         self.segments[waiting_name] = self.BlockAWG
 
@@ -1143,6 +1177,7 @@ class PulsedJupyterLogic(GenericLogic):
                         "next_step_index" : 6*idx+3,
                         "step_end_cond" : 'always'
                         }
+            self.sequence_step_list.append(step)
             step = {"step_index" : 6*idx+3,
                         "step_segment" : 'Jupyter-ensemble-'+laser_waiting_name,
                         "step_loops" : 1,
@@ -1281,6 +1316,332 @@ class PulsedJupyterLogic(GenericLogic):
         ensemble_list, sequence_step_list = self.sample_load_ready_AWG(name, self.tau_arr, alternating, freq_sweep, change_freq = True)
 
         return ensemble_list, sequence_step_list, name, self.tau_arr + self.pi_pulse, alternating, freq_sweep #Pi pulse duration is subtracted and thus total tau includes the Pi pulse
+
+    def Hecho_correlation_alt_phased(self, hecho_waiting, tau_start, tau_stop, tau_num, name = None):
+        '''
+        This method uploads the sequence as one single segment onto the AWG. This takes a long time and is limited by the memory size of the AWG.
+        Laser(532):       ▇▇▇▇▇▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▇▇▇▇▇
+        MW:               ▁▁▁▁▁▁▁▇pi/2▇▁▁▁▁▁▁▁▁▁▁▇pi▇▁▁▁▁▁▁▁▁▁▁▇pi/2▇▁▁▁▁▁▁▁▁▁▁▁▁▁▁▇pi/2▇▁▁▁▁▁▁▁▁▁▁▇pi▇▁▁▁▁▁▁▁▁▁▁▇pi/2▇▁▁▁▁▁▁▁▁
+                                       X        w/2       X        w/2        y            t             X        w/2       X        w/2        y
+        Laser(532):       ▇▇▇▇▇▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▇▇▇▇▇
+        MW:               ▁▁▁▁▁▁▁▇pi/2▇▁▁▁▁▁▁▁▁▁▁▇pi▇▁▁▁▁▁▁▁▁▁▁▇pi/2▇▁▁▁▁▁▁▁▁▁▁▁▁▁▁▇pi/2▇▁▁▁▁▁▁▁▁▁▁▇pi▇▁▁▁▁▁▁▁▁▁▁▇pi/2▇▁▁▁▁▁▁▁▁
+                                       X        w/2       X        w/2        y            t             X        w/2       X        w/2        -y
+        '''
+        if name is None:
+            name = 'hecho-correlation-alt-phased-juptr'
+        
+        alternating = True
+        freq_sweep= False
+        if hecho_waiting<self.pi_pulse:
+            print('!!!Given configuration of pi-pulse duration and Hahn echo waiting time causes negative values!!!')
+            return
+        waiting_time = hecho_waiting - self.pi_pulse #Pi pulse duration is subtracted and thus total hahn echo waiting time includes the Pi pulse
+        self.tau_arr = np.linspace(tau_start, tau_stop, num=tau_num)
+
+        #Create pulse sequence for the AWG streamer
+        self.BlockAWG = []
+
+        for tau in self.tau_arr:
+            #Break after Initalisation/read out
+            self.ElementAWG(channels={}, length=self.laser_waiting_time)
+            #Pi/2 pulse
+            self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse/2)
+            #First waiting time + tau/2
+            self.ElementAWG(channels={}, length=waiting_time/2)
+            #Pi pulse
+            self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse)
+            #Second waiting time + tau/2
+            self.ElementAWG(channels={}, length=waiting_time/2)
+            #Pi/2 pulse
+            self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse/2, phase_0=90)
+            #Correlation waiting time
+            self.ElementAWG(channels={}, length=tau)
+            #Pi/2 pulse
+            self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse/2)
+            #First waiting time + tau/2
+            self.ElementAWG(channels={}, length=waiting_time/2)
+            #Pi pulse
+            self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse)
+            #Second waiting time + tau/2
+            self.ElementAWG(channels={}, length=waiting_time/2)
+            #Pi/2 pulse
+            self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse/2, phase_0=90)
+            #Waiting time + read-out
+            self.ElementAWG(channels={'PS_Trig':True}, length=self.mw_waiting_time + self.read_out_time)
+
+            #Alternating run
+            #Break after Initalisation/read out
+            self.ElementAWG(channels={}, length=self.laser_waiting_time)
+            #Pi/2 pulse
+            self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse/2)
+            #First waiting time + tau/2
+            self.ElementAWG(channels={}, length=waiting_time/2)
+            #Pi pulse
+            self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse)
+            #Second waiting time + tau/2
+            self.ElementAWG(channels={}, length=waiting_time/2)
+            #Pi/2 pulse
+            self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse/2, phase_0=90)
+            #Correlation waiting time
+            self.ElementAWG(channels={}, length=tau)
+            #Pi/2 pulse
+            self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse/2)
+            #First waiting time + tau/2
+            self.ElementAWG(channels={}, length=waiting_time/2)
+            #Pi pulse
+            self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse)
+            #Second waiting time + tau/2
+            self.ElementAWG(channels={}, length=waiting_time/2)
+            #Pi/2 pulse
+            self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse/2, phase_0=270)
+            #Waiting time + read-out
+            self.ElementAWG(channels={'PS_Trig':True}, length=self.mw_waiting_time + self.read_out_time)
+        
+        self.sample_load_ready_pulsestreamer(name='read_out_jptr')
+        
+        ensemble_list, sequence_step_list = self.sample_load_ready_AWG(name, self.tau_arr, alternating, freq_sweep, change_freq = True)
+
+        return ensemble_list, sequence_step_list, name, self.tau_arr, alternating, freq_sweep #Pi pulse duration is subtracted and thus total tau includes the Pi pulse
+    
+    def Hecho_correlation_alt_phased_exp(self, hecho_waiting, tau_start, tau_stop, tau_num, name = None):
+        '''
+        This method uploads the sequence as one single segment onto the AWG. This takes a long time and is limited by the memory size of the AWG.
+        Laser(532):       ▇▇▇▇▇▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▇▇▇▇▇
+        MW:               ▁▁▁▁▁▁▁▇pi/2▇▁▁▁▁▁▁▁▁▁▁▇pi▇▁▁▁▁▁▁▁▁▁▁▇pi/2▇▁▁▁▁▁▁▁▁▁▁▁▁▁▁▇pi/2▇▁▁▁▁▁▁▁▁▁▁▇pi▇▁▁▁▁▁▁▁▁▁▁▇pi/2▇▁▁▁▁▁▁▁▁
+                                       X        w/2       X        w/2        y            t             X        w/2       X        w/2        y
+        Laser(532):       ▇▇▇▇▇▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▇▇▇▇▇
+        MW:               ▁▁▁▁▁▁▁▇pi/2▇▁▁▁▁▁▁▁▁▁▁▇pi▇▁▁▁▁▁▁▁▁▁▁▇pi/2▇▁▁▁▁▁▁▁▁▁▁▁▁▁▁▇pi/2▇▁▁▁▁▁▁▁▁▁▁▇pi▇▁▁▁▁▁▁▁▁▁▁▇pi/2▇▁▁▁▁▁▁▁▁
+                                       X        w/2       X        w/2        y            t             X        w/2       X        w/2        -y
+        '''
+        if name is None:
+            name = 'hecho-correlation-alt-phased-exp-juptr'
+        
+        alternating = True
+        freq_sweep= False
+        if hecho_waiting<self.pi_pulse:
+            print('!!!Given configuration of pi-pulse duration and Hahn echo waiting time causes negative values!!!')
+            return
+        waiting_time = hecho_waiting - self.pi_pulse #Pi pulse duration is subtracted and thus total hahn echo waiting time includes the Pi pulse
+        self.tau_arr = np.logspace(np.log10(tau_start), np.log10(tau_stop), num=tau_num)
+
+        #Create pulse sequence for the AWG streamer
+        self.BlockAWG = []
+
+        for tau in self.tau_arr:
+            #Break after Initalisation/read out
+            self.ElementAWG(channels={}, length=self.laser_waiting_time)
+            #Pi/2 pulse
+            self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse/2)
+            #First waiting time + tau/2
+            self.ElementAWG(channels={}, length=waiting_time/2)
+            #Pi pulse
+            self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse)
+            #Second waiting time + tau/2
+            self.ElementAWG(channels={}, length=waiting_time/2)
+            #Pi/2 pulse
+            self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse/2, phase_0=90)
+            #Correlation waiting time
+            self.ElementAWG(channels={}, length=tau)
+            #Pi/2 pulse
+            self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse/2)
+            #First waiting time + tau/2
+            self.ElementAWG(channels={}, length=waiting_time/2)
+            #Pi pulse
+            self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse)
+            #Second waiting time + tau/2
+            self.ElementAWG(channels={}, length=waiting_time/2)
+            #Pi/2 pulse
+            self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse/2, phase_0=90)
+            #Waiting time + read-out
+            self.ElementAWG(channels={'PS_Trig':True}, length=self.mw_waiting_time + self.read_out_time)
+
+            #Alternating run
+            #Break after Initalisation/read out
+            self.ElementAWG(channels={}, length=self.laser_waiting_time)
+            #Pi/2 pulse
+            self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse/2)
+            #First waiting time + tau/2
+            self.ElementAWG(channels={}, length=waiting_time/2)
+            #Pi pulse
+            self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse)
+            #Second waiting time + tau/2
+            self.ElementAWG(channels={}, length=waiting_time/2)
+            #Pi/2 pulse
+            self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse/2, phase_0=90)
+            #Correlation waiting time
+            self.ElementAWG(channels={}, length=tau)
+            #Pi/2 pulse
+            self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse/2)
+            #First waiting time + tau/2
+            self.ElementAWG(channels={}, length=waiting_time/2)
+            #Pi pulse
+            self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse)
+            #Second waiting time + tau/2
+            self.ElementAWG(channels={}, length=waiting_time/2)
+            #Pi/2 pulse
+            self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse/2, phase_0=270)
+            #Waiting time + read-out
+            self.ElementAWG(channels={'PS_Trig':True}, length=self.mw_waiting_time + self.read_out_time)
+        
+        self.sample_load_ready_pulsestreamer(name='read_out_jptr')
+        
+        ensemble_list, sequence_step_list = self.sample_load_ready_AWG(name, self.tau_arr, alternating, freq_sweep, change_freq = True)
+
+        return ensemble_list, sequence_step_list, name, self.tau_arr, alternating, freq_sweep #Pi pulse duration is subtracted and thus total tau includes the Pi pulse
+    
+    def Hecho_correlation_alt_phased_short(self, hecho_waiting, tau_start, tau_stop, tau_num, name = None):
+        '''
+        This method uploads the seuence as several short segments onto the AWG. This takes a short time and is not limited by the memory size of the AWG.
+        The actual sequence is organized in the sequence step list.
+        !!!However, if the step between two taus is smaller than the minimum waiting time, achivable with a single segement, this method will not work, causing doubling of tau values!!!
+        Laser(532):       ▇▇▇▇▇▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▇▇▇▇▇
+        MW:               ▁▁▁▁▁▁▁▇pi/2▇▁▁▁▁▁▁▁▁▁▁▇pi▇▁▁▁▁▁▁▁▁▁▁▇pi/2▇▁▁▁▁▁▁▁▁▁▁▁▁▁▁▇pi/2▇▁▁▁▁▁▁▁▁▁▁▇pi▇▁▁▁▁▁▁▁▁▁▁▇pi/2▇▁▁▁▁▁▁▁▁
+                                       X        w/2       X        w/2        y            t             X        w/2       X        w/2        y
+        Laser(532):       ▇▇▇▇▇▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▇▇▇▇▇
+        MW:               ▁▁▁▁▁▁▁▇pi/2▇▁▁▁▁▁▁▁▁▁▁▇pi▇▁▁▁▁▁▁▁▁▁▁▇pi/2▇▁▁▁▁▁▁▁▁▁▁▁▁▁▁▇pi/2▇▁▁▁▁▁▁▁▁▁▁▇pi▇▁▁▁▁▁▁▁▁▁▁▇pi/2▇▁▁▁▁▁▁▁▁
+                                       X        w/2       X        w/2        y            t             X        w/2       X        w/2        -y
+        '''
+        if name is None:
+            name = 'hecho-correlation-alt-phased-short-juptr'
+        
+        alternating = True
+        freq_sweep= False
+        if hecho_waiting<self.pi_pulse:
+            print('!!!Given configuration of pi-pulse duration and Hahn echo waiting time causes negative values!!!')
+            return
+        waiting_time = hecho_waiting - self.pi_pulse #Pi pulse duration is subtracted and thus total hahn echo waiting time includes the Pi pulse
+        self.tau_arr = np.linspace(tau_start, tau_stop, num=tau_num)
+
+        #Create pulse sequence for the AWG streamer
+        self.segments = {}
+        self.sequence_step_list = []
+
+        #Define initial Hahn echo segment
+        self.BlockAWG = []
+        hecho_init_name = name+'-hecho_init'
+        #Break after Initalisation/read out
+        self.ElementAWG(channels={}, length=self.laser_waiting_time)
+        #Pi/2 pulse
+        self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse/2)
+        #First waiting time + tau/2
+        self.ElementAWG(channels={}, length=waiting_time/2)
+        #Pi pulse
+        self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse)
+        #Second waiting time + tau/2
+        self.ElementAWG(channels={}, length=waiting_time/2)
+        #Pi/2 pulse
+        self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse/2, phase_0=90)
+        self.segments[hecho_init_name] = self.BlockAWG
+
+        #Define second Hahn echo with read out
+        self.BlockAWG = []
+        hecho_read_out_name = name+'-hecho_read_out'
+        #Pi/2 pulse
+        self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse/2)
+        #First waiting time + tau/2
+        self.ElementAWG(channels={}, length=waiting_time/2)
+        #Pi pulse
+        self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse)
+        #Second waiting time + tau/2
+        self.ElementAWG(channels={}, length=waiting_time/2)
+        #Pi/2 pulse
+        self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse/2, phase_0=90)
+        #Waiting time + read-out
+        self.ElementAWG(channels={'PS_Trig':True}, length=self.mw_waiting_time + self.read_out_time)
+        self.segments[hecho_read_out_name] = self.BlockAWG
+
+        #Define second Hahn echo with read out alternating
+        self.BlockAWG = []
+        hecho_read_out_alt_name = name+'-hecho_read_out_alt'
+        #Pi/2 pulse
+        self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse/2)
+        #First waiting time + tau/2
+        self.ElementAWG(channels={}, length=waiting_time/2)
+        #Pi pulse
+        self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse)
+        #Second waiting time + tau/2
+        self.ElementAWG(channels={}, length=waiting_time/2)
+        #Pi/2 pulse
+        self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse/2, phase_0=270)
+        #Waiting time + read-out
+        self.ElementAWG(channels={'PS_Trig':True}, length=self.mw_waiting_time + self.read_out_time)
+        self.segments[hecho_read_out_alt_name] = self.BlockAWG
+
+        #Define waiting Segment
+        self.BlockAWG = []
+        waiting_name = name+'-waiting'
+        #It is recommended to use a multiple of 32, as the AWG only allows to upload sample size with modulus 32 == 0.
+        #Otherwise it will fill up the segment with empty samples, making the waiting time not predictable.
+        waiting_samples = 32*12
+        if waiting_samples <32*12:
+            print('!!!Given configuration of waiting samples results in an value, which cannot be uploaded to the AWG!!!')
+            return
+        waiting_time = waiting_samples/1.25e9
+        if waiting_time>tau_start:
+            print(f'!!!tau_start is smaller than the minimum waiting time. Please select a tau_start>{waiting_time}!!!')
+            return
+        if waiting_time>self.tau_arr[1]-self.tau_arr[0]:
+            print(f'!!!Step between two taus is smaller than the minimum waiting time, causing a completly wrong tau_arr. Please select a larger tau_step>{waiting_time}!!!')
+            return
+        self.ElementAWG(channels={}, length=waiting_time)
+        self.segments[waiting_name] = self.BlockAWG
+
+        #Define Sequence with sequence_step_list
+        real_tau_arr = []
+        for idx, tau in enumerate(self.tau_arr):
+            num_waiting_loops = int(np.rint(tau/waiting_time))
+            real_tau_arr.append(waiting_time*num_waiting_loops)
+
+            step = {"step_index" : 6*idx,
+                        "step_segment" : 'Jupyter-ensemble-'+hecho_init_name,
+                        "step_loops" : 1,
+                        "next_step_index" : 6*idx+1,
+                        "step_end_cond" : 'always'
+                        }
+            self.sequence_step_list.append(step)
+            step = {"step_index" : 6*idx+1,
+                        "step_segment" : 'Jupyter-ensemble-'+waiting_name,
+                        "step_loops" : num_waiting_loops,
+                        "next_step_index" : 6*idx+2,
+                        "step_end_cond" : 'always'
+                        }
+            self.sequence_step_list.append(step)
+            step = {"step_index" : 6*idx+2,
+                        "step_segment" : 'Jupyter-ensemble-'+hecho_read_out_name,
+                        "step_loops" : 1,
+                        "next_step_index" : 6*idx+3,
+                        "step_end_cond" : 'always'
+                        }
+            self.sequence_step_list.append(step)
+            step = {"step_index" : 6*idx+3,
+                        "step_segment" : 'Jupyter-ensemble-'+hecho_init_name,
+                        "step_loops" : 1,
+                        "next_step_index" : 6*idx+4,
+                        "step_end_cond" : 'always'
+                        }
+            self.sequence_step_list.append(step)
+            step = {"step_index" : 6*idx+4,
+                        "step_segment" : 'Jupyter-ensemble-'+waiting_name,
+                        "step_loops" : num_waiting_loops,
+                        "next_step_index" : 6*idx+5,
+                        "step_end_cond" : 'always'
+                        }
+            self.sequence_step_list.append(step)
+            step = {"step_index" : 6*idx+5,
+                        "step_segment" : 'Jupyter-ensemble-'+hecho_read_out_alt_name,
+                        "step_loops" : 1,
+                        "next_step_index" : 0 if tau == self.tau_arr[-1] else 6*idx+6,
+                        "step_end_cond" : 'always'
+                        }
+            self.sequence_step_list.append(step)
+
+        self.tau_arr = real_tau_arr
+ 
+        self.sample_load_ready_pulsestreamer(name='read_out_jptr')
+        
+        ensemble_list, sequence_step_list = self.sample_load_ready_AWG_sequence(self.segments, self.sequence_step_list, self.tau_arr, alternating, freq_sweep, change_freq = True)
+
+        return ensemble_list, sequence_step_list, name, self.tau_arr, alternating, freq_sweep
     
     def Hecho_alt(self, tau_start, tau_stop, tau_num, name = None):
         '''

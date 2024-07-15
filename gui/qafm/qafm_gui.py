@@ -231,7 +231,7 @@ class ProteusQGUI(GUIBase):
     res_freq = StatusVar('res_freq', default=2.87e9)
     slope2_podmr = StatusVar('slope2_podmr', default=4e-9)
     pulse_repetition = StatusVar('pulse_repetition', default=100000)
-    pi_half_duration = StatusVar('pi_half_duration', default=200e-9)
+    pi_duration = StatusVar('pi_duration', default=200e-9)
 
     clock_frequency = StatusVar('clock_frequency', default=100)
     contrast = StatusVar('contrast', default=30)
@@ -354,8 +354,9 @@ class ProteusQGUI(GUIBase):
         self._qafm_logic.sigQuantiScanFinished.connect(self.autosave_quantitative_measurement)
 
         # Pulsed signals
-        self._qafm_logic.pulsed_master().sigLoadedAssetUpdated.connect(self._update_pulsed_asset)
-        self._update_pulsed_asset(*self._qafm_logic.pulsed_master().loaded_asset)
+        self._qafm_logic.pulsed_master_AWG().sigLoadedAssetUpdated.connect(self._update_pulsed_asset)
+        self._qafm_logic.pulsed_master_AWG().sigUpdateLoadedAssetLabel.connect(self._update_pulsed_asset)
+        self._update_pulsed_asset(*self._qafm_logic.pulsed_master_AWG().loaded_asset)
 
         # set MW and other device limits
         mw_limits = (self._qafm_logic._mw.get_limits().min_power, self._qafm_logic._mw.get_limits().max_power)
@@ -1012,13 +1013,13 @@ class ProteusQGUI(GUIBase):
         self._qm.esr_runs_SpinBox.setValue(self._qm_esr_runs)
 
         self._qm.pulsed_mw_power_DoubleSpinBox.setValue(self.esr_mw_power)
-        self._qm.hyperfine_comboBox.setCurrentText(self.mode)
+        self._qm.AWG_mode_comboBox.setCurrentText(self.mode)
         self._qm.p_delta_doubleSpinBox.setValue(self.repetitions)
         self._qm.delta0_doubleSpinBox.setValue(self.delta_0)
         self._qm.f0_doubleSpinBox.setValue(self.res_freq)
         self._qm.slope2_doubleSpinBox.setValue(self.slope2_podmr)
         self._qm.pulse_repetition_spinBox.setValue(self.pulse_repetition)
-        self._qm.pi_half_doubleSpinBox.setValue(self.pi_half_duration)
+        self._qm.pi_duration_doubleSpinBox.setValue(self.pi_duration)
 
         self._qm.esr_contrast_SpinBox.setValue(self.contrast )
         self._qm.esr_offset_SpinBox.setValue(self.offset )
@@ -1080,13 +1081,13 @@ class ProteusQGUI(GUIBase):
         self._qm_esr_runs = self._qm.esr_runs_SpinBox.value()
 
         self.esr_mw_power = self._qm.pulsed_mw_power_DoubleSpinBox.value()
-        self.mode = self._qm.hyperfine_comboBox.currentText()
+        self.mode = self._qm.AWG_mode_comboBox.currentText()
         self.repetitions = self._qm.p_delta_doubleSpinBox.value()
         self.delta_0 = self._qm.delta0_doubleSpinBox.value()
         self.res_freq = self._qm.f0_doubleSpinBox.value()
         self.slope2_podmr = self._qm.slope2_doubleSpinBox.value()
         self.pulse_repetition = self._qm.pulse_repetition_spinBox.value()
-        self.pi_half_duration = self._qm.pi_half_doubleSpinBox.value()
+        self.pi_duration = self._qm.pi_duration_doubleSpinBox.value()
 
         self.contrast = self._qm.esr_contrast_SpinBox.value()
         self.offset = self._qm.esr_offset_SpinBox.value()
@@ -1110,6 +1111,7 @@ class ProteusQGUI(GUIBase):
         return data_dict
     
     def _update_pulsed_asset(self, asset_name, asset_type):
+        self._qm.loaded_sequence_label.setTextFormat(0)
         self._qm.loaded_sequence_label.setText(asset_name)
 
     def _create_colorbar(self, name, colorscale):
@@ -2756,7 +2758,7 @@ class ProteusQGUI(GUIBase):
         esr_mw_power = self._qm.pulsed_mw_power_DoubleSpinBox.value()
 
         mw_tracking_mode = self._qm.mw_tracking_mode_RadioButton.isChecked()
-        mode = self._qm.hyperfine_comboBox.currentText()
+        mode = self._qm.AWG_mode_comboBox.currentText()
         repetitions = self._qm.p_delta_doubleSpinBox.value()
         delta_0 = self._qm.delta0_doubleSpinBox.value()
         res_freq = self._qm.f0_doubleSpinBox.value()
@@ -2766,17 +2768,17 @@ class ProteusQGUI(GUIBase):
         mw_list_mode = self._qm.mw_list_mode_RadioButton.isChecked()
         esr_freq_start = self._qm.pulsed_freq_start_DoubleSpinBox.value()
         esr_freq_stop = self._qm.pulsed_freq_stop_DoubleSpinBox.value()
-        esr_freq_num = self._qm.pulsed_freq_num_SpinBox.value()
+        esr_freq_step = self._qm.pulsed_freq_step_SpinBox.value()
 
-        mw_cw_mode = self._qm.cw_mode_RadioButton.isChecked()
-        esr_mw_cw_freq = self._qm.cw_freq_DoubleSpinBox.value()
-        mw_cw_podmr_tracking = self._qm.loadedSeqTrackFreqCheckbox.isChecked()
-        mw_cw_podmr_start_freq = self._qm.loadedTrack_pulsed_freq_start_DoubleSpinBox.value()
-        mw_cw_podmr_stop_freq = self._qm.loadedTrack_pulsed_freq_stop_DoubleSpinBox.value()
-        mw_cw_podmr_freq_step = self._qm.loadedTrack_pulsed_freq_num_SpinBox.value()
+        loaded_sequence_mode = self._qm.loaded_sequence_mode_RadioButton.isChecked()
+        loaded_sequence_freq = self._qm.cw_freq_DoubleSpinBox.value()
+        loaded_sequence_mode_tracking = self._qm.loadedSeqTrackFreqCheckbox.isChecked()
+        loaded_sequence_tracking_freq_start = self._qm.loadedTrack_pulsed_freq_start_DoubleSpinBox.value()
+        loaded_sequence_tracking_freq_stop = self._qm.loadedTrack_pulsed_freq_stop_DoubleSpinBox.value()
+        loaded_sequence_tracking_freq_step = self._qm.loadedTrack_pulsed_freq_num_SpinBox.value()
 
         pulse_repetition = self._qm.pulse_repetition_spinBox.value()
-        pi_half_duration = self._qm.pi_half_doubleSpinBox.value()
+        pi_duration = self._qm.pi_duration_doubleSpinBox.value()
 
         podmr_list_mode_tracking = self._qm.podmr_list_tracking_checkBox.isChecked() and self._qm.podmr_list_tracking_checkBox.isEnabled()
 
@@ -2787,15 +2789,15 @@ class ProteusQGUI(GUIBase):
         self._qafm_logic.start_scan_area_pulsed_qafm_fw_by_point(
             coord0_start=x_start, coord0_stop=x_stop, coord0_num=res_x, 
             coord1_start=y_start, coord1_stop=y_stop, coord1_num=res_y, 
-            int_time_afm=afm_int_time, idle_move_time=idle_move_time, 
-            freq_start=esr_freq_start, freq_stop=esr_freq_stop, 
-            freq_points=esr_freq_num, mw_power=esr_mw_power, 
-            mw_cw_freq=esr_mw_cw_freq, mw_list_mode=mw_list_mode, num_runs=pulse_repetition, pi_half_duration = pi_half_duration,
-            optimize_period=None, meas_params=meas_params,
-            mw_tracking_mode=mw_tracking_mode,
-            mode=mode, repetitions=repetitions, delta_0=delta_0,
+            int_time_afm=afm_int_time, idle_move_time=idle_move_time, meas_params=meas_params, mode=mode,
+            mw_power=esr_mw_power, pi_duration = pi_duration,num_runs=pulse_repetition,
+            mw_list_mode=mw_list_mode, freq_start=esr_freq_start, freq_stop=esr_freq_stop, 
+            freq_step=esr_freq_step, podmr_list_mode_tracking = podmr_list_mode_tracking, 
+            mw_tracking_mode=mw_tracking_mode, repetitions=repetitions, delta_0=delta_0,
             res_freq=res_freq, slope2_podmr=slope2_podmr, use_slope_track=use_slope_track,
-            mw_cw_mode = mw_cw_mode, podmr_list_mode_tracking = podmr_list_mode_tracking,
+            loaded_sequence_mode = loaded_sequence_mode, loaded_sequence_mode_tracking = loaded_sequence_mode_tracking, loaded_sequence_freq=loaded_sequence_freq,
+            loaded_sequence_tracking_freq_start = loaded_sequence_tracking_freq_start, loaded_sequence_tracking_freq_stop = loaded_sequence_tracking_freq_stop, 
+            loaded_sequence_tracking_freq_step = loaded_sequence_tracking_freq_step,
             liftoff_mode=liftoff_mode, liftoff_height=liftoff_height)
 
     def stop_pulsed_measure_clicked(self):
