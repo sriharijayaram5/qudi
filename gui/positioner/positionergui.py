@@ -89,7 +89,7 @@ class PositionerGui(GUIBase):
         #####################
         self.sigReadPositionTimer = QtCore.QTimer()
         self.sigReadPositionTimer.timeout.connect(self.read_position_loop_body)
-        self.sigReadPositionTimer.start(500)
+        self.sigReadPositionTimer.start(150)
 
     def show(self):
         """Make window visible and put it above all other windows.
