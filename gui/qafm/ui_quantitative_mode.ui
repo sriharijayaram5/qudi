@@ -646,7 +646,7 @@
           </widget>
          </item>
          <item>
-          <widget class="QComboBox" name="hyperfine_comboBox">
+          <widget class="QComboBox" name="AWG_mode_comboBox">
            <property name="toolTip">
             <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Different modes of tracking available. &lt;/p&gt;&lt;p&gt;None uses the measure multiple at one tracking freq. and then the next method.&lt;/p&gt;&lt;p&gt;AWG uses the fast switching of the AWG to do &amp;quot;lock-in&amp;quot; like measurement as described by Qi-Chao.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
            </property>
@@ -851,7 +851,7 @@
                   <double>1000000000.000000000000000</double>
                  </property>
                  <property name="maximum">
-                  <double>3500000000.000000000000000</double>
+                  <double>6000000000.000000000000000</double>
                  </property>
                  <property name="singleStep">
                   <double>0.010000000000000</double>
@@ -881,7 +881,7 @@
                   <double>1000000000.000000000000000</double>
                  </property>
                  <property name="maximum">
-                  <double>3500000000.000000000000000</double>
+                  <double>6000000000.000000000000000</double>
                  </property>
                  <property name="singleStep">
                   <double>0.010000000000000</double>
@@ -903,7 +903,7 @@
                 </widget>
                </item>
                <item>
-                <widget class="ScienDSpinBox" name="pulsed_freq_num_SpinBox">
+                <widget class="ScienDSpinBox" name="pulsed_freq_step_SpinBox">
                  <property name="toolTip">
                   <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Defines frequency step.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
                  </property>
@@ -1204,7 +1204,7 @@
              </widget>
             </item>
             <item>
-             <widget class="ScienDSpinBox" name="pi_half_doubleSpinBox">
+             <widget class="ScienDSpinBox" name="pi_duration_doubleSpinBox">
               <property name="toolTip">
                <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Pi pulse duration for all above measurements. Measurements are all hard coded in the logic except for CW mode.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
               </property>
@@ -1290,7 +1290,7 @@
   <tabstop>esr_double_res_RadioButton</tabstop>
   <tabstop>Start_QM_PushButton</tabstop>
   <tabstop>Stop_QM_PushButton</tabstop>
-  <tabstop>hyperfine_comboBox</tabstop>
+  <tabstop>AWG_mode_comboBox</tabstop>
   <tabstop>pulsed_mw_power_DoubleSpinBox</tabstop>
   <tabstop>p_delta_doubleSpinBox</tabstop>
   <tabstop>delta0_doubleSpinBox</tabstop>
@@ -1300,10 +1300,10 @@
   <tabstop>retrieve_radioButton</tabstop>
   <tabstop>pulsed_freq_start_DoubleSpinBox</tabstop>
   <tabstop>pulsed_freq_stop_DoubleSpinBox</tabstop>
-  <tabstop>pulsed_freq_num_SpinBox</tabstop>
+  <tabstop>pulsed_freq_step_SpinBox</tabstop>
   <tabstop>cw_freq_DoubleSpinBox</tabstop>
   <tabstop>pulse_repetition_spinBox</tabstop>
-  <tabstop>pi_half_doubleSpinBox</tabstop>
+  <tabstop>pi_duration_doubleSpinBox</tabstop>
   <tabstop>Start_Pulsed_PushButton</tabstop>
   <tabstop>Stop_Pulsed_PushButton</tabstop>
  </tabstops>

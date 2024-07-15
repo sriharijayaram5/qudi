@@ -21,6 +21,7 @@ top-level directory of this distribution and at <https://github.com/Ulm-IQO/qudi
 import numpy as np
 from hardware.timetagger_counter import HWRecorderMode
 from core.connector import Connector
+from core.configoption import ConfigOption
 from logic.generic_logic import GenericLogic
 from interface.odmr_counter_interface import ODMRCounterInterface
 import time
@@ -32,6 +33,10 @@ class ODMRCounterInterfuse(GenericLogic, ODMRCounterInterface):
 
     slowcounter = Connector(interface='RecorderInterface')
     pulser = Connector(interface='PulserInterface')
+    AWG = Connector(interface='PulserInterface')
+    pulse_creator = Connector(interface='GenericLogic')
+
+    _IQ = ConfigOption('IQ_mixer', missing='error')
 
     def __init__(self, config, **kwargs):
         super().__init__(config=config, **kwargs)
@@ -40,7 +45,9 @@ class ODMRCounterInterfuse(GenericLogic, ODMRCounterInterface):
     def on_activate(self):
         """ Initialisation performed during activation of the module."""
         self._pulser = self.pulser()
+        self._AWG =self.AWG()
         self._sc_device = self.slowcounter()  # slow counter device
+        self._pulse_creator = self.pulse_creator()
 
         self._lock_in_active = False
         self._oversampling = 10
@@ -61,6 +68,11 @@ class ODMRCounterInterfuse(GenericLogic, ODMRCounterInterface):
 
         @return int: error code (0:OK, -1:error)
         """
+        if self._IQ:
+            run_IQ_status, ensemblename =self._pulse_creator.run_IQ_DC()
+            if run_IQ_status<0:
+                return -1
+
         channels = {'d0': 0.0 , 'd1': 0.0 , 'd2': 0.0 , 'd3': 0.0 , 'd4': 0.0 , 'd5': 0.0 , 'd6': 0.0 , 'd7': 0.0 , 'a0': 0.0, 'a1': 0.0}
         clear = lambda x: {i:0.0 for i in x.keys()}
         d_ch = lambda x: f'd{x}'
@@ -100,6 +112,21 @@ class ODMRCounterInterfuse(GenericLogic, ODMRCounterInterface):
 
         self._pulser.load_swabian_sequence(pulse_dict)
         return 0
+    
+    def set_up_odmr_AWG_sweep(self, mw_start, mw_stop, mw_step, clock_frequency=None):
+
+        self._pulse_creator.AWG.print_log_info = False
+        self._pulse_creator.pulsed_master_AWG.sequencegeneratorlogic().print_log_info = False
+        self._pulse_creator.pulsed_master.sequencegeneratorlogic().print_log_info = False
+
+        self._pulse_creator.initialize_ensemble(laser_power_voltage = self._pulser._laser_power_voltage, target_freq_0 = mw_start, printing = False, set_up_measurement = False, check_current_sequence = True)
+        ensemble_list, sequence_step_list, name, var_list, alternating, freq_sweep = self._pulse_creator.CW_ODMR(mw_start, mw_stop, mw_step, clock_frequency) #Preparing Pulsestreamer and AWG without setting up the pulse measurement GUI or Timetagger
+        
+        self._pulse_creator.AWG.print_log_info = True
+        self._pulse_creator.pulsed_master_AWG.sequencegeneratorlogic().print_log_info = True
+        self._pulse_creator.pulsed_master.sequencegeneratorlogic().print_log_info = True
+
+        return var_list
 
     def set_up_odmr(self, counter_channel=None, photon_source=None,
                     clock_channel=None, odmr_trigger_channel=None):
@@ -134,6 +161,20 @@ class ODMRCounterInterfuse(GenericLogic, ODMRCounterInterface):
         self._odmr_length = length
         return 0
 
+    def count_odmr_AWG(self):
+        """ Sweeps the microwave and returns the counts on that sweep.
+
+        @param int length: length of microwave sweep in pixel
+
+        @return float[]: the photon counts per second
+        """
+
+        self._sc_device.start_recorder()
+        self._AWG.pulser_on() # not sure why n=length fails
+        counts = self._sc_device.get_measurements(['counts'])[0]
+
+        return False, counts
+
     def count_odmr(self, length = 100):
         """ Sweeps the microwave and returns the counts on that sweep.
 
@@ -155,6 +196,7 @@ class ODMRCounterInterfuse(GenericLogic, ODMRCounterInterface):
         """
         self._sc_device.stop_measurement()
         self._pulser.pulser_off()
+        self._AWG.pulser_off()
         return 0
 
     def close_odmr_clock(self):

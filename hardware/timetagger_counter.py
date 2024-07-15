@@ -108,6 +108,7 @@ class TimeTaggerCounter(Base, SlowCounterInterface, RecorderInterface):
         self._curr_state = RecorderState.UNLOCKED
         self._create_recorder_constraints()
         self.is_measurement_running = False
+        self.force_ready = False
 
         if self._sum_channels and self._channel_apd_1 is None:
             self.log.error('Cannot sum channels when only one apd channel given')
@@ -578,7 +579,8 @@ class TimeTaggerCounter(Base, SlowCounterInterface, RecorderInterface):
         """
         ret = {'counts':None, 'int_time':None, 'counts2':None, 'counts_diff': None}
         while True:
-            if self.recorder.ready():
+            if self.recorder.ready() or self.force_ready:
+                self.force_ready = False
                 break
 
         if self._curr_mode == HWRecorderMode.PIXELCLOCK or self._curr_mode == HWRecorderMode.PIXELCLOCK_SINGLE_ISO_B:

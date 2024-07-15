@@ -617,6 +617,11 @@ class SPM_ASC500(Base, ScannerInterface):
             self._polled_data = np.zeros(self._line_points) # mean is done anyway so linepoints shouldnt affect.  leaving it in since it was this way
             self._configurePathDataBuffering(sampTime=sT)
 
+            #Move the sample scanner to the second point of the scan befor the path mode starts. A bug appears if the path mode starting position is the same like the current position.
+            x_pos = (area_corr0_stop-area_corr0_start)/self._line_points+area_corr0_start
+            y_pos = area_corr1_start
+            self.set_sample_pos_abs({'X': x_pos,'Y': y_pos})
+
             if self._spm_curr_sstyle==ScanStyle.POINT:
                 while True:
                     if self._dev.base.getParameter(self._dev.base.getConst('ID_SCAN_STATUS'), 0)==0: #SCAN_STATUS=1 movement of scanner between points in v2, SCAN_STATUS=0 all other states
@@ -637,6 +642,7 @@ class SPM_ASC500(Base, ScannerInterface):
         self._trig = trig
     
     def _configureSamplePath(self, line_corr0_start, line_corr0_stop, line_corr1_start, line_corr1_stop, line_points):
+        self._dev.base.setParameter(self._dev.base.getConst('ID_SPEC_PATHCTRL'), 0, 0)
         self._dev.base.setParameter(self._dev.base.getConst('ID_SPEC_PATHPREP'), 1, 0)
         self._dev.base.setParameter(self._dev.base.getConst('ID_EXTTRG_TIMEOUT'), self._sync_in_timeout, 0) # 0ms timeout - will wait until SYNC IN is received
         self._dev.base.setParameter(self._dev.base.getConst('ID_EXTTRG_HS'), 1, 0) # enable trigger
@@ -719,6 +725,7 @@ class SPM_ASC500(Base, ScannerInterface):
         self.end_coords = [area_corr0_start,area_corr1_start]
         
         self._dev.base.setParameter(self._dev.base.getConst('ID_SPEC_PATHCTRL'), 0, 0)
+        self._dev.base.setParameter(self._dev.base.getConst('ID_SPEC_PATHCTRL'), 0, 0)
         self._dev.base.setParameter(self._dev.base.getConst('ID_SPEC_PATHPREP'), 1, 0)
         self._dev.base.setParameter(self._dev.base.getConst('ID_EXTTRG_TIMEOUT'), self._sync_in_timeout, 0) # 0ms timeout - will wait until SYNC IN is received
         self._dev.base.setParameter(self._dev.base.getConst('ID_EXTTRG_HS'), 1, 0) # enable trigger
@@ -750,7 +757,7 @@ class SPM_ASC500(Base, ScannerInterface):
             #move home
             self._dev.base.setParameter(self._dev.base.getConst('ID_PATH_ACTION'), 5, 3)
             #ext shake
-            self._dev.base.setParameter(self._dev.base.getConst('ID_PATH_ACTION'), 4, 4)
+            self._dev.base.setParameter(self._dev.base.getConst('ID_PATH_ACTION'), 0, 4)
             #loop on
             self._dev.base.setParameter(self._dev.base.getConst('ID_PATH_ACTION'), 6, 5)
 
@@ -775,7 +782,7 @@ class SPM_ASC500(Base, ScannerInterface):
             # define which actions specifically ('ID_PATH_ACTION'), 0=manual handshake/2=Spec 1 dummy engine/4=external handshake, 1=as the first action if no. of actions>=1 
             self._dev.base.setParameter(self._dev.base.getConst('ID_PATH_ACTION'), 0, 1)
             self._dev.base.setParameter(self._dev.base.getConst('ID_PATH_ACTION'), 2, 2)
-            self._dev.base.setParameter(self._dev.base.getConst('ID_PATH_ACTION'), 4, 3)
+            self._dev.base.setParameter(self._dev.base.getConst('ID_PATH_ACTION'), 0, 3)
 
     def _create_objective_line(self, xOffset, yOffset, pxSize, columns):
         self.objective_scan_line = {}
@@ -847,7 +854,7 @@ class SPM_ASC500(Base, ScannerInterface):
         self._dev.base.setParameter(self._dev.base.getConst('ID_SPEC_STATUS'), 1, self.spec_engine_dummy)
         self._poll_path_data()
 
-    def scan_point(self, num_params=None):
+    def scan_point(self, move_along=False):
         """ Obtain measurments from a point
         (blocking method, required configure_scan_line to be called prior)
         Performed after setting up the scanner perform a scan of a point. 
@@ -884,8 +891,9 @@ class SPM_ASC500(Base, ScannerInterface):
                 else:
                     pass
             
-            self._poll_point_data()
-            return self._polled_data
+            if not move_along:
+                self._poll_point_data()
+                return self._polled_data
             
         return 0
     

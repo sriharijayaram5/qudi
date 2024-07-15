@@ -61,6 +61,8 @@ class AWG663(Base, PulserInterface):
         # [card, channel, binary channel for later use]
         self.channels = [[0, 0, 0b1], [0, 1, 0b10], [1, 0, 0b100], [1, 1, 0b1000]]
         self.loaded_assets = {}
+        self._current_uploaded_ensembles = []
+        self._current_uploaded_sequence_step_list = []
         self.CurrentUpload = os.path.join(os.getcwd(), 'hardware', 'awg', 'CurrentUpload.pkl')
         self.typeloaded = None
 
@@ -81,6 +83,10 @@ class AWG663(Base, PulserInterface):
         active_chan = self.get_constraints().activation_config['hira_config']
         self.AWG_sync_time = 16e-9 + 476.5/1.25e9 # 476.5 sample clocks +16ns -- value in seconds
         self.loaded_assets = dict.fromkeys(active_chan)
+        self._current_uploaded_ensembles = []
+        self._current_uploaded_sequence_step_list =  []
+
+        self.print_log_info = True
 
     def on_deactivate(self):
         """ Method called when module is deactivated. If not overridden
@@ -177,7 +183,7 @@ class AWG663(Base, PulserInterface):
         @return int: error code (0:OK, -1:error)
         """
         ERR = self.instance.stop()
-        self.instance.init_all_channels()
+        # self.instance.init_all_channels()
         if ERR == 0:
             return 1
         else:
@@ -298,6 +304,8 @@ class AWG663(Base, PulserInterface):
             self.instance.upload(data_list, max_size, mem_offset=0)
             self.typeloaded = 'waveform'
         self.log.info('Loaded waveform!')
+        self._current_uploaded_ensembles = load_dict
+        self._current_uploaded_sequence_step_list = []
         return load_dict
 
     def load_sequence(self, sequence_name):
@@ -713,10 +721,10 @@ class AWG663(Base, PulserInterface):
             max_amplitude = self.instance.cards[0].get_amplitude(0)/1e3 # assumed all channels are set to same max amplitude
 
             if is_first_chunk:
-                full_signal = np.asarray(value/max_amplitude * (2 ** 15 - 1), dtype=np.int16)
+                full_signal = np.asarray(value/max_amplitude * np.iinfo(np.int16).max, dtype=np.int16)
             else:
                 old_part = self.my_load_dict(path)
-                new_part = np.asarray(value/max_amplitude * (2 ** 15 - 1), dtype=np.int16)
+                new_part = np.asarray(value/max_amplitude * np.iinfo(np.int16).max, dtype=np.int16)
                 full_signal = np.concatenate((old_part, new_part))
 
             self.my_save_dict(full_signal, path)
@@ -1037,6 +1045,197 @@ class AWG663(Base, PulserInterface):
             if not data_size == 0:
                 self.instance.upload(data_list, segment_size, segment_size * iseq)
                 self.typeloaded = 'waveform'
-
-        self.log.info('Upload to AWG complete')
+        if self.print_log_info:
+            self.log.info('Upload to AWG complete')
+        self._current_uploaded_ensembles = seqs
+        self._current_uploaded_sequence_step_list = []
         del seqs
+
+    def load_sequence_segment(self, seqs, memsize_seq=None, segment_index=0):
+        """
+        seqs should have the 'waveform_ch1.pkl' form, i.e a list of waveform name saved on memory
+        They should all be of equal length as far as I can understand. If not atleast the last should be the longest
+        Single segment memory size determines how much is played after a trigger
+        Eg: 
+        ([
+        ['sinA_a_ch0.pkl', 'sinA_a_ch1.pkl', 'sinA_d_ch1.pkl', 'sinA_d_ch1.pkl']
+        ,['sinB_a_ch0.pkl', 'sinB_a_ch1.pkl', 'sinB_d_ch1.pkl', 'sinB_d_ch1.pkl']
+        ],  'sinA_d_ch0.pkl')
+
+        OR 
+
+        ['sinA', 'sinB']
+        """
+        
+        path = self.waveform_folder
+        wave_form_list = self.get_waveform_names()
+
+        # these are .pkl file names from saved_pulsed_assets which simply have everything that happens in a channel during the
+        # entire ensmeble. Multiple ensembles can be sequenced into memory to play one after the other on receiving the trigger.
+        def wfm_l_maker(ensemble_names=[]):
+            wfm_l = []
+            for iens, ens in enumerate(ensemble_names):
+                l = [f'{ens}_a_ch{i}.pkl' for i in range(5)]
+                wfm_l.append(l)
+                l = [f'{ens}_d_ch{i}.pkl' for i in range(6)]
+                wfm_l[iens].extend(l)
+            return wfm_l
+        if len(seqs)>1:
+            self.log.warning('Attempting to load multiple ensembles into one segement memory. Please load one ensemble into one segment!')
+            return -1
+        if isinstance(seqs[0], str):
+            seqs = wfm_l_maker(seqs)            
+
+        # load ensemble to determine the sequence size. This will determine how much is played after one external
+        # trigger. It is assumed that all the ensembles are of equal length.
+        waveform = seqs[-1][-1] if memsize_seq is None else memsize_seq
+        load_dict = dict()
+        wave_name = waveform.rsplit('.pkl')[0]
+        channel_num = int(wave_name.rsplit('_ch', 1)[1])
+        # Map channel numbers to HW channel numbers
+        if '_a_ch' not in waveform:
+            channel = channel_num + 4
+        else:
+            channel = channel_num
+        load_dict[channel] = wave_name
+
+        if not load_dict:
+            self.log.error('No data to send to AWG')
+            return -1
+
+        for ch, value in load_dict.items():
+            if value in wave_form_list:
+                wavefile = '{0}.pkl'.format(value)
+                filepath = os.path.join(path, wavefile)
+                data = self.my_load_dict(filepath)
+            else:
+                self.log.error('Cannot find waveform to send to AWG')
+                return -1
+
+        max_seq = data
+        segment_size = int(len(max_seq))       
+        while not segment_size % 32 == 0 or segment_size < 384: #384 pattern size found from tests - prob. a bug since manual says 96 is min.
+            segment_size += 1
+
+        self.instance.set_current_segment(segment_index)
+        self.instance.set_memory_size(segment_size, True) #This will set the memory size of the single segment at segement_index
+        # self.instance.init_ext_trigger()
+        # setting of seqment size,i.e, replay length, and init of trigger done.
+        self.log.debug(f"Memory size to be set to: {segment_size} for index {segment_index}.")
+        # loading of the ensemble data, separating into channel .pkl files and then writing into data list done here
+        # after data_list for entire ensemble is compiled, upload is done into AWG specifying the segment size
+        # and also the index this particular segment occupies in memory.
+        for iseq, seq in enumerate(seqs):
+            data_list = list()
+            for i in range(4):
+                data_list.append(np.zeros(int(segment_size), np.int16))
+            for i in range(6):
+                data_list.append(np.zeros(int(segment_size), np.bool))
+
+            load_dict = seq
+            new_dict = dict()
+            for waveform in load_dict:
+                wave_name = waveform.rsplit('.pkl')[0]
+                channel_num = int(wave_name.rsplit('_ch', 1)[1])
+                if '_a_ch' not in waveform:
+                    channel = channel_num + 4
+                else:
+                    channel = channel_num
+                new_dict[channel] = wave_name
+            load_dict = new_dict
+
+            if not load_dict:
+                self.log.error('No data to send to AWG')
+                return -1
+
+            for ch, value in load_dict.items():
+                if value in wave_form_list:
+                    wavefile = '{0}.pkl'.format(value)
+                    filepath = os.path.join(path, wavefile)
+                    data = self.my_load_dict(filepath)
+                    data_list[ch] = data
+                    data_size = len(data)
+
+                    if '_a_ch' in value:
+                        chan_name = 'a_ch{0}'.format(value.rsplit('a_ch')[1])
+                        self.loaded_assets[chan_name] = value[:-6]
+                    else:
+                        chan_name = 'd_ch{0}'.format(value.rsplit('d_ch')[1])
+                        self.loaded_assets[chan_name] = value[:-6]
+                else:
+                    self.log.warn('Waveform {} not found in {}'.format(value, self.waveform_folder))
+                    data_size = 0
+
+            # See pg 130 in manual
+            count = 0
+            while not data_size % 32 == 0:
+                data_size += 1
+                count += 1
+            if count>0:
+                extra = np.zeros(count, np.int16)
+                new_list = list()
+                for row in data_list:
+                    new_row = np.concatenate((row, extra), axis=0)
+                    new_list.append(new_row)
+                data_list = new_list
+
+            # self.log.info(f'Uploading waveform set {seq} to AWG...')
+            if not data_size == 0:
+                self.instance.upload(data_list, segment_size, segment_size * iseq, True, True) #First flag is is_buffered, second is is_sequence_segment
+                self.typeloaded = 'waveform'
+        if self.print_log_info:
+            self.log.info('Upload to AWG complete')
+        del seqs
+        
+    def load_ready_sequence_mode(self, sequence_step_list):
+        """
+        This function will load and ready the card with a supplied sequence given a sequence step list of the 
+        following format:
+        
+        sequence_step_list = [
+        {step_index = 0,
+        step_segment = 'name_of_ensemble',
+        step_loops = 10,
+        next_step_index = 1,
+        step_end_cond = 'always'
+        }, .....
+        
+        {step_index = 10,
+        step_segment = 'name_of_ensemble',
+        step_loops = 1,
+        next_step_index = 11,
+        step_end_cond = 'always'
+        }
+                            ]
+                            
+        step_end_cond can be 'always', 'on_trig', 'stop'
+        """
+        def find_unique_segments(sequence_step_list):
+            """Convenience function to find unique segments in sequence step
+            """
+            segments = []
+            for step in sequence_step_list:
+                segments.append(step['step_segment'])
+            segments = list(set(segments)) # gives only the unique items
+            segment_and_index = {}
+            for index, seg in enumerate(segments):
+                segment_and_index[seg] = index
+            return segment_and_index, segments
+        
+        segment_and_index, segments = find_unique_segments(sequence_step_list)
+        self.instance.init_sequence_mode(len(segments))
+        
+        for iseg, seg in enumerate(segments):
+            self.load_sequence_segment(seqs=[seg], memsize_seq=None, segment_index=segment_and_index[seg])
+        self._current_uploaded_ensembles = segments
+
+        for istep, step in enumerate(sequence_step_list):
+            step_index = step['step_index']
+            mem_segment_index = segment_and_index[step['step_segment']]
+            loops = step['step_loops']
+            goto = step['next_step_index']
+            next_condition = step['step_end_cond']
+            self.instance.write_sequence_step(step_index, mem_segment_index, loops, goto, next_condition)
+        self._current_uploaded_sequence_step_list = sequence_step_list
+        
+    

@@ -445,6 +445,11 @@ class ODMRLogic(GenericLogic):
                             self.mw_steps.append(limits.sweep_step_in_range(step))
                         else:
                             self.log.error("Sweep mode will only work with one frequency range.")
+                    elif self.mw_scanmode == MicrowaveMode.CW:
+                        if self.ranges == 1:
+                            self.mw_steps.append(step)
+                        else:
+                            self.log.error("Sweep mode will only work with one frequency range.")
 
             if isinstance(power, (int, float)):
                 self.sweep_mw_power = limits.power_in_range(power)
@@ -549,6 +554,23 @@ class ODMRLogic(GenericLogic):
             else:
                 self.log.error('sweep mode only works for one frequency range.')
 
+        elif self.mw_scanmode == MicrowaveMode.CW:
+            if self.ranges == 1:
+                mw_stop = self.mw_stops[0]
+                mw_step = self.mw_steps[0]
+                mw_start = self.mw_starts[0]
+
+                self.final_freq_list = self._odmr_counter.set_up_odmr_AWG_sweep(mw_start, mw_stop, mw_step, clock_frequency=self.clock_frequency)
+                mw_start, mw_stop, mw_step = self.final_freq_list[0], self.final_freq_list[-1], self.final_freq_list[1]-self.final_freq_list[0]
+                mode = 'sweep'
+
+                self._mw_device.set_cw(self._odmr_counter._pulse_creator.LO_freq_0, self.sweep_mw_power)
+
+                param_dict = {'mw_starts': [mw_start], 'mw_stops': [mw_stop],
+                              'mw_steps': [mw_step], 'sweep_mw_power': self.sweep_mw_power}
+            else:
+                self.log.error('sweep mode only works for one frequency range.')
+
         else:
             self.log.error('Scanmode not supported. Please select SWEEP or LIST.')
 
@@ -560,12 +582,18 @@ class ODMRLogic(GenericLogic):
             err_code = self._mw_device.sweep_on()
             if err_code < 0:
                 self.log.error('Activation of microwave output failed.')
-        else:
+        elif self.mw_scanmode == MicrowaveMode.LIST:
             err_code = self._mw_device.list_on()
+            if err_code < 0:
+                self.log.error('Activation of microwave output failed.')
+        elif self.mw_scanmode == MicrowaveMode.CW:
+            err_code = self._mw_device.cw_on()
             if err_code < 0:
                 self.log.error('Activation of microwave output failed.')
 
         mode, is_running = self._mw_device.get_status()
+        if self.mw_scanmode == MicrowaveMode.CW:
+            mode = 'sweep'
         self.sigOutputStateUpdated.emit(mode, is_running)
         return mode, is_running
 
@@ -577,6 +605,8 @@ class ODMRLogic(GenericLogic):
             self._mw_device.reset_sweeppos()
         elif self.mw_scanmode == MicrowaveMode.LIST:
             self._mw_device.reset_listpos()
+        elif self.mw_scanmode == MicrowaveMode.CW:
+            self._odmr_counter._AWG.instance.set_sequence_start_step(0)
         return
 
     def mw_off(self):
@@ -598,8 +628,10 @@ class ODMRLogic(GenericLogic):
 
         @return int: error code (0:OK, -1:error)
         """
-
-        clock_status = self._odmr_counter.set_up_odmr_clock(clock_frequency=self.clock_frequency)
+        if self.mw_scanmode == MicrowaveMode.CW:
+            clock_status = 0# clock_status = self._odmr_counter._pulse_creator.sample_load_ready_pulsestreamer_cw_odmr(clock_frequency=self.clock_frequency)
+        else:
+            clock_status = self._odmr_counter.set_up_odmr_clock(clock_frequency=self.clock_frequency)
 
         if clock_status < 0:
             return -1
@@ -647,7 +679,7 @@ class ODMRLogic(GenericLogic):
 
             self.elapsed_sweeps = 0
             self.elapsed_time = 0.0
-            self._startTime = time.time()
+            
             self.sigOdmrElapsedTimeUpdated.emit(self.elapsed_time, self.elapsed_sweeps)
 
             odmr_status = self._start_odmr_counter()
@@ -677,6 +709,7 @@ class ODMRLogic(GenericLogic):
                  self.odmr_plot_x.size]
             )
             self._odmr_counter.set_odmr_length(self.odmr_plot_x.size)
+            self._startTime = time.time()
             self.sigNextLine.emit()
             return 0
 
@@ -696,7 +729,6 @@ class ODMRLogic(GenericLogic):
             self.stopRequested = False
             self.fc.clear_result()
 
-            self._startTime = time.time() - self.elapsed_time
             self.sigOdmrElapsedTimeUpdated.emit(self.elapsed_time, self.elapsed_sweeps)
 
             odmr_status = self._start_odmr_counter()
@@ -712,6 +744,7 @@ class ODMRLogic(GenericLogic):
                 self.module_state.unlock()
                 return -1
 
+            self._startTime = time.time() - self.elapsed_time
             self.sigNextLine.emit()
             return 0
 
@@ -762,7 +795,10 @@ class ODMRLogic(GenericLogic):
             self.reset_sweep()
 
             # Acquire count data
-            error, new_counts = self._odmr_counter.count_odmr(length=self.odmr_plot_x.size)
+            if self.mw_scanmode == MicrowaveMode.CW:
+                error, new_counts = self._odmr_counter.count_odmr_AWG()
+            else:
+                error, new_counts = self._odmr_counter.count_odmr(length=self.odmr_plot_x.size)
 
             if error:
                 self.stopRequested = True
@@ -776,13 +812,14 @@ class ODMRLogic(GenericLogic):
             if self.elapsed_sweeps == (self.odmr_raw_data.shape[0] - 1):
                 expanded_array = np.zeros(self.odmr_raw_data.shape)
                 self.odmr_raw_data = np.concatenate((self.odmr_raw_data, expanded_array), axis=0)
-                self.log.warning('raw data array in ODMRLogic was not big enough for the entire '
-                                 'measurement. Array will be expanded.\nOld array shape was '
-                                 '({0:d}, {1:d}), new shape is ({2:d}, {3:d}).'
-                                 ''.format(self.odmr_raw_data.shape[0] - self.number_of_lines,
-                                           self.odmr_raw_data.shape[1],
-                                           self.odmr_raw_data.shape[0],
-                                           self.odmr_raw_data.shape[1]))
+                if self.run_time !=0:
+                    self.log.warning('raw data array in ODMRLogic was not big enough for the entire '
+                                    'measurement. Array will be expanded.\nOld array shape was '
+                                    '({0:d}, {1:d}), new shape is ({2:d}, {3:d}).'
+                                    ''.format(self.odmr_raw_data.shape[0] - self.number_of_lines,
+                                            self.odmr_raw_data.shape[1],
+                                            self.odmr_raw_data.shape[0],
+                                            self.odmr_raw_data.shape[1]))
 
             # shift data in the array "up" and add new data at the "bottom"
             self.odmr_raw_data = np.roll(self.odmr_raw_data, 1, axis=0)
@@ -812,7 +849,7 @@ class ODMRLogic(GenericLogic):
             # Update elapsed time/sweeps
             self.elapsed_sweeps += 1
             self.elapsed_time = time.time() - self._startTime
-            if self.elapsed_time >= self.run_time:
+            if self.elapsed_time >= self.run_time and self.run_time !=0:
                 self.stopRequested = True
             # Fire update signals
             self.sigOdmrElapsedTimeUpdated.emit(self.elapsed_time, self.elapsed_sweeps)

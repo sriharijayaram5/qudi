@@ -104,7 +104,6 @@
    <attribute name="toolBarBreak">
     <bool>false</bool>
    </attribute>
-   <addaction name="actionAWG_Mode"/>
    <addaction name="action_run_stop"/>
   </widget>
   <widget class="QDockWidget" name="odmr_control_DockWidget">
@@ -184,7 +183,7 @@
                </widget>
               </item>
               <item>
-               <widget class="ScienDSpinBox" name="pi_half_DoubleSpinBox">
+               <widget class="ScienDSpinBox" name="pi_length_DoubleSpinBox">
                 <property name="sizePolicy">
                  <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
                   <horstretch>0</horstretch>
@@ -694,23 +693,6 @@
    </property>
    <property name="toolTip">
     <string>toggle microwave CW output</string>
-   </property>
-  </action>
-  <action name="actionAWG_Mode">
-   <property name="checkable">
-    <bool>true</bool>
-   </property>
-   <property name="text">
-    <string>AWG Mode</string>
-   </property>
-   <property name="toolTip">
-    <string>AWG Mode. Allows measurement using preloaded sequence on AWG. Non-AWG mode requires passthrough of MW CW (afmlogic.run_IQ_...)</string>
-   </property>
-   <property name="font">
-    <font>
-     <weight>75</weight>
-     <bold>true</bold>
-    </font>
    </property>
   </action>
  </widget>

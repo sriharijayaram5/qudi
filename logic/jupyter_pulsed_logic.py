@@ -74,7 +74,7 @@ class PulsedJupyterLogic(GenericLogic):
     
     def initialize_ensemble(self, pi_pulse=1e-9, pi_half_pulse=1e-9, three_pi_half_pulse=1e-9, awg_sync_time=16e-9 + 476.5/1.25e9, 
                             laser_waiting_time=1.5e-6, mw_waiting_time=1e-6, read_out_time=3e-6,
-                            LO_freq_0=3e9, target_freq_0=2.88e9, power_0=-20, LO_freq_1=3e9, target_freq_1=2.88e9, power_1=-100):
+                            LO_freq_0=3e9, target_freq_0=2.88e9, power_0=-20, LO_freq_1=3e9, target_freq_1=2.88e9, power_1=-100, printing = True):
         
         self.pi_pulse = pi_pulse
         self.pi_half_pulse = pi_half_pulse
@@ -91,7 +91,8 @@ class PulsedJupyterLogic(GenericLogic):
         self.target_freq_1 = target_freq_1
         self.power_1 = power_1
         
-        self.log.info(f"Using laser voltage: {self.laser_volt}V")
+        if printing:
+            self.log.info(f"Using laser voltage: {self.laser_volt}V")
 
         return
 
@@ -150,6 +151,7 @@ class PulsedJupyterLogic(GenericLogic):
                 self.afm_scanner_logic._pulsed_master_AWG.sequencegeneratorlogic().sample_pulse_block_ensemble(ensemblename)
                 ensemble_list.append(ensemblename)
             self.afm_scanner_logic._AWG.load_triggered_multi_replay(ensemble_list)
+            return ensemble_list
             
     def sample_load_ready_pulsed_measurement(self, name = 'pulse_measurement', element_list = [], tau_arr = [], alternating = False, freq_sweep=False):
         
@@ -172,11 +174,10 @@ class PulsedJupyterLogic(GenericLogic):
                                             alternating=alternating, 
                                             units=('Hz' if freq_sweep else 's', 'arb. u.'))
         self.afm_scanner_logic._pulsed_master.pulsedmeasurementlogic().alternative_data_type = 'None'
-        time.sleep(0.5)
         self.afm_scanner_logic._pulsed_master.set_fast_counter_settings(record_length=3e-6, number_of_gates=tau_num)
-        time.sleep(0.5)
+        
             
-    def start_measurement(self, measurement_type = 'test', tip_name = '', sample = '', temperature = '', b_field = '', contact = '', extra = ''):
+    def start_measurement(self, measurement_type = 'test', tip_name = '', sample = '', temperature = '', b_field = '', contact = '', extra = '', printing = True):
         save_tag = measurement_type
 
         if tip_name:
@@ -194,7 +195,8 @@ class PulsedJupyterLogic(GenericLogic):
         
         self.afm_scanner_logic._pulsed_master.sigUpdateSaveTag.emit(save_tag)
         self.afm_scanner_logic._pulsed_master.toggle_pulsed_measurement(start=True)
-        self.log.info(save_tag)
+        if printing:
+            self.log.info(save_tag)
     
     def ElementPS(self, channels={}, length=1e-9, laser_power=None, phase_0=0, phase_1=0, freq_0=None, freq_1=None):
         """PulseBlock element list maker for PulseStreamer upload. Also makes the phase duration list for the AWG,
@@ -231,16 +233,17 @@ class PulsedJupyterLogic(GenericLogic):
         self.afm_scanner_logic._mw.off()
         self.afm_scanner_logic._mw1.off()
         
-    def AWG_start(self):
+    def AWG_start(self, change_freq = True):
         """ Starts AWG in triggered mode, sets and starts LO
         """
         self.afm_scanner_logic._pulsed_master_AWG.pulsedmeasurementlogic().pulsegenerator().pulser_on(trigger=True)
-        self.afm_scanner_logic._mw.set_cw(frequency=self.LO_freq_0, power=self.power_0)
+        if change_freq:
+            self.afm_scanner_logic._mw.set_cw(frequency=self.LO_freq_0, power=self.power_0)
+            self.afm_scanner_logic._mw1.set_cw(frequency=self.LO_freq_1, power=self.power_1)
         self.afm_scanner_logic._mw.cw_on()
-        self.afm_scanner_logic._mw1.set_cw(frequency=self.LO_freq_1, power=self.power_1)
         self.afm_scanner_logic._mw1.cw_on()
         
-    def sample_load_large_sine_AWG(self, name):
+    def sample_load_large_sine_AWG(self, name, change_freq = True):
         """Function to loop through the PhaseDuration list defined with ElementPS for each measurement.
             A list of all these small steps are made into an ensemble by load_large_sine_seq and is ready to be 
             played by trigger.
@@ -264,10 +267,12 @@ class PulsedJupyterLogic(GenericLogic):
                 'duration' : duration}
             large_seq.append(seq_part)
         
-        self.load_large_sin_seq(large_seq=[large_seq], identifier=[name])
-        self.AWG_start()
+        ensemble_list = self.load_large_sin_seq(large_seq=[large_seq], identifier=[name])
+        self.AWG_start(change_freq)
+
+        return ensemble_list
     
-    def sample_load_multi_short_sine_AWG(self, params=[]):
+    def sample_load_multi_short_sine_AWG(self, params=[], change_freq = True):
         """Function to create multiple single sine ensembles of set durations that is typically pi(f1), pi(f2),... that is triggered one or more 
             times at a tau instance.
             All the durations must be equal!
@@ -290,14 +295,21 @@ class PulsedJupyterLogic(GenericLogic):
             large_sequences.append(seq_part)
             names.append(name)
 
-        self.load_large_sin_seq(large_seq=[large_sequences], identifier=names)
-        self.AWG_start()
+        ensemble_list = self.load_large_sin_seq(large_seq=[large_sequences], identifier=names)
+        self.AWG_start(change_freq)
+
+        return ensemble_list
     
-    def Single_Freq(self, MW_0=False, MW_1=False):
+    def Single_Freq(self, MW_0=False, MW_1=False, name = None):
         '''
         '''        
-        name = 'single-freq-juptr'
+        if name is None:
+            name = 'single-freq-juptr'
         
+        alternating = False
+        freq_sweep=False
+        self.tau_arr = [100e-6]
+
         #Create pulse sequence for the pulse streamer
         self.BlockPS = []
         self.PhaseDuration = []
@@ -311,17 +323,23 @@ class PulsedJupyterLogic(GenericLogic):
         self.ElementPS(channels={}, length=1e-6)
 
         self.sample_load_ready_pulsed_measurement(name=name, 
-                                             element_list=self.BlockPS, tau_arr=[100e-6], alternating=False)
+                                             element_list=self.BlockPS, tau_arr=self.tau_arr, alternating=alternating, freq_sweep=freq_sweep)
         
-        self.sample_load_large_sine_AWG(name)
+        ensemble_list = self.sample_load_large_sine_AWG(name)
+
+        return ensemble_list, name, self.tau_arr, alternating, freq_sweep
     
-    def PODMR(self, mw_start, mw_stop, mw_step):
+    def PODMR(self, mw_start, mw_stop, mw_step, name = None):
         '''
         Laser(532):       ▇▇▇▇▇▁▁▁▁▁▁▇▇▇▇▇
         MW:               ▁▁▁▁▁▁▁▁▇PI▇▁▁▁▁▁▁▁
                                   freq-sweep   
         '''        
-        name = 'podmr-juptr'
+        if name is None:
+            name = 'podmr-juptr'
+
+        alternating = False
+        freq_sweep=True
         num_steps = int(np.rint((mw_stop - mw_start) / mw_step))
         end_freq = mw_start + num_steps * mw_step
         self.tau_arr = np.linspace(mw_start, end_freq, num_steps + 1)
@@ -346,17 +364,65 @@ class PulsedJupyterLogic(GenericLogic):
             self.ElementPS(channels={'Laser':True, 'TT_Start':True}, length=self.read_out_time)
 
         self.sample_load_ready_pulsed_measurement(name=name, 
-                                             element_list=self.BlockPS, tau_arr=self.tau_arr, alternating=False, freq_sweep=True)
+                                             element_list=self.BlockPS, tau_arr=self.tau_arr, alternating=alternating, freq_sweep=freq_sweep)
         
-        self.sample_load_large_sine_AWG(name)
+        ensemble_list = self.sample_load_large_sine_AWG(name)
+
+        return ensemble_list, name, self.tau_arr, alternating, freq_sweep
+
+    def Tracking(self, res_freq, delta_freq, change_freq = True, name = None):
+        '''
+        Laser(532):       ▇▇▇▇▇▁▁▁▁▁▁▇▇▇▇▇
+        MW:               ▁▁▁▁▁▁▁▁▇PI▇▁▁▁▁▁▁▁
+                                  freq-sweep   
+        '''        
+        
+        if name is None:
+            name = 'tracking-juptr'
+
+        alternating = False
+        freq_sweep=True
+        left_freq = res_freq-delta_freq
+        right_freq = res_freq+delta_freq
+        self.tau_arr = [left_freq, right_freq]
+        
+        self.LO_freq_0 = res_freq + 100e6
+        
+        #Create pulse sequence for the pulse streamer
+        self.BlockPS = []
+        self.PhaseDuration = []
+
+        #Trigger AWG to play its sequence, which includes one complete sweep of all waiting times        
+        self.ElementPS(channels={'AWG_Trig':True}, length=self.awg_sync_time)
+        
+        for tau in self.tau_arr:
+            #Break after Initalisation/read out
+            self.ElementPS(channels={}, length=self.laser_waiting_time) 
+            #Pi pulse - reference
+            self.ElementPS(channels={'MW_0':True}, length=self.pi_pulse, freq_0=tau)
+            #Waiting time - tau
+            self.ElementPS(channels={'TT_Next':True}, length=self.mw_waiting_time)
+            #Read out
+            self.ElementPS(channels={'Laser':True, 'TT_Start':True}, length=self.read_out_time)
+
+        self.sample_load_ready_pulsed_measurement(name=name, 
+                                             element_list=self.BlockPS, tau_arr=self.tau_arr, alternating=alternating, freq_sweep=freq_sweep)
+        
+        ensemble_list = self.sample_load_large_sine_AWG(name, change_freq)
+
+        return ensemble_list, name, self.tau_arr, alternating, freq_sweep
     
-    def Rabi(self, tau_start, tau_stop, tau_num):
+    def Rabi(self, tau_start, tau_stop, tau_num, name = None):
         '''
         Laser(532):       ▇▇▇▇▇▁▁▁▁▁▁▇▇▇▇▇
         MW:               ▁▁▁▁▁▁▁▁▇▇▁▁▁▁▁▁▁
                                   tau-sweep             
         '''        
-        name = 'rabi-juptr'
+        if name is None:
+            name = 'rabi-juptr'
+
+        alternating = False
+        freq_sweep=False
         self.tau_arr = np.linspace(tau_start, tau_stop, num=tau_num)
         
         #Create pulse sequence for the pulse streamer
@@ -377,17 +443,23 @@ class PulsedJupyterLogic(GenericLogic):
             self.ElementPS(channels={'Laser':True, 'TT_Start':True}, length=self.read_out_time)
 
         self.sample_load_ready_pulsed_measurement(name=name, 
-                                             element_list=self.BlockPS, tau_arr=self.tau_arr, alternating=False)
+                                             element_list=self.BlockPS, tau_arr=self.tau_arr, alternating=alternating, freq_sweep=freq_sweep)
         
-        self.sample_load_large_sine_AWG(name)
+        ensemble_list = self.sample_load_large_sine_AWG(name)
+
+        return ensemble_list, name, self.tau_arr, alternating, freq_sweep
     
-    def T1_optical_exp(self, tau_start, tau_stop, tau_num):
+    def T1_optical_exp(self, tau_start, tau_stop, tau_num, name = None):
         '''
         Laser(532):       ▇▇▇▇▇▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▇▇▇▇▇
         MW:               ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
                                                       t             
         '''
-        name = 't1-opti-exp-juptr'
+        if name is None:    
+            name = 't1-opti-exp-juptr'
+
+        alternating = False
+        freq_sweep=False
         self.tau_arr = np.logspace(np.log10(tau_start), np.log10(tau_stop), num=tau_num)
         
         #Create pulse sequence for the pulse streamer
@@ -403,9 +475,13 @@ class PulsedJupyterLogic(GenericLogic):
             self.ElementPS(channels={'Laser':True, 'TT_Start':True}, length=self.read_out_time)
 
         self.sample_load_ready_pulsed_measurement(name=name, 
-                                             element_list=self.BlockPS, tau_arr=self.tau_arr, alternating=False)
+                                             element_list=self.BlockPS, tau_arr=self.tau_arr, alternating=alternating, freq_sweep=freq_sweep)
+        
+        ensemble_list = []
+
+        return ensemble_list, name, self.tau_arr, alternating, freq_sweep
     
-    def T1_alt_exp_long(self, tau_start, tau_stop, tau_num):
+    def T1_alt_exp_long(self, tau_start, tau_stop, tau_num, name = None):
         '''
         Laser(532):       ▇▇▇▇▇▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▇▇▇▇▇
         MW:               ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
@@ -416,7 +492,11 @@ class PulsedJupyterLogic(GenericLogic):
         
         This is loading a full long sequence onto the AWG. Will be too big a sequence for large taus like 30ms.
         '''        
-        name = 't1-alt-exp-long-juptr'
+        if name is None:    
+            name = 't1-alt-exp-long-juptr'
+
+        alternating = True
+        freq_sweep=False
         self.tau_arr = np.logspace(np.log10(tau_start), np.log10(tau_stop), num=tau_num)
         
         #Create pulse sequence for the pulse streamer
@@ -447,10 +527,12 @@ class PulsedJupyterLogic(GenericLogic):
             self.ElementPS(channels={'Laser':True, 'TT_Start':True}, length=self.read_out_time)
 
         self.sample_load_ready_pulsed_measurement(name=name, 
-                                             element_list=self.BlockPS, tau_arr=self.tau_arr, alternating=True)
-        self.sample_load_large_sine_AWG(name)
+                                             element_list=self.BlockPS, tau_arr=self.tau_arr, alternating=alternating, freq_sweep=freq_sweep)
+        ensemble_list = self.sample_load_large_sine_AWG(name)
+
+        return ensemble_list, name, self.tau_arr, alternating, freq_sweep
         
-    def T1_alt_exp(self, tau_start, tau_stop, tau_num):
+    def T1_alt_exp(self, tau_start, tau_stop, tau_num, name = None):
         '''
         Laser(532):       ▇▇▇▇▇▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▇▇▇▇▇
         MW:               ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
@@ -459,7 +541,11 @@ class PulsedJupyterLogic(GenericLogic):
         MW:               ▁▁▁▁▁▁▁▇pi▇▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
                                       X               t             
         '''        
-        name = 't1-alt-exp-juptr'
+        if name is None:    
+            name = 't1-alt-exp-juptr'
+
+        alternating = True
+        freq_sweep=False
         self.tau_arr = np.logspace(np.log10(tau_start), np.log10(tau_stop), num=tau_num)
         
         #Create pulse sequence for the pulse streamer
@@ -487,16 +573,18 @@ class PulsedJupyterLogic(GenericLogic):
             self.ElementPS(channels={'Laser':True, 'TT_Start':True}, length=self.read_out_time)
 
         self.sample_load_ready_pulsed_measurement(name=name, 
-                                             element_list=self.BlockPS, tau_arr=self.tau_arr, alternating=True)
+                                             element_list=self.BlockPS, tau_arr=self.tau_arr, alternating=alternating, freq_sweep=freq_sweep)
         
         params_for_AWG_seq = []
         duration = self.pi_pulse
         #params_for_AWG_seq.append(Name_str, duration_float, MW_0_bool, MW_1_bool, freq_0, freq_1)
         params_for_AWG_seq.append(("Pi", duration, True, False, None, None))
         
-        self.sample_load_multi_short_sine_AWG(params=params_for_AWG_seq)
+        ensemble_list = self.sample_load_multi_short_sine_AWG(params=params_for_AWG_seq)
+
+        return ensemble_list, name, self.tau_arr, alternating, freq_sweep
         
-    def T1_dark_init_alt_exp(self, tau_start, tau_stop, tau_num):
+    def T1_dark_init_alt_exp(self, tau_start, tau_stop, tau_num, name = None):
         '''
         Laser(532):       ▇▇▇▇▇▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▇▇▇▇▇
         MW:               ▁▁▁▁▁▁▁▇pi▇▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
@@ -505,7 +593,11 @@ class PulsedJupyterLogic(GenericLogic):
         MW:               ▁▁▁▁▁▁▁▇pi▇▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▇pi▇▁▁▁▁▁▁▁
                                     X(-1)             t             X(-1)
         '''        
-        name = 't1-dark-init-alt-exp-juptr'
+        if name is None:
+            name = 't1-dark-init-alt-exp-juptr'
+
+        alternating = True
+        freq_sweep=False
         self.tau_arr = np.logspace(np.log10(tau_start), np.log10(tau_stop), num=tau_num)
         
         #Create pulse sequence for the pulse streamer
@@ -549,16 +641,18 @@ class PulsedJupyterLogic(GenericLogic):
             self.ElementPS(channels={'Laser':True, 'TT_Start':True}, length=self.read_out_time)
 
         self.sample_load_ready_pulsed_measurement(name=name, 
-                                             element_list=self.BlockPS, tau_arr=self.tau_arr, alternating=True)
+                                             element_list=self.BlockPS, tau_arr=self.tau_arr, alternating=alternating, freq_sweep=freq_sweep)
         
         params_for_AWG_seq = []
         duration = self.pi_pulse
         #params_for_AWG_seq.append(Name_str, duration_float, MW_0_bool, MW_1_bool, freq_0, freq_1)
         params_for_AWG_seq.append(("Pi", duration, True, False, None, None))
         
-        self.sample_load_multi_short_sine_AWG(params=params_for_AWG_seq)
+        ensemble_list = self.sample_load_multi_short_sine_AWG(params=params_for_AWG_seq)
+
+        return ensemble_list, name, self.tau_arr, alternating, freq_sweep
         
-    def T1_DQ_alt_exp(self, tau_start, tau_stop, tau_num):
+    def T1_DQ_alt_exp(self, tau_start, tau_stop, tau_num, name = None):
         '''
         Laser(532):       ▇▇▇▇▇▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▇▇▇▇▇
         MW:               ▁▁▁▁▁▁▁▇pi▇▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▇pi▇▁▁▁▁▁▁
@@ -567,7 +661,11 @@ class PulsedJupyterLogic(GenericLogic):
         MW:               ▁▁▁▁▁▁▁▇pi▇▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▇pi▇▁▁▁▁▁▁▁
                                     X(-1)             t             X(+1)
         '''        
-        name = 't1-DQ-alt-exp-juptr'
+        if name is None:
+            name = 't1-DQ-alt-exp-juptr'
+
+        alternating = True
+        freq_sweep=False
         self.tau_arr = np.logspace(np.log10(tau_start), np.log10(tau_stop), num=tau_num)
         
         #Create pulse sequence for the pulse streamer
@@ -611,7 +709,7 @@ class PulsedJupyterLogic(GenericLogic):
             self.ElementPS(channels={'Laser':True, 'TT_Start':True}, length=self.read_out_time)
 
         self.sample_load_ready_pulsed_measurement(name=name, 
-                                             element_list=self.BlockPS, tau_arr=self.tau_arr, alternating=True)
+                                             element_list=self.BlockPS, tau_arr=self.tau_arr, alternating=alternating, freq_sweep=freq_sweep)
         
         params_for_AWG_seq = []
         #params_for_AWG_seq.append(Name_str, duration_float, MW_0_bool, MW_1_bool, freq_0, freq_1)
@@ -620,9 +718,11 @@ class PulsedJupyterLogic(GenericLogic):
         params_for_AWG_seq.append(("Pi-0m1-A-alt", self.pi_pulse, True, False, None, None))
         params_for_AWG_seq.append(("Pi-0p1-B-alt", self.pi_pulse, False, True, None, None))
         
-        self.sample_load_multi_short_sine_AWG(params=params_for_AWG_seq)
+        ensemble_list = self.sample_load_multi_short_sine_AWG(params=params_for_AWG_seq)
+
+        return ensemble_list, name, self.tau_arr, alternating, freq_sweep
         
-    def T1_SQ_alt_exp(self, tau_start, tau_stop, tau_num):
+    def T1_SQ_alt_exp(self, tau_start, tau_stop, tau_num, name = None):
         '''
         Laser(532):       ▇▇▇▇▇▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▇▇▇▇▇
         MW:               ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
@@ -631,7 +731,11 @@ class PulsedJupyterLogic(GenericLogic):
         MW:               ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▇pi▇▁▁▁▁▁▁▁
                                                 t                     X
         '''        
-        name = 't1-SQ-alt-exp-juptr'
+        if name is None:
+            name = 't1-SQ-alt-exp-juptr'
+
+        alternating = True
+        freq_sweep=False
         self.tau_arr = np.logspace(np.log10(tau_start), np.log10(tau_stop), num=tau_num)
         
         #Create pulse sequence for the pulse streamer
@@ -667,16 +771,18 @@ class PulsedJupyterLogic(GenericLogic):
             self.ElementPS(channels={'Laser':True, 'TT_Start':True}, length=self.read_out_time)
 
         self.sample_load_ready_pulsed_measurement(name=name, 
-                                             element_list=self.BlockPS, tau_arr=self.tau_arr, alternating=True)
+                                             element_list=self.BlockPS, tau_arr=self.tau_arr, alternating=alternating, freq_sweep=freq_sweep)
         
         params_for_AWG_seq = []
         duration = self.pi_pulse
         #params_for_AWG_seq.append(Name_str, duration_float, MW_0_bool, MW_1_bool, freq_0, freq_1)
         params_for_AWG_seq.append(("Pi", duration, True, False, None, None))
         
-        self.sample_load_multi_short_sine_AWG(params=params_for_AWG_seq)
+        ensemble_list = self.sample_load_multi_short_sine_AWG(params=params_for_AWG_seq)
+
+        return ensemble_list, name, self.tau_arr, alternating, freq_sweep
     
-    def Ramsey_alt_phased(self, tau_start, tau_stop, tau_num):
+    def Ramsey_alt_phased(self, tau_start, tau_stop, tau_num, name = None):
         '''
         Laser(532):       ▇▇▇▇▇▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▇▇▇▇▇
         MW:               ▁▁▁▁▁▁▁▇pi/2▇▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▇pi/2▇▁▁▁▁▁▁▁
@@ -685,7 +791,11 @@ class PulsedJupyterLogic(GenericLogic):
         MW:               ▁▁▁▁▁▁▁▇pi/2▇▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▇pi/2▇▁▁▁▁▁▁▁
                                        X                t                -X
         '''
-        name = 'ramsey-alt-phased-juptr'
+        if name is None:
+            name = 'ramsey-alt-phased-juptr'
+
+        alternating = True
+        freq_sweep=False
         self.tau_arr = np.linspace(tau_start, tau_stop, num=tau_num)
         
         #Create pulse sequence for the pulse streamer
@@ -724,10 +834,12 @@ class PulsedJupyterLogic(GenericLogic):
             self.ElementPS(channels={'Laser':True, 'TT_Start':True}, length=self.read_out_time)
         
         self.sample_load_ready_pulsed_measurement(name=name, 
-                                             element_list=self.BlockPS, tau_arr=self.tau_arr, alternating=True)
-        self.sample_load_large_sine_AWG(name)
+                                             element_list=self.BlockPS, tau_arr=self.tau_arr, alternating=alternating, freq_sweep=freq_sweep)
+        ensemble_list = self.sample_load_large_sine_AWG(name)
+
+        return ensemble_list, name, self.tau_arr, alternating, freq_sweep
     
-    def Hecho_alt_phased(self, tau_start, tau_stop, tau_num):
+    def Hecho_alt_phased(self, tau_start, tau_stop, tau_num, name = None):
         '''
         Laser(532):       ▇▇▇▇▇▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▇▇▇▇▇
         MW:               ▁▁▁▁▁▁▁▇pi/2▇▁▁▁▁▁▁▁▁▁▁▇pi▇▁▁▁▁▁▁▁▁▁▁▇pi/2▇▁▁▁▁▁▁▁
@@ -736,8 +848,15 @@ class PulsedJupyterLogic(GenericLogic):
         MW:               ▁▁▁▁▁▁▁▇pi/2▇▁▁▁▁▁▁▁▁▁▁▇pi▇▁▁▁▁▁▁▁▁▁▁▇pi/2▇▁▁▁▁▁▁▁
                                        X        t/2       X        t/2        -X
         '''
-        name = 'hecho-alt-phased-juptr'
-        self.tau_arr = np.linspace(tau_start, tau_stop, num=tau_num) - self.pi_pulse
+        if name is None:
+            name = 'hecho-alt-phased-juptr'
+        
+        alternating = True
+        freq_sweep= False
+        if tau_start<self.pi_pulse:
+            print('!!!Given configuration of pi-pulse duration, number of pulses and tau_start resulting in negativ values!!!')
+            return
+        self.tau_arr = np.linspace(tau_start, tau_stop, num=tau_num) - self.pi_pulse #Pi pulse duration is subtracted and thus total tau includes the Pi pulse
         
         #Create pulse sequence for the pulse streamer
         self.BlockPS = []
@@ -783,10 +902,12 @@ class PulsedJupyterLogic(GenericLogic):
             self.ElementPS(channels={'Laser':True, 'TT_Start':True}, length=self.read_out_time)
         
         self.sample_load_ready_pulsed_measurement(name=name, 
-                                             element_list=self.BlockPS, tau_arr=self.tau_arr, alternating=True)
-        self.sample_load_large_sine_AWG(name)
+                                             element_list=self.BlockPS, tau_arr=self.tau_arr, alternating=alternating, freq_sweep = freq_sweep)
+        ensemble_list = self.sample_load_large_sine_AWG(name)
+
+        return ensemble_list, name, self.tau_arr + self.pi_pulse, alternating, freq_sweep #Pi pulse duration is subtracted and thus total tau includes the Pi pulse
     
-    def Hecho_alt(self, tau_start, tau_stop, tau_num):
+    def Hecho_alt(self, tau_start, tau_stop, tau_num, name = None):
         '''
         Laser(532):       ▇▇▇▇▇▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▇▇▇▇▇
         MW:               ▁▁▁▁▁▁▁▇pi/2▇▁▁▁▁▁▁▁▁▁▁▇pi▇▁▁▁▁▁▁▁▁▁▁▇pi/2▇▁▁▁▁▁▁▁
@@ -795,7 +916,15 @@ class PulsedJupyterLogic(GenericLogic):
         MW:               ▁▁▁▁▁▁▁▇pi/2▇▁▁▁▁▁▁▁▁▁▁▇pi▇▁▁▁▁▁▁▁▁▁▁▇pi/2▇▁▁▁▁▁▁▁
                                        X        t/2       X        t/2        -X
         '''
-        name = 'hecho-alt-juptr'
+        if name is None:
+            name = 'hecho-alt-juptr'
+
+        alternating = True
+        freq_sweep=False
+
+        if tau_start<self.pi_pulse:
+            print('!!!Given configuration of pi-pulse duration, number of pulses and tau_start resulting in negativ values!!!')
+            return
         self.tau_arr = np.linspace(tau_start, tau_stop, num=tau_num) - self.pi_pulse
         
         #Create pulse sequence for the pulse streamer
@@ -842,10 +971,12 @@ class PulsedJupyterLogic(GenericLogic):
             self.ElementPS(channels={'Laser':True, 'TT_Start':True}, length=self.read_out_time)
         
         self.sample_load_ready_pulsed_measurement(name=name, 
-                                             element_list=self.BlockPS, tau_arr=self.tau_arr, alternating=True)
-        self.sample_load_large_sine_AWG(name)
+                                             element_list=self.BlockPS, tau_arr=self.tau_arr, alternating=alternating, freq_sweep=freq_sweep)
+        ensemble_list = self.sample_load_large_sine_AWG(name)
+
+        return ensemble_list, name, self.tau_arr+ self.pi_pulse, alternating, freq_sweep
         
-    def DEER_alt_phased(self, tau_NV, pi_pulse_dark_spin, mw_start, mw_stop, mw_step):
+    def DEER_alt_phased(self, tau_NV, pi_pulse_dark_spin, mw_start, mw_stop, mw_step, name = None):
         '''
         Laser(532):       ▇▇▇▇▇▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▇▇▇▇▇
         MW:               ▁▁▁▁▁▁▁▇pi/2▇▁▁▁▁▁▁▁▁▁▁▇pi▇▁▁▁▁▁▁▁▁▁▁▇pi/2▇▁▁▁▁▁▁▁
@@ -860,12 +991,16 @@ class PulsedJupyterLogic(GenericLogic):
         MW_DS:            ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▇pi▇▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
                                                           Freq_1 sweep
         '''
-        name = 'deer-alt-juptr'
+        if name is None:
+            name = 'deer-alt-juptr'
         
         if pi_pulse_dark_spin>tau_NV/2:
             print('!!!Duration of tau_NV/2 is smaller than the pi_pulse_dark_spin length. Check the values!!!')
             return
         
+
+        alternating = True
+        freq_sweep=True
         num_steps = int(np.rint((mw_stop - mw_start) / mw_step))
         end_freq = mw_start + num_steps * mw_step
         self.tau_arr = np.linspace(mw_start, end_freq, num_steps + 1)
@@ -920,10 +1055,12 @@ class PulsedJupyterLogic(GenericLogic):
             self.ElementPS(channels={'Laser':True, 'TT_Start':True}, length=self.read_out_time)
             
         self.sample_load_ready_pulsed_measurement(name=name, 
-                                             element_list=self.BlockPS, tau_arr=self.tau_arr, alternating=True, freq_sweep=True)
-        self.sample_load_large_sine_AWG(name)
+                                             element_list=self.BlockPS, tau_arr=self.tau_arr, alternating=alternating, freq_sweep=freq_sweep)
+        ensemble_list = self.sample_load_large_sine_AWG(name)
+
+        return ensemble_list, name, self.tau_arr, alternating, freq_sweep
         
-    def CPMG_alt_phased(self, tau_start, tau_stop, tau_num, N):
+    def CPMG_alt_phased(self, tau_start, tau_stop, tau_num, N, name = None):
         '''
         Laser(532):       ▇▇▇▇▇▁▁▁▁▁▁|▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁|▁▁▁▁▁▁▁▇▇▇▇▇
         MW:               ▁▁▁▁▁▁▁▇pi/2▇▁|▁▁▁▁▁▁▁▁▁▇pi▇▁▁▁▁▁▁▁▁▁▁▇pi▇▁▁▁▁▁▁▁▁▁▁|▁▇pi/2▇▁▁▁▁▁▁▁
@@ -933,11 +1070,15 @@ class PulsedJupyterLogic(GenericLogic):
         MW:               ▁▁▁▁▁▁▁▇pi/2▇▁|▁▁▁▁▁▁▁▁▁▇pi▇▁▁▁▁▁▁▁▁▁▁▇pi▇▁▁▁▁▁▁▁▁▁▁|▁▇pi/2▇▁▁▁▁▁▁▁
                                        X    |   t/(4*N)     Y    t/(2*N)       Y    t/(4*N)    |**N    -X
         '''
-        name = 'cpmg-alt-phased-juptr'
+        if name is None:
+            name = 'cpmg-alt-phased-juptr'
         
         if tau_start<2*N*self.pi_pulse:
             print('!!!Given configuration of pi-pulse duration, number of pulses and tau_start resulting in negativ values!!!')
             return
+        
+        alternating = True
+        freq_sweep=False
         self.tau_arr = np.linspace(tau_start, tau_stop, num=tau_num) - 2*N*self.pi_pulse #compensating the pi_pulse run time
         
         #Create pulse sequence for the pulse streamer
@@ -998,10 +1139,12 @@ class PulsedJupyterLogic(GenericLogic):
             self.ElementPS(channels={'Laser':True, 'TT_Start':True}, length=self.read_out_time)
         
         self.sample_load_ready_pulsed_measurement(name=name, 
-                                             element_list=self.BlockPS, tau_arr=self.tau_arr+ 2*N*self.pi_pulse, alternating=True)
-        self.sample_load_large_sine_AWG(name)
+                                             element_list=self.BlockPS, tau_arr=self.tau_arr+ 2*N*self.pi_pulse, alternating=alternating, freq_sweep=freq_sweep)
+        ensemble_list = self.sample_load_large_sine_AWG(name)
+
+        return ensemble_list, name, self.tau_arr + 2*N*self.pi_pulse, alternating, freq_sweep
         
-    def DEER_CPMG_alt_phased(self, tau_NV, pi_pulse_dark_spin, mw_start, mw_stop, mw_step, N):
+    def DEER_CPMG_alt_phased(self, tau_NV, pi_pulse_dark_spin, mw_start, mw_stop, mw_step, N, name = None):
         '''
         Laser(532):       ▇▇▇▇▇▁▁▁▁▁▁|▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁|▁▁▁▁▁▁▁▇▇▇▇▇
         MW:               ▁▁▁▁▁▁▁▇pi/2▇▁|▁▁▁▁▁▁▁▁▁▇pi▇▁▁▁▁▁▁▁▁▁▁▇pi▇▁▁▁▁▁▁▁▁▁▁|▁▇pi/2▇▁▁▁▁▁▁▁
@@ -1011,12 +1154,15 @@ class PulsedJupyterLogic(GenericLogic):
         MW:               ▁▁▁▁▁▁▁▇pi/2▇▁|▁▁▁▁▁▁▁▁▁▇pi▇▁▁▁▁▁▁▁▁▁▁▇pi▇▁▁▁▁▁▁▁▁▁▁|▁▇pi/2▇▁▁▁▁▁▁▁
                                        X    |   t/(4*N)     Y    t/(2*N)       Y    t/(4*N)    |**N    -X
         '''
-        name = 'deer-cpmg-alt-phased-juptr'
+        if name is None:
+            name = 'deer-cpmg-alt-phased-juptr'
         
         if pi_pulse_dark_spin>(tau_NV- 2*N*self.pi_pulse)/(2*N):
             print('!!!Duration of tau_NV/(2*N) is smaller than the pi_pulse_dark_spin length. Check the values!!!')
             return
         
+        alternating = True
+        freq_sweep=True
         num_steps = int(np.rint((mw_stop - mw_start) / mw_step))
         end_freq = mw_start + num_steps * mw_step
         self.tau_arr = np.linspace(mw_start, end_freq, num_steps + 1)
@@ -1087,10 +1233,12 @@ class PulsedJupyterLogic(GenericLogic):
             self.ElementPS(channels={'Laser':True, 'TT_Start':True}, length=self.read_out_time)
         
         self.sample_load_ready_pulsed_measurement(name=name, 
-                                             element_list=self.BlockPS, tau_arr=self.tau_arr, alternating=True, freq_sweep=True)
-        self.sample_load_large_sine_AWG(name)
+                                             element_list=self.BlockPS, tau_arr=self.tau_arr, alternating=alternating, freq_sweep=freq_sweep)
+        ensemble_list = self.sample_load_large_sine_AWG(name)
+
+        return ensemble_list, name, self.tau_arr, alternating, freq_sweep
         
-    def XY4_alt_phased(self, tau_start, tau_stop, tau_num, N):
+    def XY4_alt_phased(self, tau_start, tau_stop, tau_num, N, name = None):
         '''
         Laser(532):       ▇▇▇▇▇▁▁▁▁▁▁|▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁|▁▁▁▁▁▁▁▇▇▇▇▇
         MW:               ▁▁▁▁▁▁▁▇pi/2▇▁|▁▁▁▁▁▁▁▁▁▇pi▇▁▁▁▁▁▁▁▁▁▁▇pi▇▁▁▁▁▁▁▁▁▁▁|▁▇pi/2▇▁▁▁▁▁▁▁
@@ -1100,11 +1248,15 @@ class PulsedJupyterLogic(GenericLogic):
         MW:               ▁▁▁▁▁▁▁▇pi/2▇▁|▁▁▁▁▁▁▁▁▁▇pi▇▁▁▁▁▁▁▁▁▁▁▇pi▇▁▁▁▁▁▁▁▁▁▁|▁▇pi/2▇▁▁▁▁▁▁▁
                                        X    |   t/(4*N)     Y    t/(2*N)       Y    t/(4*N)    |**N    -X
         '''
-        name = 'XY4-alt-phased-juptr'
+        if name is None:
+            name = 'XY4-alt-phased-juptr'
         
         if tau_start<4*N*self.pi_pulse:
             print('!!!Given configuration of pi-pulse duration, number of pulses and tau_start resulting in negativ values!!!')
             return
+        
+        alternating = True
+        freq_sweep=False
         self.tau_arr = np.linspace(tau_start, tau_stop, num=tau_num) - 4*N*self.pi_pulse #compensating the pi_pulse run time
         
         #Create pulse sequence for the pulse streamer
@@ -1163,10 +1315,12 @@ class PulsedJupyterLogic(GenericLogic):
             self.ElementPS(channels={'Laser':True, 'TT_Start':True}, length=self.read_out_time)
         
         self.sample_load_ready_pulsed_measurement(name=name, 
-                                             element_list=self.BlockPS, tau_arr=self.tau_arr, alternating=True)
-        self.sample_load_large_sine_AWG(name)
+                                             element_list=self.BlockPS, tau_arr=self.tau_arr, alternating=alternating, freq_sweep=freq_sweep)
+        ensemble_list = self.sample_load_large_sine_AWG(name)
+
+        return ensemble_list, name, self.tau_arr+ 4*N*self.pi_pulse, alternating, freq_sweep
     
-    def XY8_alt_phased(self, tau_start, tau_stop, tau_num, N):
+    def XY8_alt_phased(self, tau_start, tau_stop, tau_num, N, name = None):
         '''
         Laser(532):       ▇▇▇▇▇▁▁▁▁▁▁|▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁|▁▁▁▁▁▁▁▇▇▇▇▇
         MW:               ▁▁▁▁▁▁▁▇pi/2▇▁|▁▁▁▁▁▁▁▁▁▇pi▇▁▁▁▁▁▁▁▁▁▁▇pi▇▁▁▁▁▁▁▁▁▁▁|▁▇pi/2▇▁▁▁▁▁▁▁
@@ -1176,11 +1330,15 @@ class PulsedJupyterLogic(GenericLogic):
         MW:               ▁▁▁▁▁▁▁▇pi/2▇▁|▁▁▁▁▁▁▁▁▁▇pi▇▁▁▁▁▁▁▁▁▁▁▇pi▇▁▁▁▁▁▁▁▁▁▁|▁▇pi/2▇▁▁▁▁▁▁▁
                                        X    |   t/(4*N)     Y    t/(2*N)       Y    t/(4*N)    |**N    -X
         '''
-        name = 'XY8-alt-phased-juptr'
+        if name is None:
+            name = 'XY8-alt-phased-juptr'
         
         if tau_start<8*N*self.pi_pulse:
             print('!!!Given configuration of pi-pulse duration, number of pulses and tau_start resulting in negativ values!!!')
             return
+        
+        alternating = True
+        freq_sweep=False
         self.tau_arr = np.linspace(tau_start, tau_stop, num=tau_num) - 8*N*self.pi_pulse #compensating the pi_pulse run time
         
         #Create pulse sequence for the pulse streamer
@@ -1255,10 +1413,12 @@ class PulsedJupyterLogic(GenericLogic):
             self.ElementPS(channels={'Laser':True, 'TT_Start':True}, length=self.read_out_time)
         
         self.sample_load_ready_pulsed_measurement(name=name, 
-                                             element_list=self.BlockPS, tau_arr=self.tau_arr, alternating=True)
-        self.sample_load_large_sine_AWG(name)
+                                             element_list=self.BlockPS, tau_arr=self.tau_arr, alternating=alternating, freq_sweep=freq_sweep)
+        ensemble_list = self.sample_load_large_sine_AWG(name)
+
+        return ensemble_list, name, self.tau_arr+ 8*N*self.pi_pulse, alternating, freq_sweep
         
-    def XY16_alt_phased(self, tau_start, tau_stop, tau_num, N):
+    def XY16_alt_phased(self, tau_start, tau_stop, tau_num, N, name = None):
         '''
         Laser(532):       ▇▇▇▇▇▁▁▁▁▁▁|▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁|▁▁▁▁▁▁▁▇▇▇▇▇
         MW:               ▁▁▁▁▁▁▁▇pi/2▇▁|▁▁▁▁▁▁▁▁▁▇pi▇▁▁▁▁▁▁▁▁▁▁▇pi▇▁▁▁▁▁▁▁▁▁▁|▁▇pi/2▇▁▁▁▁▁▁▁
@@ -1268,11 +1428,15 @@ class PulsedJupyterLogic(GenericLogic):
         MW:               ▁▁▁▁▁▁▁▇pi/2▇▁|▁▁▁▁▁▁▁▁▁▇pi▇▁▁▁▁▁▁▁▁▁▁▇pi▇▁▁▁▁▁▁▁▁▁▁|▁▇pi/2▇▁▁▁▁▁▁▁
                                        X    |   t/(4*N)     Y    t/(2*N)       Y    t/(4*N)    |**N    -X
         '''
-        name = 'XY16-alt-phased-juptr'
+        if name is None:
+            name = 'XY16-alt-phased-juptr'
         
         if tau_start<16*N*self.pi_pulse:
             print('!!!Given configuration of pi-pulse duration, number of pulses and tau_start resulting in negativ values!!!')
             return
+        
+        alternating = True
+        freq_sweep=False
         self.tau_arr = np.linspace(tau_start, tau_stop, num=tau_num) - 16*N*self.pi_pulse #compensating the pi_pulse run time
         
         #Create pulse sequence for the pulse streamer
@@ -1379,5 +1543,7 @@ class PulsedJupyterLogic(GenericLogic):
             self.ElementPS(channels={'Laser':True, 'TT_Start':True}, length=self.read_out_time)
         
         self.sample_load_ready_pulsed_measurement(name=name, 
-                                             element_list=self.BlockPS, tau_arr=self.tau_arr, alternating=True)
-        self.sample_load_large_sine_AWG(name)
+                                             element_list=self.BlockPS, tau_arr=self.tau_arr, alternating=alternating, freq_sweep=freq_sweep)
+        ensemble_list = self.sample_load_large_sine_AWG(name)
+
+        return ensemble_list, name, self.tau_arr+ 16*N*self.pi_pulse, alternating, freq_sweep

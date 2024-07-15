@@ -94,7 +94,7 @@ class ODMRGui(GUIBase):
     sigDoFit = QtCore.Signal(str, object, object, int, int)
     sigSaveMeasurement = QtCore.Signal(str)
     sigAverageLinesChanged = QtCore.Signal(int)
-    pi_half = StatusVar('pi_half', default=0)
+    pi_length = StatusVar('pi_length', default=0)
 
     def __init__(self, config, **kwargs):
         super().__init__(config=config, **kwargs)
@@ -298,8 +298,7 @@ class ODMRGui(GUIBase):
         self._mw.action_RestoreDefault.triggered.connect(self.restore_defaultview)
         self._mw.do_fit_PushButton.clicked.connect(self.do_fit)
         self._mw.fit_range_SpinBox.editingFinished.connect(self.update_fit_range)
-        self._mw.actionAWG_Mode.toggled.connect(self._odmr_logic.change_MW_mode)
-        self._mw.actionAWG_Mode.toggle()
+
         # Control/values-changed signals to logic
         self.sigMwOff.connect(self._odmr_logic.mw_off, QtCore.Qt.QueuedConnection)
         self.sigClearData.connect(self._odmr_logic.clear_odmr_data, QtCore.Qt.QueuedConnection)
@@ -330,8 +329,8 @@ class ODMRGui(GUIBase):
         self._connect_extraction_tab_signals()
         self._odmr_logic.sigAnalysisSettingsUpdated.connect(self.analysis_settings_updated)
         self.analysis_settings_updated(self._odmr_logic.pulsed_analysis_settings)
-        self._mw.pi_half_DoubleSpinBox.setValue(self.pi_half)
-        self._mw.pi_half_DoubleSpinBox.setMaximum(100e-6)
+        self._mw.pi_length_DoubleSpinBox.setValue(self.pi_length)
+        self._mw.pi_length_DoubleSpinBox.setMaximum(100e-6)
 
         # Show the Main ODMR GUI:
         self.show()
@@ -341,7 +340,7 @@ class ODMRGui(GUIBase):
 
         @return int: error code (0:OK, -1:error)
         """
-        self.pi_half = self._mw.pi_half_DoubleSpinBox.value()
+        self.pi_length = self._mw.pi_length_DoubleSpinBox.value()
         # Disconnect signals
         self._odmr_logic.sigParameterUpdated.disconnect()
         self._odmr_logic.sigOutputStateUpdated.disconnect()
@@ -739,7 +738,7 @@ class ODMRGui(GUIBase):
                 dspinbox_type_list = dspinbox_dict[identifier_name]
                 [dspinbox_type.setEnabled(False) for dspinbox_type in dspinbox_type_list]
 
-            self._odmr_logic.pi_half_pulse = self._mw.pi_half_DoubleSpinBox.value()
+            self._odmr_logic.pi_length_pulse = self._mw.pi_length_DoubleSpinBox.value()
             self.sigStartOdmrScan.emit()
         else:
             self.sigStopOdmrScan.emit()
@@ -826,8 +825,8 @@ class ODMRGui(GUIBase):
             
             self._mw.odmr_PlotWidget.removeItem(self.signal_image_error_bars)
             self._mw.odmr_PlotWidget.removeItem(self.odmr_fit_image)
-            self._mw.odmr_PlotWidget.addItem(self.odmr_slope_line)
-            self._mw.odmr_PlotWidget.addItem(self.slope_start_line)
+            if not self.odmr_slope_line in self._mw.odmr_PlotWidget.items(): self._mw.odmr_PlotWidget.addItem(self.odmr_slope_line)
+            if not self.slope_start_line in self._mw.odmr_PlotWidget.items(): self._mw.odmr_PlotWidget.addItem(self.slope_start_line)
             self.slope_fit_changed()
             
         else:
@@ -842,7 +841,7 @@ class ODMRGui(GUIBase):
                 beamwidth = 0
             del tmp_array
             beamwidth /= 3
-            self._mw.odmr_PlotWidget.addItem(self.signal_image_error_bars)
+            if not self.signal_image_error_bars in self._mw.odmr_PlotWidget.items(): self._mw.odmr_PlotWidget.addItem(self.signal_image_error_bars)
             self._mw.odmr_PlotWidget.removeItem(self.odmr_slope_line)
             self._mw.odmr_PlotWidget.removeItem(self.slope_start_line)
             self._mw.slope_label.setText('{:.2e}'.format(0))

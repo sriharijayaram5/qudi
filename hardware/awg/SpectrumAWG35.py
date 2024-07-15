@@ -74,7 +74,7 @@ class AWG:
 
         c0.set32(SPC_TRIG_TERM, 1) # '0' is 1kOhm termination - '1' is 50Ohm termination for the trigger input
         c1.set32(SPC_TRIG_TERM, 1) # '0' is 1kOhm termination - '1' is 50Ohm termination for the trigger input
-
+   
     def run_in_sequence_mode(self, seq):
         self.uploading = True
         self.stop()
@@ -95,7 +95,7 @@ class AWG:
         return self.start()
 
     def write_sequence_step(self, step_index, mem_segment_index, loops, goto, next_condition):
-        print(step_index, mem_segment_index, loops, goto, next_condition)
+        # print(step_index, mem_segment_index, loops, goto, next_condition)
         for card in self.cards:
             card.write_sequence_step(step_index, mem_segment_index, loops, goto, next_condition)
 
@@ -112,6 +112,10 @@ class AWG:
     def init_sequence_mode(self, number_of_segments):
         for card in self.cards:
             card.init_sequence_mode(number_of_segments)
+    
+    def set_sequence_start_step(self, start_step):
+        for card in self.cards:
+            card.set_sequence_start_step(start_step)
 
     def get_marker_data(self, channel, duration, sample_rate, start_position):
         length = int(duration * 1e-9 * sample_rate)
@@ -124,10 +128,20 @@ class AWG:
     def sync_all_cards(self):
         self.hub.sync_all_cards()
 
-    def start(self):
+    def start_normal(self):
+        """
+        This Start method is starting the card without changing the status of the Trigger engine.
+        There is a bug appering with this start, where every second start is not working as expected. The other to starts are not suffering from this bug.
+        """
+        
+        return self.hub.start()
+
+    def start_triggered(self): 
+        """This Start method is starting the card, enables the trigger engine and forces one trigger event."""
         return self.hub.start_triggered()
 
-    def start_enable_trigger(self):
+    def start(self): 
+        """This is the prefered start, which starts the card and enables the trigger engine."""
         return self.hub.start_enable_trigger()
 
     def stop(self):
@@ -172,6 +186,10 @@ class AWG:
     def set_segment_size(self, segment_size):
         for card in self.cards:
             card.set_segment_size(segment_size)
+
+    def set_current_segment(self, index):
+        for card in self.cards:
+            card.set_current_segment(index)
 
     def set_memory_size(self, mem_size, is_sequence_segment=False):
         for card in self.cards:
@@ -641,7 +659,7 @@ class Card():
         if self.chkError() == -1:
             return -1
         return res
-
+    #new
     def upload(self, number_of_samples, data=None, data1=None, marker0_data=None, marker1_data=None, marker2_data=None,
                is_buffered=False, mem_offset=0, block=False, is_seq_segment=False):
         """ uploads data to the card.
@@ -678,13 +696,17 @@ class Card():
         pnBuffer = np.zeros(new_samples * used_channels, dtype=np.int16)
 
         pnBuffer[0:number_of_samples * used_channels:used_channels] = data[0:number_of_samples]
+        pnBuffer[0:number_of_samples * used_channels:used_channels] += np.ma.masked_where(data[0:number_of_samples] < 0,
+                                                                  data[0:number_of_samples], copy=False).mask * 2 ** 14
         if self.digital_markers_enabled:
             pnBuffer[0:number_of_samples * used_channels:used_channels] += marker0_data[0:number_of_samples] * 2 ** 14
         del data
         del marker0_data    
         pnBuffer[1:number_of_samples * used_channels:used_channels] = data1[0:number_of_samples]
+        pnBuffer[1:number_of_samples * used_channels:used_channels] += np.ma.masked_where(data1[0:number_of_samples] < 0,
+                                                                  data1[0:number_of_samples], copy=False).mask * 2 ** 14
         if self.digital_markers_enabled:
-            pnBuffer[1:number_of_samples * used_channels:used_channels] += marker1_data[0:number_of_samples] * 2 ** 15 * -1 # since this is the MSB being equal to -32768. Positive 32768 is already overflow
+            pnBuffer[1:number_of_samples * used_channels:used_channels] -= marker1_data[0:number_of_samples] * 2 ** 15
             pnBuffer[1:number_of_samples * used_channels:used_channels] += marker2_data[0:number_of_samples] * 2 ** 14
         del data1    
         del marker1_data
@@ -704,7 +726,7 @@ class Card():
         # print err
         return err  # self.chkError()
 
-    # @profile
+    #old
     def upload_old(self, number_of_samples, data=None, data1=None, marker0_data=None, marker1_data=None, marker2_data=None,
                is_buffered=False, mem_offset=0, block=False, is_seq_segment=False):
         """ uploads data to the card.
@@ -774,7 +796,7 @@ class Card():
         """ Sets the mode to sequence and set the maximum number of segments in the memory (max number of steps). """
         # get the maximum segments value (only power of two is allowed)
         max_segments = 0
-        for i in range(16):
+        for i in range(2,16): # 2**0 or 2**1 does not seem to work and is buggy - 0 gives errors and 1 seems to have unreliable start and stop of card
             if step_count <= 1 << i:
                 max_segments = 1 << i
                 break
@@ -782,6 +804,9 @@ class Card():
         self.set_mode('sequence')
         self.set32(SPC_SEQMODE_MAXSEGMENTS, max_segments)
         self.set32(SPC_SEQMODE_STARTSTEP, 0)
+    
+    def set_sequence_start_step(self, start_step):
+        self.set32(SPC_SEQMODE_STARTSTEP, start_step)
 
     def set_segment_size(self, size):
         self.set32(SPC_SEGMENTSIZE, size)
