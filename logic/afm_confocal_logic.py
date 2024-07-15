@@ -4445,24 +4445,6 @@ class AFMConfocalLogic(GenericLogic):
             self.sigOptimizeScanFinished.emit()
             return
 
-
-        pos = self.set_obj_pos( {'x': x_max, 'y': y_max})
-
-        # curr_pos = self.get_obj_pos()
-        # self._spm._set_pos_xy([x_max, y_max])
-        # time.sleep(1)
-        # self._spm._set_pos_xy([x_max, y_max])
-        # time.sleep(1)
-        # self._obj_pos[0] = x_max
-        # self._obj_pos[1] = y_max
-        self.sigNewObjPos.emit(self._obj_pos)
-
-
-        # opti_scan_arr = self.scan_line_obj_by_point_opti(coord0_start=x_max, coord0_stop=x_max,
-        #                                                coord1_start=z_start, coord1_stop=z_stop,
-        #                                                res=res_z,
-        #                                                integration_time=int_time_z,
-        #                                                wait_first_point=True)
         if not self._spm._galvo_mode:
             opti_scan_arr = self.scan_line_obj_by_line_opti(coord1_start=x_max,
                                                             coord1_stop=x_max,
@@ -6658,7 +6640,7 @@ class AFMConfocalLogic(GenericLogic):
         """
         self._AWG.pulser_off()
         self._AWG.instance.init_all_channels()
-        amp = 1
+        amp = 0.5
         ch = [
             {'name': 'a_ch0', 'amp': amp},
             {'name': 'a_ch1', 'amp': amp}

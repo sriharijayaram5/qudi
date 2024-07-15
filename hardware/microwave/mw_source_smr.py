@@ -285,8 +285,8 @@ class MicrowaveSMR(Base, MicrowaveInterface):
         @return int: error code (0:OK, -1:error)
         """
 
-        self._connection.write(':OUTP:STAT ON')
-        self._connection.write('*WAI')
+        self._write(':OUTP:STAT ON')
+        self._write('*WAI')
         dummy, is_running = self.get_status()
         while not is_running:
             time.sleep(0.02)
@@ -548,7 +548,7 @@ class MicrowaveSMR(Base, MicrowaveInterface):
             self._write('SOUR:FREQ:MODE SWE')
 
         self._write(':SOUR:SWE:FREQ:SPAC LIN')
-        self._write(':SOUR:SWE:FREQ:STEP {0}'.format())
+        self._write(':SOUR:SWE:FREQ:STEP {0}'.format(step))
 
         if (start is not None) and (stop is not None) and (step is not None):
             self._write(':FREQ:START {0}'.format(start - step))
@@ -585,17 +585,17 @@ class MicrowaveSMR(Base, MicrowaveInterface):
             self._command_wait(':FREQ:MODE SWEEP')
 
         if (start is not None) and (stop is not None) and (step is not None):
-            self._connection.write(':SWE:MODE STEP')
-            self._connection.write(':SWE:SPAC LIN')
-            self._connection.write('*WAI')
-            self._connection.write(':FREQ:START {0:f}'.format(start))
-            self._connection.write(':FREQ:STOP {0:f}'.format(stop))
-            self._connection.write(':SWE:STEP:LIN {0:f}'.format(step))
-            self._connection.write('*WAI')
+            self._write(':SWE:MODE STEP')
+            self._write(':SWE:SPAC LIN')
+            self._write('*WAI')
+            self._write(':FREQ:START {0:f}'.format(start))
+            self._write(':FREQ:STOP {0:f}'.format(stop))
+            self._write(':SWE:STEP:LIN {0:f}'.format(step))
+            self._write('*WAI')
 
         if power is not None:
-            self._connection.write(':POW {0:f}'.format(power))
-            self._connection.write('*WAI')
+            self._write(':POW {0:f}'.format(power))
+            self._write('*WAI')
 
         self._command_wait('TRIG:FSW:SOUR EXT')
 

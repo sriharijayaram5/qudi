@@ -258,7 +258,7 @@ class TimeTaggerCounter(Base, SlowCounterInterface, RecorderInterface):
 
         @return int: error code (0:OK, -1:error)
         """
-        self._tagger.reset()
+        # self._tagger.reset()
         self._curr_state = RecorderState.UNLOCKED
         return 0
 
@@ -378,6 +378,25 @@ class TimeTaggerCounter(Base, SlowCounterInterface, RecorderInterface):
 
         @return int: error code (0:OK, -1:error)
         """
+        if self._sum_channels:
+            self._mode = 1
+        elif self._channel_apd_1 is None:
+            self._mode = 0
+            self._channel_apd = self._channel_apd_0
+            self.countrate = tt.Countrate(
+                self._tagger,
+                channels=[self._channel_apd]
+            )
+        else:
+            self._mode = 2
+            self.channel_combined = tt.Combiner(self._tagger, channels = [self._channel_apd_0, self._channel_apd_1])
+            self._channel_apd = self.channel_combined.getChannel()
+            self._pixelclock_click_chn = self._channel_apd
+            self.countrate = tt.Countrate(
+                self._tagger,
+                channels=[self._channel_apd]
+            )
+
         dev_state = self._curr_state
         self._curr_mode = mode
         self._curr_meas_params = params

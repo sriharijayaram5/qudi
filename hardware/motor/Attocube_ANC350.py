@@ -98,6 +98,7 @@ class Positioner(Base, MotorInterface):
         # these label should be actually set by the config.
         try:
             self._dev = Attocube.ANC350(conn=self._dev_no)
+            self._dev.get_status()
         except Exception as err:
             self.log.warning(f'Unable to connect to device!!! Please check connection or ensure that all other backend connections are dead. Use Daisy to kill other backends. Error: {err}')
             self._dev = None

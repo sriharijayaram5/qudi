@@ -2842,6 +2842,11 @@ class ProteusQGUI(GUIBase):
         self._mw.obj_y_max_DSpinBox.setRange(0.0e-6, self._obj_range_y_max)
         self._mw.obj_z_max_DSpinBox.setRange(0.0e-6, self._obj_range_z_max)
 
+        self._mw.obj_target_x_DSpinBox.setRange(0.0e-6, self._obj_range_x_max)
+        self._mw.obj_target_y_DSpinBox.setRange(0.0e-6, self._obj_range_y_max)
+        self._mw.obj_target_z_DSpinBox.setRange(0.0e-6, self._obj_range_z_max)
+
+
         self._mw.afm_x_max_DSpinBox.setRange(0.001e-6, self._afm_range_x_max)
         self._mw.afm_y_max_DSpinBox.setRange(0.001e-6, self._afm_range_y_max)
 

@@ -102,16 +102,26 @@ class SPM_ASC500(Base, ScannerInterface):
             self.set_sample_voltage_range(self._sample_voltage_range)
 
         self.set_sample_scanner_speed(100) # start up with a reasonably slow value
+        if self._galvo_mode:
+            self._dev.base.setParameter(self._dev.base.getConst('ID_GENDAC_LIMIT_RT'), self._obj_volt_ulim, 0)
+            self._dev.base.setParameter(self._dev.base.getConst('ID_GENDAC_LIMIT_RT'), self._obj_volt_ulim, 1)
+            self._dev.base.setParameter(self._dev.base.getConst('ID_GENDAC_LIMIT_RT'), self._obj_volt_ulim, 2)
+            self._dev.base.setParameter(self._dev.base.getConst('ID_GENDAC_LIMIT_RT'), self._obj_volt_ulim, 3)
 
-        self._dev.base.setParameter(self._dev.base.getConst('ID_GENDAC_LIMIT_RT'), self._obj_volt_ulim, 0)
-        self._dev.base.setParameter(self._dev.base.getConst('ID_GENDAC_LIMIT_RT'), self._obj_volt_ulim, 1)
-        self._dev.base.setParameter(self._dev.base.getConst('ID_GENDAC_LIMIT_RT'), self._obj_volt_ulim, 2)
-        self._dev.base.setParameter(self._dev.base.getConst('ID_GENDAC_LIMIT_RT'), self._obj_volt_ulim, 3)
+            self._dev.base.setParameter(self._dev.base.getConst('ID_GENDAC_LIMIT_LT'), self._obj_volt_ulim, 0)
+            self._dev.base.setParameter(self._dev.base.getConst('ID_GENDAC_LIMIT_LT'), self._obj_volt_ulim, 1)
+            self._dev.base.setParameter(self._dev.base.getConst('ID_GENDAC_LIMIT_LT'), self._obj_volt_ulim, 2)
+            self._dev.base.setParameter(self._dev.base.getConst('ID_GENDAC_LIMIT_LT'), self._obj_volt_ulim, 3)
+        else:
+            self._dev.base.setParameter(self._dev.base.getConst('ID_GENDAC_LIMIT_RT'), self._sample_voltage_range['X']*1e6, 0)
+            self._dev.base.setParameter(self._dev.base.getConst('ID_GENDAC_LIMIT_RT'), self._sample_voltage_range['Y']*1e6, 1)
+            self._dev.base.setParameter(self._dev.base.getConst('ID_GENDAC_LIMIT_RT'), self._sample_voltage_range['Z']*1e6, 2)
+            self._dev.base.setParameter(self._dev.base.getConst('ID_GENDAC_LIMIT_RT'), self._obj_volt_ulim, 3)
 
-        self._dev.base.setParameter(self._dev.base.getConst('ID_GENDAC_LIMIT_LT'), self._obj_volt_ulim, 0)
-        self._dev.base.setParameter(self._dev.base.getConst('ID_GENDAC_LIMIT_LT'), self._obj_volt_ulim, 1)
-        self._dev.base.setParameter(self._dev.base.getConst('ID_GENDAC_LIMIT_LT'), self._obj_volt_ulim, 2)
-        self._dev.base.setParameter(self._dev.base.getConst('ID_GENDAC_LIMIT_LT'), self._obj_volt_ulim, 3)
+            self._dev.base.setParameter(self._dev.base.getConst('ID_GENDAC_LIMIT_LT'), self._sample_voltage_range['X']*1e6, 0)
+            self._dev.base.setParameter(self._dev.base.getConst('ID_GENDAC_LIMIT_LT'), self._sample_voltage_range['Y']*1e6, 1)
+            self._dev.base.setParameter(self._dev.base.getConst('ID_GENDAC_LIMIT_LT'), self._sample_voltage_range['Z']*1e6, 2)
+            self._dev.base.setParameter(self._dev.base.getConst('ID_GENDAC_LIMIT_LT'), self._obj_volt_ulim, 3)
 
         self.slew_rates = {'X2':None, 'Y2':None, 'Z2':None}
         # self.set_obj_slew_rate({'Z2':1})
@@ -267,8 +277,13 @@ class SPM_ASC500(Base, ScannerInterface):
         piezo_range = self._objective_piezo_act_range()
         u_lim = self._obj_volt_ulim/1e6  
         obj_volt_range = np.array([0, u_lim])
-        pos_interp_xy = interp1d(obj_volt_range, np.array([0.0 ,piezo_range[0]]), kind='linear', fill_value="extrapolate")
-        pos_interp_z = interp1d(obj_volt_range, np.array([0.0 ,piezo_range[2]]), kind='linear', fill_value="extrapolate")
+        if self._galvo_mode:
+            pos_interp_xy = interp1d(obj_volt_range, np.array([0.0 ,piezo_range[0]]), kind='linear', fill_value="extrapolate")
+            pos_interp_z = interp1d(obj_volt_range, np.array([0.0 ,piezo_range[2]]), kind='linear', fill_value="extrapolate")
+        else:
+            
+            pos_interp_xy = interp1d( np.array([0, self._sample_voltage_range['X']]), np.array([0.0 ,piezo_range[0]]), kind='linear', fill_value="extrapolate")
+            pos_interp_z = interp1d( np.array([0, self._sample_voltage_range['Z']]), np.array([0.0 ,piezo_range[2]]), kind='linear', fill_value="extrapolate")
 
         def rounder(x):
             try:
@@ -296,8 +311,12 @@ class SPM_ASC500(Base, ScannerInterface):
             new_pos = piezo_range[0]/2 if xy else piezo_range[2]/2
             self.log.warning(f'Position {pos} is outside range of piezo somehow. Setting to {new_pos}')
             pos = new_pos
-        pos_interp_xy = interp1d(np.array([0.0 ,piezo_range[0]]), obj_volt_range, kind='linear')
-        pos_interp_z = interp1d(np.array([0.0 ,piezo_range[2]]), obj_volt_range, kind='linear')
+        if self._galvo_mode:
+            pos_interp_xy = interp1d(np.array([0.0 ,piezo_range[0]]), obj_volt_range, kind='linear')
+            pos_interp_z = interp1d(np.array([0.0 ,piezo_range[2]]), obj_volt_range, kind='linear')
+        else:
+            pos_interp_xy = interp1d(np.array([0.0 ,piezo_range[0]]), np.array([0, self._sample_voltage_range['X']]), kind='linear')
+            pos_interp_z = interp1d(np.array([0.0 ,piezo_range[2]]), np.array([0, self._sample_voltage_range['Z']]), kind='linear')
         return pos_interp_xy(pos) if xy else pos_interp_z(pos)
 
     def check_interface_version(self, pause=None):
@@ -1391,7 +1410,7 @@ class SPM_ASC500(Base, ScannerInterface):
         """
         ret_dict = {'X': self._dev.base.getParameter(self._dev.base.getConst('ID_PIEZO_ACTRG_X'), 0)*1e-12, 
                 'Y': self._dev.base.getParameter(self._dev.base.getConst('ID_PIEZO_ACTRG_Y'), 0)*1e-12, 
-                'Z': self._dev.base.getParameter(self._dev.base.getConst('ID_REG_ZABS_LIMM'), 0)*1e-12}
+                'Z': self._dev.base.getParameter(self._dev.base.getConst('ID_REG_ZABS_LIM'), 0)*1e-12}
         return {i : ret_dict[i[0]] for i in axis_label_list}
 
     def get_sample_pos(self, axis_label_list=['X', 'Y', 'Z']):
