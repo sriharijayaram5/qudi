@@ -25,9 +25,8 @@ class AWG:
         self.data_list = [None, None, None, None, None, None, None, None, None, None]
         self.set_external_clock_input()
         self.init_all_channels()
-        for c in self.cards:
-            c.init_markers(disable=False)
-            c.init_markers(disable=False)
+        self.cards[0].init_markers(disable=True)
+        self.cards[1].init_markers(disable=False)
         self.sequence = None
         self.save_data = True
         self.uploading = False
@@ -696,16 +695,18 @@ class Card():
         pnBuffer = np.zeros(new_samples * used_channels, dtype=np.int16)
 
         pnBuffer[0:number_of_samples * used_channels:used_channels] = data[0:number_of_samples]
-        pnBuffer[0:number_of_samples * used_channels:used_channels] += np.ma.masked_where(data[0:number_of_samples] < 0,
-                                                                  data[0:number_of_samples], copy=False).mask * 2 ** 14
+        
         if self.digital_markers_enabled:
+            pnBuffer[0:number_of_samples * used_channels:used_channels] += np.ma.masked_where(data[0:number_of_samples] < 0,
+                                                                  data[0:number_of_samples], copy=False).mask * 2 ** 14
             pnBuffer[0:number_of_samples * used_channels:used_channels] += marker0_data[0:number_of_samples] * 2 ** 14
         del data
         del marker0_data    
         pnBuffer[1:number_of_samples * used_channels:used_channels] = data1[0:number_of_samples]
-        pnBuffer[1:number_of_samples * used_channels:used_channels] += np.ma.masked_where(data1[0:number_of_samples] < 0,
-                                                                  data1[0:number_of_samples], copy=False).mask * 2 ** 14
+
         if self.digital_markers_enabled:
+            pnBuffer[1:number_of_samples * used_channels:used_channels] += np.ma.masked_where(data1[0:number_of_samples] < 0,
+                                                                  data1[0:number_of_samples], copy=False).mask * 2 ** 14
             pnBuffer[1:number_of_samples * used_channels:used_channels] -= marker1_data[0:number_of_samples] * 2 ** 15
             pnBuffer[1:number_of_samples * used_channels:used_channels] += marker2_data[0:number_of_samples] * 2 ** 14
         del data1    
