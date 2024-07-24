@@ -618,9 +618,9 @@ class SPM_ASC500(Base, ScannerInterface):
             self._configurePathDataBuffering(sampTime=sT)
 
             #Move the sample scanner to the second point of the scan befor the path mode starts. A bug appears if the path mode starting position is the same like the current position.
-            x_pos = (area_corr0_stop-area_corr0_start)/self._line_points+area_corr0_start
-            y_pos = area_corr1_start
-            self.set_sample_pos_abs({'X': x_pos,'Y': y_pos})
+            # x_pos = (area_corr0_stop-area_corr0_start)/self._line_points+area_corr0_start
+            # y_pos = area_corr1_start
+            # self.set_sample_pos_abs({'X': x_pos,'Y': y_pos})
 
             if self._spm_curr_sstyle==ScanStyle.POINT:
                 while True:
@@ -688,8 +688,8 @@ class SPM_ASC500(Base, ScannerInterface):
         y_range = (area_corr1_stop - area_corr1_start)
         pos_um_x = x_range/2 + area_corr0_start
         pos_um_y = y_range/2 + area_corr1_start
-        offset_x = int(pos_um_x/21e-6*98.3*100)
-        offset_y = int(pos_um_y/21e-6*98.3*100)
+        offset_x = int(pos_um_x*1e12)
+        offset_y = int(pos_um_y*1e12)
         
         range_um = min(x_range, y_range)
         if range_um == x_range:
@@ -702,10 +702,10 @@ class SPM_ASC500(Base, ScannerInterface):
         self._dev.base.setParameter(self._dev.base.getConst('ID_SCAN_X_EQ_Y'), 0, 0 ) 
         self._dev.base.setParameter(self._dev.base.getConst('ID_SCAN_COLUMNS'), x_px, 0 ) 
         self._dev.base.setParameter(self._dev.base.getConst('ID_SCAN_LINES'), y_px, 0 )
-        self._dev.base.setParameter(4133, int(range_um/100/1e-12), 0 ) # ID_SCAN_PIXEL register from the old header file - new one does not work
+        self._dev.base.setParameter(4133, int(range_um/100*1e12), 0 ) # ID_SCAN_PIXEL register from the old header file - new one does not work
         
-        self._dev.base.setParameter(self._dev.base.getConst('ID_SCAN_OFFSET_X'), offset_x, 0 ) 
-        self._dev.base.setParameter(self._dev.base.getConst('ID_SCAN_OFFSET_Y'), offset_y, 0 ) 
+        self._dev.base.setParameter(4131, offset_x, 0 ) #From old header file
+        self._dev.base.setParameter(4132, offset_y, 0 ) #From old header file
         self._dev.base.setParameter(self._dev.base.getConst('ID_SCAN_MSPPX'), int(100e-3/2.5e-6), 0 ) 
         self._dev.base.setParameter(self._dev.base.getConst('ID_SCAN_ONCE'), 1, 0 ) 
         while self.sample_is_moving():
@@ -724,7 +724,6 @@ class SPM_ASC500(Base, ScannerInterface):
         self._set_scan_area_daisy(area_corr0_start, area_corr0_stop, area_corr1_start, area_corr1_stop)
         self.end_coords = [area_corr0_start,area_corr1_start]
         
-        self._dev.base.setParameter(self._dev.base.getConst('ID_SPEC_PATHCTRL'), 0, 0)
         self._dev.base.setParameter(self._dev.base.getConst('ID_SPEC_PATHCTRL'), 0, 0)
         self._dev.base.setParameter(self._dev.base.getConst('ID_SPEC_PATHPREP'), 1, 0)
         self._dev.base.setParameter(self._dev.base.getConst('ID_EXTTRG_TIMEOUT'), self._sync_in_timeout, 0) # 0ms timeout - will wait until SYNC IN is received
@@ -750,16 +749,17 @@ class SPM_ASC500(Base, ScannerInterface):
         elif liftoff_mode == True:
             self.liftoff_mode = liftoff_mode
             self.liftoff_height = liftoff_height
-            self._dev.base.setParameter(self._dev.base.getConst('ID_PATH_ACTION'), 5, 0)
+            self._dev.base.setParameter(self._dev.base.getConst('ID_PATH_ACTION'), 6, 0)
             # 0=manual handshake, 1..3=spectroscopy 1..3, 4=ext. handshake, 5=move Z home, 6=auto approach
             self._dev.base.setParameter(self._dev.base.getConst('ID_PATH_ACTION'), 0, 1)
             self._dev.base.setParameter(self._dev.base.getConst('ID_PATH_ACTION'), 2, 2)
+            self._dev.base.setParameter(self._dev.base.getConst('ID_PATH_ACTION'), 0, 3)
             #move home
-            self._dev.base.setParameter(self._dev.base.getConst('ID_PATH_ACTION'), 5, 3)
+            self._dev.base.setParameter(self._dev.base.getConst('ID_PATH_ACTION'), 5, 4)
             #ext shake
-            self._dev.base.setParameter(self._dev.base.getConst('ID_PATH_ACTION'), 0, 4)
+            self._dev.base.setParameter(self._dev.base.getConst('ID_PATH_ACTION'), 0, 5)
             #loop on
-            self._dev.base.setParameter(self._dev.base.getConst('ID_PATH_ACTION'), 6, 5)
+            self._dev.base.setParameter(self._dev.base.getConst('ID_PATH_ACTION'), 6, 6)
 
             #configuration of autoapproach settings
             # for HFAmpl signal - due to the unit conversion specific to this (1e7), other signals for the loop might not work correctly - must check
@@ -883,8 +883,9 @@ class SPM_ASC500(Base, ScannerInterface):
 
         if self._spm_curr_mode == ScannerMode.PROBE_CONTACT:
             while True:
+                time.sleep(0.1) #necessary for now since it seems we get stuck at the wait for buffer without this
                 if self._dev.base.getParameter(self._dev.base.getConst('ID_SPEC_PATHMANSTAT'), 0)==1:
-                    if self.liftoff_mode:
+                    if self.liftoff_mode and not move_along:
                         self.set_liftoff_height(self.liftoff_height)
                     self._dev.base.setParameter(self._dev.base.getConst('ID_SPEC_PATHPROCEED') ,1 ,0)
                     break
@@ -893,6 +894,15 @@ class SPM_ASC500(Base, ScannerInterface):
             
             if not move_along:
                 self._poll_point_data()
+                if self.liftoff_mode:
+                    self._dev.base.setParameter(self._dev.base.getConst('ID_REG_LOOP_ON'), int(2), 0) # [1, 2, 0] Set feedback loop [on/off/retract]
+                    while True:
+                        time.sleep(0.1) #necessary for now since it seems we get stuck at the wait for buffer without this
+                        if self._dev.base.getParameter(self._dev.base.getConst('ID_SPEC_PATHMANSTAT'), 0)==1:
+                            self._dev.base.setParameter(self._dev.base.getConst('ID_SPEC_PATHPROCEED') ,1 ,0)
+                            break
+                        else:
+                            pass
                 return self._polled_data
             
         return 0
@@ -1487,16 +1497,16 @@ class SPM_ASC500(Base, ScannerInterface):
                 return self.get_sample_pos(list(axis_dict.keys()))
         # have to set the scan offset to where i want to be and then start a scan to update it. then move to 0 relative to this scan.
         
-        offset_x = int(axis_dict['X']/21e-6*98.3*100) # no idea why this works
-        offset_y = int(axis_dict['Y']/21e-6*98.3*100)
+        offset_x = int(axis_dict['X']*1e12) 
+        offset_y = int(axis_dict['Y']*1e12)
 
         self._dev.base.setParameter(self._dev.base.getConst('ID_SCAN_X_EQ_Y'), 1, 0 ) 
         self._dev.base.setParameter(self._dev.base.getConst('ID_SCAN_COLUMNS'), 1, 0 ) 
         self._dev.base.setParameter(self._dev.base.getConst('ID_SCAN_LINES'), 1, 0 )
         self._dev.base.setParameter(4133, 1, 0 ) # ID_SCAN_PIXEL register from the old header file - new one does not work
         
-        self._dev.base.setParameter(self._dev.base.getConst('ID_SCAN_OFFSET_X'), offset_x, 0 ) 
-        self._dev.base.setParameter(self._dev.base.getConst('ID_SCAN_OFFSET_Y'), offset_y, 0 ) 
+        self._dev.base.setParameter(4131, offset_x, 0 ) #From old header
+        self._dev.base.setParameter(4132, offset_y, 0 ) #From old header
         self._dev.base.setParameter(self._dev.base.getConst('ID_SCAN_MSPPX'), 1, 0 ) 
         self._dev.base.setParameter(self._dev.base.getConst('ID_SCAN_ONCE'), 1, 0 ) 
         while self.sample_is_moving():

@@ -2774,7 +2774,7 @@ class ProteusQGUI(GUIBase):
         esr_freq_stop = self._qm.pulsed_freq_stop_DoubleSpinBox.value()
         esr_freq_step = self._qm.pulsed_freq_step_SpinBox.value()
 
-        loaded_sequence_mode = self._qm.loaded_sequence_mode_RadioButton.isChecked()
+        loaded_sequence_mode = self._qm.cw_mode_RadioButton.isChecked()
         loaded_sequence_freq = self._qm.cw_freq_DoubleSpinBox.value()
         loaded_sequence_mode_tracking = self._qm.loadedSeqTrackFreqCheckbox.isChecked()
         loaded_sequence_tracking_freq_start = self._qm.loadedTrack_pulsed_freq_start_DoubleSpinBox.value()

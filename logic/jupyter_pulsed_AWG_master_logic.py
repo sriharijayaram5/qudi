@@ -61,7 +61,7 @@ class PulsedJupyterLogic(GenericLogic):
                                  'TT_Next': 'd_ch3'
                                 }
         
-        self.channel_names_AWG = {'PS_Trig': 'd_ch5',
+        self.channel_names_AWG = {'PS_Trig': 'd_ch3',
                                  'ASC_Trig': 'd_ch4',
                                  'SMBV_I': 'a_ch0',
                                  'SMBV_Q': 'a_ch1',

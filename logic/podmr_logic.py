@@ -550,8 +550,8 @@ class ODMRLogic(GenericLogic):
            
         try:
             data, err, ref_data, ref_time = analysis_method(*args)
-        except:
-            self.log.warning('Something went wrong with the laser data. Run measurement again.')
+        except Exception as err:
+            self.log.warning(f'Something went wrong with the laser data. Run measurement again. Error: {err}')
             return (0,0)
 
         # shift data in the array "up" and add new data at the "bottom"
@@ -640,10 +640,10 @@ class ODMRLogic(GenericLogic):
             return np.zeros(num_of_lasers), np.zeros(num_of_lasers)
 
         # Convert the times in seconds to bins (i.e. array indices)
-        signal_start_bin = round(signal_start / bin_width)
-        signal_end_bin = round(signal_end / bin_width)
-        norm_start_bin = round(norm_start / bin_width)
-        norm_end_bin = round(norm_end / bin_width)
+        signal_start_bin = max(0, int(round(signal_start / bin_width)))
+        signal_end_bin = min(laser_data.shape[1], int(round(signal_end / bin_width)))
+        norm_start_bin = max(0, int(round(norm_start / bin_width)))
+        norm_end_bin = min(laser_data.shape[1], int(round(norm_end / bin_width)))
 
         # loop over all laser pulses and analyze them
         tmp_ref = laser_data[:,norm_start_bin:norm_end_bin]

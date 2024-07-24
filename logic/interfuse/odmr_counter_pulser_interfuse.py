@@ -119,7 +119,7 @@ class ODMRCounterInterfuse(GenericLogic, ODMRCounterInterface):
         self._pulse_creator.pulsed_master_AWG.sequencegeneratorlogic().print_log_info = False
         self._pulse_creator.pulsed_master.sequencegeneratorlogic().print_log_info = False
 
-        self._pulse_creator.initialize_ensemble(laser_power_voltage = self._pulser._laser_power_voltage, target_freq_0 = mw_start, printing = False, set_up_measurement = False, check_current_sequence = True)
+        self._pulse_creator.initialize_ensemble(laser_power_voltage = self._pulser._laser_power_voltage, target_freq_0 = mw_start, printing = False, set_up_measurement = False, check_current_sequence = False)
         ensemble_list, sequence_step_list, name, var_list, alternating, freq_sweep = self._pulse_creator.CW_ODMR(mw_start, mw_stop, mw_step, clock_frequency) #Preparing Pulsestreamer and AWG without setting up the pulse measurement GUI or Timetagger
         
         self._pulse_creator.AWG.print_log_info = True
@@ -171,6 +171,7 @@ class ODMRCounterInterfuse(GenericLogic, ODMRCounterInterface):
 
         self._sc_device.start_recorder()
         self._AWG.pulser_on() # not sure why n=length fails
+        time.sleep(0.1)
         counts = self._sc_device.get_measurements(['counts'])[0]
 
         return False, counts
