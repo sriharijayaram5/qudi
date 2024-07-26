@@ -795,7 +795,7 @@ class SPM_ASC500(Base, ScannerInterface):
         if self._spm_curr_mode == ScannerMode.PROBE_CONTACT:
             while True:
                 if self._dev.base.getParameter(self._dev.base.getConst('ID_SPEC_PATHMANSTAT'), 0)==1:
-                    if self.liftoff_mode:
+                    if self.liftoff_mode and not move_along:
                         self.set_liftoff_height(self.liftoff_height)
                     self._dev.base.setParameter(self._dev.base.getConst('ID_SPEC_PATHPROCEED') ,1 ,0)
                     break

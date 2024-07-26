@@ -401,7 +401,7 @@ class ProteusQGUI(GUIBase):
         
         self._qm.mw_tracking_mode_RadioButton.clicked.connect(lambda state, x=0: self.radioButton_behaviour_forGroupBox(state,x))
         self._qm.mw_list_mode_RadioButton.clicked.connect(lambda state, x=1: self.radioButton_behaviour_forGroupBox(state,x))
-        self._qm.cw_mode_RadioButton.clicked.connect(lambda state, x=2: self.radioButton_behaviour_forGroupBox(state,x))
+        self._qm.loaded_sequence_mode_RadioButton.clicked.connect(lambda state, x=2: self.radioButton_behaviour_forGroupBox(state,x))
 
     def on_deactivate(self):
         """ Deactivate the module properly.
@@ -2556,13 +2556,13 @@ class ProteusQGUI(GUIBase):
         if x == 0:
             if state is True:
                 self._qm.mw_list_mode_RadioButton.setChecked(False)
-                self._qm.cw_mode_RadioButton.setChecked(False)
+                self._qm.loaded_sequence_mode_RadioButton.setChecked(False)
             else:
                 self._qm.mw_tracking_mode_RadioButton.setChecked(True)
         if x == 1:
             if state is True:
                 self._qm.mw_tracking_mode_RadioButton.setChecked(False)
-                self._qm.cw_mode_RadioButton.setChecked(False)
+                self._qm.loaded_sequence_mode_RadioButton.setChecked(False)
             else:
                 self._qm.mw_list_mode_RadioButton.setChecked(True)
         if x == 2:
@@ -2570,7 +2570,7 @@ class ProteusQGUI(GUIBase):
                 self._qm.mw_list_mode_RadioButton.setChecked(False)
                 self._qm.mw_tracking_mode_RadioButton.setChecked(False)
             else:
-                self._qm.cw_mode_RadioButton.setChecked(True)
+                self._qm.loaded_sequence_mode_RadioButton.setChecked(True)
 
 
     def update_targetpos_xy(self, event, xy_pos):
