@@ -976,7 +976,7 @@
         </widget>
        </item>
        <item row="3" column="0">
-        <widget class="QGroupBox" name="cw_mode_RadioButton">
+        <widget class="QGroupBox" name="loaded_sequence_mode_RadioButton">
          <property name="enabled">
           <bool>true</bool>
          </property>
