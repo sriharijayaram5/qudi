@@ -1871,7 +1871,7 @@ class PulsedJupyterLogic(GenericLogic):
 
         return ensemble_list, sequence_step_list, name, self.tau_arr, alternating, freq_sweep
         
-    def DEER_alt_phased(self, tau_NV, pi_pulse_dark_spin, mw_start, mw_stop, mw_step, name = None):
+    def DEER_alt(self, tau_NV, pi_pulse_dark_spin, mw_start, mw_stop, mw_step, name = None):
         '''
         Laser(532):       ▇▇▇▇▇▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▇▇▇▇▇
         MW:               ▁▁▁▁▁▁▁▇pi/2▇▁▁▁▁▁▁▁▁▁▁▇pi▇▁▁▁▁▁▁▁▁▁▁▇pi/2▇▁▁▁▁▁▁▁
@@ -1936,6 +1936,156 @@ class PulsedJupyterLogic(GenericLogic):
             self.ElementAWG(channels={}, length=tau_NV/2)
             #Pi/2 pulse
             self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse/2)
+            #Waiting time + read-out
+            self.ElementAWG(channels={'PS_Trig':True}, length=self.mw_waiting_time + self.read_out_time)
+            
+        self.sample_load_ready_pulsestreamer(name='read_out_jptr')
+        
+        ensemble_list, sequence_step_list = self.sample_load_ready_AWG(name, self.tau_arr, alternating, freq_sweep, change_freq = True)
+
+        return ensemble_list, sequence_step_list, name, self.tau_arr, alternating, freq_sweep
+    
+    def DEER_alt_phased(self, tau_NV, pi_pulse_dark_spin, mw_start, mw_stop, mw_step, name = None):
+        '''
+        Laser(532):       ▇▇▇▇▇▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▇▇▇▇▇
+        MW:               ▁▁▁▁▁▁▁▇pi/2▇▁▁▁▁▁▁▁▁▁▁▇pi▇▁▁▁▁▁▁▁▁▁▁▇pi/2▇▁▁▁▁▁▁▁
+                                       X        t/2       X        t/2        X
+        MW_DS:            ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▇pi▇▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+                                                          Freq_1 sweep
+                                       
+                                       
+        Laser(532):       ▇▇▇▇▇▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▇▇▇▇▇
+        MW:               ▁▁▁▁▁▁▁▇pi/2▇▁▁▁▁▁▁▁▁▁▁▇pi▇▁▁▁▁▁▁▁▁▁▁▇pi/2▇▁▁▁▁▁▁▁
+                                       X        t/2       X        t/2        -X
+        MW_DS:            ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▇pi▇▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+                                                          Freq_1 sweep
+        '''
+        if name is None:
+            name = 'deer-alt-juptr-phased'
+        
+        if pi_pulse_dark_spin>tau_NV/2:
+            print('!!!Duration of tau_NV/2 is smaller than the pi_pulse_dark_spin length. Check the values!!!')
+            return
+        
+
+        alternating = True
+        freq_sweep=True
+        num_steps = int(np.rint((mw_stop - mw_start) / mw_step))
+        end_freq = mw_start + num_steps * mw_step
+        self.tau_arr = np.linspace(mw_start, end_freq, num_steps + 1)
+        
+        self.LO_freq_1 = end_freq + 100e6
+        
+        #Create pulse sequence for the AWG streamer
+        self.BlockAWG = []
+        
+        for tau in self.tau_arr:
+            #Break after Initalisation/read out
+            self.ElementAWG(channels={}, length=self.laser_waiting_time)
+            #Pi/2 pulse
+            self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse/2)
+            #First waiting time + tau/2
+            self.ElementAWG(channels={}, length=tau_NV/2)
+            #Pi pulse
+            self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse)
+            #Pi pulse for dark spin
+            self.ElementAWG(channels={'MW_1':True}, length=pi_pulse_dark_spin, freq_1 = tau)
+            #Second waiting time + tau/2
+            self.ElementAWG(channels={}, length=tau_NV/2-pi_pulse_dark_spin)
+            #Pi/2 pulse
+            self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse/2)
+            #Waiting time + read-out
+            self.ElementAWG(channels={'PS_Trig':True}, length=self.mw_waiting_time + self.read_out_time)
+            
+            #Alternating phased
+            #Break after Initalisation/read out
+            self.ElementAWG(channels={}, length=self.laser_waiting_time)
+            #Pi/2 pulse
+            self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse/2)
+            #First waiting time + tau/2
+            self.ElementAWG(channels={}, length=tau_NV/2)
+            #Pi pulse
+            self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse)
+            #Pi pulse for dark spin
+            self.ElementAWG(channels={'MW_1':True}, length=pi_pulse_dark_spin, freq_1 = tau)
+            #Second waiting time + tau/2
+            self.ElementAWG(channels={}, length=tau_NV/2-pi_pulse_dark_spin)
+            #Pi/2 pulse
+            self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse/2, phase_0=180)
+            #Waiting time + read-out
+            self.ElementAWG(channels={'PS_Trig':True}, length=self.mw_waiting_time + self.read_out_time)
+            
+        self.sample_load_ready_pulsestreamer(name='read_out_jptr')
+        
+        ensemble_list, sequence_step_list = self.sample_load_ready_AWG(name, self.tau_arr, alternating, freq_sweep, change_freq = True)
+
+        return ensemble_list, sequence_step_list, name, self.tau_arr, alternating, freq_sweep
+
+    def DEER_rabi_alt_phased(self, tau_NV, freq_dark_spin, dark_spin_tau_start, dark_spin_tau_stop, dark_spin_tau_num, name = None):
+        '''
+        Laser(532):       ▇▇▇▇▇▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▇▇▇▇▇
+        MW:               ▁▁▁▁▁▁▁▇pi/2▇▁▁▁▁▁▁▁▁▁▁▇pi▇▁▁▁▁▁▁▁▁▁▁▇pi/2▇▁▁▁▁▁▁▁
+                                       X        t/2       X        t/2        X
+        MW_DS:            ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▇pi▇▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+                                                          Freq_1 sweep
+                                       
+                                       
+        Laser(532):       ▇▇▇▇▇▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▇▇▇▇▇
+        MW:               ▁▁▁▁▁▁▁▇pi/2▇▁▁▁▁▁▁▁▁▁▁▇pi▇▁▁▁▁▁▁▁▁▁▁▇pi/2▇▁▁▁▁▁▁▁
+                                       X        t/2       X        t/2        -X
+        MW_DS:            ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▇pi▇▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+                                                          Freq_1 sweep
+        '''
+        if name is None:
+            name = 'deer-rabi-alt-juptr'
+        
+        if dark_spin_tau_stop>tau_NV/2:
+            print('!!!Duration of tau_NV/2 is smaller than the pi_pulse_dark_spin length. Check the values!!!')
+            return
+
+        alternating = True
+        freq_sweep=False
+        
+        self.tau_arr = np.linspace(dark_spin_tau_start, dark_spin_tau_stop, dark_spin_tau_num)
+        
+        self.LO_freq_1 = freq_dark_spin + 100e6
+        
+        #Create pulse sequence for the AWG streamer
+        self.BlockAWG = []
+        
+        for tau in self.tau_arr:
+            #Break after Initalisation/read out
+            self.ElementAWG(channels={}, length=self.laser_waiting_time)
+            #Pi/2 pulse
+            self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse/2)
+            #First waiting time + tau/2
+            self.ElementAWG(channels={}, length=tau_NV/2)
+            #Pi pulse
+            self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse)
+            #Pi pulse for dark spin
+            self.ElementAWG(channels={'MW_1':True}, length=tau, freq_1 = freq_dark_spin)
+            #Second waiting time + tau/2
+            self.ElementAWG(channels={}, length=tau_NV/2-tau)
+            #Pi/2 pulse
+            self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse/2)
+            #Waiting time + read-out
+            self.ElementAWG(channels={'PS_Trig':True}, length=self.mw_waiting_time + self.read_out_time)
+            
+            #Alternating on NV spin
+            #Break after Initalisation/read out
+            self.ElementAWG(channels={}, length=self.laser_waiting_time)
+            #Pi/2 pulse
+            self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse/2)
+            #First waiting time + tau/2
+            self.ElementAWG(channels={}, length=tau_NV/2)
+            #Pi pulse
+            self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse)
+            #Pi pulse for dark spin
+            self.ElementAWG(channels={'MW_1':True}, length=tau, freq_1 = freq_dark_spin)
+            #Second waiting time + tau/2
+            self.ElementAWG(channels={}, length=tau_NV/2-tau)
+            #Pi/2 pulse
+            self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse/2, phase_0=180)
             #Waiting time + read-out
             self.ElementAWG(channels={'PS_Trig':True}, length=self.mw_waiting_time + self.read_out_time)
             
