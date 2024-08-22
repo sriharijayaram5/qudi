@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 """
-Simple data acquisition from serial port.
+Author: Malik Lenger
+Code for Cryomagnetics LM510 level sensor controller.
 
 Qudi is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -20,31 +21,27 @@ top-level directory of this distribution and at <https://github.com/Ulm-IQO/qudi
 """
 
 from pylablib.devices import Cryomagnetics
-import pylablib as pll
-import numpy as np
 from core.module import Base
 from core.configoption import ConfigOption
 from interface.simple_data_interface import SimpleDataInterface
-
 
 class LM510levelsensor(Base, SimpleDataInterface):
     """ Read human readable numbers from serial port.
 
     Example config for copy-paste:
 
-    simple_data_acq:
-        module.Class: 'simple_data_acq.SimpleAcq'
-        interface: 'ASRL1::INSTR'
-        baudrate: 115200
+    level_sensor:
+        module.Class: 'LM510_level_sensor.LM510levelsensor'
+        serial_port: 'COM1'
 
     """
-    sensor_serial = ConfigOption('sensor_serial', 'COM1', missing='warn')
+    serial_port = ConfigOption('serial_port', 'COM1', missing='warn')
 
     def on_activate(self):
         """ Activate module.
         """
         try:
-            self.level_sensor = Cryomagnetics.LM510(self.sensor_serial)
+            self.level_sensor = Cryomagnetics.LM510(self.serial_port)
         except:
             self.log.error('Connection to the LM510 level sensor failed.')
 
@@ -272,6 +269,3 @@ class LM510levelsensor(Base, SimpleDataInterface):
                 self.level_sensor.reset()
             except:
                 self.log.error('Something went wrong while resetting the device.')
-
-
-

@@ -25,6 +25,7 @@ import os
 import pyqtgraph as pg
 
 from core.connector import Connector
+from core.configoption import ConfigOption
 from gui.colordefs import QudiPalettePale as palette
 from gui.guibase import GUIBase
 from qtpy import QtCore
@@ -52,6 +53,8 @@ class PIDGui(GUIBase):
 
     # declare connectors
     pidlogic = Connector(interface='PIDLogic')
+    control_unit = ConfigOption('control_unit', 'unit', missing='warn')
+    process_unit = ConfigOption('process_unit', 'unit', missing='warn')
 
     sigStart = QtCore.Signal()
     sigStop = QtCore.Signal()
@@ -89,12 +92,12 @@ class PIDGui(GUIBase):
             '<font color={0}>Process Value</font> and <font color={1}>Setpoint</font>'.format(
                 palette.c1.name(),
                 palette.c2.name()),
-             units='unit')
+             units= self.process_unit)
         self.plot1.setLabel('bottom', 'Time', units='s')
         self.plot1.showAxis('right')
         self.plot1.getAxis('right').setLabel(
             'Control Value',
-            units='unit',
+            units= self.control_unit,
             color=palette.c3.name())
 
         self.plot2 = pg.ViewBox()
