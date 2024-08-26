@@ -95,7 +95,8 @@ class temperaturecontroller335(Base, PIDControllerInterface):
 
         """ The timer is used to perform communication with the device in the given time interval. This is a workaround for a failing serial connection after longer periods without communication.
         """
-        self.timestep = 300 # in s
+        self.counter = 0
+        self.timestep = 60 # in s
         self.timer = QtCore.QTimer()
         self.timer.setSingleShot(True)
         self.timer.setInterval(self.timestep * 1000)  # in ms
@@ -117,6 +118,7 @@ class temperaturecontroller335(Base, PIDControllerInterface):
         try:
             self.temp_controller.query('*IDN?')
             self.timer.start()
+            self.counter = self.counter+1
         except:
             self.log.error('Connection failed during response_loop.')
 
