@@ -266,6 +266,13 @@ class MagnetGui(GUIBase):
         for axis_label in list(constraints):
             self.get_ref_move_rel_ScienDSpinBox(axis_label).setValue(self._magnet_logic.move_rel_dict[axis_label])
             self.get_ref_move_rel_ScienDSpinBox(axis_label).editingFinished.connect(self.move_rel_para_changed)
+
+            max_step_slider = constraints[axis_label]['pos_step']
+            slider_val = abs(self.get_ref_move_abs_ScienDSpinBox(axis_label).value() - constraints[axis_label]['pos_min'])/max_step_slider
+            self.get_ref_move_abs_Slider(axis_label).setValue(slider_val)
+            self.get_ref_move_abs_Slider(axis_label).setSliderPosition(slider_val)
+            self.get_ref_move_abs_Slider(axis_label).update()
+            self.get_ref_move_abs_Slider(axis_label).repaint()
             #print('self.get_ref_move_rel_ScienDSpinBox('+axis_label+').valueChanged.connect(lambda: self.move_rel_changed('+axis_label+'))')
 
         # General 2d alignment:
@@ -358,7 +365,8 @@ class MagnetGui(GUIBase):
 
         self._magnet_logic.sigOptPosFreqChanged.connect(self.update_optimize_pos_freq)
         self._magnet_logic.sigFluoIntTimeChanged.connect(self.update_fluorescence_integration_time)
-
+        self._update_2d_graph_axis()
+        self.restoreWindowPos(self._mw)
         return 0
 
     def _activate_magnet_settings(self):
@@ -398,7 +406,7 @@ class MagnetGui(GUIBase):
         self._statusVariables['measurement_type'] = self.measurement_type
         self._alignment_2d_cb_label =  self._mw.alignment_2d_cb_GraphicsView.plotItem.axes['right']['item'].labelText
         self._alignment_2d_cb_units = self._mw.alignment_2d_cb_GraphicsView.plotItem.axes['right']['item'].labelUnits
-
+        self.saveWindowGeometry(self._mw)
         self._mw.close()
 
     def show(self):
@@ -591,7 +599,7 @@ class MagnetGui(GUIBase):
             dspinbox_ref.setMinimum(constraints[axis_label]['pos_min'])
 
             # dspinbox_ref.setOpts(minStep=constraints[axis_label]['pos_step'])
-            dspinbox_ref.setSingleStep(0.001, dynamic_stepping=False)
+            # dspinbox_ref.setSingleStep(constraints[axis_label]['pos_step'], dynamic_stepping=False)
             dspinbox_ref.setSuffix(constraints[axis_label]['unit'])
 
             self._mw.move_rel_GridLayout.addWidget(dspinbox_ref, index, 1, 1, 1)
@@ -703,11 +711,11 @@ class MagnetGui(GUIBase):
             dspinbox_ref.setMinimum(constraints[axis_label]['pos_min'])
 
             # dspinbox_ref.setOpts(minStep=constraints[axis_label]['pos_step'])
-            dspinbox_ref.setSingleStep(0.001, dynamic_stepping=False)
+            # dspinbox_ref.setSingleStep(constraints[axis_label]['pos_step'], dynamic_stepping=False)
             dspinbox_ref.setSuffix(constraints[axis_label]['unit'])
 
             # set the horizontal size to 100 pixel:
-            dspinbox_ref.setMaximumSize(QtCore.QSize(80, 16777215))
+            dspinbox_ref.setMinimumSize(QtCore.QSize(120, 40))
 
             self._mw.move_abs_GridLayout.addWidget(dspinbox_ref, index, 2, 1, 1)
 

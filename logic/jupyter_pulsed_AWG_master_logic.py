@@ -200,7 +200,7 @@ class PulsedJupyterLogic(GenericLogic):
         self.pulsed_master.sequencegeneratorlogic().save_ensemble(pulse_block_ensemble)
         self.pulsed_master.sequencegeneratorlogic().sample_pulse_block_ensemble(name)
         self.pulsed_master.sequencegeneratorlogic().load_ensemble(name)
-        self.pulser.pulser_on(trigger=True, n=1, rearm=False, final=self.pulser._final_state)
+        self.pulser.pulser_on(trigger=True, n=1, rearm=False)
         return 0
 
     def run_IQ_DC(self, MW0 = True, MW1 = False):

@@ -23,7 +23,7 @@ top-level directory of this distribution and at <https://github.com/Ulm-IQO/qudi
 from core.connector import Connector
 from logic.generic_logic import GenericLogic
 from interface.magnet_interface import MagnetInterface
-
+from core.configoption import ConfigOption
 
 class MagnetMotorInterfuse(GenericLogic, MagnetInterface):
     """
@@ -32,6 +32,7 @@ class MagnetMotorInterfuse(GenericLogic, MagnetInterface):
     # declare connectors, here you can see the interfuse action: the in
     # connector will cope a motor hardware, that means a motor device can
     # connect to the in connector of the logic.
+    axes = ConfigOption('axes', missing='warn', default=['MagnetX','MagnetY','MagnetZ'])
     motorstage = Connector(interface='MotorInterface')
 
     def __init__(self, **kwargs):
@@ -61,8 +62,11 @@ class MagnetMotorInterfuse(GenericLogic, MagnetInterface):
                       that proper display elements with boundary conditions
                       could be made.
         """
-        return self._motor_device.get_constraints()
-
+        constraints = self._motor_device.get_constraints()
+        exclude_axes = list(set(constraints)-set(self.axes))
+        for axis in exclude_axes:
+            del constraints[axis]
+        return constraints
 
     def move_rel(self, param_dict):
         """ Moves stage in given direction (relative movement)
@@ -126,7 +130,14 @@ class MagnetMotorInterfuse(GenericLogic, MagnetInterface):
         @return dict: with keys being the axis labels and item the current
                       position.
         """
-        return self._motor_device.get_pos(param_list)
+        pos = self._motor_device.get_pos(param_list)
+        exclude_axes = list(set(pos)-set(self.axes))
+        for axis in exclude_axes:
+            try:
+                del pos[axis]
+            except:
+                pass
+        return pos
 
 
     def get_status(self, param_list=None):
@@ -140,7 +151,14 @@ class MagnetMotorInterfuse(GenericLogic, MagnetInterface):
 
         @return dict: with the axis label as key and the status number as item.
         """
-        return self._motor_device.get_status(param_list)
+        pos = self._motor_device.get_status(param_list)
+        exclude_axes = list(set(pos)-set(self.axes))
+        for axis in exclude_axes:
+            try:
+                del pos[axis]
+            except:
+                pass
+        return pos
 
 
     def calibrate(self, param_list=None):

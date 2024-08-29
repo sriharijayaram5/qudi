@@ -70,16 +70,16 @@ class MagnetLogic(GenericLogic):
     counterlogic = Connector(interface='CounterLogic')
     odmrlogic = Connector(interface='ODMRLogic')
     savelogic = Connector(interface='SaveLogic')
-    scannerlogic = Connector(interface='ConfocalLogic')
+    # scannerlogic = Connector(interface='ConfocalLogic')
     traceanalysis = Connector(interface='TraceAnalysisLogic')
     gatedcounterlogic = Connector(interface='CounterLogic')
     sequencegeneratorlogic = Connector(interface='SequenceGeneratorLogic')
 
     align_2d_axis0_range = StatusVar('align_2d_axis0_range', 10e-3)
-    align_2d_axis0_step = StatusVar('align_2d_axis0_step', 1e-3)
+    align_2d_axis0_step = StatusVar('align_2d_axis0_step', 1e-4)
     align_2d_axis0_vel = StatusVar('align_2d_axis0_vel', 10e-6)
     align_2d_axis1_range = StatusVar('align_2d_axis1_range', 10e-3)
-    align_2d_axis1_step = StatusVar('align_2d_axis1_step', 1e-3)
+    align_2d_axis1_step = StatusVar('align_2d_axis1_step', 1e-4)
     align_2d_axis1_vel = StatusVar('align_2d_axis1_vel', 10e-6)
     curr_2d_pathway_mode = StatusVar('curr_2d_pathway_mode', 'snake-wise')
 
@@ -193,7 +193,7 @@ class MagnetLogic(GenericLogic):
         # FIXME: THAT IS JUST A TEMPORARY SOLUTION! Implement the access on the
         #       needed methods via the TaskRunner!
         self._optimizer_logic = self.optimizerlogic()
-        self._confocal_logic = self.scannerlogic()
+        # self._confocal_logic = self.scannerlogic()
         self._counter_logic = self.counterlogic()
         self._odmr_logic = self.odmrlogic()
 
@@ -231,16 +231,16 @@ class MagnetLogic(GenericLogic):
 
         # 2D alignment settings
 
-        if 'align_2d_axis0_name' in self._statusVariables:
-            self.align_2d_axis0_name = self._statusVariables['align_2d_axis0_name']
-        else:
-            axes = list(self._magnet_device.get_constraints())
-            self.align_2d_axis0_name = axes[0]
-        if 'align_2d_axis1_name' in self._statusVariables:
-            self.align_2d_axis1_name = self._statusVariables['align_2d_axis1_name']
-        else:
-            axes = list(self._magnet_device.get_constraints())
-            self.align_2d_axis1_name = axes[1]
+        # if 'align_2d_axis0_name' in self._statusVariables:
+        #     self.align_2d_axis0_name = self._statusVariables['align_2d_axis0_name']
+        # else:
+        axes = list(self._magnet_device.get_constraints())
+        self.align_2d_axis0_name = axes[0]
+        # if 'align_2d_axis1_name' in self._statusVariables:
+        #     self.align_2d_axis1_name = self._statusVariables['align_2d_axis1_name']
+        # else:
+        #     axes = list(self._magnet_device.get_constraints())
+        self.align_2d_axis1_name = axes[1]
 
         self.sigTest.connect(self._do_premeasurement_proc)
 
@@ -492,9 +492,9 @@ class MagnetLogic(GenericLogic):
         else:
 
             # create a snake-wise stepping procedure through the matrix:
-            self.log.debug(axis0_name)
-            self.log.debug(axis0_range)
-            self.log.debug(init_pos[axis0_name])
+            # self.log.debug(axis0_name)
+            # self.log.debug(axis0_range)
+            # self.log.debug(init_pos[axis0_name])
             axis0_pos = round(init_pos[axis0_name] - axis0_range / 2, 7)
             axis1_pos = round(init_pos[axis1_name] - axis1_range / 2, 7)
 
@@ -793,13 +793,13 @@ class MagnetLogic(GenericLogic):
         move_dict_abs, \
         move_dict_rel = self._move_to_index(self._pathway_index, self._pathway)
 
-        self.log.debug("I'm in _move_to_curr_pathway_index: {0}".format(move_dict_abs))
+        # self.log.debug("I'm in _move_to_curr_pathway_index: {0}".format(move_dict_abs))
         # self.set_velocity(move_dict_vel)
         self._magnet_device.move_abs(move_dict_abs)
         # self.move_rel(move_dict_rel)
         while self._check_is_moving():
             time.sleep(self._checktime)
-            self.log.debug("Went into while loop in _move_to_curr_pathway_index")
+            # self.log.debug("Went into while loop in _move_to_curr_pathway_index")
 
         # this function will return to this function if position is reached:
         start_pos = self._saved_pos_before_align
@@ -807,7 +807,7 @@ class MagnetLogic(GenericLogic):
         for axis_name in self._saved_pos_before_align:
             end_pos[axis_name] = self._backmap[self._pathway_index][axis_name]
 
-        self.log.debug("(first movement) magnet moving ? {0}".format(self._check_is_moving()))
+        # self.log.debug("(first movement) magnet moving ? {0}".format(self._check_is_moving()))
 
         if stepwise_meas:
             # start the Stepwise alignment loop body self._stepwise_loop_body:
@@ -827,9 +827,18 @@ class MagnetLogic(GenericLogic):
             return
 
         self._do_premeasurement_proc()
-        pos = self._magnet_device.get_pos()
-        end_pos = self._pathway[self._pathway_index]
-        self.log.debug('end_pos {0}'.format(end_pos))
+        still_moving = True
+        i = 0
+        while still_moving and i<60:
+            i +=1
+            try:
+                pos = self._magnet_device.get_pos()
+                still_moving = False
+            except Exception as e:
+                # self.log.debug(f'Error: {e}. Probably still moving.')
+                time.sleep(self._checktime)
+            end_pos = self._pathway[self._pathway_index]
+        # self.log.debug('end_pos {0}'.format(end_pos))
         differences = []
         for key in end_pos:
             differences.append((pos[key] - end_pos[key]['move_abs']) ** 2)
@@ -856,7 +865,7 @@ class MagnetLogic(GenericLogic):
 
         self._2d_intended_fields.append(wanted_pos)
 
-        self.log.debug("Distance from desired position: {0}".format(distance))
+        # self.log.debug("Distance from desired position: {0}".format(distance))
         # perform here one of the chosen alignment measurements
         meas_val, add_meas_val = self._do_alignment_measurement()
 
@@ -882,9 +891,9 @@ class MagnetLogic(GenericLogic):
 
             while self._check_is_moving():
                 time.sleep(self._checktime)
-                self.log.debug("Went into while loop in stepwise_loop_body")
+                # self.log.debug("Went into while loop in stepwise_loop_body")
 
-            self.log.debug("stepwise_loop_body reports magnet moving ? {0}".format(self._check_is_moving()))
+            # self.log.debug("stepwise_loop_body reports magnet moving ? {0}".format(self._check_is_moving()))
 
             # this function will return to this function if position is reached:
             start_pos = dict()
@@ -1002,11 +1011,12 @@ class MagnetLogic(GenericLogic):
 
         @return bool: True indicates the magnet is moving, False the magnet stopped movement
         """
-        # get axis names
-        axes = [i for i in self._magnet_device.get_constraints()]
-        state = self._magnet_device.get_status()
+        # # get axis names
+        # axes = [i for i in self._magnet_device.get_constraints()]
+        # state = self._magnet_device.get_status()
+        time.sleep(self._checktime)
 
-        return (state[axes[0]] or state[axes[1]] or state[axes[2]]) is (1 or -1)
+        return False#(state[axes[0]] or state[axes[1]] or state[axes[2]]) is (1 or -1)
 
     def _set_meas_point(self, meas_val, add_meas_val, pathway_index, back_map):
 
@@ -1074,19 +1084,20 @@ class MagnetLogic(GenericLogic):
 
     def _do_optimize_pos(self):
 
-        curr_pos = self._confocal_logic.get_position()
+        # curr_pos = self._confocal_logic.get_position()
 
-        self._optimizer_logic.start_refocus(curr_pos, caller_tag='magnet_logic')
+        # self._optimizer_logic.start_refocus(curr_pos, caller_tag='magnet_logic')
 
-        # check just the state of the optimizer
-        while self._optimizer_logic.module_state() != 'idle' and not self._stop_measure:
-            time.sleep(0.5)
+        # # check just the state of the optimizer
+        # while self._optimizer_logic.module_state() != 'idle' and not self._stop_measure:
+        #     time.sleep(0.5)
 
-        # use the position to move the scanner
-        self._confocal_logic.set_position('magnet_logic',
-                                          self._optimizer_logic.optim_pos_x,
-                                          self._optimizer_logic.optim_pos_y,
-                                          self._optimizer_logic.optim_pos_z)
+        # # use the position to move the scanner
+        # self._confocal_logic.set_position('magnet_logic',
+        #                                   self._optimizer_logic.optim_pos_x,
+        #                                   self._optimizer_logic.optim_pos_y,
+        #                                   self._optimizer_logic.optim_pos_z)
+        pass
 
     def _do_alignment_measurement(self):
         """ That is the main method which contains all functions with measurement routines.
@@ -1833,7 +1844,7 @@ class MagnetLogic(GenericLogic):
         self._save_logic.save_data(matrix_data, filepath=filepath, parameters=parameters,
                                    filelabel=filelabel, timestamp=timestamp)
 
-        self.log.debug('Magnet 2D data saved to:\n{0}'.format(filepath))
+        self.log.info('Magnet 2D data saved to:\n{0}'.format(filepath))
 
         # prepare the data in a dict or in an OrderedDict:
         add_data = OrderedDict()

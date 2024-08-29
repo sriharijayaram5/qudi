@@ -79,7 +79,7 @@ class PositionerGui(GUIBase):
 
         # make correct button state
         # self._mw.startAction.setChecked(False)
-
+        self.magnet_constraints = self._positioner_logic.positioner.get_constraints()
         #####################
         # Connecting user interactions
         self._connect_buttons()
@@ -122,7 +122,11 @@ class PositionerGui(GUIBase):
                                 'ContMinus':None,
                                 'Voltage':None,
                                 'Frequency':None,
-                                'Stop':None}
+                                'Stop':None,
+                                'Disable':None,
+                                'Snapshot':None,
+                                'Snapshot_Text':None,
+                                'Snapshot_Clear':None}
             # Load it
             obj_name = constraints[axis]['label']
             widget = uic.loadUi(ui_file)
@@ -152,10 +156,12 @@ class PositionerGui(GUIBase):
             # self._mw.addDockWidget(QtCore.Qt.DockWidgetArea(4), dockwidget)
             # self._mw.tabifyDockWidget(ref_last_dockwidget, dockwidget)
             widget = dockwidget.children()[-1]
-            _, b1, b2, b3 = widget.children()
+            self.children = widget.children()
+            _, b1, b2, b3, b4 = widget.children()
             gb1 = b1.children()
             gb2 = b2.children()
             gb3 = b3.children()
+            gb4 = b4.children()
 
             gb1[1].setText(constraints[axis]['label'])
             dockwidget_children['Label'] = gb1[1]
@@ -173,6 +179,11 @@ class PositionerGui(GUIBase):
             gb3[8].setMaximum(constraints[axis]['vel_max'])
             dockwidget_children['Frequency'] = gb3[8]
             dockwidget_children['Stop'] = gb3[9]
+            dockwidget_children['Disable'] = gb3[10]
+
+            dockwidget_children['Snapshot'] = gb4[1]
+            dockwidget_children['Snapshot_Text'] = gb4[3]
+            dockwidget_children['Snapshot_Clear'] = gb4[2]
 
             self._dockwidget_container[obj_name] = dockwidget_children
         self.pos_list = self._dockwidget_container.keys()
@@ -184,7 +195,13 @@ class PositionerGui(GUIBase):
         for pos in positions:
             if pos=='SampleY':
                 positions[pos] -= 10e-3 # no idea why the library delivers an offset value by 10mm
-            self._dockwidget_container[pos]['PositionSpinBox'].setValue(positions[pos])   
+            self._dockwidget_container[pos]['PositionSpinBox'].setValue(positions[pos])
+            constr = self.magnet_constraints[pos]
+            if not(constr['pos_min'] <= positions[pos] <= constr['pos_max']):
+                self._dockwidget_container[pos]['PositionSpinBox'].setStyleSheet("background:rgb(210,10,46);")
+            else:
+                self._dockwidget_container[pos]['PositionSpinBox'].setStyleSheet("")
+
     
     def voltage_changed(self, axis):
         voltage = self._dockwidget_container[axis]['Voltage'].value()
@@ -226,4 +243,33 @@ class PositionerGui(GUIBase):
             item['Frequency'].editingFinished.connect(lambda pos=positioner: self.frequency_changed(pos))
 
             item['Stop'].pressed.connect(lambda pos=positioner: self.stop(pos))
+
+            item['Disable'].clicked.connect(lambda state, pos=positioner: self.disable_axis(state, pos))
+            item['Snapshot'].pressed.connect(lambda pos=positioner: self.make_snapshot(pos))
+            item['Snapshot_Clear'].pressed.connect(lambda pos=positioner: self.clear_snapshot(pos))
         return
+    
+    def disable_axis(self, state, pos):
+        """Disable software access to individual axis on button click"""
+        item = self._dockwidget_container[pos]
+        item['StepMinus'].setDisabled(state)
+        item['StepPos'].setDisabled(state)
+        item['ContMinus'].setDisabled(state)
+        item['ContPos'].setDisabled(state)
+
+    def make_snapshot(self, pos):
+        """Make snap of the current position and add it to the snapshot text window"""
+        item = self._dockwidget_container[pos]
+        curr_pos = item['PositionSpinBox'].value()
+        curr_text = item['Snapshot_Text'].toPlainText()
+
+        curr_pos = f'{round(curr_pos*1e3,3)} mm'
+        if curr_text is '':
+            item['Snapshot_Text'].setText(f'{curr_pos}')
+        else:
+            item['Snapshot_Text'].setText(f'{curr_text}\n{curr_pos}')
+
+    def clear_snapshot(self, pos):
+        """Clear snap of the current position"""
+        item = self._dockwidget_container[pos]
+        item['Snapshot_Text'].clear()

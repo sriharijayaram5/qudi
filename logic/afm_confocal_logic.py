@@ -5656,7 +5656,7 @@ class AFMConfocalLogic(GenericLogic):
 
         # if probe name is provided, make the folder for it
         if probe_name is not None or probe_name != '':
-            probe_name = self.check_for_illegal_char(probe_name)
+            # probe_name = self.check_for_illegal_char(probe_name)
             return_path = os.path.join(return_path, probe_name)
 
         if not os.path.exists(return_path):

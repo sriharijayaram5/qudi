@@ -37,7 +37,7 @@ class MotorAxis:
         self._dev = dev
     
     def move_abs(self, position):
-        return self._dev.move_abs(self.axis, position)
+        return self._dev.move_to(self.axis, position)
     
     def move_step(self, step=1):
         return self._dev.move_by_steps(self.axis, step)
@@ -108,8 +108,10 @@ class Positioner(Base, MotorInterface):
 
         self.positioner_axes = {}
         for axis in self._axes.keys():
-            self.positioner_axes[axis] = MotorAxis(self._axes[axis], self._dev)
+            self.positioner_axes[axis] = MotorAxis(int(self._axes[axis]['ID']), self._dev)
             self.positioner_axes[axis].label = axis
+            self.positioner_axes[axis].pos_min = float(self._axes[axis]['pos_min'])
+            self.positioner_axes[axis].pos_max = float(self._axes[axis]['pos_max'])
             self.positioner_axes[axis].vel = 1  #will be used to implement frequency of steps
             self.positioner_axes[axis].voltage = 1
 
@@ -118,6 +120,8 @@ class Positioner(Base, MotorInterface):
     def on_deactivate(self):
         if self._dev:
             self._dev.close()
+            dev = self._dev.instr.instr
+            dev.reset()
         return
 
 
@@ -149,9 +153,9 @@ class Positioner(Base, MotorInterface):
             axis0 = {'label':axis,
                     'unit': 'm',
                     'ramp': ['Sinus', 'Linear'],
-                    'pos_min': -3e-3,
-                    'pos_max': 3e-3,
-                    'pos_step': 1e-9,
+                    'pos_min': self.positioner_axes[axis].pos_min,
+                    'pos_max': self.positioner_axes[axis].pos_max,
+                    'pos_step': 100e-6,
                     'vel_min': 1,
                     'vel_max': 1000,
                     'vel_step': 10,
@@ -180,77 +184,29 @@ class Positioner(Base, MotorInterface):
 
         A smart idea would be to ask the position after the movement.
         """
-        curr_pos_dict = self.get_pos()
         constraints = self.get_constraints()
+        curr_pos = self.get_pos()
 
-        if param_dict.get(self._x_axis.label) is not None:
-            move_x = param_dict[self._x_axis.label]
-            curr_pos_x = curr_pos_dict[self._x_axis.label]
-
-            if  (curr_pos_x + move_x > constraints[self._x_axis.label]['pos_max'] ) or\
-                (curr_pos_x + move_x < constraints[self._x_axis.label]['pos_min']):
-
-                self.log.warning('Cannot make further movement of the axis '
-                        '"{0}" with the step {1}, since the border [{2},{3}] '
-                        'was reached! Ignore command!'.format(
-                            self._x_axis.label, move_x,
-                            constraints[self._x_axis.label]['pos_min'],
-                            constraints[self._x_axis.label]['pos_max']))
+        for param in param_dict:
+            try:
+                axis = self.positioner_axes[param]
+                desired_rel_pos = param_dict[param]
+                desired_pos = curr_pos[param] + desired_rel_pos
+                constr = constraints[param]
+            except KeyError:
+                self.log.warning('Invalid axes given!')
+                return -1
+            
+            if not(constr['pos_min'] <= desired_pos <= constr['pos_max']):
+                self.log.warning('Cannot make relative movement of the axis '
+                        '"{0}" to position {1}, since it exceeds the limits '
+                        '[{2},{3}] ! Command is ignored!'.format(
+                            param, desired_pos,
+                            constr['pos_min'],
+                            constr['pos_max']))
             else:
-                self._make_wait_after_movement()
-                self._x_axis.pos = self._x_axis.pos + move_x
-
-        if param_dict.get(self._y_axis.label) is not None:
-            move_y = param_dict[self._y_axis.label]
-            curr_pos_y = curr_pos_dict[self._y_axis.label]
-
-            if  (curr_pos_y + move_y > constraints[self._y_axis.label]['pos_max'] ) or\
-                (curr_pos_y + move_y < constraints[self._y_axis.label]['pos_min']):
-
-                self.log.warning('Cannot make further movement of the axis '
-                        '"{0}" with the step {1}, since the border [{2},{3}] '
-                        'was reached! Ignore command!'.format(
-                            self._y_axis.label, move_y,
-                            constraints[self._y_axis.label]['pos_min'],
-                            constraints[self._y_axis.label]['pos_max']))
-            else:
-                self._make_wait_after_movement()
-                self._y_axis.pos = self._y_axis.pos + move_y
-
-        if param_dict.get(self._z_axis.label) is not None:
-            move_z = param_dict[self._z_axis.label]
-            curr_pos_z = curr_pos_dict[self._z_axis.label]
-
-            if  (curr_pos_z + move_z > constraints[self._z_axis.label]['pos_max'] ) or\
-                (curr_pos_z + move_z < constraints[self._z_axis.label]['pos_min']):
-
-                self.log.warning('Cannot make further movement of the axis '
-                        '"{0}" with the step {1}, since the border [{2},{3}] '
-                        'was reached! Ignore command!'.format(
-                            self._z_axis.label, move_z,
-                            constraints[self._z_axis.label]['pos_min'],
-                            constraints[self._z_axis.label]['pos_max']))
-            else:
-                self._make_wait_after_movement()
-                self._z_axis.pos = self._z_axis.pos + move_z
-
-
-        if param_dict.get(self._phi_axis.label) is not None:
-            move_phi = param_dict[self._phi_axis.label]
-            curr_pos_phi = curr_pos_dict[self._phi_axis.label]
-
-            if  (curr_pos_phi + move_phi > constraints[self._phi_axis.label]['pos_max'] ) or\
-                (curr_pos_phi + move_phi < constraints[self._phi_axis.label]['pos_min']):
-
-                self.log.warning('Cannot make further movement of the axis '
-                        '"{0}" with the step {1}, since the border [{2},{3}] '
-                        'was reached! Ignore command!'.format(
-                            self._phi_axis.label, move_phi,
-                            constraints[self._phi_axis.label]['pos_min'],
-                            constraints[self._phi_axis.label]['pos_max']))
-            else:
-                self._make_wait_after_movement()
-                self._phi_axis.pos = self._phi_axis.pos + move_phi
+                axis.move_abs(desired_pos)
+                axis.pos = desired_pos
 
 
     def move_abs(self, param_dict):
@@ -276,7 +232,7 @@ class Positioner(Base, MotorInterface):
             
             if not(constr['pos_min'] <= desired_pos <= constr['pos_max']):
                 self.log.warning('Cannot make absolute movement of the axis '
-                        '"{0}" to possition {1}, since it exceeds the limits '
+                        '"{0}" to position {1}, since it exceeds the limits '
                         '[{2},{3}] ! Command is ignored!'.format(
                             param, desired_pos,
                             constr['pos_min'],

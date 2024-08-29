@@ -57,6 +57,7 @@ class PulseStreamer(Base, PulserInterface):
     _mw_switch = ConfigOption('mw_switch', 4, missing='info')
     _mw_trig = ConfigOption('mw_trig', 5, missing='info')
     _awg_trig = ConfigOption('awg_trig', 6, missing='info')
+    _laser_power_voltage_max = ConfigOption('laser_power_voltage_max', 0.65, missing='info')
 
     _use_external_clock = ConfigOption('use_external_clock', False, missing='info')
     _external_clock_option = ConfigOption('external_clock_option', 0, missing='info')
@@ -99,11 +100,12 @@ class PulseStreamer(Base, PulserInterface):
         self.pulsed_trigger = False
         self._regular_seq = None
         self.AWG_master_final_state = ps.OutputState([], self._laser_power_voltage, 0)
+        self.AWG_master_cw_final_state = ps.OutputState([self._laser_channel], self._laser_power_voltage, 0)
         self._sync_final_state = ps.OutputState([self._laser_channel,self._sync_in], self._laser_power_voltage, 0)
         self._pulse_final_state = ps.OutputState([self._laser_channel], self._laser_power_voltage, 0)
         self._mw_trig_final_state = ps.OutputState([self._uw_x_channel, self._pixel_stop, self._laser_channel], self._laser_power_voltage, 0)
         self._mw_trig_sync_final_state = ps.OutputState([self._uw_x_channel, self._pixel_stop, self._laser_channel, self._sync_in], self._laser_power_voltage, 0)
-        self._final_state = ps.OutputState([self._laser_channel], self._laser_power_voltage, 0) # DO NOT USE THIS!
+        self._final_state = ps.OutputState([self._laser_channel], self._laser_power_voltage, 0) # DO NOT USE THIS! This final state will be used and overwritten by pulser on method!
 
         self.log.info(f'Laser power voltage: {self._laser_power_voltage}V\nPulse heating delay: {self._pulse_heating_delay}s')
 
@@ -256,7 +258,7 @@ class PulseStreamer(Base, PulserInterface):
 
         @return int: error code (0:OK, -1:error)
         """
-        if self._seq:
+        if self._seq and self._laser_power_voltage<self._laser_power_voltage_max:
             if trigger or self.pulsed_trigger:
                 self.pulse_streamer.setTrigger(start=ps.TriggerStart.HARDWARE_RISING)
             else:
@@ -273,9 +275,9 @@ class PulseStreamer(Base, PulserInterface):
             return 0
         elif laser:
             self._final_state = None
-            self.pulse_streamer.constant(ps.OutputState([self._laser_channel], self._laser_power_voltage, 0))
+            self.pulse_streamer.constant(ps.OutputState([self._laser_channel], min(self._laser_power_voltage, self._laser_power_voltage_max), 0))
         else:
-            self.log.error('no sequence/pulse pattern prepared for the pulse streamer')
+            self.log.error('no sequence/pulse pattern prepared for the pulse streamer or max power from config exceeded')
             self.pulser_off()
             self.__current_status = -1
             return -1

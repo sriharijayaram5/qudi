@@ -1121,7 +1121,7 @@ class AWG663(Base, PulserInterface):
         self.instance.set_memory_size(segment_size, True) #This will set the memory size of the single segment at segement_index
         # self.instance.init_ext_trigger()
         # setting of seqment size,i.e, replay length, and init of trigger done.
-        self.log.debug(f"Memory size to be set to: {segment_size} for index {segment_index}.")
+        # self.log.debug(f"Memory size to be set to: {segment_size} for index {segment_index}.")
         # loading of the ensemble data, separating into channel .pkl files and then writing into data list done here
         # after data_list for entire ensemble is compiled, upload is done into AWG specifying the segment size
         # and also the index this particular segment occupies in memory.
