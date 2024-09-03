@@ -184,7 +184,7 @@ class PIDLogic(GenericLogic):
 
             @return float: current set point of the PID controller
         """
-        return self.history[2, -1]
+        return self._controller.get_setpoint()
 
     def set_setpoint(self, setpoint):
         """ Set the current setpoint of the PID controller.
