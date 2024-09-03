@@ -31,6 +31,7 @@ import lakeshore
 class temperaturecontroller335(Base, PIDControllerInterface):
     """ Communicate with the Lakeshore 335 temperature controller.
         The code is written for one close loop operation of PID temperature control using one input temperture sensor and one output for a heater.
+        Make sure, that the device is connected to a proper USB port. Otherwise, timeout errors can occure.
 
     Example config for copy-paste:
 
@@ -84,7 +85,7 @@ class temperaturecontroller335(Base, PIDControllerInterface):
         """ Activate module.
         """
         self.temp_controller = Model335(baud_rate = 57600, com_port = self.serial_port)
-        try: #This test has to be done, as it causes an error for the first query after activation.
+        try: #This test has to be done, as it sometimes causes an error for the first query after activation.
             self.temp_controller.query('*IDN?')
         except:
             self.log.warn('Something might went wrong with the connection to the Temperature controller.')
@@ -93,34 +94,11 @@ class temperaturecontroller335(Base, PIDControllerInterface):
         self.setup_output()
         self.set_printing(False) #Deactivates the priting of information after every query for better readability of the log.
 
-        """ The timer is used to perform communication with the device in the given time interval. This is a workaround for a failing serial connection after longer periods without communication.
-        """
-        self.counter = 0
-        self.timestep = 60 # in s
-        self.timer = QtCore.QTimer()
-        self.timer.setSingleShot(True)
-        self.timer.setInterval(self.timestep * 1000)  # in ms
-        self.timer.timeout.connect(self.response_loop)
-        self.timer.start()
-
     def on_deactivate(self):
         """ Deactivate module.
         """
         self.set_printing(True)
-        self.timer.timeout.disconnect()
-        self.timer.stop()
         self.temp_controller.disconnect_usb()
-
-    def response_loop(self):
-        """ Method is used to call a query with the device in a given time interval.
-            This is a workaround for a failing serial connection to the device after longer periods without communication.
-        """
-        try:
-            self.temp_controller.query('*IDN?')
-            self.timer.start()
-            self.counter = self.counter+1
-        except:
-            self.log.error('Connection failed during response_loop.')
 
     def setup_input(self):
         """ Setup the input used for the PID controll loop with the parameters given from the config file.
@@ -156,7 +134,6 @@ class temperaturecontroller335(Base, PIDControllerInterface):
 
          @return (float): The current kp coefficient associated with the proportional term
          """
-        self.timer.start()
         str = f'PID?{self.output}'
         return float(self.temp_controller.query(str).split(',')[0])
 
@@ -165,7 +142,6 @@ class temperaturecontroller335(Base, PIDControllerInterface):
 
          @param (float) kp: The new kp coefficient associated with the proportional term
          """
-        self.timer.start()
         str = f'PID?{self.output}'
         current_PID = self.temp_controller.query(str).split(',')
         ki = float(current_PID[1])
@@ -178,7 +154,6 @@ class temperaturecontroller335(Base, PIDControllerInterface):
 
          @return (float): The current ki coefficient associated with the integral term
          """
-        self.timer.start()
         str = f'PID?{self.output}'
         return float(self.temp_controller.query(str).split(',')[1])
 
@@ -187,7 +162,6 @@ class temperaturecontroller335(Base, PIDControllerInterface):
 
          @param (float) ki: The new ki coefficient associated with the integral term
          """
-        self.timer.start()
         str = f'PID?{self.output}'
         current_PID = self.temp_controller.query(str).split(',')
         kp = float(current_PID[0])
@@ -200,7 +174,6 @@ class temperaturecontroller335(Base, PIDControllerInterface):
 
          @return (float): The current kd coefficient associated with the derivative term
          """
-        self.timer.start()
         str = f'PID?{self.output}'
         return float(self.temp_controller.query(str).split(',')[2])
 
@@ -209,7 +182,6 @@ class temperaturecontroller335(Base, PIDControllerInterface):
 
          @param (float) kd: The new kd coefficient associated with the derivative term
          """
-        self.timer.start()
         str = f'PID?{self.output}'
         current_PID = self.temp_controller.query(str).split(',')
         kp = float(current_PID[0])
@@ -222,7 +194,6 @@ class temperaturecontroller335(Base, PIDControllerInterface):
 
          @return (float): The current setpoint value
          """
-        self.timer.start()
         str = f'SETP?{self.output}'
         return float(self.temp_controller.query(str))
 
@@ -231,7 +202,6 @@ class temperaturecontroller335(Base, PIDControllerInterface):
 
         @param (float) setpoint: The new setpoint value
         """
-        self.timer.start()
         str = f'SETP{self.output},{setpoint}'
         self.temp_controller.command(str)
 
@@ -240,7 +210,6 @@ class temperaturecontroller335(Base, PIDControllerInterface):
 
         @return (float): The current manual value in %
         """
-        self.timer.start()
         str = f'MOUT?{self.output}'
         return float(self.temp_controller.query(str))
 
@@ -249,7 +218,6 @@ class temperaturecontroller335(Base, PIDControllerInterface):
 
         @param (float) manualvalue: The new manual value in %
         """
-        self.timer.start()
         str = f'MOUT{self.output},{manualvalue}'
         self.temp_controller.command(str)
 
@@ -258,7 +226,6 @@ class temperaturecontroller335(Base, PIDControllerInterface):
 
         @return (bool): True if enabled, False otherwise
         """
-        self.timer.start()
         str = f'RANGE?{self.output}'
         if int(self.temp_controller.query(str).split(',')[0]) == 0:
             return False
@@ -270,7 +237,6 @@ class temperaturecontroller335(Base, PIDControllerInterface):
 
         @param (bool) enabled: True to enabled, False otherwise
         """
-        self.timer.start()
         if enabled:
             str = f'RANGE{self.output},3'
             self.temp_controller.command(str)
@@ -300,7 +266,6 @@ class temperaturecontroller335(Base, PIDControllerInterface):
 
         @return (float): The current process value
         """
-        self.timer.start()
         str = f'KRDG?{self.input}'
         return float(self.temp_controller.query(str))
 
@@ -309,7 +274,6 @@ class temperaturecontroller335(Base, PIDControllerInterface):
 
         @return (float): The current control value
         """
-        self.timer.start()
         str = f'HTR?{self.output}'
         return float(self.temp_controller.query(str))
 
