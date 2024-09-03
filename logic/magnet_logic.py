@@ -837,7 +837,7 @@ class MagnetLogic(GenericLogic):
             except Exception as e:
                 # self.log.debug(f'Error: {e}. Probably still moving.')
                 time.sleep(self._checktime)
-            end_pos = self._pathway[self._pathway_index]
+        end_pos = self._pathway[self._pathway_index]
         # self.log.debug('end_pos {0}'.format(end_pos))
         differences = []
         for key in end_pos:
@@ -1853,16 +1853,16 @@ class MagnetLogic(GenericLogic):
         param_data = np.zeros(len(self._backmap), dtype='object')
 
         for backmap_index in self._backmap:
-            axis0_data[backmap_index] = self._backmap[backmap_index][self._axis0_name]
-            axis1_data[backmap_index] = self._backmap[backmap_index][self._axis1_name]
+            axis0_data[backmap_index] = self._backmap[backmap_index][self.align_2d_axis0_name]
+            axis1_data[backmap_index] = self._backmap[backmap_index][self.align_2d_axis1_name]
             param_data[backmap_index] = str(self._2D_add_data_matrix[self._backmap[backmap_index]['index']])
 
         constr = self.get_hardware_constraints()
-        units_axis0 = constr[self._axis0_name]['unit']
-        units_axis1 = constr[self._axis1_name]['unit']
+        units_axis0 = constr[self.align_2d_axis0_name]['unit']
+        units_axis1 = constr[self.align_2d_axis1_name]['unit']
 
-        add_data['{0} values ({1})'.format(self._axis0_name, units_axis0)] = axis0_data
-        add_data['{0} values ({1})'.format(self._axis1_name, units_axis1)] = axis1_data
+        add_data['{0} values ({1})'.format(self.align_2d_axis0_name, units_axis0)] = axis0_data
+        add_data['{0} values ({1})'.format(self.align_2d_axis1_name, units_axis1)] = axis1_data
         add_data['all measured additional parameter'] = param_data
 
         self._save_logic.save_data(add_data, filepath=filepath, filelabel=filelabel2,
@@ -1873,8 +1873,8 @@ class MagnetLogic(GenericLogic):
         x_val = self._2D_axis0_data
         y_val = self._2D_axis1_data
         save_dict = OrderedDict()
-        axis0_key = '{0} values ({1})'.format(self._axis0_name, units_axis0)
-        axis1_key = '{0} values ({1})'.format(self._axis1_name, units_axis1)
+        axis0_key = '{0} values ({1})'.format(self.align_2d_axis0_name, units_axis0)
+        axis1_key = '{0} values ({1})'.format(self.align_2d_axis1_name, units_axis1)
         counts_key = 'counts (c/s)'
         save_dict[axis0_key] = []
         save_dict[axis1_key] = []

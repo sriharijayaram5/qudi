@@ -54,7 +54,18 @@ class MotorAxis:
         return self._dev.stop(self.axis)
     
     def get_position(self):
-        return self._dev.get_position(self.axis)
+        still_moving = True
+        i = 0
+        pos = 0
+        while still_moving and i<5:
+            i +=1
+            try:
+                pos = self._dev.get_position(self.axis)
+                still_moving = False
+            except Exception as e:
+                # self.log.debug(f'Error: {e}. Probably still moving.')
+                time.sleep(1)
+        return pos
 
     def get_velocity(self):
         return self._dev.get_frequency(self.axis)
