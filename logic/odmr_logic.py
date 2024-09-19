@@ -57,6 +57,7 @@ class ODMRLogic(GenericLogic):
     cw_mw_frequency = StatusVar('cw_mw_frequency', 2870e6)
     cw_mw_power = StatusVar('cw_mw_power', -30)
     sweep_mw_power = StatusVar('sweep_mw_power', -30)
+    cw_laser_power_voltage = StatusVar('cw_laser_power_voltage', 0.1)
     fit_range = StatusVar('fit_range', 0)
     mw_starts = StatusVar('mw_starts', [2800e6])
     mw_stops = StatusVar('mw_stops', [2950e6])
@@ -412,7 +413,7 @@ class ODMRLogic(GenericLogic):
         self.sigParameterUpdated.emit(param_dict)
         return self.cw_mw_frequency, self.cw_mw_power
 
-    def set_sweep_parameters(self, starts, stops, steps, power):
+    def set_sweep_parameters(self, starts, stops, steps, power, laser_power_voltage):
         """ Set the desired frequency parameters for list and sweep mode
 
         @param list starts: list of start frequencies to set in Hz
@@ -453,6 +454,14 @@ class ODMRLogic(GenericLogic):
 
             if isinstance(power, (int, float)):
                 self.sweep_mw_power = limits.power_in_range(power)
+
+            if isinstance(laser_power_voltage, (int, float)):
+                if laser_power_voltage > 1:
+                    self.cw_laser_power_voltage = 1
+                elif laser_power_voltage < 0:
+                    self.cw_laser_power_voltage = 0
+                self.cw_laser_power_voltage = laser_power_voltage
+                self._odmr_counter._pulser._cw_laser_power_voltage = laser_power_voltage
         else:
             self.log.warning('set_sweep_parameters failed. Logic is locked.')
 
@@ -560,7 +569,7 @@ class ODMRLogic(GenericLogic):
                 mw_step = self.mw_steps[0]
                 mw_start = self.mw_starts[0]
 
-                self.final_freq_list = self._odmr_counter.set_up_odmr_AWG_sweep(mw_start, mw_stop, mw_step, clock_frequency=self.clock_frequency)
+                self.final_freq_list = self._odmr_counter.set_up_odmr_AWG_sweep(mw_start, mw_stop, mw_step, self.cw_laser_power_voltage, clock_frequency=self.clock_frequency)
                 mw_start, mw_stop, mw_step = self.final_freq_list[0], self.final_freq_list[-1], self.final_freq_list[1]-self.final_freq_list[0]
                 mode = 'sweep'
 
@@ -631,7 +640,7 @@ class ODMRLogic(GenericLogic):
         if self.mw_scanmode == MicrowaveMode.CW:
             clock_status = 0# clock_status = self._odmr_counter._pulse_creator.sample_load_ready_pulsestreamer_cw_odmr(clock_frequency=self.clock_frequency)
         else:
-            clock_status = self._odmr_counter.set_up_odmr_clock(clock_frequency=self.clock_frequency)
+            clock_status = self._odmr_counter.set_up_odmr_clock(self.cw_laser_power_voltage, clock_frequency=self.clock_frequency)
 
         if clock_status < 0:
             return -1
@@ -934,6 +943,7 @@ class ODMRLogic(GenericLogic):
             parameters = OrderedDict()
             parameters['Microwave CW Power (dBm)'] = self.cw_mw_power
             parameters['Microwave Sweep Power (dBm)'] = self.sweep_mw_power
+            parameters['Laser power voltage (V)'] = self.cw_laser_power_voltage
             parameters['Run Time (s)'] = self.run_time
             parameters['Number of frequency sweeps (#)'] = self.elapsed_sweeps
             parameters['Start Frequencies (Hz)'] = self.mw_starts
@@ -969,6 +979,7 @@ class ODMRLogic(GenericLogic):
                 parameters = OrderedDict()
                 parameters['Microwave CW Power (dBm)'] = self.cw_mw_power
                 parameters['Microwave Sweep Power (dBm)'] = self.sweep_mw_power
+                parameters['Laser power voltage (V)'] = self.cw_laser_power_voltage
                 parameters['Run Time (s)'] = self.run_time
                 parameters['Number of frequency sweeps (#)'] = self.elapsed_sweeps
                 parameters['Start Frequency (Hz)'] = frequency_arr[0]
@@ -1152,7 +1163,7 @@ class ODMRLogic(GenericLogic):
         odmr_matrix_range = odmr_matrix_dp[:, y_args]
         return odmr_matrix_range
 
-    def perform_odmr_measurement(self, freq_start, freq_step, freq_stop, power, channel, runtime,
+    def perform_odmr_measurement(self, freq_start, freq_step, freq_stop, power, laser_power_voltage, channel, runtime,
                                  fit_function='No Fit', save_after_meas=True, name_tag=''):
         """ An independant method, which can be called by a task with the proper input values
             to perform an odmr measurement.
@@ -1170,7 +1181,7 @@ class ODMRLogic(GenericLogic):
                 return tuple()
 
         # set all relevant parameter:
-        self.set_sweep_parameters(freq_start, freq_stop, freq_step, power)
+        self.set_sweep_parameters(freq_start, freq_stop, freq_step, power, laser_power_voltage)
         self.set_runtime(runtime)
 
         # start the scan

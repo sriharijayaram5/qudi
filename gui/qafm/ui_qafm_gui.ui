@@ -27,7 +27,7 @@
      <x>0</x>
      <y>0</y>
      <width>1033</width>
-     <height>22</height>
+     <height>21</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuMenu">
@@ -549,6 +549,51 @@
    </attribute>
    <widget class="QWidget" name="dockWidgetContents_2">
     <layout class="QGridLayout" name="gridLayout_14">
+     <item row="2" column="0">
+      <widget class="QGroupBox" name="liftOffMode_groupBox">
+       <property name="maximumSize">
+        <size>
+         <width>16777215</width>
+         <height>65</height>
+        </size>
+       </property>
+       <property name="title">
+        <string>Lift-off Mode</string>
+       </property>
+       <property name="checkable">
+        <bool>true</bool>
+       </property>
+       <property name="checked">
+        <bool>false</bool>
+       </property>
+       <layout class="QGridLayout" name="gridLayout_5">
+        <item row="0" column="0">
+         <layout class="QFormLayout" name="formLayout">
+          <item row="0" column="0">
+           <widget class="QLabel" name="label_23">
+            <property name="text">
+             <string>Lift-off height:</string>
+            </property>
+           </widget>
+          </item>
+          <item row="0" column="1">
+           <widget class="ScienDSpinBox" name="liftOffHeight_doubleSpinBox">
+            <property name="toolTip">
+             <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Lift-off height is the height by which the sample scanner retracts right before NV measurement. Positive lift off value corresponds to sample retraction.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+            </property>
+            <property name="suffix">
+             <string>m</string>
+            </property>
+            <property name="decimals">
+             <number>3</number>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </item>
+       </layout>
+      </widget>
+     </item>
      <item row="0" column="0">
       <widget class="QGroupBox" name="groupBox_8">
        <property name="sizePolicy">
@@ -616,8 +661,8 @@
        </layout>
       </widget>
      </item>
-     <item row="1" column="0">
-      <widget class="QGroupBox" name="groupBox_4">
+     <item row="4" column="0">
+      <widget class="QGroupBox" name="groupBox_6">
        <property name="sizePolicy">
         <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
          <horstretch>0</horstretch>
@@ -625,170 +670,44 @@
         </sizepolicy>
        </property>
        <property name="title">
-        <string/>
+        <string>Target AFM Position</string>
        </property>
-       <layout class="QGridLayout" name="gridLayout_6">
-        <item row="1" column="0">
-         <widget class="QLabel" name="label_12">
-          <property name="text">
-           <string>X</string>
-          </property>
-         </widget>
-        </item>
-        <item row="2" column="0">
-         <widget class="QLabel" name="label_13">
+       <layout class="QGridLayout" name="gridLayout_8">
+        <item row="0" column="1">
+         <widget class="QLabel" name="label_19">
           <property name="text">
            <string>Y</string>
           </property>
          </widget>
         </item>
-        <item row="2" column="1">
-         <widget class="ScienDSpinBox" name="afm_y_min_DSpinBox">
-          <property name="minimumSize">
-           <size>
-            <width>70</width>
-            <height>0</height>
-           </size>
+        <item row="0" column="0">
+         <widget class="QLabel" name="label_18">
+          <property name="text">
+           <string>X</string>
           </property>
          </widget>
+        </item>
+        <item row="1" column="0">
+         <widget class="ScienDSpinBox" name="afm_target_x_DSpinBox"/>
         </item>
         <item row="1" column="1">
-         <widget class="ScienDSpinBox" name="afm_x_min_DSpinBox">
-          <property name="minimumSize">
-           <size>
-            <width>70</width>
-            <height>0</height>
-           </size>
-          </property>
-         </widget>
-        </item>
-        <item row="1" column="2">
-         <widget class="ScienDSpinBox" name="afm_x_max_DSpinBox">
-          <property name="minimumSize">
-           <size>
-            <width>70</width>
-            <height>0</height>
-           </size>
-          </property>
-          <property name="value">
-           <double>1.000000000000000</double>
-          </property>
-         </widget>
-        </item>
-        <item row="2" column="2">
-         <widget class="ScienDSpinBox" name="afm_y_max_DSpinBox">
-          <property name="minimumSize">
-           <size>
-            <width>70</width>
-            <height>0</height>
-           </size>
-          </property>
-          <property name="value">
-           <double>1.000000000000000</double>
-          </property>
-         </widget>
-        </item>
-        <item row="1" column="3">
-         <widget class="ScienSpinBox" name="afm_x_num_SpinBox">
-          <property name="minimumSize">
-           <size>
-            <width>50</width>
-            <height>0</height>
-           </size>
-          </property>
-          <property name="minimum">
-           <number>1</number>
-          </property>
-          <property name="maximum">
-           <number>10000</number>
-          </property>
-          <property name="value">
-           <number>20</number>
-          </property>
-         </widget>
-        </item>
-        <item row="2" column="3">
-         <widget class="ScienSpinBox" name="afm_y_num_SpinBox">
-          <property name="minimumSize">
-           <size>
-            <width>50</width>
-            <height>0</height>
-           </size>
-          </property>
-          <property name="minimum">
-           <number>1</number>
-          </property>
-          <property name="maximum">
-           <number>10000</number>
-          </property>
-          <property name="value">
-           <number>20</number>
-          </property>
-         </widget>
-        </item>
-        <item row="0" column="1" colspan="2">
-         <widget class="QLabel" name="label_14">
-          <property name="text">
-           <string>Range</string>
-          </property>
-          <property name="alignment">
-           <set>Qt::AlignCenter</set>
-          </property>
-         </widget>
-        </item>
-        <item row="0" column="3">
-         <widget class="QLabel" name="label_15">
-          <property name="text">
-           <string>Points</string>
-          </property>
-         </widget>
+         <widget class="ScienDSpinBox" name="afm_target_y_DSpinBox"/>
         </item>
        </layout>
       </widget>
      </item>
-     <item row="2" column="0">
-      <widget class="QGroupBox" name="liftOffMode_groupBox">
-       <property name="maximumSize">
-        <size>
-         <width>16777215</width>
-         <height>65</height>
-        </size>
+     <item row="5" column="0">
+      <widget class="QGroupBox" name="scan_param_groupBox">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
        </property>
        <property name="title">
-        <string>Lift-off Mode</string>
+        <string>Scan Parameter</string>
        </property>
-       <property name="checkable">
-        <bool>true</bool>
-       </property>
-       <property name="checked">
-        <bool>false</bool>
-       </property>
-       <layout class="QGridLayout" name="gridLayout_5">
-        <item row="0" column="0">
-         <layout class="QFormLayout" name="formLayout">
-          <item row="0" column="0">
-           <widget class="QLabel" name="label_23">
-            <property name="text">
-             <string>Lift-off height:</string>
-            </property>
-           </widget>
-          </item>
-          <item row="0" column="1">
-           <widget class="ScienDSpinBox" name="liftOffHeight_doubleSpinBox">
-            <property name="toolTip">
-             <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Lift-off height is the height by which the sample scanner retracts right before NV measurement. Positive lift off value corresponds to sample retraction.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-            </property>
-            <property name="suffix">
-             <string>m</string>
-            </property>
-            <property name="decimals">
-             <number>3</number>
-            </property>
-           </widget>
-          </item>
-         </layout>
-        </item>
-       </layout>
+       <layout class="QGridLayout" name="gridLayout_scan_params"/>
       </widget>
      </item>
      <item row="3" column="0">
@@ -840,8 +759,8 @@
        </layout>
       </widget>
      </item>
-     <item row="4" column="0">
-      <widget class="QGroupBox" name="groupBox_6">
+     <item row="1" column="0">
+      <widget class="QGroupBox" name="groupBox_4">
        <property name="sizePolicy">
         <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
          <horstretch>0</horstretch>
@@ -849,44 +768,223 @@
         </sizepolicy>
        </property>
        <property name="title">
-        <string>Target AFM Position</string>
+        <string/>
        </property>
-       <layout class="QGridLayout" name="gridLayout_8">
-        <item row="0" column="1">
-         <widget class="QLabel" name="label_19">
+       <layout class="QGridLayout" name="gridLayout_6">
+        <item row="2" column="4">
+         <widget class="ScienDSpinBox" name="afm_x_pixel_size_DSpinBox">
+          <property name="minimumSize">
+           <size>
+            <width>70</width>
+            <height>0</height>
+           </size>
+          </property>
+          <property name="readOnly">
+           <bool>false</bool>
+          </property>
+          <property name="buttonSymbols">
+           <enum>QAbstractSpinBox::UpDownArrows</enum>
+          </property>
+          <property name="value">
+           <double>1.000000000000000</double>
+          </property>
+         </widget>
+        </item>
+        <item row="1" column="3">
+         <widget class="QLabel" name="label_15">
+          <property name="text">
+           <string>Points</string>
+          </property>
+          <property name="alignment">
+           <set>Qt::AlignCenter</set>
+          </property>
+         </widget>
+        </item>
+        <item row="1" column="1">
+         <widget class="QLabel" name="label_24">
+          <property name="text">
+           <string>Origin</string>
+          </property>
+          <property name="alignment">
+           <set>Qt::AlignCenter</set>
+          </property>
+         </widget>
+        </item>
+        <item row="5" column="0">
+         <widget class="QLabel" name="label_25">
+          <property name="text">
+           <string>Rotation</string>
+          </property>
+         </widget>
+        </item>
+        <item row="4" column="4">
+         <widget class="ScienDSpinBox" name="afm_y_pixel_size_DSpinBox">
+          <property name="minimumSize">
+           <size>
+            <width>70</width>
+            <height>0</height>
+           </size>
+          </property>
+          <property name="readOnly">
+           <bool>false</bool>
+          </property>
+          <property name="buttonSymbols">
+           <enum>QAbstractSpinBox::UpDownArrows</enum>
+          </property>
+          <property name="value">
+           <double>1.000000000000000</double>
+          </property>
+         </widget>
+        </item>
+        <item row="1" column="4">
+         <widget class="QLabel" name="label_26">
+          <property name="text">
+           <string>Pixel size</string>
+          </property>
+          <property name="alignment">
+           <set>Qt::AlignCenter</set>
+          </property>
+         </widget>
+        </item>
+        <item row="4" column="0">
+         <widget class="QLabel" name="label_13">
           <property name="text">
            <string>Y</string>
           </property>
          </widget>
         </item>
-        <item row="0" column="0">
-         <widget class="QLabel" name="label_18">
+        <item row="5" column="1">
+         <widget class="ScienDSpinBox" name="afm_rotation_DSpinBox">
+          <property name="minimumSize">
+           <size>
+            <width>70</width>
+            <height>0</height>
+           </size>
+          </property>
+         </widget>
+        </item>
+        <item row="2" column="3">
+         <widget class="ScienSpinBox" name="afm_x_num_SpinBox">
+          <property name="minimumSize">
+           <size>
+            <width>50</width>
+            <height>0</height>
+           </size>
+          </property>
+          <property name="minimum">
+           <number>1</number>
+          </property>
+          <property name="maximum">
+           <number>10000</number>
+          </property>
+          <property name="value">
+           <number>20</number>
+          </property>
+         </widget>
+        </item>
+        <item row="4" column="1">
+         <widget class="ScienDSpinBox" name="afm_y_origin_DSpinBox">
+          <property name="minimumSize">
+           <size>
+            <width>70</width>
+            <height>0</height>
+           </size>
+          </property>
+         </widget>
+        </item>
+        <item row="4" column="2">
+         <widget class="ScienDSpinBox" name="afm_y_range_DSpinBox">
+          <property name="minimumSize">
+           <size>
+            <width>70</width>
+            <height>0</height>
+           </size>
+          </property>
+          <property name="value">
+           <double>1.000000000000000</double>
+          </property>
+         </widget>
+        </item>
+        <item row="1" column="2">
+         <widget class="QLabel" name="label_14">
+          <property name="text">
+           <string>Range</string>
+          </property>
+          <property name="alignment">
+           <set>Qt::AlignCenter</set>
+          </property>
+         </widget>
+        </item>
+        <item row="2" column="0">
+         <widget class="QLabel" name="label_12">
           <property name="text">
            <string>X</string>
           </property>
          </widget>
         </item>
-        <item row="1" column="0">
-         <widget class="ScienDSpinBox" name="afm_target_x_DSpinBox"/>
+        <item row="4" column="3">
+         <widget class="ScienSpinBox" name="afm_y_num_SpinBox">
+          <property name="minimumSize">
+           <size>
+            <width>50</width>
+            <height>0</height>
+           </size>
+          </property>
+          <property name="minimum">
+           <number>1</number>
+          </property>
+          <property name="maximum">
+           <number>10000</number>
+          </property>
+          <property name="value">
+           <number>20</number>
+          </property>
+         </widget>
         </item>
-        <item row="1" column="1">
-         <widget class="ScienDSpinBox" name="afm_target_y_DSpinBox"/>
+        <item row="2" column="2">
+         <widget class="ScienDSpinBox" name="afm_x_range_DSpinBox">
+          <property name="minimumSize">
+           <size>
+            <width>70</width>
+            <height>0</height>
+           </size>
+          </property>
+          <property name="value">
+           <double>1.000000000000000</double>
+          </property>
+         </widget>
+        </item>
+        <item row="2" column="1">
+         <widget class="ScienDSpinBox" name="afm_x_origin_DSpinBox">
+          <property name="minimumSize">
+           <size>
+            <width>70</width>
+            <height>0</height>
+           </size>
+          </property>
+         </widget>
+        </item>
+        <item row="6" column="3" colspan="2">
+         <widget class="QPushButton" name="load_from_pickel_PushButton">
+          <property name="toolTip">
+           <string>Load the scan data from its pickle file</string>
+          </property>
+          <property name="text">
+           <string>Load from pickle</string>
+          </property>
+         </widget>
+        </item>
+        <item row="6" column="1" colspan="2">
+         <widget class="QPushButton" name="copy_from_daisy_PushButton">
+          <property name="toolTip">
+           <string>Copy the AFM parameters from the Daisy software</string>
+          </property>
+          <property name="text">
+           <string>Copy from Daisy</string>
+          </property>
+         </widget>
         </item>
        </layout>
-      </widget>
-     </item>
-     <item row="5" column="0">
-      <widget class="QGroupBox" name="scan_param_groupBox">
-       <property name="sizePolicy">
-        <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
-         <horstretch>0</horstretch>
-         <verstretch>0</verstretch>
-        </sizepolicy>
-       </property>
-       <property name="title">
-        <string>Scan Parameter</string>
-       </property>
-       <layout class="QGridLayout" name="gridLayout_scan_params"/>
       </widget>
      </item>
     </layout>
@@ -1420,7 +1518,7 @@
   <customwidget>
    <class>ScienDSpinBox</class>
    <extends>QDoubleSpinBox</extends>
-   <header location="global">qtwidgets.scientific_spinbox.h</header>
+   <header>qtwidgets.scientific_spinbox.h</header>
   </customwidget>
   <customwidget>
    <class>ScienSpinBox</class>
@@ -1449,16 +1547,39 @@
   <tabstop>obj_target_x_DSpinBox</tabstop>
   <tabstop>obj_target_y_DSpinBox</tabstop>
   <tabstop>obj_target_z_DSpinBox</tabstop>
-  <tabstop>afm_x_min_DSpinBox</tabstop>
-  <tabstop>afm_x_max_DSpinBox</tabstop>
+  <tabstop>afm_x_origin_DSpinBox</tabstop>
+  <tabstop>afm_x_range_DSpinBox</tabstop>
   <tabstop>afm_x_num_SpinBox</tabstop>
-  <tabstop>afm_y_min_DSpinBox</tabstop>
-  <tabstop>afm_y_max_DSpinBox</tabstop>
+  <tabstop>afm_x_pixel_size_DSpinBox</tabstop>
+  <tabstop>afm_y_origin_DSpinBox</tabstop>
+  <tabstop>afm_y_range_DSpinBox</tabstop>
   <tabstop>afm_y_num_SpinBox</tabstop>
+  <tabstop>afm_y_pixel_size_DSpinBox</tabstop>
+  <tabstop>afm_rotation_DSpinBox</tabstop>
   <tabstop>afm_curr_x_DSpinBox</tabstop>
   <tabstop>afm_curr_y_DSpinBox</tabstop>
   <tabstop>afm_target_x_DSpinBox</tabstop>
   <tabstop>afm_target_y_DSpinBox</tabstop>
+  <tabstop>save_obj_xz_CheckBox</tabstop>
+  <tabstop>obj_save_LineEdit</tabstop>
+  <tabstop>save_obj_yz_CheckBox</tabstop>
+  <tabstop>save_obj_xy_CheckBox</tabstop>
+  <tabstop>optimizer_request_Toggle</tabstop>
+  <tabstop>optimizer_request_autorun_CheckBox</tabstop>
+  <tabstop>optimizer_request_period_SpinBox</tabstop>
+  <tabstop>qafm_save_LineEdit</tabstop>
+  <tabstop>scan_id_spinBox</tabstop>
+  <tabstop>probename_LineEdit</tabstop>
+  <tabstop>samplename_LineEdit</tabstop>
+  <tabstop>liftOffMode_groupBox</tabstop>
+  <tabstop>liftOffHeight_doubleSpinBox</tabstop>
+  <tabstop>freq1_isob_freq_DSpinBox</tabstop>
+  <tabstop>freq2_isob_freq_DSpinBox</tabstop>
+  <tabstop>isob_power_DSpinBox</tabstop>
+  <tabstop>fwhm_isob_freq_DSpinBox</tabstop>
+  <tabstop>use_single_isob_RadioButton</tabstop>
+  <tabstop>use_dual_isob_RadioButton</tabstop>
+  <tabstop>calibrate_dual_isob_PushButton</tabstop>
  </tabstops>
  <resources/>
  <connections/>

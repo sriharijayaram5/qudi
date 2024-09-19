@@ -76,6 +76,11 @@ class PulsedJupyterLogic(GenericLogic):
 
         Rearm_time = (40/1.25e9)
         print("Rearm_time",Rearm_time)
+
+        self.max_available_segments = self.AWG.instance.cards[0].get32(349900)
+        self.max_available_steps = self.AWG.instance.cards[0].get32(349901)
+        self.max_available_loops = self.AWG.instance.cards[0].get32(349902)
+        self.sample_rate = self.AWG.instance.cards[0].get_samplerate()
         return
 
     def on_deactivate(self):
@@ -103,6 +108,8 @@ class PulsedJupyterLogic(GenericLogic):
         self.upload = upload
         self.set_up_measurement = set_up_measurement
         self.check_current_sequence = check_current_sequence
+
+        self.pulser.update_final_states(self.laser_volt)
 
         self.switch_MW = switch_MW
         if self.switch_MW:
@@ -161,6 +168,18 @@ class PulsedJupyterLogic(GenericLogic):
             for index, seg in enumerate(segments):
                 segment_and_index[seg] = index
             return segment_and_index, segments
+    
+    def find_waiting_time(self, tau_max):
+        waiting_samples = 32*12
+        if waiting_samples <32*12:
+            print('!!!Given configuration of waiting samples results in an value, which cannot be uploaded to the AWG!!!')
+            return
+        while True:
+            waiting_time = waiting_samples/self.sample_rate
+            if tau_max >waiting_time*self.max_available_loops:
+                waiting_samples = waiting_samples +32
+            else:
+                return waiting_time
 
     def sample_load_ready_pulsestreamer(self, name = 'read_out_jptr'):
         
@@ -187,8 +206,8 @@ class PulsedJupyterLogic(GenericLogic):
         self.pulser.pulser_off()
         self.BlockPS = []
         #Read out sequence
-        self.ElementPS(channels={'Laser':True,'TT_Start':True}, length=meas_time, laser_power=self.pulser._laser_power_voltage)
-        self.ElementPS(channels={'Laser':True, 'TT_Next':True}, length=expand_time, laser_power=self.pulser._laser_power_voltage)
+        self.ElementPS(channels={'Laser':True,'TT_Start':True}, length=meas_time, laser_power=self.pulser._cw_laser_power_voltage)
+        self.ElementPS(channels={'Laser':True, 'TT_Next':True}, length=expand_time, laser_power=self.pulser._cw_laser_power_voltage)
         
         pulse_block = po.PulseBlock(name=name, element_list=self.BlockPS)
         self.pulsed_master.sequencegeneratorlogic().save_block(pulse_block)
@@ -200,7 +219,27 @@ class PulsedJupyterLogic(GenericLogic):
         self.pulsed_master.sequencegeneratorlogic().save_ensemble(pulse_block_ensemble)
         self.pulsed_master.sequencegeneratorlogic().sample_pulse_block_ensemble(name)
         self.pulsed_master.sequencegeneratorlogic().load_ensemble(name)
-        self.pulser.pulser_on(trigger=True, n=1, rearm=False, final=self.pulser._final_state)
+        self.pulser.pulser_on(trigger=True, n=1, rearm=False, final=self.pulser.AWG_master_cw_final_state)
+        return 0
+    
+    def sample_load_ready_pulsestreamer_cw_lasing(self, name = 'cw_lasing_jptr'):
+        
+        self.pulser.pulser_off()
+        self.BlockPS = []
+        #Read out sequence
+        self.ElementPS(channels={'Laser':True}, length=1e-6, laser_power=self.pulser._cw_laser_power_voltage)
+        
+        pulse_block = po.PulseBlock(name=name, element_list=self.BlockPS)
+        self.pulsed_master.sequencegeneratorlogic().save_block(pulse_block)
+        
+        block_list = []
+        block_list.append((pulse_block.name, 0))
+        pulse_block_ensemble = po.PulseBlockEnsemble(name, block_list)
+        
+        self.pulsed_master.sequencegeneratorlogic().save_ensemble(pulse_block_ensemble)
+        self.pulsed_master.sequencegeneratorlogic().sample_pulse_block_ensemble(name)
+        self.pulsed_master.sequencegeneratorlogic().load_ensemble(name)
+        self.pulser.pulser_on(trigger=False, n=1, rearm=False, final=self.pulser.AWG_master_cw_final_state)
         return 0
 
     def run_IQ_DC(self, MW0 = True, MW1 = False):
@@ -352,6 +391,12 @@ class PulsedJupyterLogic(GenericLogic):
             played by trigger.
             One big ensemble covering the entire tau sweep that is triggered once before every sweep. Not before every tau instance.
         """
+        if len(segments) > self.max_available_segments:
+            self.log.warning('Number of segments is larger than the maximum segment number of the AWG. Nothing is uploaded!')
+            return [],[]
+        if len(sequence_step_list) > self.max_available_steps:
+            self.log.warning('Number of steps is larger than the maximum step number of the AWG. Nothing is uploaded!')
+            return [],[]
         #Create large pulse block for the AWG
         ensemble_list = []
         use_MW_0 = False
@@ -517,20 +562,27 @@ class PulsedJupyterLogic(GenericLogic):
 ## Beginning of Measurement methods ##
 ####################################################################################################################
 
-    def Single_Freq(self, MW_0=False, MW_0_freq = 2.88e9 , MW_0_power = -20, MW_1=False, MW_1_freq = 2.88e9, MW_1_power = -20):
+    def Single_Freq(self, freq, name = None):
         '''
         '''        
-        alternating = False
-        freq_sweep=False
-        name = 'single_freq_jptr'
-        self.tau_arr = []
-        sequence_step_list = []
+        if name is None:
+            name = 'single-freq-juptr'
 
-        status, ensemble_list = self.run_IQ_DC(self, MW0 = MW_0, MW1 = MW_1)
-        if MW_0:
-            self.mw.set_cw(MW_0_freq,MW_0_power)
-        if MW_1:
-            self.mw.set_cw(MW_1_freq,MW_1_power)
+        alternating = False
+        freq_sweep= False
+
+        self.tau_arr = [freq]
+        freq_segment_time = 10e-6
+        
+        #Create pulse sequence for the AWG streamer
+        self.BlockAWG = []
+
+        #Frequency on
+        self.ElementAWG(channels={'MW_0':True}, length=freq_segment_time, freq_0=freq)
+
+        self.sample_load_ready_pulsestreamer_cw_lasing()
+        
+        ensemble_list, sequence_step_list = self.sample_load_ready_AWG(name, self.tau_arr, alternating, freq_sweep, change_freq = True)
 
         return ensemble_list, sequence_step_list, name, self.tau_arr, alternating, freq_sweep
     
@@ -559,7 +611,7 @@ class PulsedJupyterLogic(GenericLogic):
         #Define the number of loops played for each frequency step
         meas_time = 1/clock_frequency
         freq_segment_time = 10e-6
-        expand_time = 1*freq_segment_time
+        expand_time = 0.5*freq_segment_time
         num_loops = int(np.rint(meas_time/freq_segment_time))
         num_loops_expand = int(np.rint(expand_time/freq_segment_time))
         new_meas_time = num_loops*freq_segment_time
@@ -594,7 +646,7 @@ class PulsedJupyterLogic(GenericLogic):
                         }
             self.sequence_step_list.append(step)
  
-        self.sample_load_ready_pulsestreamer_cw_odmr(new_meas_time,expand_time/2, name = 'read_out_cw_odmr_jptr')
+        self.sample_load_ready_pulsestreamer_cw_odmr(new_meas_time,expand_time, name = 'read_out_cw_odmr_jptr')
         
         ensemble_list, sequence_step_list = self.sample_load_ready_AWG_sequence(self.segments, self.sequence_step_list, self.tau_arr, alternating, freq_sweep, change_freq = True)
 
@@ -773,11 +825,7 @@ class PulsedJupyterLogic(GenericLogic):
         waiting_name = name+'-waiting'
         #It is recommended to use a multiple of 32, as the AWG only allows to upload sample size with modulus 32 == 0.
         #Otherwise it will fill up the segment with empty samples, making the waiting time not predictable.
-        waiting_samples = 32*12
-        if waiting_samples <32*12:
-            print('!!!Given configuration of waiting samples results in an value, which cannot be uploaded to the AWG!!!')
-            return
-        waiting_time = waiting_samples/1.25e9
+        waiting_time = self.find_waiting_time(self.tau_arr[-1])
         if waiting_time>tau_start:
             print(f'!!!tau_start is smaller than the minimum waiting time. Please select a tau_start>{waiting_time}!!!')
             return
@@ -862,11 +910,7 @@ class PulsedJupyterLogic(GenericLogic):
         waiting_name = name+'-waiting'
         #It is recommended to use a multiple of 32, as the AWG only allows to upload sample size with modulus 32 == 0.
         #Otherwise it will fill up the segment with empty samples, making the waiting time not predictable.
-        waiting_samples = 32*12
-        if waiting_samples <32*12:
-            print('!!!Given configuration of waiting samples results in an value, which cannot be uploaded to the AWG!!!')
-            return
-        waiting_time = waiting_samples/1.25e9
+        waiting_time = self.find_waiting_time(self.tau_arr[-1])
         if waiting_time>tau_start:
             print(f'!!!tau_start is smaller than the minimum waiting time. Please select a tau_start>{waiting_time}!!!')
             return
@@ -987,11 +1031,7 @@ class PulsedJupyterLogic(GenericLogic):
         waiting_name = name+'-waiting'
         #It is recommended to use a multiple of 32, as the AWG only allows to upload sample size with modulus 32 == 0.
         #Otherwise it will fill up the segment with empty samples, making the waiting time not predictable.
-        waiting_samples = 32*12
-        if waiting_samples <32*12:
-            print('!!!Given configuration of waiting samples results in an value, which cannot be uploaded to the AWG!!!')
-            return
-        waiting_time = waiting_samples/1.25e9
+        waiting_time = self.find_waiting_time(self.tau_arr[-1])
         if waiting_time>tau_start:
             print(f'!!!tau_start is smaller than the minimum waiting time. Please select a tau_start>{waiting_time}!!!')
             return
@@ -1107,11 +1147,7 @@ class PulsedJupyterLogic(GenericLogic):
         waiting_name = name+'-waiting'
         #It is recommended to use a multiple of 32, as the AWG only allows to upload sample size with modulus 32 == 0.
         #Otherwise it will fill up the segment with empty samples, making the waiting time not predictable.
-        waiting_samples = 32*12
-        if waiting_samples <32*12:
-            print('!!!Given configuration of waiting samples results in an value, which cannot be uploaded to the AWG!!!')
-            return
-        waiting_time = waiting_samples/1.25e9
+        waiting_time = self.find_waiting_time(self.tau_arr[-1])
         if waiting_time>tau_start:
             print(f'!!!tau_start is smaller than the minimum waiting time. Please select a tau_start>{waiting_time}!!!')
             return
@@ -1226,11 +1262,7 @@ class PulsedJupyterLogic(GenericLogic):
         waiting_name = name+'-waiting'
         #It is recommended to use a multiple of 32, as the AWG only allows to upload sample size with modulus 32 == 0.
         #Otherwise it will fill up the segment with empty samples, making the waiting time not predictable.
-        waiting_samples = 32*12
-        if waiting_samples <32*12:
-            print('!!!Given configuration of waiting samples results in an value, which cannot be uploaded to the AWG!!!')
-            return
-        waiting_time = waiting_samples/1.25e9
+        waiting_time = self.find_waiting_time(self.tau_arr[-1])
         if waiting_time>tau_start:
             print(f'!!!tau_start is smaller than the minimum waiting time. Please select a tau_start>{waiting_time}!!!')
             return
@@ -1737,11 +1769,7 @@ class PulsedJupyterLogic(GenericLogic):
         waiting_name = name+'-waiting'
         #It is recommended to use a multiple of 32, as the AWG only allows to upload sample size with modulus 32 == 0.
         #Otherwise it will fill up the segment with empty samples, making the waiting time not predictable.
-        waiting_samples = 32*12
-        if waiting_samples <32*12:
-            print('!!!Given configuration of waiting samples results in an value, which cannot be uploaded to the AWG!!!')
-            return
-        waiting_time = waiting_samples/1.25e9
+        waiting_time = self.find_waiting_time(self.tau_arr[-1])
         if waiting_time>tau_start:
             print(f'!!!tau_start is smaller than the minimum waiting time. Please select a tau_start>{waiting_time}!!!')
             return

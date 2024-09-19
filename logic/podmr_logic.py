@@ -309,6 +309,7 @@ class ODMRLogic(GenericLogic):
                     self.laser_power_voltage = 0
                 else:
                     self.laser_power_voltage = laser_power_voltage
+                    self._pulse_creator.pulser._pulsed_laser_power_voltage = laser_power_voltage
 
         else:
             self.log.warning('set_sweep_parameters failed. Logic is locked.')
@@ -650,13 +651,13 @@ class ODMRLogic(GenericLogic):
         tmp_signal = laser_data[:,signal_start_bin:signal_end_bin]
         if np.count_nonzero(tmp_signal):
             signal_data = np.mean(tmp_signal, axis=1)/np.mean(tmp_ref, axis=1)
-            ref_data = np.mean(tmp_ref, axis=1)
+            ref_data = np.sum(tmp_ref, axis=1)
             error_data = signal_data * np.sqrt(1/np.sum(tmp_signal, axis=1) + 1/np.sum(tmp_ref, axis=1))
         else:
             signal_data = np.zeros(num_of_lasers)
             error_data = np.zeros(num_of_lasers)
             ref_data = np.zeros(num_of_lasers)
-        ref_time = (norm_end-norm_start)
+        ref_time = (norm_end_bin*bin_width-norm_start_bin*bin_width)
         return signal_data, error_data, ref_data, ref_time
     
     def get_fit_functions(self):

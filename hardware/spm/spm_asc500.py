@@ -379,9 +379,8 @@ class SPM_ASC500(Base, ScannerInterface):
         self._line_points = params['line_points']
         self._lines_num = params['lines_num']
         self._spm_curr_sstyle = scan_style
-        self._curr_meas_params = ['Height(Dac)']
     
-        return ret_val, 0, self._curr_meas_params
+        return ret_val, 0
 
     def get_current_configuration(self):
         """ Returns the current scanner configuration
@@ -590,6 +589,81 @@ class SPM_ASC500(Base, ScannerInterface):
             self.log.warning(f'SPM in wrong mode to do area scan!')
             return
 
+    def configure_area_new(self, 
+                       point_grid_dict,
+                       scan_arr,
+                       afm_int_time, afm_scan_speed,
+                       liftoff_mode, liftoff_height):
+        """ Setup the scan line parameters
+        
+        @param float coord0_start: start point for coordinate 0 in m
+        @param float coord0_stop: stop point for coordinate 0 in m
+        @param float coord1_start: start point for coordinate 1 in m
+        @param float coord1_stop: stop point for coordinate 1 in m
+        @param float time_forward: time for forward movement during linescan in s
+                                   For line-scan mode time_forward is equal to 
+                                   the time-interval between starting of the 
+                                   first scanned point and ending of the last 
+                                   scan point. 
+                                   For point-scan tforw is the sum of all 
+                                   time-intervals between scan points.
+        @param float time_back: sets the time-interval for back (idle) movement 
+                                in s when the back displacement is abs equal to 
+                                the forward displacement, it also defines the 
+                                time interval when move to first scan point.
+        
+        @return bool: status variable with: 
+                        False (=0) call failed
+                        True (=1) call successful
+
+        This is a general function, a line is scanned in a previously configured
+        plane. It is possible to set zero scan area, then some reasonable 
+        values for time_forward and time_back will be chosen automatically.
+        """ 
+        if self._spm_curr_mode == ScannerMode.PROBE_CONTACT:
+            scan_range = self.get_sample_scan_range(['X','Y'])
+            for y_ind in range(self._lines_num):
+                for x_ind in range(self._line_points):
+                    axis_dict = {'X': scan_arr[y_ind, x_ind, 0], 'Y': scan_arr[y_ind, x_ind, 1]}
+                    for i in scan_range:
+                        if axis_dict[i] > scan_range[i]:
+                            self.log.warning(f'Sample scanner {i} to abs. position outside scan range: {axis_dict[i]*1e6:.3f} um')
+                            self.overrange = True
+                            return 0
+            self.overrange = False
+
+            # Here the time_back coming from idle_time will set how was the sample scanner moves around
+            # time_forward is set by integration time and will determine time spend at each point. Currently weirdly divided between all points in a line.
+
+            while self._dev.base.getParameter(self._dev.base.getConst('ID_PATH_RUNNING'), 0)==1 or self._dev.base.getParameter(self._dev.base.getConst('ID_SCAN_STATUS'), 0)==2:
+                time.sleep(0.1)
+                pass
+
+            # time back is actually the scan speed from the GUI in m/s
+            self._dev.base.setParameter(self._dev.base.getConst('ID_SCAN_PSPEED'), afm_scan_speed*1e9, 0)
+            
+            self._configureSampleAreaPath_new(point_grid_dict, self._line_points, self._lines_num, liftoff_mode, liftoff_height)
+            self._polled_data = np.zeros(self._line_points) # mean is done anyway so linepoints shouldnt affect.  leaving it in since it was this way
+            self._configurePathDataBuffering(sampTime=afm_int_time)
+
+            #Move the sample scanner to the second point of the scan befor the path mode starts. A bug appears if the path mode starting position is the same like the current position.
+            x_pos, y_pos = scan_arr[0,1]
+            self.set_sample_pos_abs({'X': x_pos,'Y': y_pos})
+
+            if self._spm_curr_sstyle==ScanStyle.POINT:
+                while True:
+                    if self._dev.base.getParameter(self._dev.base.getConst('ID_SCAN_STATUS'), 0)==8: # should represent idle scan state
+                        break
+                self._dev.base.setParameter(self._dev.base.getConst('ID_SPEC_PATHCTRL'), -1, 0 ) # -1 is grid mode
+                self._dev.scanner.setRelativeOrigin(self.end_coords) # set after path or it will attempt going to origin for some reason
+                self._spm_curr_state =  ScannerState.PROBE_SCANNING
+
+            return 1
+        
+        else:
+            self.log.warning(f'SPM in wrong mode to do area scan!')
+            return 0
+
     def set_ext_trigger(self, trig=False):
         self._trig = trig
     
@@ -655,6 +729,74 @@ class SPM_ASC500(Base, ScannerInterface):
         self._dev.base.setParameter(self._dev.base.getConst('ID_SCAN_ROTATION'), 0, 0)
         
         self.end_coords = [area_corr0_start,area_corr1_start]
+        
+        for index, val in enumerate(self._coords):
+            self._dev.base.setParameter(self._dev.base.getConst('ID_PATH_GUI_X'), int(val[0]/10e-12), index)  # start point is current position
+            self._dev.base.setParameter(self._dev.base.getConst('ID_PATH_GUI_Y'), int(val[1]/10e-12), index)  # start point is current position
+
+        # define number path actions at a point ('ID_PATH_ACTION'), no. of actions, 0 
+        self.liftoff_mode = False
+        self.liftoff_height = 0
+        if self._spm_curr_sstyle == ScanStyle.LINE:
+            self.log.warning(f'Incorrect scan style for SPM area configuration.')
+
+        elif liftoff_mode == True:
+            self.liftoff_mode = liftoff_mode
+            self.liftoff_height = liftoff_height
+            self._dev.base.setParameter(self._dev.base.getConst('ID_PATH_ACTION'), 5, 0)
+            # 0=manual handshake, 1..3=spectroscopy 1..3, 4=ext. handshake, 5=move Z home, 6=auto approach
+            self._dev.base.setParameter(self._dev.base.getConst('ID_PATH_ACTION'), 0, 1)
+            self._dev.base.setParameter(self._dev.base.getConst('ID_PATH_ACTION'), 2, 2)
+            #move home
+            self._dev.base.setParameter(self._dev.base.getConst('ID_PATH_ACTION'), 5, 3)
+            #ext shake
+            self._dev.base.setParameter(self._dev.base.getConst('ID_PATH_ACTION'), 0, 4)
+            #loop on
+            self._dev.base.setParameter(self._dev.base.getConst('ID_PATH_ACTION'), 6, 5)
+
+            #configuration of autoapproach settings
+            # for HFAmpl signal
+            threshold = self._dev.base.getParameter(self._dev.base.getConst('ID_REG_SETP_DISP')) / 1e7
+            self._dev.aap.setAApThreshold(threshold)
+                    
+            # dF     8
+            # HFAmpl       13
+            input_signal = self._dev.base.getParameter(self._dev.base.getConst('ID_REG_INPUT'))
+            threshold_cond = 1 if input_signal==13 else 0        
+            self._dev.aap.setAApStopCondition(threshold_cond) # [0, 1] >threshold/<threshold
+            self._dev.aap.setAApStepsPerApproach(0)
+
+            self._dev.aap.setAApAproachMode(1) # [0, 1] Ramp/Loop
+            self._dev.aap.setAApModeAfter(0) # [0, 1, 2] On/Retract/Off
+        else:
+            # If the scan mode is ESR then one needs to scan point by point mode. This would be non blocking between each point and therefore the manual
+            # handshake makes sure the tip waits at the next point until logic is ready to proceed
+            self._dev.base.setParameter(self._dev.base.getConst('ID_PATH_ACTION'), 3, 0)
+            # define which actions specifically ('ID_PATH_ACTION'), 0=manual handshake/2=Spec 1 dummy engine/4=external handshake, 1=as the first action if no. of actions>=1 
+            self._dev.base.setParameter(self._dev.base.getConst('ID_PATH_ACTION'), 0, 1)
+            self._dev.base.setParameter(self._dev.base.getConst('ID_PATH_ACTION'), 2, 2)
+            self._dev.base.setParameter(self._dev.base.getConst('ID_PATH_ACTION'), 0, 3)
+
+    def _configureSampleAreaPath_new(self, point_grid_dict, line_points, lines_num, liftoff_mode, liftoff_height):
+        self._dev.base.setParameter(self._dev.base.getConst('ID_SPEC_PATHCTRL'), 0, 0)
+        self._dev.base.setParameter(self._dev.base.getConst('ID_SPEC_PATHPREP'), 1, 0)
+        self._dev.base.setParameter(self._dev.base.getConst('ID_EXTTRG_TIMEOUT'), self._sync_in_timeout, 0) # 0ms timeout - will wait until SYNC IN is received
+        self._dev.base.setParameter(self._dev.base.getConst('ID_EXTTRG_HS'), 1, 0) # enable trigger
+        self._dev.base.setParameter(self._dev.base.getConst('ID_EXTTRG_EDGE'), 0, 0) # 0 is rising edge
+        # set number of xy grid points
+        self._dev.base.setParameter(self._dev.base.getConst('ID_PATH_GRIDP_X'), line_points, 0)
+        self._dev.base.setParameter(self._dev.base.getConst('ID_PATH_GRIDP_Y'), lines_num, 0)
+        # if going to use grid mode, i.e, ('ID_SPEC_PATHCTRL'), -1, 0, then the GUI_X/Y points of index 0,1,2,3 are the BL,BR,TL,TR coordinates of a parallelogram - BL is start and TR is end
+        # coords = [BL,BR,TL,TR] 
+
+        self._coords = [point_grid_dict['bottom_left'],point_grid_dict['bottom_right'],point_grid_dict['top_left'],point_grid_dict['top_right']]
+        
+        self._dev.scanner.setNumberOfColumns(1)
+        self._dev.scanner.setNumberOfLines(1)
+        self._dev.scanner.setPixelSize(0)
+        self._dev.base.setParameter(self._dev.base.getConst('ID_SCAN_ROTATION'), 0, 0)
+        
+        self.end_coords = point_grid_dict['bottom_left']
         
         for index, val in enumerate(self._coords):
             self._dev.base.setParameter(self._dev.base.getConst('ID_PATH_GUI_X'), int(val[0]/10e-12), index)  # start point is current position
@@ -802,6 +944,12 @@ class SPM_ASC500(Base, ScannerInterface):
                 else:
                     pass
             
+            while True:
+                if self._dev.base.getParameter(self._dev.base.getConst('ID_SPEC_PATHMANSTAT'), 0)==0:
+                    break
+                else:
+                    pass
+
             if not move_along:
                 self._poll_point_data()
                 return self._polled_data
@@ -1361,7 +1509,22 @@ class SPM_ASC500(Base, ScannerInterface):
                 axis_dict[i] *= 10 
             self._dev.base.setParameter(self._dev.base.getConst(const_dict[i[0].upper()]), axis_dict[i]*1e11, 0 )
         
-        self._dev.base.setParameter(self._dev.base.getConst('ID_POSI_GOTO'), 1, 0)  
+        while True:
+            if self._dev.base.getParameter(self._dev.base.getConst('ID_SCAN_STATUS'), 0)==2:
+                time.sleep(0.01)
+            else:
+                break  
+        self._dev.base.setParameter(self._dev.base.getConst('ID_POSI_GOTO'), 1, 0)
+        while True:
+            if self._dev.base.getParameter(self._dev.base.getConst('ID_SCAN_STATUS'), 0)!=2:
+                time.sleep(0.01)
+            else:
+                break  
+        while True:
+            if self._dev.base.getParameter(self._dev.base.getConst('ID_SCAN_STATUS'), 0)==2:
+                time.sleep(0.01)
+            else:
+                break  
         return self.get_sample_pos(list(axis_dict.keys()))
     
     def set_sample_pos_rel(self, axis_rel_dict, move_time=0.1):
