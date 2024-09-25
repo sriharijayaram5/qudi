@@ -208,6 +208,9 @@ class ProteusQGUI(GUIBase):
 
     _afm_rotation = StatusVar('afm_rotation', default=0)
 
+    _liftoff_mode = StatusVar('liftoff_mode', default = False)
+    _liftoff_height = StatusVar('liftoff_height', default = 0)
+
     _current_origin = StatusVar('afm_current_origin', default = (13.5e-6,13.5e-6))
     _current_rotation = StatusVar('afm_current_rotation', default = 0)
 
@@ -1040,6 +1043,10 @@ class ProteusQGUI(GUIBase):
         self._mw.afm_y_num_SpinBox.setValue(self._afm_y_num)
 
         self._mw.afm_rotation_DSpinBox.setValue(self._afm_rotation)
+
+        self._mw.liftOffMode_groupBox.setChecked(self._liftoff_mode)
+        self._mw.liftOffHeight_doubleSpinBox.setValue(self._liftoff_height)
+
         self._mw.scan_id_spinBox.setValue(self._scan_id)
 
         for entry in self._stat_var_meas_params:
@@ -1130,6 +1137,9 @@ class ProteusQGUI(GUIBase):
 
         self._afm_rotation = self._mw.afm_rotation_DSpinBox.value()
 
+        self._liftoff_mode = self._mw.liftOffMode_groupBox.isChecked()
+        self._liftoff_height = self._mw.liftOffHeight_doubleSpinBox.value()
+
         self._scan_id = self._mw.scan_id_spinBox.value()
 
         # store the selection of the measurement params
@@ -1205,7 +1215,7 @@ class ProteusQGUI(GUIBase):
         data_dict = {}
         qafm_scan_array = self._qafm_logic.initialize_qafm_scan_array(0, 30e-6, 30, 
                                                                 0, 30e-6, 30,
-                                                                0, None, ['bw','fw'])
+                                                                0, None, None)
 
         obj_scan_array = self._qafm_logic.initialize_obj_scan_array('obj_xy', 
                                                                0, 30e-6, 30,
@@ -1229,7 +1239,7 @@ class ProteusQGUI(GUIBase):
         pulsed_scan_array = self._qafm_logic.initialize_pulsed_scan_array(np.linspace(10e-9,100e-9,10), False,
                                                                 len(np.linspace(10e-9,100e-9,10)), 1e-9, 3e-6,
                                                                 0, 30e-6, 30, 
-                                                                0, 30e-6, 30, 0, ['fw'])
+                                                                0, 30e-6, 30, 0)
         data_dict.update(qafm_scan_array)
         data_dict.update(obj_scan_array)
         data_dict.update(opti_scan_array)
@@ -1537,6 +1547,8 @@ class ProteusQGUI(GUIBase):
                 y_origin = y_range/2+loaded_dict['coord1_start (m)']
                 y_num = loaded_dict['coord1_num (#)']
                 rotation = 0
+                liftoff = loaded_dict['Lift-off Mode']
+                liftoff_height = loaded_dict['Lift-off Height']
 
             else:
                 x_range = loaded_dict['coord0_range (m)']
@@ -1546,6 +1558,8 @@ class ProteusQGUI(GUIBase):
                 y_origin = loaded_dict['coord1_origin (m)']
                 y_num = loaded_dict['coord1_num (#)']
                 rotation = loaded_dict['rotation (°)']
+                liftoff = loaded_dict['Lift-off Mode']
+                liftoff_height = loaded_dict['Lift-off Height']
 
             self._current_origin = (x_origin, y_origin)
             self._current_rotation = rotation
@@ -1556,6 +1570,8 @@ class ProteusQGUI(GUIBase):
             self._mw.afm_y_range_DSpinBox.setValue(y_range)
             self._mw.afm_y_num_SpinBox.setValue(y_num)
             self._mw.afm_rotation_DSpinBox.setValue(rotation)
+            self._mw.liftOffMode_groupBox.setChecked(liftoff)
+            self._mw.liftOffHeight_doubleSpinBox.setValue(liftoff_height)
         
     # ========================================================================== 
     #         BEGIN: Creation and Adaptation of Display Widget

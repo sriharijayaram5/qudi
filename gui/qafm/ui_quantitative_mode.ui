@@ -47,7 +47,7 @@
     </sizepolicy>
    </property>
    <property name="currentIndex">
-    <number>0</number>
+    <number>1</number>
    </property>
    <widget class="QWidget" name="Tab1">
     <property name="whatsThis">
@@ -981,10 +981,10 @@
                 <string>Hz</string>
                </property>
                <property name="minimum">
-                <double>1000000000.000000000000000</double>
+                <double>0.000000000000000</double>
                </property>
                <property name="maximum">
-                <double>3500000000.000000000000000</double>
+                <double>12500000000.000000000000000</double>
                </property>
                <property name="singleStep">
                 <double>0.010000000000000</double>
