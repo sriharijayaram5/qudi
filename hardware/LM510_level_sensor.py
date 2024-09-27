@@ -48,6 +48,7 @@ class LM510levelsensor(Base, SimpleDataInterface):
     def on_deactivate(self):
         """ Deactivate module.
         """
+        self.stop_fill()
         self.level_sensor.reconnect()
         self.level_sensor.close()
 
@@ -225,36 +226,46 @@ class LM510levelsensor(Base, SimpleDataInterface):
             except:
                 self.log.error('Something went wrong while setting the low level.')
 
-    def set_control_mode(self, mode = 'off', channel = 1):
+    def set_control_mode(self, mode = "off", channel = 1):
         """ Turns automated refilling on and off.
 
             @param int channel: Selected channel for operation
         """
-        if mode != 'off' and mode != 'auto':
-            self.log.warning('Wrong mode used. Allowed modes for automated refilling are off and auto.')
+        if mode != "off" and mode != "auto":
+            self.log.warning('Wrong mode used. Allowed modes for automated refilling are "off" and "auto".')
         else:
             try:
-                self.level_sensor.set_control_mode(channel, mode)
+                self.level_sensor.set_control_mode(mode, channel)
             except:
                 try:
                     self.level_sensor.reconnect()
-                    self.level_sensor.set_control_mode(channel, mode)
+                    self.level_sensor.set_control_mode(mode, channel)
                 except:
                     self.log.error('Something went wrong while setting the control mode.')
     
-    def start_fill(self, channel = 1):
+    def start_automatic_fill(self, channel = 1):
+        """ Starts the automatisation of the refilling.
+
+            @param int channel: Selected channel for operation
+        """
+        self.set_control_mode("auto", channel)
+    
+    def start_manual_fill(self, channel = 1):
         """ Starts a manual filling.
 
             @param int channel: Selected channel for operation
         """
-        try:
-            self.level_sensor.start_fill(channel)
-        except:
-            try:
-                self.level_sensor.reconnect()
-                self.level_sensor.start_fill(channel)
-            except:
-                self.log.error('Something went wrong while starting the manual filling.')
+        prev_low_level = self.get_low_level(channel)
+        self.set_low_level(100, channel)
+        self.set_control_mode("auto", channel)
+        self.set_low_level(prev_low_level, channel)
+
+    def stop_fill(self, channel = 1):
+        """ Stops any filling.
+
+            @param int channel: Selected channel for operation
+        """
+        self.set_control_mode("off", channel)
 
     def reset(self):
         """ Resets the device. Most of the device parameters are unchanged.
