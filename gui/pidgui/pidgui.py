@@ -73,6 +73,9 @@ class PIDGui(GUIBase):
 
         """
         self._pid_logic = self.pidlogic()
+        
+        self._pid_logic.process_unit = self.process_unit
+        self._pid_logic.control_unit = self.control_unit
 
         #####################
         # Configuring the dock widgets
@@ -84,7 +87,8 @@ class PIDGui(GUIBase):
         self._mw.setDockNestingEnabled(True)
 
         # Plot labels.
-        self._pw = self._mw.trace_PlotWidget
+        self._pw = self._mw.trace_process_PlotWidget
+        self._cw = self._mw.trace_control_PlotWidget
 
         self.plot1 = self._pw.plotItem
         self.plot1.setLabel(
@@ -94,16 +98,14 @@ class PIDGui(GUIBase):
                 palette.c2.name()),
              units= self.process_unit)
         self.plot1.setLabel('bottom', 'Time', units='s')
-        self.plot1.showAxis('right')
-        self.plot1.getAxis('right').setLabel(
+        
+        self.plot2 = self._cw.plotItem
+        self.plot2.setLabel(
+            'left', 
             'Control Value',
             units= self.control_unit,
             color=palette.c3.name())
-
-        self.plot2 = pg.ViewBox()
-        self.plot1.scene().addItem(self.plot2)
-        self.plot1.getAxis('right').linkToView(self.plot2)
-        self.plot2.setXLink(self.plot1)
+        self.plot2.setLabel('bottom', 'Time', units='s')
 
         ## Create an empty plot curve to be filled later, set its pen
         self._curve1 = pg.PlotDataItem(pen=pg.mkPen(palette.c1),#, style=QtCore.Qt.DotLine),
@@ -140,11 +142,19 @@ class PIDGui(GUIBase):
         self.plot1.addItem(self._curve3)
         self.plot2.addItem(self._curve2)
 
-        self.updateViews()
-        self.plot1.vb.sigResized.connect(self.updateViews)
+        # self.updateViews()
+        # self.plot1.vb.sigResized.connect(self.updateViews)
 
         # setting the x axis length correctly
         self._pw.setXRange(0, self._pid_logic.getBufferLength() * self._pid_logic.timestep)
+
+        # Add save file tag input box
+        self._mw.save_tag_LineEdit = QtWidgets.QLineEdit(self._mw)
+        self._mw.save_tag_LineEdit.setMaximumWidth(500)
+        self._mw.save_tag_LineEdit.setMinimumWidth(200)
+        self._mw.save_tag_LineEdit.setToolTip('Enter a nametag which will be\n'
+                                              'added to the filename.')
+        self._mw.pid_control_ToolBar.addWidget(self._mw.save_tag_LineEdit)
 
         #####################
         # Setting default parameters
@@ -163,12 +173,12 @@ class PIDGui(GUIBase):
         self._mw.start_control_Action.triggered.connect(self.start_clicked)
         self._mw.record_control_Action.triggered.connect(self.save_clicked)
 
-        self._mw.P_DoubleSpinBox.valueChanged.connect(self.kpChanged)
-        self._mw.I_DoubleSpinBox.valueChanged.connect(self.kiChanged)
-        self._mw.D_DoubleSpinBox.valueChanged.connect(self.kdChanged)
+        self._mw.P_DoubleSpinBox.editingFinished.connect(self.kpChanged)
+        self._mw.I_DoubleSpinBox.editingFinished.connect(self.kiChanged)
+        self._mw.D_DoubleSpinBox.editingFinished.connect(self.kdChanged)
 
-        self._mw.setpointDoubleSpinBox.valueChanged.connect(self.setpointChanged)
-        self._mw.manualDoubleSpinBox.valueChanged.connect(self.manualValueChanged)
+        self._mw.setpointDoubleSpinBox.editingFinished.connect(self.setpointChanged)
+        self._mw.manualDoubleSpinBox.editingFinished.connect(self.manualValueChanged)
         self._mw.pidEnabledCheckBox.toggled.connect(self.pidEnabledChanged)
 
         # Connect the default view action
@@ -200,17 +210,20 @@ class PIDGui(GUIBase):
 
         if self._pid_logic.get_enabled():
             self._mw.process_value_Label.setText(
-                '<font color={0}>{1:,.3f}</font>'.format(
-                palette.c1.name(),
-                self._pid_logic.history[0, -1]))
+                '<font color={color}>{value} {unit}</font>'.format(
+                color = palette.c1.name(),
+                value = self._pid_logic.history[0, -1],
+                unit = self.process_unit))
             self._mw.control_value_Label.setText(
-                '<font color={0}>{1:,.3f}</font>'.format(
-                palette.c3.name(),
-                self._pid_logic.history[1, -1]))
+                '<font color={color}>{value} {unit}</font>'.format(
+                color = palette.c3.name(),
+                value = self._pid_logic.history[1, -1],
+                unit = self.control_unit))
             self._mw.setpoint_value_Label.setText(
-                '<font color={0}>{1:,.3f}</font>'.format(
-                palette.c2.name(),
-                self._pid_logic.history[2, -1]))
+                '<font color={color}>{value} {unit}</font>'.format(
+                color = palette.c2.name(),
+                value = self._pid_logic.history[2, -1],
+                unit = self.process_unit))
             extra = self._pid_logic._controller.get_extra()
             if 'P' in extra:
                 self._mw.labelkP.setText('{0:,.6f}'.format(extra['P']))
@@ -232,14 +245,14 @@ class PIDGui(GUIBase):
                 )
 
         if self._pid_logic.getSavingState():
-            self._mw.record_control_Action.setText('Save')
+            self._mw.record_control_Action.setIconText('Stop logging Data')
         else:
-            self._mw.record_control_Action.setText('Start Saving Data')
+            self._mw.record_control_Action.setIconText('Start logging Data')
 
         if self._pid_logic.get_enabled():
-            self._mw.start_control_Action.setText('Stop')
+            self._mw.start_control_Action.setIconText('Stop')
         else:
-            self._mw.start_control_Action.setText('Start')
+            self._mw.start_control_Action.setIconText('Start')
 
     def updateViews(self):
     ## view has resized; update auxiliary views to match
@@ -254,21 +267,27 @@ class PIDGui(GUIBase):
         """ Handling the Start button to stop and restart the counter.
         """
         if self._pid_logic.get_enabled():
-            self._mw.start_control_Action.setText('Start')
+            self._mw.start_control_Action.setIconText('Start')
+            if not self._pid_logic.getSavingState():
+                self._mw.record_control_Action.setEnabled(False)
             self.sigStop.emit()
         else:
-            self._mw.start_control_Action.setText('Stop')
+            self._mw.start_control_Action.setIconText('Stop')
+            self._mw.record_control_Action.setEnabled(True)
             self.sigStart.emit()
 
     def save_clicked(self):
         """ Handling the save button to save the data into a file.
         """
         if self._pid_logic.getSavingState():
-            self._mw.record_counts_Action.setText('Start Saving Data')
+            self._mw.record_control_Action.setIconText('Start logging Data')
+            if not self._pid_logic.get_enabled():
+                self._mw.record_control_Action.setEnabled(False)
             self._pid_logic.saveData()
         else:
-            self._mw.record_counts_Action.setText('Save')
-            self._pid_logic.startSaving()
+            self._mw.record_control_Action.setIconText('Stop logging Data')
+            filetag = self._mw.save_tag_LineEdit.text()
+            self._pid_logic.startSaving(filetag)
 
     def restore_default_view(self):
         """ Restore the arrangement of DockWidgets to the default

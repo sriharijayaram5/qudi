@@ -21,6 +21,9 @@ top-level directory of this distribution and at <https://github.com/Ulm-IQO/qudi
 """
 
 import numpy as np
+from collections import OrderedDict
+import datetime
+from decimal import Decimal
 
 from core.connector import Connector
 from core.statusvariable import StatusVar
@@ -69,6 +72,9 @@ class PIDLogic(GenericLogic):
         self._controller = self.controller()
         self._save_logic = self.savelogic()
 
+        self.process_unit = ''
+        self.control_unit = ''
+
         self.history = np.zeros([3, self.bufferLength])
         self.savingState = False
         self.enabled = False
@@ -105,6 +111,18 @@ class PIDLogic(GenericLogic):
         self.history[1, -1] = self._controller.get_control_value()
         self.history[2, -1] = self._controller.get_setpoint()
         self.sigUpdateDisplay.emit()
+
+        if self.savingState:
+            timestamp = datetime.datetime.now()
+            time_delta = timestamp - self.start_timestamp
+            time = '%.3E' % Decimal(f'{time_delta.total_seconds()}')
+            process_value = '%.6E' % Decimal(f'{self.history[0, -1]}')
+            control_value = '%.3E' % Decimal(f'{self.history[1, -1]}')
+            set_point = '%.6E' % Decimal(f'{self.history[2, -1]}')
+            add_row = f'{time}' + '\t' + f'{process_value}' + '\t' + f'{set_point}' + '\t' + f'{control_value}' +  '\n'
+            with open(self.file, 'a') as file:
+                file.write(add_row)
+
         if self.enabled:
             self.timer.start(self.timestep * 1000)  # in ms
 
@@ -115,19 +133,35 @@ class PIDLogic(GenericLogic):
         """
         return self.savingState
 
-    def startSaving(self):
-        """ Start saving data.
-
-            Function does nothing right now.
+    def startSaving(self, filetag = ''):
+        """ Start logging data.
         """
-        pass
+        self.start_timestamp = datetime.datetime.now()
+        filepath = self._save_logic.get_path_for_module(module_name='tip_temperature_log')
+        if len(filetag)>0:
+            filelabel = filetag + '_tip_temperature_log'
+        else:
+            filelabel = 'tip_temperature_log'
+        filename = self.start_timestamp.strftime('%Y%m%d-%H%M-%S' + '_' + filelabel + '.dat')
+        self.file = filepath +'\\' +  filename
+        data = OrderedDict()
+        data['time (s)'] = []
+        data[f'process value ({self.process_unit})'] = []
+        data[f'set point ({self.process_unit})'] = []
+        data[f'control value ({self.control_unit})'] = []
+
+        self._save_logic.save_data(data,
+                        filepath=filepath,
+                        filename=filename,
+                        fmt='%.3e',
+                        delimiter='\t')
+        
+        self.savingState = True
 
     def saveData(self):
-        """ Stop saving data and write data to file.
-
-            Function does nothing right now.
+        """ Stop logging data.
         """
-        pass
+        self.savingState = False
 
     def setBufferLength(self, newBufferLength):
         """ Change buffer length to new value.

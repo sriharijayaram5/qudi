@@ -224,33 +224,38 @@ class LevelsensorGui(GUIBase):
                 )
 
         if self._levelsensor_logic.getSavingState():
-            self._mw.record_control_Action.setText('Save')
+            self._mw.record_control_Action.setIconText('Stop logging Data')
         else:
-            self._mw.record_control_Action.setText('Start Saving Data')
+            self._mw.record_control_Action.setIconText('Start logging Data')
 
         if self._levelsensor_logic.get_enabled():
-            self._mw.start_control_Action.setText('Stop')
+            self._mw.start_control_Action.setIconText('Stop')
         else:
-            self._mw.start_control_Action.setText('Start')
+            self._mw.start_control_Action.setIconText('Start')
 
     def start_clicked(self):
         """ Handling the Start button to stop and restart the counter.
         """
         if self._levelsensor_logic.get_enabled():
-            self._mw.start_control_Action.setText('Start')
+            self._mw.start_control_Action.setIconText('Start')
+            if not self._levelsensor_logic.getSavingState():
+                self._mw.record_control_Action.setEnabled(False)
             self.sigStop.emit()
         else:
-            self._mw.start_control_Action.setText('Stop')
+            self._mw.start_control_Action.setIconText('Stop')
+            self._mw.record_control_Action.setEnabled(True)
             self.sigStart.emit()
 
     def save_clicked(self):
         """ Handling the save button to save the data into a file.
         """
         if self._levelsensor_logic.getSavingState():
-            self._mw.record_counts_Action.setText('Start Saving Data')
+            self._mw.record_control_Action.setIconText('Start logging Data')
+            if not self._levelsensor_logic.get_enabled():
+                self._mw.record_control_Action.setEnabled(False)
             self._levelsensor_logic.saveData()
         else:
-            self._mw.record_counts_Action.setText('Save')
+            self._mw.record_control_Action.setIconText('Stop logging Data')
             self._levelsensor_logic.startSaving()
 
     def restore_default_view(self):

@@ -21,6 +21,9 @@ top-level directory of this distribution and at <https://github.com/Ulm-IQO/qudi
 """
 
 import numpy as np
+from collections import OrderedDict
+import datetime
+from decimal import Decimal
 
 from core.connector import Connector
 from core.statusvariable import StatusVar
@@ -114,6 +117,18 @@ class LevelsensorLogic(GenericLogic):
         else:
             self.history[3, -1] = 3
         self.sigUpdateDisplay.emit()
+
+        if self.savingState:
+            timestamp = datetime.datetime.now()
+            time_delta = timestamp - self.start_timestamp
+            time = '%.2E' % Decimal(f'{time_delta.total_seconds()}')
+            current_level = '%.2E' % Decimal(f'{self.history[0, -1]}')
+            high_level = '%.2E' % Decimal(f'{self.history[1, -1]}')
+            low_level = '%.2E' % Decimal(f'{self.history[2, -1]}')
+            add_row = f'{time}' + '\t' + f'{current_level}' + '\t' + f'{low_level}' + '\t' + f'{high_level}' +  '\n'
+            with open(self.file, 'a') as file:
+                file.write(add_row)
+
         if self.enabled:
             self.timer.start(self.timestep * 1000)  # in ms
 
@@ -125,18 +140,33 @@ class LevelsensorLogic(GenericLogic):
         return self.savingState
 
     def startSaving(self):
-        """ Start saving data.
+        """ Start logging data.
 
-            Function does nothing right now.
         """
-        pass
+        self.start_timestamp = datetime.datetime.now()
+        filepath = self._save_logic.get_path_for_module(module_name='LN2_level_log')
+        filelabel = 'LN2_level_log'
+        filename = self.start_timestamp.strftime('%Y%m%d-%H%M-%S' + '_' + filelabel + '.dat')
+        self.file = filepath +'\\' +  filename
+        data = OrderedDict()
+        data['time (s)'] = []
+        data['current level (%)'] = []
+        data['low level (%)'] = []
+        data['high level (%)'] = []
+
+        self._save_logic.save_data(data,
+                        filepath=filepath,
+                        filename=filename,
+                        fmt='%.2e',
+                        delimiter='\t')
+        
+        self.savingState = True
 
     def saveData(self):
-        """ Stop saving data and write data to file.
-
-            Function does nothing right now.
+        """ Stop logging data.
         """
-        pass
+
+        self.savingState = False
 
     def setBufferLength(self, newBufferLength):
         """ Change buffer length to new value.
