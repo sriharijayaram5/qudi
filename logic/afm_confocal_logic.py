@@ -3622,14 +3622,11 @@ class AFMConfocalLogic(GenericLogic):
 
         # FIXME: check whether the number of parameters are required and whether they are set correctly.
         # self._spm._params_per_point = len(names_buffers)
-        ret_val, _, curr_scan_params = \
+        ret_val, _ = \
             self._spm.configure_scanner(mode=scanner_mode,
                                         params= {'line_points': coord0_num ,
                                                 'lines_num': coord1_num},
                                         scan_style=ScanStyle.LINE) 
-
-
-        curr_scan_params.insert(0, 'counts')  # insert the fluorescence parameter
 
         self._spm.set_ext_trigger(True)
 
@@ -3662,7 +3659,6 @@ class AFMConfocalLogic(GenericLogic):
             return self._obj_scan_array
 
         start_time_obj_scan = datetime.datetime.now()
-        num_params = len(curr_scan_params)
 
         # save the measurement parameter
         self._obj_scan_array[arr_name]['params']['Parameters for'] = 'Objective measurement'
@@ -3688,9 +3684,6 @@ class AFMConfocalLogic(GenericLogic):
             # until one has reached the desired line, then continue from there.
             if line_num < self._spm_line_num:
                 continue
-
-            # optical signal only
-            self._obj_scan_line = np.zeros(num_params * coord0_num)
 
             self._spm.configure_line(line_corr0_start=scan_coords[0],
                                      line_corr0_stop=scan_coords[1],
