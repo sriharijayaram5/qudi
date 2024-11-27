@@ -106,7 +106,7 @@ class MicrowaveSgs(Base, MicrowaveInterface):
 
         # values for SMBV100A
         limits.min_power = -125
-        limits.max_power = 4 #actually the range is +25dbm. However, the used amplifier only allows up to +5dbm
+        limits.max_power = 20 #actually the range is +25dbm. However, the used amplifier only allows up to +5dbm
 
         limits.min_frequency = 9e3
         limits.max_frequency = 6e9

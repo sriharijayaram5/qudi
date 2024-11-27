@@ -107,7 +107,7 @@ class MicrowaveDummy(Base, MicrowaveInterface):
         @return int: error code (0:OK, -1:error)
         """
         self.output_active = False
-        self.log.info('MicrowaveDummy>off')
+        # self.log.info('MicrowaveDummy>off')
         return 0
 
     def get_power(self):

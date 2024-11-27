@@ -97,16 +97,16 @@ class temperaturecontroller335(Base, PIDControllerInterface):
     def on_deactivate(self):
         """ Deactivate module.
         """
-        self.set_printing(True)
+        self.set_printing(False)
         self.temp_controller.disconnect_usb()
 
     def setup_input(self):
         """ Setup the input used for the PID controll loop with the parameters given from the config file.
         """
         str = f'INTYPE{self.input},{self.sensor_type},{self.autorange},{self.range},{self.compensation},{self.units}'
-        self.temp_controller.command(str)
+        # self.temp_controller.command(str)
         str = f'INCRV{self.input},{self.curve_number}'
-        self.temp_controller.command(str)
+        # self.temp_controller.command(str)
 
     def setup_output(self):
         """ Setup the output used for the PID controll loop with the parameters given from the config file.
@@ -118,16 +118,16 @@ class temperaturecontroller335(Base, PIDControllerInterface):
         else:
             input = 0
         str = f'OUTMODE{self.output},{self.mode},{input},{self.powerup}'
-        self.temp_controller.command(str)
+        # self.temp_controller.command(str)
         str = f'HTRSET{self.output},{self.type},{self.resistance},{self.max_current},{self.max_current_user},2'
-        self.temp_controller.command(str)
+        # self.temp_controller.command(str)
 
     def set_printing(self, printing):
         """ Set the printing flag in the lakeshore GenericInstrument to turn on and off the logging information after every query.
 
          @param (boolean) printing: the printing flag
          """
-        lakeshore.generic_instrument.GenericInstrument.printing = printing #The GenericInsturment file has to be changed for this.
+        self.temp_controller.logger.disabled= not printing #The GenericInsturment file has to be changed for this.
 
     def get_kp(self):
         """ Get the coefficient associated with the proportional term
@@ -147,7 +147,7 @@ class temperaturecontroller335(Base, PIDControllerInterface):
         ki = float(current_PID[1])
         kd = float(current_PID[2])
         str = f'PID{self.output},{kp},{ki},{kd}'
-        self.temp_controller.command(str)
+        # self.temp_controller.command(str)
 
     def get_ki(self):
         """ Get the coefficient associated with the integral term
@@ -167,7 +167,7 @@ class temperaturecontroller335(Base, PIDControllerInterface):
         kp = float(current_PID[0])
         kd = float(current_PID[2])
         str = f'PID{self.output},{kp},{ki},{kd}'
-        self.temp_controller.command(str)
+        # self.temp_controller.command(str)
 
     def get_kd(self):
         """ Get the coefficient associated with the derivative term
@@ -187,7 +187,7 @@ class temperaturecontroller335(Base, PIDControllerInterface):
         kp = float(current_PID[0])
         ki = float(current_PID[1])
         str = f'PID{self.output},{kp},{ki},{kd}'
-        self.temp_controller.command(str)
+        # self.temp_controller.command(str)
 
     def get_setpoint(self):
         """ Get the setpoint value of the hardware device
@@ -203,7 +203,7 @@ class temperaturecontroller335(Base, PIDControllerInterface):
         @param (float) setpoint: The new setpoint value
         """
         str = f'SETP{self.output},{setpoint}'
-        self.temp_controller.command(str)
+        # self.temp_controller.command(str)
 
     def get_manual_value(self):
         """ Get the manual value, used if the device is disabled
@@ -219,7 +219,7 @@ class temperaturecontroller335(Base, PIDControllerInterface):
         @param (float) manualvalue: The new manual value in %
         """
         str = f'MOUT{self.output},{manualvalue}'
-        self.temp_controller.command(str)
+        # self.temp_controller.command(str)
 
     def get_enabled(self):
         """ Get if the PID is enabled (True) or if it is disabled (False) and the manual value is used
@@ -239,10 +239,10 @@ class temperaturecontroller335(Base, PIDControllerInterface):
         """
         if enabled:
             str = f'RANGE{self.output},3'
-            self.temp_controller.command(str)
+            # self.temp_controller.command(str)
         else:
             str = f'RANGE{self.output},0'
-            self.temp_controller.command(str)
+            # self.temp_controller.command(str)
 
 
     def get_control_limits(self):

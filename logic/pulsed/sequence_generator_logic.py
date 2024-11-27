@@ -1739,8 +1739,8 @@ class SequenceGeneratorLogic(GenericLogic):
         # Make sure the length of the channel is a multiple of the step size.
         # This is done by appending an idle block
         granularity = self.pulse_generator_constraints.waveform_length.step
-        self.log.debug('length: {0}, mod {1}'.format(
-            ensemble_info['number_of_samples'], ensemble_info['number_of_samples'] % granularity))
+        # self.log.debug('length: {0}, mod {1}'.format(
+        #     ensemble_info['number_of_samples'], ensemble_info['number_of_samples'] % granularity))
         if ensemble_info['number_of_samples'] % granularity != 0:
             self.log.warn('Length {0} does not fulfil step constraint {1}.'.format(
                 ensemble_info['number_of_samples'], granularity))

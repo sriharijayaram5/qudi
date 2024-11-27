@@ -45,6 +45,7 @@ class MicrowaveMode(Enum):
     LIST = 1
     SWEEP = 3
     ASWEEP = 4
+    AWG = 0
 
 
 class MicrowaveInterface(metaclass=InterfaceMetaclass):

@@ -23,7 +23,7 @@ top-level directory of this distribution and at <https://github.com/Ulm-IQO/qudi
 import numpy as np
 import os
 import copy
-from core.connector import Connector
+from core.module import Connector, StatusVar
 from gui.guibase import GUIBase
 from gui.colordefs import QudiPalettePale as palette
 from qtpy import QtWidgets
@@ -53,6 +53,8 @@ class PositionerGui(GUIBase):
 
     sigStart = QtCore.Signal()
     sigStop = QtCore.Signal()
+
+    snapshot_text = StatusVar('snapshot_text', default={})
 
     def __init__(self, config, **kwargs):
         super().__init__(config=config, **kwargs)
@@ -90,6 +92,7 @@ class PositionerGui(GUIBase):
         self.sigReadPositionTimer = QtCore.QTimer()
         self.sigReadPositionTimer.timeout.connect(self.read_position_loop_body)
         self.sigReadPositionTimer.start(150)
+        self.load_from_status_variables()
 
     def show(self):
         """Make window visible and put it above all other windows.
@@ -103,6 +106,7 @@ class PositionerGui(GUIBase):
         """
         # FIXME: !
         self.sigReadPositionTimer.stop()
+        self.load_to_status_variables()
         self._mw.close()
     
     def _init_UI(self):
@@ -273,3 +277,17 @@ class PositionerGui(GUIBase):
         """Clear snap of the current position"""
         item = self._dockwidget_container[pos]
         item['Snapshot_Text'].clear()
+
+    def load_from_status_variables(self):
+        for idx, positioner in enumerate(self.pos_list):
+            item = self._dockwidget_container[positioner]
+            try:
+                item['Snapshot_Text'].setText(f'{self.snapshot_text[positioner]}')
+            except:
+                pass
+
+
+    def load_to_status_variables(self):
+        for idx, positioner in enumerate(self.pos_list):
+            item = self._dockwidget_container[positioner]
+            self.snapshot_text[positioner] = item['Snapshot_Text'].toPlainText()

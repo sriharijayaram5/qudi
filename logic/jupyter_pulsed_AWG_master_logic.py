@@ -63,6 +63,7 @@ class PulsedJupyterLogic(GenericLogic):
         
         self.channel_names_AWG = {'PS_Trig': 'd_ch3',
                                  'ASC_Trig': 'd_ch4',
+                                 'd_ch5': 'd_ch5',
                                  'SMBV_I': 'a_ch0',
                                  'SMBV_Q': 'a_ch1',
                                  'SGS_I': 'a_ch2',
@@ -287,9 +288,9 @@ class PulsedJupyterLogic(GenericLogic):
             
             seq_part = {'channel_info' : [
                 {'name': 'a_ch0', 'amp': 0.5 if user_MW_0_true else 0.0, 'freq': delta_0, 'phase': 0+phase_0},
-                {'name': 'a_ch1', 'amp': 0.5 if user_MW_0_true else 0.0, 'freq': delta_0, 'phase': 100+phase_0},
+                {'name': 'a_ch1', 'amp': 0.5 if user_MW_0_true else 0.0, 'freq': delta_0, 'phase': 90+phase_0},# removing 90 for checking IQ with SGS100
                 {'name': 'a_ch2', 'amp': 0.5 if user_MW_1_true else 0.0, 'freq': delta_1, 'phase': 0+phase_1},
-                {'name': 'a_ch3', 'amp': 0.5 if user_MW_1_true else 0.0, 'freq': delta_1, 'phase': 100+phase_1}],
+                {'name': 'a_ch3', 'amp': 0.5 if user_MW_1_true else 0.0, 'freq': delta_1, 'phase': 90+phase_1}],# removing 90 for checking IQ with SGS100
                 'duration' : duration}
             for ch in channels:
                 seq_part['channel_info'].append({'name': self.channel_names_AWG[ch], 'high': channels[ch]})
@@ -352,6 +353,7 @@ class PulsedJupyterLogic(GenericLogic):
             played by trigger.
             One big ensemble covering the entire tau sweep that is triggered once before every sweep. Not before every tau instance.
         """
+        #Used by CWODMR
         #Create large pulse block for the AWG
         ensemble_list = []
         use_MW_0 = False
@@ -385,12 +387,12 @@ class PulsedJupyterLogic(GenericLogic):
                         use_MW_1 = True
                     delta_0 = abs(self.LO_freq_0 - (self.target_freq_0 if freq_0 is None else freq_0))
                     delta_1 = abs(self.LO_freq_1 - (self.target_freq_1 if freq_1 is None else freq_1))
-                    
+                    #Used by CWODMR                    
                     seq_part = {'channel_info' : [
                         {'name': 'a_ch0', 'amp': 0.5 if user_MW_0_true else 0.0, 'freq': delta_0, 'phase': 0+phase_0},
-                        {'name': 'a_ch1', 'amp': 0.5 if user_MW_0_true else 0.0, 'freq': delta_0, 'phase': 100+phase_0},
+                        {'name': 'a_ch1', 'amp': 0.5 if user_MW_0_true else 0.0, 'freq': delta_0, 'phase': 90+phase_0},# removing 90 for checking IQ with SGS100
                         {'name': 'a_ch2', 'amp': 0.5 if user_MW_1_true else 0.0, 'freq': delta_1, 'phase': 0+phase_1},
-                        {'name': 'a_ch3', 'amp': 0.5 if user_MW_1_true else 0.0, 'freq': delta_1, 'phase': 100+phase_1}],
+                        {'name': 'a_ch3', 'amp': 0.5 if user_MW_1_true else 0.0, 'freq': delta_1, 'phase': 90+phase_1}],# removing 90 for checking IQ with SGS100
                         'duration' : duration}
                     for ch in channels:
                         seq_part['channel_info'].append({'name': self.channel_names_AWG[ch], 'high': channels[ch]})
@@ -534,7 +536,7 @@ class PulsedJupyterLogic(GenericLogic):
 
         return ensemble_list, sequence_step_list, name, self.tau_arr, alternating, freq_sweep
     
-    def CW_ODMR(self, mw_start, mw_stop, mw_step, clock_frequency=None, name = None):
+    def CW_ODMR(self, mw_start, mw_stop, mw_step, clock_frequency=None, duty_cycle = 0, name = None):
         '''
         Laser(532):       ▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇
         MW:               ▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇
@@ -576,7 +578,8 @@ class PulsedJupyterLogic(GenericLogic):
             self.BlockAWG = []
             freq_segment_name = name+f'-freq-({self.LO_freq_0-tau},{freq_segment_time})'
             #Playing current frequency
-            self.ElementAWG(channels={'MW_0':True}, length=freq_segment_time, freq_0=tau)
+            self.ElementAWG(channels={'MW_0':True, 'd_ch5': True}, length=freq_segment_time*(duty_cycle), freq_0=tau)
+            self.ElementAWG(channels={'MW_0':True}, length=freq_segment_time*(1-duty_cycle), freq_0=tau)
             self.segments[freq_segment_name] = self.BlockAWG
 
             step = {"step_index" : 2*idx,
@@ -2563,9 +2566,9 @@ class PulsedJupyterLogic(GenericLogic):
                 
                 seq_part = {'channel_info' : [
                     {'name': 'a_ch0', 'amp': 0.5 if user_MW_0_true else 0.0, 'freq': delta_0, 'phase': 0+phase_0},
-                    {'name': 'a_ch1', 'amp': 0.5 if user_MW_0_true else 0.0, 'freq': delta_0, 'phase': 100+phase_0},
+                    {'name': 'a_ch1', 'amp': 0.5 if user_MW_0_true else 0.0, 'freq': delta_0, 'phase': 0+phase_0},# removing 90 for checking IQ with SGS100
                     {'name': 'a_ch2', 'amp': 0.5 if user_MW_1_true else 0.0, 'freq': delta_1, 'phase': 0+phase_1},
-                    {'name': 'a_ch3', 'amp': 0.5 if user_MW_1_true else 0.0, 'freq': delta_1, 'phase': 100+phase_1}],
+                    {'name': 'a_ch3', 'amp': 0.5 if user_MW_1_true else 0.0, 'freq': delta_1, 'phase': 0+phase_1}],# removing 90 for checking IQ with SGS100
                     'duration' : duration}
                 for ch in channels:
                     seq_part['channel_info'].append({'name': self.channel_names_AWG[ch], 'high': channels[ch]})

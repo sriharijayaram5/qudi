@@ -75,6 +75,7 @@ class MicrowaveSmbv(Base, MicrowaveInterface):
         self.log.info('MW {} initialised and connected.'.format(self.model))
         self._command_wait('*CLS')
         self._command_wait('*RST')
+        self.pulse_modulation(state=0)
         return
 
     def on_deactivate(self):
@@ -566,4 +567,17 @@ class MicrowaveSmbv(Base, MicrowaveInterface):
 
         self._connection.write('*TRG')
         time.sleep(self._FREQ_SWITCH_SPEED)  # that is the switching speed
+        return 0
+
+    def pulse_modulation(self, state=False):
+        """ Switch on pulse modulatin mode acc. to state variable
+
+        @return int: error code (0:OK, -1:error)
+        """
+        self._connection.write(f'PULM:TRIG:MODE EGAT')
+        self._connection.write(f'PULM:TRIG:EXT:SLOP POS')
+        self._connection.write(f'PULM:SOUR EXT')
+        self._connection.write(f'PULM:POL NORM')
+        self._connection.write(f'PULM:STAT {1 if state else 0}')
+        
         return 0

@@ -1011,7 +1011,7 @@ class SPM_ASC500(Base, ScannerInterface):
             if self._spm_curr_mode == ScannerMode.PROBE_CONTACT:
                 self._polled_data[i] = np.mean(data)
             else:
-                self._polled_data = data*2
+                self._polled_data = data*1e8
 
     def _poll_point_data(self):
         '''

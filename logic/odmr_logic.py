@@ -21,6 +21,7 @@ top-level directory of this distribution and at <https://github.com/Ulm-IQO/qudi
 """
 
 from qtpy import QtCore
+import re
 from collections import OrderedDict
 from interface.microwave_interface import MicrowaveMode
 from interface.microwave_interface import TriggerEdge
@@ -49,7 +50,7 @@ class ODMRLogic(GenericLogic):
     # config option
     mw_scanmode = ConfigOption(
         'scanmode',
-        'LIST',
+        'AWG', #Toni changed from LIST to AWG
         missing='warn',
         converter=lambda x: MicrowaveMode[x.upper()])
 
@@ -214,6 +215,12 @@ class ODMRLogic(GenericLogic):
             freqs = np.arange(mw_start, mw_stop + mw_step, mw_step)
             final_freq_list.extend(freqs)
             self.frequency_lists.append(freqs)
+        
+        if not len(self.final_freq_list)==0:
+            self.frequency_lists = []
+            self.frequency_lists.append(self.final_freq_list)
+            final_freq_list = self.final_freq_list
+
 
         if type(self.final_freq_list) == list:
             self.final_freq_list = np.array(final_freq_list)
@@ -226,9 +233,7 @@ class ODMRLogic(GenericLogic):
 
         range_to_fit = self.range_to_fit
 
-        self.odmr_fit_x = np.arange(self.mw_starts[range_to_fit],
-                                    self.mw_stops[range_to_fit] + self.mw_steps[range_to_fit],
-                                    self.mw_steps[range_to_fit])
+        self.odmr_fit_x = self.odmr_plot_x
 
         self.odmr_fit_y = np.zeros(self.odmr_fit_x.size)
 
@@ -504,7 +509,7 @@ class ODMRLogic(GenericLogic):
             for mw_start, mw_stop, mw_step in zip(self.mw_starts, self.mw_stops, self.mw_steps):
                 num_steps = int(np.rint((mw_stop - mw_start) / mw_step))
                 end_freq = mw_start + num_steps * mw_step
-                freq_list = np.linspace(mw_start, end_freq, num_steps + 1)
+                freq_list = np.linspace(mw_start, end_freq, num_steps)
 
                 # adjust the end frequency in order to have an integer multiple of step size
                 # The master module (i.e. GUI) will be notified about the changed end frequency
@@ -921,6 +926,8 @@ class ODMRLogic(GenericLogic):
 
         if tag is None:
             tag = ''
+        else:
+            tag = self.check_for_illegal_char(tag)
 
         for nch, channel in enumerate(self.get_odmr_channels()):
             # first save raw data for each channel
@@ -1139,6 +1146,31 @@ class ODMRLogic(GenericLogic):
                              )
 
         return fig
+    
+    def check_for_illegal_char(self, input_str):
+        # remove illegal characters for Windows file names/paths 
+        # (illegal filenames are a superset (41) of the illegal path names (36))
+        # this is according to windows blacklist obtained with Powershell
+        # from: https://stackoverflow.com/questions/1976007/what-characters-are-forbidden-in-windows-and-linux-directory-names/44750843#44750843
+        #
+        # PS> $enc = [system.Text.Encoding]::UTF8
+        # PS> $FileNameInvalidChars = [System.IO.Path]::GetInvalidFileNameChars()
+        # PS> $FileNameInvalidChars | foreach { $enc.GetBytes($_) } | Out-File -FilePath InvalidFileCharCodes.txt
+
+        illegal = '\u0022\u003c\u003e\u007c\u0000\u0001\u0002\u0003\u0004\u0005\u0006\u0007\u0008' + \
+                  '\u0009\u000a\u000b\u000c\u000d\u000e\u000f\u0010\u0011\u0012\u0013\u0014\u0015' + \
+                  '\u0016\u0017\u0018\u0019\u001a\u001b\u001c\u001d\u001e\u001f\u003a\u002a\u003f\u005c\u002f' 
+
+        output_str, _ = re.subn('['+illegal+']','_', input_str)
+        output_str = output_str.replace('\\','_')   # backslash cannot be handled by regex
+        output_str = output_str.replace('..','_')   # double dots are illegal too 
+        # output_str = output_str[:-1] if output_str[-1] == '.' else output_str # can't have end of line '.'
+
+        if output_str != input_str:
+            self.log.warning(f"The name '{input_str}' had invalid characters, "
+                             f"name was modified to '{output_str}'")
+
+        return output_str
 
     def select_odmr_matrix_data(self, odmr_matrix, nch, freq_range):
         odmr_matrix_dp = odmr_matrix[:, nch]

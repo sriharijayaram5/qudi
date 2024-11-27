@@ -3740,7 +3740,7 @@ class AFMConfocalLogic(GenericLogic):
                     self._scan_point[1] = self.res_freq_array[line_num, index]/1e9
                     # self._scan_point[1] = 2.776+(np.random.random()*0.5e6/1e9)
                     # here the counts can be saved:
-                    self._scan_point[0] = np.mean(ref_data)/ref_time/2e3
+                    self._scan_point[0] = np.mean(ref_data)/ref_time/1e3
                     for param_index, param_name in enumerate(curr_scan_params):
                         name = f'{param_name}_fw'
 
