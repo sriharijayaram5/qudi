@@ -683,7 +683,7 @@ class SPM_ASC500(Base, ScannerInterface):
             # Here the time_back coming from idle_time will set how was the sample scanner moves around
             # time_forward is set by integration time and will determine time spend at each point. Currently weirdly divided between all points in a line.
 
-            while self._dev.base.getParameter(self._dev.base.getConst('ID_PATH_RUNNING'), 0)==1 or self._dev.base.getParameter(self._dev.base.getConst('ID_SCAN_STATUS'), 0)==2:
+            while self._dev.base.getParameter(self._dev.base.getConst('ID_PATH_RUNNING'), 0)==1 or self._dev.base.getParameter(self._dev.base.getConst('ID_SCAN_STATUS'), 0)==1: #SCAN_STATUS=1 movement of scanner between points in v2, SCAN_STATUS=0 all other states
                 time.sleep(0.1)
                 pass
 
@@ -694,16 +694,16 @@ class SPM_ASC500(Base, ScannerInterface):
             self._polled_data = np.zeros(self._line_points) # mean is done anyway so linepoints shouldnt affect.  leaving it in since it was this way
             self._configurePathDataBuffering(sampTime=afm_int_time)
 
-            #Move the sample scanner to the second point of the scan befor the path mode starts. A bug appears if the path mode starting position is the same like the current position.
-            x_pos, y_pos = scan_arr[0,1]
-            self.set_sample_pos_abs({'X': x_pos,'Y': y_pos})
+            # #Move the sample scanner to the second point of the scan befor the path mode starts. A bug appears if the path mode starting position is the same like the current position.
+            # x_pos, y_pos = scan_arr[0,1]
+            # self.set_sample_pos_abs({'X': x_pos,'Y': y_pos})
 
             if self._spm_curr_sstyle==ScanStyle.POINT:
                 while True:
                     if self._dev.base.getParameter(self._dev.base.getConst('ID_SCAN_STATUS'), 0)==8: # should represent idle scan state
                         break
                 self._dev.base.setParameter(self._dev.base.getConst('ID_SPEC_PATHCTRL'), -1, 0 ) # -1 is grid mode
-                self._dev.scanner.setRelativeOrigin(self.end_coords) # set after path or it will attempt going to origin for some reason
+                # self._dev.scanner.setRelativeOrigin(self.end_coords) # set after path or it will attempt going to origin for some reason
                 self._spm_curr_state =  ScannerState.PROBE_SCANNING
 
             return 1
@@ -870,7 +870,7 @@ class SPM_ASC500(Base, ScannerInterface):
         # if going to use grid mode, i.e, ('ID_SPEC_PATHCTRL'), -1, 0, then the GUI_X/Y points of index 0,1,2,3 are the BL,BR,TL,TR coordinates of a parallelogram - BL is start and TR is end
         # coords = [BL,BR,TL,TR] 
 
-        self._coords = [point_grid_dict['bottom_left'],point_grid_dict['bottom_right'],point_grid_dict['top_left'],point_grid_dict['top_right']]
+        self._coords = [point_grid_dict['bottom_left'],point_grid_dict['top_right']]
         
         self._dev.scanner.setNumberOfColumns(1)
         self._dev.scanner.setNumberOfLines(1)
@@ -890,18 +890,19 @@ class SPM_ASC500(Base, ScannerInterface):
             self.log.warning(f'Incorrect scan style for SPM area configuration.')
 
         elif liftoff_mode == True:
-            self.liftoff_mode = liftoff_mode
+            elf.liftoff_mode = liftoff_mode
             self.liftoff_height = liftoff_height
-            self._dev.base.setParameter(self._dev.base.getConst('ID_PATH_ACTION'), 5, 0)
+            self._dev.base.setParameter(self._dev.base.getConst('ID_PATH_ACTION'), 6, 0)
             # 0=manual handshake, 1..3=spectroscopy 1..3, 4=ext. handshake, 5=move Z home, 6=auto approach
             self._dev.base.setParameter(self._dev.base.getConst('ID_PATH_ACTION'), 0, 1)
             self._dev.base.setParameter(self._dev.base.getConst('ID_PATH_ACTION'), 2, 2)
+            self._dev.base.setParameter(self._dev.base.getConst('ID_PATH_ACTION'), 0, 3)
             #move home
-            self._dev.base.setParameter(self._dev.base.getConst('ID_PATH_ACTION'), 5, 3)
+            self._dev.base.setParameter(self._dev.base.getConst('ID_PATH_ACTION'), 5, 4)
             #ext shake
-            self._dev.base.setParameter(self._dev.base.getConst('ID_PATH_ACTION'), 0, 4)
+            self._dev.base.setParameter(self._dev.base.getConst('ID_PATH_ACTION'), 0, 5)
             #loop on
-            self._dev.base.setParameter(self._dev.base.getConst('ID_PATH_ACTION'), 6, 5)
+            self._dev.base.setParameter(self._dev.base.getConst('ID_PATH_ACTION'), 6, 6)
 
             #configuration of autoapproach settings
             # for HFAmpl signal

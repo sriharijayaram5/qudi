@@ -1549,16 +1549,16 @@ class ProteusQGUI(GUIBase):
         self._mw.afm_y_range_DSpinBox.setValue(y_range_new)
 
     def copy_from_daisy_clicked(self):
-        pixel_size = self._qafm_logic._spm._dev.base.getParameter(self._qafm_logic._spm._dev.base.getConst('ID_SCAN_PIXEL'), 0)*1e-11
+        pixel_size = self._qafm_logic._spm._dev.base.getParameter(4133, 0)*10e-13
         x_num = self._qafm_logic._spm._dev.base.getParameter(self._qafm_logic._spm._dev.base.getConst('ID_SCAN_COLUMNS'), 0)
         y_num = self._qafm_logic._spm._dev.base.getParameter(self._qafm_logic._spm._dev.base.getConst('ID_SCAN_LINES'), 0)
         x_range = pixel_size*x_num
         y_range = pixel_size*y_num
         rotation = round(self._qafm_logic._spm._dev.base.getParameter(self._qafm_logic._spm._dev.base.getConst('ID_SCAN_ROTATION'), 0)*360/65536, 2)
-        self._mw.afm_x_origin_DSpinBox.setValue(self._qafm_logic._spm._dev.base.getParameter(self._qafm_logic._spm._dev.base.getConst('ID_SCAN_OFFSET_X'), 0)*1e-11)
+        self._mw.afm_x_origin_DSpinBox.setValue(self._qafm_logic._spm._dev.base.getParameter(4131, 0)*10e-13)
         self._mw.afm_x_range_DSpinBox.setValue(x_range)
         self._mw.afm_x_num_SpinBox.setValue(x_num)
-        self._mw.afm_y_origin_DSpinBox.setValue(self._qafm_logic._spm._dev.base.getParameter(self._qafm_logic._spm._dev.base.getConst('ID_SCAN_OFFSET_Y'), 0)*1e-11)
+        self._mw.afm_y_origin_DSpinBox.setValue(self._qafm_logic._spm._dev.base.getParameter(4132, 0)*10e-13)
         self._mw.afm_y_range_DSpinBox.setValue(y_range)
         self._mw.afm_y_num_SpinBox.setValue(y_num)
         self._mw.afm_rotation_DSpinBox.setValue(rotation)
