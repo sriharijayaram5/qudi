@@ -83,7 +83,7 @@ class ODMRGui(GUIBase):
     sigMwOff = QtCore.Signal()
     sigMwPowerChanged = QtCore.Signal(float)
     sigMwCwParamsChanged = QtCore.Signal(float, float)
-    sigMwSweepParamsChanged = QtCore.Signal(list, list, list, float)
+    sigMwSweepParamsChanged = QtCore.Signal(list, list, list, float, float)
     sigClockFreqChanged = QtCore.Signal(float)
     sigOversamplingChanged = QtCore.Signal(int)
     sigLockInChanged = QtCore.Signal(bool)
@@ -126,6 +126,8 @@ class ODMRGui(GUIBase):
         self._mw.cw_power_DoubleSpinBox.setMinimum(constraints.min_power)
         self._mw.sweep_power_DoubleSpinBox.setMaximum(constraints.max_power)
         self._mw.sweep_power_DoubleSpinBox.setMinimum(constraints.min_power)
+        self._mw.cw_laser_power_voltage_DoubleSpinBox.setMaximum(1)
+        self._mw.cw_laser_power_voltage_DoubleSpinBox.setMinimum(0)
 
         # Add grid layout for ranges
         groupBox = QtWidgets.QGroupBox(self._mw.dockWidgetContents_3)
@@ -323,6 +325,7 @@ class ODMRGui(GUIBase):
         self._mw.cw_frequency_DoubleSpinBox.setValue(self._odmr_logic.cw_mw_frequency)
         self._mw.cw_power_DoubleSpinBox.setValue(self._odmr_logic.cw_mw_power)
         self._mw.sweep_power_DoubleSpinBox.setValue(self._odmr_logic.sweep_mw_power)
+        self._mw.cw_laser_power_voltage_DoubleSpinBox.setValue(self._odmr_logic.cw_laser_power_voltage)
 
         self._mw.runtime_DoubleSpinBox.setValue(self._odmr_logic.run_time)
         self._mw.elapsed_time_DisplayWidget.display(int(np.rint(self._odmr_logic.elapsed_time)))
@@ -347,6 +350,7 @@ class ODMRGui(GUIBase):
         self._mw.cw_frequency_DoubleSpinBox.editingFinished.connect(self.change_cw_params)
 
         self._mw.sweep_power_DoubleSpinBox.editingFinished.connect(self.change_sweep_params)
+        self._mw.cw_laser_power_voltage_DoubleSpinBox.editingFinished.connect(self.change_sweep_params)
         self._mw.cw_power_DoubleSpinBox.editingFinished.connect(self.change_cw_params)
         self._mw.runtime_DoubleSpinBox.editingFinished.connect(self.change_runtime)
         self._mw.odmr_cb_max_DoubleSpinBox.valueChanged.connect(self.colorscale_changed)
@@ -460,6 +464,7 @@ class ODMRGui(GUIBase):
 
         self._mw.cw_power_DoubleSpinBox.editingFinished.disconnect()
         self._mw.sweep_power_DoubleSpinBox.editingFinished.disconnect()
+        self._mw.cw_laser_power_voltage_DoubleSpinBox.editingFinished.disconnect()
         self._mw.runtime_DoubleSpinBox.editingFinished.disconnect()
         self._mw.odmr_cb_max_DoubleSpinBox.valueChanged.disconnect()
         self._mw.odmr_cb_min_DoubleSpinBox.valueChanged.disconnect()
@@ -553,8 +558,9 @@ class ODMRGui(GUIBase):
         stops = self.get_frequencies_from_spinboxes('stop')
         steps = self.get_frequencies_from_spinboxes('step')
         power = self._mw.sweep_power_DoubleSpinBox.value()
+        cw_laser_power_voltage = self._mw.cw_laser_power_voltage_DoubleSpinBox.value()
 
-        self.sigMwSweepParamsChanged.emit(starts, stops, steps, power)
+        self.sigMwSweepParamsChanged.emit(starts, stops, steps, power, cw_laser_power_voltage)
         self._mw.fit_range_SpinBox.setMaximum(self._odmr_logic.ranges)
         self._mw.odmr_control_DockWidget.matrix_range_SpinBox.setMaximum(self._odmr_logic.ranges)
         self._odmr_logic.ranges += 1
@@ -587,7 +593,8 @@ class ODMRGui(GUIBase):
         stops = self.get_frequencies_from_spinboxes('stop')
         steps = self.get_frequencies_from_spinboxes('step')
         power = self._mw.sweep_power_DoubleSpinBox.value()
-        self.sigMwSweepParamsChanged.emit(starts, stops, steps, power)
+        cw_laser_power_voltage = self._mw.cw_laser_power_voltage_DoubleSpinBox.value()
+        self.sigMwSweepParamsChanged.emit(starts, stops, steps, power, cw_laser_power_voltage)
 
         # in case the removed range is the one selected for fitting right now adjust the value
         self._odmr_logic.ranges -= 1
@@ -669,6 +676,7 @@ class ODMRGui(GUIBase):
             self._mw.odmr_PlotWidget.removeItem(self.odmr_fit_image)
             self._mw.cw_power_DoubleSpinBox.setEnabled(False)
             self._mw.sweep_power_DoubleSpinBox.setEnabled(False)
+            self._mw.cw_laser_power_voltage_DoubleSpinBox.setEnabled(False)
             self._mw.cw_frequency_DoubleSpinBox.setEnabled(False)
             dspinbox_dict = self.get_all_dspinboxes_from_groupbox()
             for identifier_name in dspinbox_dict:
@@ -695,6 +703,7 @@ class ODMRGui(GUIBase):
             self._mw.action_toggle_cw.setEnabled(False)
             self._mw.cw_power_DoubleSpinBox.setEnabled(False)
             self._mw.sweep_power_DoubleSpinBox.setEnabled(False)
+            self._mw.cw_laser_power_voltage_DoubleSpinBox.setEnabled(False)
             self._mw.cw_frequency_DoubleSpinBox.setEnabled(False)
             dspinbox_dict = self.get_all_dspinboxes_from_groupbox()
             for identifier_name in dspinbox_dict:
@@ -756,6 +765,7 @@ class ODMRGui(GUIBase):
                 self._mw.odmr_control_DockWidget.add_range_button.setEnabled(False)
                 self._mw.odmr_control_DockWidget.remove_range_button.setEnabled(False)
                 self._mw.sweep_power_DoubleSpinBox.setEnabled(False)
+                self._mw.cw_laser_power_voltage_DoubleSpinBox.setEnabled(False)
                 self._mw.runtime_DoubleSpinBox.setEnabled(False)
                 self._sd.clock_frequency_DoubleSpinBox.setEnabled(False)
                 self._sd.oversampling_SpinBox.setEnabled(False)
@@ -774,6 +784,7 @@ class ODMRGui(GUIBase):
                 self._mw.odmr_control_DockWidget.add_range_button.setEnabled(True)
                 self._mw.odmr_control_DockWidget.remove_range_button.setEnabled(True)
                 self._mw.sweep_power_DoubleSpinBox.setEnabled(True)
+                self._mw.cw_laser_power_voltage_DoubleSpinBox.setEnabled(True)
                 self._mw.runtime_DoubleSpinBox.setEnabled(True)
                 self._sd.clock_frequency_DoubleSpinBox.setEnabled(True)
                 self._sd.oversampling_SpinBox.setEnabled(True)
@@ -785,6 +796,7 @@ class ODMRGui(GUIBase):
             self._mw.action_resume_odmr.setEnabled(True)
             self._mw.cw_power_DoubleSpinBox.setEnabled(True)
             self._mw.sweep_power_DoubleSpinBox.setEnabled(True)
+            self._mw.cw_laser_power_voltage_DoubleSpinBox.setEnabled(True)
             self._mw.cw_frequency_DoubleSpinBox.setEnabled(True)
             self._mw.clear_odmr_PushButton.setEnabled(False)
             self._mw.action_run_stop.setEnabled(True)
@@ -996,6 +1008,12 @@ class ODMRGui(GUIBase):
             self._mw.sweep_power_DoubleSpinBox.setValue(param)
             self._mw.sweep_power_DoubleSpinBox.blockSignals(False)
 
+        param = param_dict.get('cw_laser_power_voltage')
+        if param is not None:
+            self._mw.cw_laser_power_voltage_DoubleSpinBox.blockSignals(True)
+            self._mw.cw_laser_power_voltage_DoubleSpinBox.setValue(param)
+            self._mw.cw_laser_power_voltage_DoubleSpinBox.blockSignals(False)
+
         mw_starts = param_dict.get('mw_starts')
         mw_steps = param_dict.get('mw_steps')
         mw_stops = param_dict.get('mw_stops')
@@ -1098,7 +1116,8 @@ class ODMRGui(GUIBase):
             stops.append(stop)
 
         power = self._mw.sweep_power_DoubleSpinBox.value()
-        self.sigMwSweepParamsChanged.emit(starts, stops, steps, power)
+        cw_laser_power_voltage = self._mw.cw_laser_power_voltage_DoubleSpinBox.value()
+        self.sigMwSweepParamsChanged.emit(starts, stops, steps, power, cw_laser_power_voltage)
         return
 
     def change_fit_range(self):

@@ -67,6 +67,8 @@ class PulseStreamer(Base, PulserInterface):
     __current_waveform_name = StatusVar(name='current_waveform_name', default='')
     __sample_rate = StatusVar(name='sample_rate', default=1e9)
     _laser_power_voltage = StatusVar(name='laser_power_voltage', default=0.5)
+    _cw_laser_power_voltage = StatusVar(name='cw_laser_power_voltage', default = 0.1)
+    _pulsed_laser_power_voltage = StatusVar(name='pulsed_laser_power_voltage', default = 0.1)
 
     _pulse_heating_delay = StatusVar(name='pulse_heating_delay', default=0)
 
@@ -252,6 +254,16 @@ class PulseStreamer(Base, PulserInterface):
         constraints.activation_config = activation_config
 
         return constraints
+    
+    def update_final_states(self, laser_power_voltage):
+        self._laser_power_voltage = laser_power_voltage
+        self.AWG_master_final_state = ps.OutputState([], laser_power_voltage, 0)
+        self.AWG_master_cw_final_state = ps.OutputState([self._laser_channel], laser_power_voltage, 0)
+        self._sync_final_state = ps.OutputState([self._laser_channel,self._sync_in], laser_power_voltage, 0)
+        self._pulse_final_state = ps.OutputState([self._laser_channel], laser_power_voltage, 0)
+        self._mw_trig_final_state = ps.OutputState([self._uw_x_channel, self._pixel_stop, self._laser_channel], laser_power_voltage, 0)
+        self._mw_trig_sync_final_state = ps.OutputState([self._uw_x_channel, self._pixel_stop, self._laser_channel, self._sync_in], laser_power_voltage, 0)
+        self._final_state = ps.OutputState([self._laser_channel], laser_power_voltage, 0) # DO NOT USE THIS!
 
     def pulser_on(self, trigger=False,  n=-1, rearm=False, final=None, laser=False):
         """ Switches the pulsing device on.

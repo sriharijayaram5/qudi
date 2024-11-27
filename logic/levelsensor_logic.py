@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 """
-A module for controlling processes via PID regulation.
+A module for controlling processes with LN2 level sensor.
 
 Qudi is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -33,22 +33,22 @@ from logic.generic_logic import GenericLogic
 from qtpy import QtCore
 
 
-class PIDLogic(GenericLogic):
+class LevelsensorLogic(GenericLogic):
     """ Logic module to monitor and control a PID process
 
     Example config:
 
     pidlogic:
-        module.Class: 'pid_logic.PIDLogic'
+        module.Class: 'levelsensor_logic.PIDLogic'
         timestep: 0.1
         connect:
-            controller: 'softpid'
+            controller: 'levelsensor'
             savelogic: 'savelogic'
 
     """
 
     # declare connectors
-    controller = Connector(interface='PIDControllerInterface')
+    controller = Connector(interface='SimpleDataInterface')
     savelogic = Connector(interface='SaveLogic')
 
     # status vars
@@ -72,10 +72,7 @@ class PIDLogic(GenericLogic):
         self._controller = self.controller()
         self._save_logic = self.savelogic()
 
-        self.process_unit = ''
-        self.control_unit = ''
-
-        self.history = np.zeros([3, self.bufferLength])
+        self.history = np.zeros([4, self.bufferLength])
         self.savingState = False
         self.enabled = False
         self.timer = QtCore.QTimer()
@@ -107,19 +104,28 @@ class PIDLogic(GenericLogic):
         """ Execute step in the data recording loop: save one of each control and process values
         """
         self.history = np.roll(self.history, -1, axis=1)
-        self.history[0, -1] = self._controller.get_process_value()
-        self.history[1, -1] = self._controller.get_control_value()
-        self.history[2, -1] = self._controller.get_setpoint()
+        self.history[0, -1] = self._controller.getLevel()
+        self.history[1, -1] = self._controller.get_high_level()
+        self.history[2, -1] = self._controller.get_low_level()
+        fillstatus = self._controller.get_fill_status()
+        if fillstatus == 'off':
+            self.history[3, -1] = 0
+        elif fillstatus == 0.0:
+            self.history[3, -1] = 1
+        elif fillstatus == 'timeout':
+            self.history[3, -1] = 2
+        else:
+            self.history[3, -1] = 3
         self.sigUpdateDisplay.emit()
 
         if self.savingState:
             timestamp = datetime.datetime.now()
             time_delta = timestamp - self.start_timestamp
-            time = '%.3E' % Decimal(f'{time_delta.total_seconds()}')
-            process_value = '%.6E' % Decimal(f'{self.history[0, -1]}')
-            control_value = '%.3E' % Decimal(f'{self.history[1, -1]}')
-            set_point = '%.6E' % Decimal(f'{self.history[2, -1]}')
-            add_row = f'{time}' + '\t' + f'{process_value}' + '\t' + f'{set_point}' + '\t' + f'{control_value}' +  '\n'
+            time = '%.2E' % Decimal(f'{time_delta.total_seconds()}')
+            current_level = '%.2E' % Decimal(f'{self.history[0, -1]}')
+            high_level = '%.2E' % Decimal(f'{self.history[1, -1]}')
+            low_level = '%.2E' % Decimal(f'{self.history[2, -1]}')
+            add_row = f'{time}' + '\t' + f'{current_level}' + '\t' + f'{low_level}' + '\t' + f'{high_level}' +  '\n'
             with open(self.file, 'a') as file:
                 file.write(add_row)
 
@@ -133,27 +139,25 @@ class PIDLogic(GenericLogic):
         """
         return self.savingState
 
-    def startSaving(self, filetag = ''):
+    def startSaving(self):
         """ Start logging data.
+
         """
         self.start_timestamp = datetime.datetime.now()
-        filepath = self._save_logic.get_path_for_module(module_name='tip_temperature_log')
-        if len(filetag)>0:
-            filelabel = filetag + '_tip_temperature_log'
-        else:
-            filelabel = 'tip_temperature_log'
+        filepath = self._save_logic.get_path_for_module(module_name='LN2_level_log')
+        filelabel = 'LN2_level_log'
         filename = self.start_timestamp.strftime('%Y%m%d-%H%M-%S' + '_' + filelabel + '.dat')
         self.file = filepath +'\\' +  filename
         data = OrderedDict()
         data['time (s)'] = []
-        data[f'process value ({self.process_unit})'] = []
-        data[f'set point ({self.process_unit})'] = []
-        data[f'control value ({self.control_unit})'] = []
+        data['current level (%)'] = []
+        data['low level (%)'] = []
+        data['high level (%)'] = []
 
         self._save_logic.save_data(data,
                         filepath=filepath,
                         filename=filename,
-                        fmt='%.3e',
+                        fmt='%.2e',
                         delimiter='\t')
         
         self.savingState = True
@@ -161,6 +165,7 @@ class PIDLogic(GenericLogic):
     def saveData(self):
         """ Stop logging data.
         """
+
         self.savingState = False
 
     def setBufferLength(self, newBufferLength):
@@ -171,75 +176,33 @@ class PIDLogic(GenericLogic):
         self.bufferLength = newBufferLength
         self.history = np.zeros([3, self.bufferLength])
 
-    def get_kp(self):
+    def get_high_level(self):
         """ Return the proportional constant.
 
             @return float: proportional constant of PID controller
         """
-        return self._controller.get_kp()
+        return self._controller.get_high_level()
 
-    def set_kp(self, kp):
+    def set_high_level(self, high_level):
         """ Set the proportional constant of the PID controller.
 
             @prarm float kp: proportional constant of PID controller
         """
-        return self._controller.set_kp(kp)
+        return self._controller.set_high_level(high_level)
 
-    def get_ki(self):
-        """ Get the integration constant of the PID controller
-
-            @return float: integration constant of the PID controller
-        """
-        return self._controller.get_ki()
-
-    def set_ki(self, ki):
-        """ Set the integration constant of the PID controller.
-
-            @param float ki: integration constant of the PID controller
-        """
-        return self._controller.set_ki(ki)
-
-    def get_kd(self):
-        """ Get the derivative constant of the PID controller
-
-            @return float: the derivative constant of the PID controller
-        """
-        return self._controller.get_kd()
-
-    def set_kd(self, kd):
-        """ Set the derivative constant of the PID controller
-
-            @param float kd: the derivative constant of the PID controller
-        """
-        return self._controller.set_kd(kd)
-
-    def get_setpoint(self):
+    def get_low_level(self):
         """ Get the current setpoint of the PID controller.
 
             @return float: current set point of the PID controller
         """
-        return self._controller.get_setpoint()
+        return self._controller.get_low_level()
 
-    def set_setpoint(self, setpoint):
+    def set_low_level(self, setpoint):
         """ Set the current setpoint of the PID controller.
 
             @param float setpoint: new set point of the PID controller
         """
-        self._controller.set_setpoint(setpoint)
-
-    def get_manual_value(self):
-        """ Return the control value for manual mode.
-
-            @return float: control value for manual mode
-        """
-        return self._controller.get_manual_value()
-
-    def set_manual_value(self, manualvalue):
-        """ Set the control value for manual mode.
-
-            @param float manualvalue: control value for manual mode of controller
-        """
-        return self._controller.set_manual_value(manualvalue)
+        self._controller.set_low_level(setpoint)
 
     def get_enabled(self):
         """ See if the PID controller is controlling a process.
@@ -257,33 +220,3 @@ class PIDLogic(GenericLogic):
             self.startLoop()
         if not enabled and self.enabled:
             self.stopLoop()
-
-    def get_control_limits(self):
-        """ Get the minimum and maximum value of the control actuator.
-
-            @return list(float): (minimum, maximum) values of the control actuator
-        """
-        return self._controller.get_control_limits()
-
-    def set_control_limits(self, limits):
-        """ Set the minimum and maximum value of the control actuator.
-
-            @param list(float) limits: (minimum, maximum) values of the control actuator
-
-            This function does nothing, control limits are handled by the control module
-        """
-        return self._controller.set_control_limits(limits)
-
-    def get_pv(self):
-        """ Get current process input value.
-
-            @return float: current process input value
-        """
-        return self.history[0, -1]
-
-    def get_cv(self):
-        """ Get current control output value.
-
-            @return float: control output value
-        """
-        return self.history[1, -1]

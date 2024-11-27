@@ -26,6 +26,7 @@ from interface.pid_controller_interface import PIDControllerInterface
 from qtpy import QtCore
 from lakeshore import Model335
 import lakeshore
+import numpy as np
 
 
 class temperaturecontroller335(Base, PIDControllerInterface):
@@ -45,6 +46,7 @@ class temperaturecontroller335(Base, PIDControllerInterface):
         resistance: 1 #1=25ohm, 2=50ohm of used heater
         max_current: 1 #0=user specified, 1=0.707A, 2=1A, 3=1.141A, 4=1.732A maximum heater output current
         max_current_user: 0 #specifies maximum heater output current for 0=user specified
+        heater_range: 1 #specifies the allowed range for the heater output. 0 = off, 1 = Low (max power/100), 2 = Medium (max power/10), 3 = High (max power)
         input: 'A' #Chose A or B
         sensor_type: 0 #0=Disabled, 1=Diode, 2=Platinum RTD, 3 =NTC RTD, 4 =Thermocouple
         autorange: 1 #0=off, 1=on
@@ -72,6 +74,7 @@ class temperaturecontroller335(Base, PIDControllerInterface):
     resistance = ConfigOption('resistance', 2, missing='warn')
     max_current = ConfigOption('max_current', 1, missing='warn')
     max_current_user = ConfigOption('max_current_user', 0, missing='warn')
+    heater_range = ConfigOption('heater_range', 1, missing='warn')
     input = ConfigOption('input', 'A', missing='warn')
     sensor_type = ConfigOption('sensor_type', '0', missing='warn')
     autorange = ConfigOption('autorange', '1', missing='warn')
@@ -88,7 +91,7 @@ class temperaturecontroller335(Base, PIDControllerInterface):
         try: #This test has to be done, as it sometimes causes an error for the first query after activation.
             self.temp_controller.query('*IDN?')
         except:
-            self.log.warn('Something might went wrong with the connection to the Temperature controller.')
+            self.log.warning('Something might went wrong with the connection to the Temperature controller.')
 
         self.setup_input()
         self.setup_output()
@@ -134,7 +137,7 @@ class temperaturecontroller335(Base, PIDControllerInterface):
 
          @return (float): The current kp coefficient associated with the proportional term
          """
-        str = f'PID?{self.output}'
+        str = f'PID? {self.output}'
         return float(self.temp_controller.query(str).split(',')[0])
 
     def set_kp(self, kp):
@@ -142,7 +145,7 @@ class temperaturecontroller335(Base, PIDControllerInterface):
 
          @param (float) kp: The new kp coefficient associated with the proportional term
          """
-        str = f'PID?{self.output}'
+        str = f'PID? {self.output}'
         current_PID = self.temp_controller.query(str).split(',')
         ki = float(current_PID[1])
         kd = float(current_PID[2])
@@ -154,7 +157,7 @@ class temperaturecontroller335(Base, PIDControllerInterface):
 
          @return (float): The current ki coefficient associated with the integral term
          """
-        str = f'PID?{self.output}'
+        str = f'PID? {self.output}'
         return float(self.temp_controller.query(str).split(',')[1])
 
     def set_ki(self, ki):
@@ -162,7 +165,7 @@ class temperaturecontroller335(Base, PIDControllerInterface):
 
          @param (float) ki: The new ki coefficient associated with the integral term
          """
-        str = f'PID?{self.output}'
+        str = f'PID? {self.output}'
         current_PID = self.temp_controller.query(str).split(',')
         kp = float(current_PID[0])
         kd = float(current_PID[2])
@@ -174,7 +177,7 @@ class temperaturecontroller335(Base, PIDControllerInterface):
 
          @return (float): The current kd coefficient associated with the derivative term
          """
-        str = f'PID?{self.output}'
+        str = f'PID? {self.output}'
         return float(self.temp_controller.query(str).split(',')[2])
 
     def set_kd(self, kd):
@@ -182,7 +185,7 @@ class temperaturecontroller335(Base, PIDControllerInterface):
 
          @param (float) kd: The new kd coefficient associated with the derivative term
          """
-        str = f'PID?{self.output}'
+        str = f'PID? {self.output}'
         current_PID = self.temp_controller.query(str).split(',')
         kp = float(current_PID[0])
         ki = float(current_PID[1])
@@ -194,7 +197,7 @@ class temperaturecontroller335(Base, PIDControllerInterface):
 
          @return (float): The current setpoint value
          """
-        str = f'SETP?{self.output}'
+        str = f'SETP? {self.output}'
         return float(self.temp_controller.query(str))
 
     def set_setpoint(self, setpoint):
@@ -210,7 +213,7 @@ class temperaturecontroller335(Base, PIDControllerInterface):
 
         @return (float): The current manual value in %
         """
-        str = f'MOUT?{self.output}'
+        str = f'MOUT? {self.output}'
         return float(self.temp_controller.query(str))
 
     def set_manual_value(self, manualvalue):
@@ -226,7 +229,7 @@ class temperaturecontroller335(Base, PIDControllerInterface):
 
         @return (bool): True if enabled, False otherwise
         """
-        str = f'RANGE?{self.output}'
+        str = f'RANGE? {self.output}'
         if int(self.temp_controller.query(str).split(',')[0]) == 0:
             return False
         else:
@@ -266,7 +269,7 @@ class temperaturecontroller335(Base, PIDControllerInterface):
 
         @return (float): The current process value
         """
-        str = f'KRDG?{self.input}'
+        str = f'KRDG? {self.input}'
         return float(self.temp_controller.query(str))
 
     def get_control_value(self):
@@ -274,7 +277,7 @@ class temperaturecontroller335(Base, PIDControllerInterface):
 
         @return (float): The current control value
         """
-        str = f'HTR?{self.output}'
+        str = f'HTR? {self.output}'
         return float(self.temp_controller.query(str))
 
     def get_extra(self):

@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1234</width>
-    <height>611</height>
+    <width>886</width>
+    <height>582</height>
    </rect>
   </property>
   <property name="contextMenuPolicy">
@@ -213,8 +213,8 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>1234</width>
-     <height>24</height>
+     <width>886</width>
+     <height>21</height>
     </rect>
    </property>
    <widget class="QMenu" name="menu_File">
@@ -287,41 +287,6 @@
      </sizepolicy>
     </property>
     <layout class="QGridLayout" name="gridLayout">
-     <item row="0" column="2">
-      <widget class="ScienDSpinBox" name="cw_frequency_DoubleSpinBox">
-       <property name="sizePolicy">
-        <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
-         <horstretch>0</horstretch>
-         <verstretch>0</verstretch>
-        </sizepolicy>
-       </property>
-       <property name="suffix">
-        <string>Hz</string>
-       </property>
-       <property name="decimals">
-        <number>6</number>
-       </property>
-       <property name="maximum">
-        <double>1000000000.000000000000000</double>
-       </property>
-       <property name="singleStep">
-        <double>0.010000000000000</double>
-       </property>
-      </widget>
-     </item>
-     <item row="0" column="1">
-      <widget class="QLabel" name="label">
-       <property name="sizePolicy">
-        <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
-         <horstretch>0</horstretch>
-         <verstretch>0</verstretch>
-        </sizepolicy>
-       </property>
-       <property name="text">
-        <string>CW Frequency :</string>
-       </property>
-      </widget>
-     </item>
      <item row="0" column="3">
       <widget class="QLabel" name="label_6">
        <property name="sizePolicy">
@@ -332,39 +297,6 @@
        </property>
        <property name="text">
         <string>CW Power :</string>
-       </property>
-      </widget>
-     </item>
-     <item row="2" column="4">
-      <widget class="QLCDNumber" name="elapsed_time_DisplayWidget">
-       <property name="sizePolicy">
-        <sizepolicy hsizetype="Minimum" vsizetype="Minimum">
-         <horstretch>0</horstretch>
-         <verstretch>0</verstretch>
-        </sizepolicy>
-       </property>
-      </widget>
-     </item>
-     <item row="2" column="6">
-      <widget class="QLCDNumber" name="elapsed_sweeps_DisplayWidget"/>
-     </item>
-     <item row="4" column="1" colspan="6">
-      <widget class="Line" name="line">
-       <property name="orientation">
-        <enum>Qt::Horizontal</enum>
-       </property>
-      </widget>
-     </item>
-     <item row="2" column="5">
-      <widget class="QLabel" name="label_10">
-       <property name="sizePolicy">
-        <sizepolicy hsizetype="Minimum" vsizetype="Minimum">
-         <horstretch>0</horstretch>
-         <verstretch>0</verstretch>
-        </sizepolicy>
-       </property>
-       <property name="text">
-        <string>Elapsed Sweeps :</string>
        </property>
       </widget>
      </item>
@@ -390,6 +322,93 @@
        </property>
       </widget>
      </item>
+     <item row="2" column="1">
+      <widget class="QLabel" name="label_7">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Minimum" vsizetype="Minimum">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <property name="text">
+        <string>Runtime:</string>
+       </property>
+      </widget>
+     </item>
+     <item row="2" column="3">
+      <widget class="QLabel" name="label_8">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Minimum" vsizetype="Minimum">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <property name="text">
+        <string>Elapsed Time (s) :</string>
+       </property>
+      </widget>
+     </item>
+     <item row="2" column="4">
+      <widget class="QLCDNumber" name="elapsed_time_DisplayWidget">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Minimum" vsizetype="Minimum">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+      </widget>
+     </item>
+     <item row="2" column="5">
+      <widget class="QLabel" name="label_10">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Minimum" vsizetype="Minimum">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <property name="text">
+        <string>Elapsed Sweeps :</string>
+       </property>
+      </widget>
+     </item>
+     <item row="0" column="0" rowspan="7">
+      <spacer name="horizontalSpacer_2">
+       <property name="orientation">
+        <enum>Qt::Horizontal</enum>
+       </property>
+       <property name="sizeHint" stdset="0">
+        <size>
+         <width>5</width>
+         <height>20</height>
+        </size>
+       </property>
+      </spacer>
+     </item>
+     <item row="2" column="6">
+      <widget class="QLCDNumber" name="elapsed_sweeps_DisplayWidget"/>
+     </item>
+     <item row="0" column="2">
+      <widget class="ScienDSpinBox" name="cw_frequency_DoubleSpinBox">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <property name="suffix">
+        <string>Hz</string>
+       </property>
+       <property name="decimals">
+        <number>6</number>
+       </property>
+       <property name="maximum">
+        <double>1000000000.000000000000000</double>
+       </property>
+       <property name="singleStep">
+        <double>0.010000000000000</double>
+       </property>
+      </widget>
+     </item>
      <item row="2" column="2">
       <widget class="QDoubleSpinBox" name="runtime_DoubleSpinBox">
        <property name="sizePolicy">
@@ -406,16 +425,65 @@
        </property>
       </widget>
      </item>
-     <item row="2" column="3">
-      <widget class="QLabel" name="label_8">
+     <item row="1" column="1" colspan="6">
+      <widget class="Line" name="line_2">
+       <property name="minimumSize">
+        <size>
+         <width>0</width>
+         <height>0</height>
+        </size>
+       </property>
+       <property name="lineWidth">
+        <number>1</number>
+       </property>
+       <property name="midLineWidth">
+        <number>0</number>
+       </property>
+       <property name="orientation">
+        <enum>Qt::Horizontal</enum>
+       </property>
+      </widget>
+     </item>
+     <item row="0" column="1">
+      <widget class="QLabel" name="label">
        <property name="sizePolicy">
-        <sizepolicy hsizetype="Minimum" vsizetype="Minimum">
+        <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
          <horstretch>0</horstretch>
          <verstretch>0</verstretch>
         </sizepolicy>
        </property>
        <property name="text">
-        <string>Elapsed Time (s) :</string>
+        <string>CW Frequency :</string>
+       </property>
+      </widget>
+     </item>
+     <item row="3" column="1">
+      <widget class="QLabel" name="average_label">
+       <property name="text">
+        <string>Lines to average</string>
+       </property>
+      </widget>
+     </item>
+     <item row="3" column="2">
+      <widget class="QSpinBox" name="average_level_SpinBox">
+       <property name="minimum">
+        <number>0</number>
+       </property>
+       <property name="maximum">
+        <number>1000</number>
+       </property>
+       <property name="singleStep">
+        <number>1</number>
+       </property>
+       <property name="value">
+        <number>0</number>
+       </property>
+      </widget>
+     </item>
+     <item row="4" column="1" colspan="6">
+      <widget class="Line" name="line">
+       <property name="orientation">
+        <enum>Qt::Horizontal</enum>
        </property>
       </widget>
      </item>
@@ -454,8 +522,8 @@
        </property>
       </widget>
      </item>
-     <item row="2" column="1">
-      <widget class="QLabel" name="label_7">
+     <item row="6" column="1">
+      <widget class="QLabel" name="label_3">
        <property name="sizePolicy">
         <sizepolicy hsizetype="Minimum" vsizetype="Minimum">
          <horstretch>0</horstretch>
@@ -463,62 +531,32 @@
         </sizepolicy>
        </property>
        <property name="text">
-        <string>Runtime:</string>
+        <string>Laser power voltage: :</string>
        </property>
       </widget>
      </item>
-     <item row="0" column="0" rowspan="7">
-      <spacer name="horizontalSpacer_2">
-       <property name="orientation">
-        <enum>Qt::Horizontal</enum>
+     <item row="6" column="2">
+      <widget class="ScienDSpinBox" name="cw_laser_power_voltage_DoubleSpinBox">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
        </property>
-       <property name="sizeHint" stdset="0">
-        <size>
-         <width>5</width>
-         <height>20</height>
-        </size>
+       <property name="suffix">
+        <string>V</string>
        </property>
-      </spacer>
-     </item>
-     <item row="3" column="1">
-      <widget class="QLabel" name="average_label">
-       <property name="text">
-        <string>Lines to average</string>
+       <property name="decimals">
+        <number>3</number>
        </property>
-      </widget>
-     </item>
-     <item row="3" column="2">
-      <widget class="QSpinBox" name="average_level_SpinBox">
        <property name="minimum">
-        <number>0</number>
+        <double>0.000000000000000</double>
        </property>
        <property name="maximum">
-        <number>1000</number>
+        <double>1.000000000000000</double>
        </property>
        <property name="singleStep">
-        <number>1</number>
-       </property>
-       <property name="value">
-        <number>0</number>
-       </property>
-      </widget>
-     </item>
-     <item row="1" column="1" colspan="6">
-      <widget class="Line" name="line_2">
-       <property name="minimumSize">
-        <size>
-         <width>0</width>
-         <height>0</height>
-        </size>
-       </property>
-       <property name="lineWidth">
-        <number>1</number>
-       </property>
-       <property name="midLineWidth">
-        <number>0</number>
-       </property>
-       <property name="orientation">
-        <enum>Qt::Horizontal</enum>
+        <double>0.001000000000000</double>
        </property>
       </widget>
      </item>

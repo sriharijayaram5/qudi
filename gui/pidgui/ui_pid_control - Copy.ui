@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>833</width>
-    <height>496</height>
+    <height>512</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -70,7 +70,7 @@
     </size>
    </property>
    <property name="windowTitle">
-    <string>PID display</string>
+    <string>&amp;PID display</string>
    </property>
    <attribute name="dockWidgetArea">
     <number>4</number>
@@ -89,128 +89,104 @@
      </size>
     </property>
     <layout class="QGridLayout" name="gridLayout">
-     <item row="0" column="0">
-      <layout class="QHBoxLayout" name="horizontalLayout">
-       <item>
-        <widget class="QLabel" name="setpoint_value_Label">
-         <property name="font">
-          <font>
-           <pointsize>24</pointsize>
-           <weight>75</weight>
-           <bold>true</bold>
-          </font>
-         </property>
-         <property name="text">
-          <string>0</string>
-         </property>
-         <property name="alignment">
-          <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
-         </property>
-        </widget>
-       </item>
-       <item>
-        <spacer name="horizontalSpacer">
-         <property name="orientation">
-          <enum>Qt::Horizontal</enum>
-         </property>
-         <property name="sizeType">
-          <enum>QSizePolicy::Expanding</enum>
-         </property>
-         <property name="sizeHint" stdset="0">
-          <size>
-           <width>13</width>
-           <height>20</height>
-          </size>
-         </property>
-        </spacer>
-       </item>
-       <item>
-        <widget class="QLabel" name="process_value_Label">
-         <property name="font">
-          <font>
-           <pointsize>24</pointsize>
-           <weight>75</weight>
-           <bold>true</bold>
-          </font>
-         </property>
-         <property name="text">
-          <string>0</string>
-         </property>
-         <property name="alignment">
-          <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
-         </property>
-        </widget>
-       </item>
-       <item>
-        <spacer name="horizontalSpacer_2">
-         <property name="orientation">
-          <enum>Qt::Horizontal</enum>
-         </property>
-         <property name="sizeType">
-          <enum>QSizePolicy::Expanding</enum>
-         </property>
-         <property name="sizeHint" stdset="0">
-          <size>
-           <width>13</width>
-           <height>20</height>
-          </size>
-         </property>
-        </spacer>
-       </item>
-       <item>
-        <widget class="QLabel" name="control_value_Label">
-         <property name="font">
-          <font>
-           <pointsize>24</pointsize>
-           <weight>75</weight>
-           <bold>true</bold>
-          </font>
-         </property>
-         <property name="text">
-          <string>0</string>
-         </property>
-         <property name="alignment">
-          <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
-         </property>
-        </widget>
-       </item>
-      </layout>
+     <item row="0" column="5">
+      <widget class="QLabel" name="control_value_Label">
+       <property name="font">
+        <font>
+         <pointsize>24</pointsize>
+         <weight>75</weight>
+         <bold>true</bold>
+        </font>
+       </property>
+       <property name="text">
+        <string>0</string>
+       </property>
+       <property name="alignment">
+        <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+       </property>
+      </widget>
      </item>
-     <item row="1" column="0">
-      <layout class="QHBoxLayout" name="horizontalLayout_2">
-       <item>
-        <widget class="PlotWidget" name="trace_process_PlotWidget">
-         <property name="sizePolicy">
-          <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
-           <horstretch>0</horstretch>
-           <verstretch>0</verstretch>
-          </sizepolicy>
-         </property>
-         <property name="minimumSize">
-          <size>
-           <width>100</width>
-           <height>100</height>
-          </size>
-         </property>
-        </widget>
-       </item>
-       <item>
-        <widget class="PlotWidget" name="trace_control_PlotWidget">
-         <property name="sizePolicy">
-          <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
-           <horstretch>0</horstretch>
-           <verstretch>0</verstretch>
-          </sizepolicy>
-         </property>
-         <property name="minimumSize">
-          <size>
-           <width>100</width>
-           <height>100</height>
-          </size>
-         </property>
-        </widget>
-       </item>
-      </layout>
+     <item row="3" column="1" colspan="5">
+      <widget class="PlotWidget" name="trace_PlotWidget">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <property name="minimumSize">
+        <size>
+         <width>100</width>
+         <height>100</height>
+        </size>
+       </property>
+      </widget>
+     </item>
+     <item row="0" column="4">
+      <spacer name="horizontalSpacer_2">
+       <property name="orientation">
+        <enum>Qt::Horizontal</enum>
+       </property>
+       <property name="sizeType">
+        <enum>QSizePolicy::Expanding</enum>
+       </property>
+       <property name="sizeHint" stdset="0">
+        <size>
+         <width>1</width>
+         <height>20</height>
+        </size>
+       </property>
+      </spacer>
+     </item>
+     <item row="0" column="2">
+      <spacer name="horizontalSpacer">
+       <property name="orientation">
+        <enum>Qt::Horizontal</enum>
+       </property>
+       <property name="sizeType">
+        <enum>QSizePolicy::Expanding</enum>
+       </property>
+       <property name="sizeHint" stdset="0">
+        <size>
+         <width>1</width>
+         <height>20</height>
+        </size>
+       </property>
+      </spacer>
+     </item>
+     <item row="0" column="3">
+      <widget class="QLabel" name="process_value_Label">
+       <property name="font">
+        <font>
+         <pointsize>24</pointsize>
+         <weight>75</weight>
+         <bold>true</bold>
+        </font>
+       </property>
+       <property name="text">
+        <string>0</string>
+       </property>
+       <property name="alignment">
+        <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+       </property>
+      </widget>
+     </item>
+     <item row="0" column="1">
+      <widget class="QLabel" name="setpoint_value_Label">
+       <property name="font">
+        <font>
+         <pointsize>24</pointsize>
+         <weight>75</weight>
+         <bold>true</bold>
+        </font>
+       </property>
+       <property name="text">
+        <string>0</string>
+       </property>
+       <property name="alignment">
+        <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+       </property>
+      </widget>
      </item>
     </layout>
    </widget>
@@ -235,7 +211,7 @@
     </size>
    </property>
    <property name="windowTitle">
-    <string>PID parameters</string>
+    <string>PID para&amp;meters</string>
    </property>
    <attribute name="dockWidgetArea">
     <number>8</number>
@@ -272,7 +248,9 @@
         </sizepolicy>
        </property>
        <property name="toolTip">
-        <string/>
+        <string>If bigger than 1, the number of samples is averaged over the given number and then displayed. 
+Use for extremely fast counting, since all the raw data is saved. 
+Timestamps in oversampling interval are all equal to the averaging time.</string>
        </property>
        <property name="decimals">
         <number>3</number>
@@ -598,11 +576,8 @@ Timestamps in oversampling interval are all equal to the averaging time.</string
    <property name="text">
     <string>Start counter</string>
    </property>
-   <property name="iconText">
-    <string>Start</string>
-   </property>
    <property name="toolTip">
-    <string>Start the reading</string>
+    <string>Start the counter</string>
    </property>
   </action>
   <action name="record_control_Action">
@@ -678,6 +653,7 @@ Timestamps in oversampling interval are all equal to the averaging time.</string
   </customwidget>
  </customwidgets>
  <tabstops>
+  <tabstop>trace_PlotWidget</tabstop>
   <tabstop>pidEnabledCheckBox</tabstop>
   <tabstop>setpointDoubleSpinBox</tabstop>
   <tabstop>P_DoubleSpinBox</tabstop>

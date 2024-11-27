@@ -60,7 +60,7 @@ class ODMRCounterInterfuse(GenericLogic, ODMRCounterInterface):
 
     ### ODMR counter interface commands
 
-    def set_up_odmr_clock(self, clock_frequency=None, clock_channel=None):
+    def set_up_odmr_clock(self, laser_power_voltage, clock_frequency=None, clock_channel=None):
         """ Configures the hardware clock of the NiDAQ card to give the timing.
 
         @param float clock_frequency: if defined, this sets the frequency of the
@@ -74,6 +74,8 @@ class ODMRCounterInterfuse(GenericLogic, ODMRCounterInterface):
             run_IQ_status, ensemblename =self._pulse_creator.run_IQ_DC()
             if run_IQ_status<0:
                 return -1
+
+        self._pulser.self.pulser.update_final_states(laser_power_voltage) #This also updates self._pulser._laser_power_voltage
 
         channels = {'d0': 0.0 , 'd1': 0.0 , 'd2': 0.0 , 'd3': 0.0 , 'd4': 0.0 , 'd5': 0.0 , 'd6': 0.0 , 'd7': 0.0 , 'a0': 0.0, 'a1': 0.0}
         clear = lambda x: {i:0.0 for i in x.keys()}
@@ -123,7 +125,7 @@ class ODMRCounterInterfuse(GenericLogic, ODMRCounterInterface):
         self._pulser.load_swabian_sequence(pulse_dict)
         return 0
     
-    def set_up_odmr_AWG_sweep(self, mw_start, mw_stop, mw_step, clock_frequency=None):
+    def set_up_odmr_AWG_sweep(self, mw_start, mw_stop, mw_step, laser_power_voltage, clock_frequency=None):
 
         self._pulse_creator.AWG.print_log_info = False
         self._pulse_creator.pulsed_master_AWG.sequencegeneratorlogic().print_log_info = False
