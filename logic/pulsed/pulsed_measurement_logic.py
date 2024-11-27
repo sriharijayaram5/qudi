@@ -1340,6 +1340,7 @@ class PulsedMeasurementLogic(GenericLogic):
             parameters['analysis parameters'] = self.analysis_settings
             parameters['extraction parameters'] = self.extraction_settings
             parameters['fast counter settings'] = self.fast_counter_settings
+            parameters['external microwave parameters'] = self.ext_microwave_settings
 
             if save_figure:
                 # Prepare the figure to save as a "data thumbnail"
@@ -1581,6 +1582,7 @@ class PulsedMeasurementLogic(GenericLogic):
         parameters['gated counting'] = self.fast_counter_settings['is_gated']
         parameters['Number of laser pulses'] = self._number_of_lasers
         parameters['alternating'] = self._alternating
+        parameters['external microwave parameters'] = self.ext_microwave_settings
         parameters['Controlled variable'] = list(self.signal_data[0])
         parameters['Approx. measurement time (s)'] = self.__elapsed_time
         parameters['Measurement sweeps'] = self.__elapsed_sweeps

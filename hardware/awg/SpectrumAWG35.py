@@ -71,7 +71,23 @@ class AWG:
 
         c0.set32(SPC_TRIG_TERM, 1) # '0' is 1kOhm termination - '1' is 50Ohm termination for the trigger input
         c1.set32(SPC_TRIG_TERM, 1) # '0' is 1kOhm termination - '1' is 50Ohm termination for the trigger input
-   
+    
+    def init_ext_trigger_pos_edge_rearm(self, trig_level0, trig_level1):
+        c1 = self.cards[1]
+        c0 = self.cards[0]
+
+        c1.set32(SPC_TRIG_EXT0_MODE,  SPC_TM_POS | SPC_TM_REARM)
+        c1.set32(SPC_TRIG_EXT1_MODE,  SPC_TM_NONE)
+
+        c1.set32(SPC_TRIG_EXT0_LEVEL0,  trig_level0)
+        c1.set32(SPC_TRIG_EXT0_LEVEL1,  trig_level1)
+
+        c0.set_trigger_ormask(0, 0)
+        c1.set_trigger_ormask(1, 0)
+
+        c0.set32(SPC_TRIG_TERM, 1) # '0' is 1kOhm termination - '1' is 50Ohm termination for the trigger input
+        c1.set32(SPC_TRIG_TERM, 1) # '0' is 1kOhm termination - '1' is 50Ohm termination for the trigger input
+
     def run_in_sequence_mode(self, seq):
         self.uploading = True
         self.stop()
@@ -139,9 +155,18 @@ class AWG:
 
     def start(self): 
         """This is the prefered start, which starts the card and enables the trigger engine."""
+        # cards = self.cards
+        # for card in cards:
+        #     card.enable_trigger()
+        #     card.start()
+        # return 0
         return self.hub.start_enable_trigger()
 
     def stop(self):
+        # cards = self.cards
+        # for card in cards:
+        #     card.stop()
+        # return 0
         return self.hub.stop()
 
     def reset(self):
@@ -279,6 +304,12 @@ class Hub():
         In this case, for 2 cards the mask will be 0b11 which enables both cards.
         """
         self.set32(SPC_SYNC_ENABLEMASK, (1 << self.number_of_cards) - 1)
+
+    def unsync_all_cards(self):
+        """The set value should be a mask for which cards are to be synced. 
+        In this case, for unsync of cards the mask will be 0b00 which disables both cards.
+        """
+        self.set32(SPC_SYNC_ENABLEMASK, 0b10)
 
     def open(self):
         address = "sync{0}".format(self.hubNo)
@@ -480,6 +511,10 @@ class Card():
 
     def start(self):
         self.set32(SPC_M2CMD, M2CMD_CARD_START)
+        return self.chkError()
+
+    def start_enable_trigger(self):
+        self.set32(SPC_M2CMD, M2CMD_CARD_START | M2CMD_CARD_ENABLETRIGGER)
         return self.chkError()
 
     def stop(self):

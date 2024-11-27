@@ -1339,6 +1339,10 @@ class AFMConfocalLogic(GenericLogic):
                 #     continue
 
                 for index in range(coord0_num):
+                    
+                    #Work around to ensure that the QAFM image is adjusted for the new scan parameters
+                    if index == 1 and line_num == 0:
+                        self.sigQAFMScanInitialized.emit()
 
                     #do movement and height scan
                     # time.sleep(1)
@@ -1546,7 +1550,7 @@ class AFMConfocalLogic(GenericLogic):
     def scan_true_area_AWG_quanti_qafm_fw_by_point(self, coord0_origin, coord0_range, coord0_num,
                                                    coord1_origin, coord1_range, coord1_num, rotation,
                                                    afm_int_time=0.1, afm_scan_speed=0.1, counter_int_time = 0.02,
-                                                   freq_start=2.77e9, freq_stop=2.97e9, freq_step=1e6, esr_count_freq=200, mw_power=-25, num_esr_runs=30,
+                                                   freq_start=2.77e9, freq_stop=2.97e9, freq_step=1e6, esr_count_freq=200, mw_power=-25, num_esr_runs=30, esr_tracking = False,
                                                    single_res=True, single_res_gslac = False,
                                                    liftoff_mode=False, liftoff_height=0):
 
@@ -1594,9 +1598,13 @@ class AFMConfocalLogic(GenericLogic):
         self.pulsed_jupyter_logic.pulsed_master_AWG.sequencegeneratorlogic().print_log_info = False
         self.pulsed_jupyter_logic.pulsed_master.sequencegeneratorlogic().print_log_info = False
 
+        self.log.info('Uploading CW ODMR sequences')
         self.pulsed_jupyter_logic.initialize_ensemble(laser_power_voltage = self._pulser._cw_laser_power_voltage, target_freq_0 = freq_start, printing = False, set_up_measurement = False, check_current_sequence = True)
-        ensemble_list, sequence_step_list, name, var_list, alternating, freq_sweep = self.pulsed_jupyter_logic.CW_ODMR(freq_start, freq_stop, freq_step, esr_count_freq, 'quanti-qafm-scan') #Preparing Pulsestreamer and AWG without setting up the pulse measurement GUI or Timetagger
-        freq_start, freq_stop, freq_step = var_list[0], var_list[-1], var_list[1]-var_list[0]
+        ensemble_list, sequence_step_list, name, original_var_list, alternating, freq_sweep = self.pulsed_jupyter_logic.CW_ODMR(freq_start, freq_stop, freq_step, esr_count_freq, 'quanti-qafm-scan') #Preparing Pulsestreamer and AWG without setting up the pulse measurement GUI or Timetagger
+        freq_start, freq_stop, freq_step = original_var_list[0], original_var_list[-1], original_var_list[1]-original_var_list[0]
+        var_range = original_var_list[-1] - original_var_list[0]
+        current_var_list = original_var_list
+        self.log.info('Uploading CW ODMR sequences finished')
 
         self.pulsed_jupyter_logic.AWG.print_log_info = True
         self.pulsed_jupyter_logic.pulsed_master_AWG.sequencegeneratorlogic().print_log_info = True
@@ -1611,7 +1619,7 @@ class AFMConfocalLogic(GenericLogic):
         #Setup timetagger for counter measurements
         ret_val = self._counter.configure_recorder(
             mode=HWRecorderMode.ESR,
-            params={'mw_frequency_list': np.zeros(np.array(var_list).size),
+            params={'mw_frequency_list': np.zeros(np.array(original_var_list).size),
                     'num_meas': num_esr_runs} )
 
         #return to normal operation
@@ -1642,12 +1650,17 @@ class AFMConfocalLogic(GenericLogic):
                                                                 self._curr_scan_params,
                                                                 self.scan_dir)
         
-        self._esr_scan_array = self.initialize_esr_scan_array(freq_start, freq_stop, len(var_list),
+        self._esr_scan_array = self.initialize_esr_scan_array(freq_start, freq_stop, len(original_var_list),
                                                                 coord0_start, coord0_stop, 
                                                                 coord0_num,
                                                                 coord1_start, coord1_stop, 
                                                                 coord1_num,
                                                                 rotation)
+        
+        #prepare arrays for specific modes
+        self.res_freq_array = np.ones((coord1_num, coord0_num)) * LO_freq
+        if esr_tracking:
+                self._esr_scan_array['esr_fw']['var_list'] = np.zeros((coord1_num, coord0_num, len(original_var_list)))
 
         #Save the measurement parameters
         start_time_afm_scan = datetime.datetime.now()
@@ -1674,6 +1687,7 @@ class AFMConfocalLogic(GenericLogic):
             self._qafm_scan_array[entry]['params']['MW power (dBm)'] = mw_power
             self._qafm_scan_array[entry]['params']['Measurement runs (#)'] = num_esr_runs
             self._qafm_scan_array[entry]['params']['Counter frequency (Hz)'] = esr_count_freq
+            self._qafm_scan_array[entry]['params']['MW Tracking mode'] = esr_tracking
 
             self._qafm_scan_array[entry]['params']['Measurement parameter list'] = str(self._curr_scan_params)
             self._qafm_scan_array[entry]['params']['Measurement start'] = start_time_afm_scan.isoformat()
@@ -1723,12 +1737,36 @@ class AFMConfocalLogic(GenericLogic):
             #     continue
 
             for index in range(coord0_num):
+                
+                #Work around to ensure that the QAFM image is adjusted for the new scan parameters
+                if index == 1 and line_num == 0:
+                    self.sigQAFMScanInitialized.emit()
+
+                self._counter.start_recorder()
+                if esr_tracking:
+                    if line_num==0 and index==0:
+                        res_estimate = LO_freq
+                    elif line_num!=0 and index==0:
+                        coord = (line_num-1,index)
+                        res_estimate = self.res_freq_array[coord]+var_range/2+100e6
+                    elif index!=0:
+                        coord = (line_num,index-1) 
+                        res_estimate = self.res_freq_array[coord]+var_range/2+100e6
+                    self._esr_scan_array['esr_fw']['var_list'][line_num][index] = original_var_list + res_estimate - LO_freq
+                    current_var_list = original_var_list + res_estimate - LO_freq
+
+                    try:
+                        # self._mw.set_cw_2(res_estimate, mw_power) #trying with _3 to minimize unnecessary calls to device
+                        self._mw.set_cw_tracking(res_estimate, mw_power) # minimal cw set function _3 is used which does not repeat setting of power
+                        # self._mw.cw_on_3() # no need for ON maybe - since never switched OFF
+                    except:
+                        self._stop_request = True
+                        self.log.warning('Something has gone wrong with MW device connection!')
 
                 #do movement and height scan
                 self._scan_point['Height(Dac)_fw'] = self._spm.scan_point() #allows moving of AFM
                 self.sigNewAFMPos.emit(self.get_afm_pos())
 
-                self._counter.start_recorder()
                 for i in range(num_esr_runs):
                     self._AWG.pulser_on()
                     while True:
@@ -1738,9 +1776,10 @@ class AFMConfocalLogic(GenericLogic):
                 esr_meas =self._counter.get_measurements(['counts'])[0]
                 esr_meas_mean = esr_meas.mean(axis=0)
                 esr_meas_std = esr_meas.std(axis=0)
-                res_freq = self.extract_resonance(esr_meas_mean, var_list, line_num, index)
+                res_estimate = self.extract_resonance(esr_meas_mean, current_var_list, line_num, index)
+                self.res_freq_array[line_num,index] = res_estimate
                 if single_res or single_res_gslac:
-                    self._scan_point['b_field_fw'] =  self.calc_mag_field_single_res(res_freq, 
+                    self._scan_point['b_field_fw'] =  self.calc_mag_field_single_res(res_estimate, 
                                                                 self.ZFS, 
                                                                 self.E_FIELD,gslac=single_res_gslac)
                     
@@ -1998,6 +2037,10 @@ class AFMConfocalLogic(GenericLogic):
 
             for index in range(coord0_num):
 
+                #Work around to ensure that the QAFM image is adjusted for the new scan parameters
+                if index == 1 and line_num == 0:
+                    self.sigQAFMScanInitialized.emit()
+
                 #do movement and height scan
                 self._scan_point['Height(Dac)_fw'] = self._spm.scan_point() #allows moving of AFM
                 self.sigNewAFMPos.emit(self.get_afm_pos())
@@ -2246,7 +2289,7 @@ class AFMConfocalLogic(GenericLogic):
     def start_scan_area_quanti_qafm_fw_by_point(self, coord0_origin, coord0_range, coord0_num,
                                                 coord1_origin, coord1_range, coord1_num, rotation = 0,
                                                 afm_int_time=0.1, afm_scan_speed=0.1, counter_int_time=0.02,
-                                                freq_start=2.77e9, freq_stop=2.97e9, freq_step=1e6, esr_count_freq=200, mw_power=-25, num_esr_runs=30,
+                                                freq_start=2.77e9, freq_stop=2.97e9, freq_step=1e6, esr_count_freq=200, mw_power=-25, num_esr_runs=30, esr_tracking = False, 
                                                 param_estimation=(-30e3,100e3,0.5e3,7e6,1), optbay=False,
                                                 single_res=True, single_res_gslac = False,
                                                 liftoff_mode=False, liftoff_height=0):
@@ -2259,7 +2302,7 @@ class AFMConfocalLogic(GenericLogic):
                                                 args=(coord0_origin, coord0_range, coord0_num,
                                                       coord1_origin, coord1_range, coord1_num, rotation,
                                                       afm_int_time, afm_scan_speed, counter_int_time,
-                                                      freq_start, freq_stop, freq_step, esr_count_freq, mw_power, num_esr_runs, 
+                                                      freq_start, freq_stop, freq_step, esr_count_freq, mw_power, num_esr_runs, esr_tracking,
                                                       single_res, single_res_gslac, 
                                                       liftoff_mode, liftoff_height),
                                                 name='qanti_thread')
@@ -2479,6 +2522,11 @@ class AFMConfocalLogic(GenericLogic):
             for line_num in range(coord1_num):
 
                 for index in range(coord0_num):
+
+                    #Work around to ensure that the QAFM image is adjusted for the new scan parameters
+                    if index == 1 and line_num == 0:
+                        self.sigQAFMScanInitialized.emit()
+
                     # arm recorder
                     counts = 0 
 
@@ -2797,6 +2845,11 @@ class AFMConfocalLogic(GenericLogic):
             for line_num in range(coord1_num):
 
                 for index in range(coord0_num):
+
+                    #Work around to ensure that the QAFM image is adjusted for the new scan parameters
+                    if index == 1 and line_num == 0:
+                        self.sigQAFMScanInitialized.emit()
+
                     # arm recorder
                     self._counter.start_recorder(arm=True)
                     if podmr_list_mode_tracking:
@@ -3221,6 +3274,10 @@ class AFMConfocalLogic(GenericLogic):
             for line_num in range(coord1_num):
 
                 for index in range(coord0_num):
+
+                    #Work around to ensure that the QAFM image is adjusted for the new scan parameters
+                    if index == 1 and line_num == 0:
+                        self.sigQAFMScanInitialized.emit()
 
                     # do movement and height scan
                     self._scan_point['Height(Dac)_fw'] = self._spm.scan_point() #allows moving of AFM
@@ -3827,7 +3884,7 @@ class AFMConfocalLogic(GenericLogic):
                                               coord1_num)
 
         #TODO: implement the scan line mode
-        ret_val, _, _ = self._spm.configure_scanner(mode=ScannerMode.OBJECTIVE_XY,
+        ret_val, _ = self._spm.configure_scanner(mode=ScannerMode.OBJECTIVE_XY,
                                                     params= {'line_points': coord0_num ,
                                                             'lines_num': coord1_num},
                                                     scan_style=ScanStyle.LINE) 
@@ -3971,7 +4028,7 @@ class AFMConfocalLogic(GenericLogic):
 
         # FIXME: check whether the number of parameters are required and whether they are set correctly.
         # self._spm._params_per_point = len(names_buffers)
-        ret_val, _, _ = self._spm.configure_scanner(mode=ScannerMode.OBJECTIVE_ZX,
+        ret_val, _ = self._spm.configure_scanner(mode=ScannerMode.OBJECTIVE_ZX,
                                                     params= {'line_points': res ,
                                                             'lines_num': 0},
                                                     scan_style=ScanStyle.LINE) 

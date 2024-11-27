@@ -726,6 +726,7 @@ class ODMRLogic(GenericLogic):
             data_raw['count data (count events)'] = self.odmr_raw_data
             parameters = OrderedDict()
             parameters['Microwave Sweep Power (dBm)'] = self.sweep_mw_power
+            parameters['Pi pulse duration (s)'] = self.pi_length_pulse
             parameters['Laser Power Votage (V)'] = self.laser_power_voltage
             parameters['Run Time (s)'] = self.elapsed_time
             parameters['Number of frequency sweeps (#)'] = self.elapsed_sweeps
@@ -760,6 +761,7 @@ class ODMRLogic(GenericLogic):
 
                 parameters = OrderedDict()
                 parameters['Microwave Sweep Power (dBm)'] = self.sweep_mw_power
+                parameters['Pi pulse duration (s)'] = self.pi_length_pulse
                 parameters['Laser Power Votage (V)'] = self.laser_power_voltage
                 parameters['Run Time (s)'] = self.elapsed_time
                 parameters['Number of frequency sweeps (#)'] = self.elapsed_sweeps

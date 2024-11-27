@@ -914,8 +914,10 @@ class AWG663(Base, PulserInterface):
     # FOR TESTING
     #############
 
-    def load_triggered_multi_replay(self, seqs, memsize_seq=None):
+    def load_triggered_multi_replay(self, seqs, memsize_seq=None, trigger_type='pos_edge', trig_level0=1300, trig_level1=1300):
         """
+        trigger_type = 'pos_edge_rearm' or 'pos_edge' see page 122 of manual (Trigger Mode)
+
         seqs should have the 'waveform_ch1.pkl' form, i.e a list of waveform name saved on memory
         They should all be of equal length as far as I can understand. If not atleast the last should be the longest
         Single segment memory size determines how much is played after a trigger
@@ -981,7 +983,10 @@ class AWG663(Base, PulserInterface):
 
         self.instance.set_segment_size(segment_size)
         self.instance.set_memory_size(segment_size * len(seqs))
-        self.instance.init_ext_trigger()
+        if trigger_type == 'pos_edge':
+            self.instance.init_ext_trigger()
+        elif trigger_type == 'pos_edge_rearm':
+            self.instance.init_ext_trigger_pos_edge_rearm(trig_level0, trig_level1)
         # setting of seqment size,i.e, replay length, and init of trigger done.
         
         # loading of the ensemble data, separating into channel .pkl files and then writing into data list done here
