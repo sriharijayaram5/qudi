@@ -33,7 +33,7 @@ from interface.scanner_interface import ScannerInterface, ScannerMode, ScanStyle
 from core.configoption import ConfigOption
 
 class SPM_ASC500(Base, ScannerInterface):
-    """SPM wrapper for the communication with the ASC500 module.
+    """SPM wrapper for the communication with the ASC500 module. This is written for the V2 ASC500 device.
 
     Example config for copy-paste:
 
@@ -56,6 +56,7 @@ class SPM_ASC500(Base, ScannerInterface):
     _obj_volt_ulim = ConfigOption('obj_volt_ulim_uV', missing='warn', default=3e6)
     _galvo_range_ulim = ConfigOption('galvo_range_ulim', missing='warn', default=20e-6) # for scanner system this is simply the same as the sample scanner range so a config argument is not necessary
     
+    _LT_system = ConfigOption('LT_system', missing='warn', default=False)
     _sample_scan_range = ConfigOption('sample_scan_range', missing='warn', default=None)
     _sample_voltage_range = ConfigOption('sample_voltage_range', missing='warn', default=None)
 
@@ -113,14 +114,16 @@ class SPM_ASC500(Base, ScannerInterface):
             self._dev.base.setParameter(self._dev.base.getConst('ID_GENDAC_LIMIT_LT'), self._obj_volt_ulim, 2)
             self._dev.base.setParameter(self._dev.base.getConst('ID_GENDAC_LIMIT_LT'), self._obj_volt_ulim, 3)
         else:
-            self._dev.base.setParameter(self._dev.base.getConst('ID_GENDAC_LIMIT_RT'), self._sample_voltage_range['X']*1e6, 0)
-            self._dev.base.setParameter(self._dev.base.getConst('ID_GENDAC_LIMIT_RT'), self._sample_voltage_range['Y']*1e6, 1)
-            self._dev.base.setParameter(self._dev.base.getConst('ID_GENDAC_LIMIT_RT'), self._sample_voltage_range['Z']*1e6, 2)
+            self._dev.base.setParameter(self._dev.base.getConst('ID_GENDAC_LIMIT_RT'), self._sample_voltage_range['RT']['X']*1e6, 0)
+            self._dev.base.setParameter(self._dev.base.getConst('ID_GENDAC_LIMIT_RT'), self._sample_voltage_range['RT']['Y']*1e6, 1)
+            self._dev.base.setParameter(self._dev.base.getConst('ID_GENDAC_LIMIT_RT'), self._sample_voltage_range['RT']['Z']*1e6, 2)
             self._dev.base.setParameter(self._dev.base.getConst('ID_GENDAC_LIMIT_RT'), self._obj_volt_ulim, 3)
 
-            self._dev.base.setParameter(self._dev.base.getConst('ID_GENDAC_LIMIT_LT'), self._sample_voltage_range['X']*1e6, 0)
-            self._dev.base.setParameter(self._dev.base.getConst('ID_GENDAC_LIMIT_LT'), self._sample_voltage_range['Y']*1e6, 1)
-            self._dev.base.setParameter(self._dev.base.getConst('ID_GENDAC_LIMIT_LT'), self._sample_voltage_range['Z']*1e6, 2)
+            key = 'LT' if self._LT_system else 'RT'
+
+            self._dev.base.setParameter(self._dev.base.getConst('ID_GENDAC_LIMIT_LT'), self._sample_voltage_range[key]['X']*1e6, 0)
+            self._dev.base.setParameter(self._dev.base.getConst('ID_GENDAC_LIMIT_LT'), self._sample_voltage_range[key]['Y']*1e6, 1)
+            self._dev.base.setParameter(self._dev.base.getConst('ID_GENDAC_LIMIT_LT'), self._sample_voltage_range[key]['Z']*1e6, 2)
             self._dev.base.setParameter(self._dev.base.getConst('ID_GENDAC_LIMIT_LT'), self._obj_volt_ulim, 3)
 
         self.slew_rates = {'X2':None, 'Y2':None, 'Z2':None}
@@ -275,15 +278,18 @@ class SPM_ASC500(Base, ScannerInterface):
     
     def _objective_piezo_act_pos(self):
         piezo_range = self._objective_piezo_act_range()
+        if piezo_range[0] == self._sample_scan_range['LT']['X']:
+            key = 'LT'
+        else:
+            key = 'RT'
         u_lim = self._obj_volt_ulim/1e6  
         obj_volt_range = np.array([0, u_lim])
         if self._galvo_mode:
             pos_interp_xy = interp1d(obj_volt_range, np.array([0.0 ,piezo_range[0]]), kind='linear', fill_value="extrapolate")
             pos_interp_z = interp1d(obj_volt_range, np.array([0.0 ,piezo_range[2]]), kind='linear', fill_value="extrapolate")
         else:
-            
-            pos_interp_xy = interp1d( np.array([0, self._sample_voltage_range['X']]), np.array([0.0 ,piezo_range[0]]), kind='linear', fill_value="extrapolate")
-            pos_interp_z = interp1d( np.array([0, self._sample_voltage_range['Z']]), np.array([0.0 ,piezo_range[2]]), kind='linear', fill_value="extrapolate")
+            pos_interp_xy = interp1d( np.array([0, self._sample_voltage_range[key]['X']]), np.array([0.0 ,piezo_range[0]]), kind='linear', fill_value="extrapolate")
+            pos_interp_z = interp1d( np.array([0, self._sample_voltage_range[key]['Z']]), np.array([0.0 ,piezo_range[2]]), kind='linear', fill_value="extrapolate")
 
         def rounder(x):
             try:
@@ -304,6 +310,10 @@ class SPM_ASC500(Base, ScannerInterface):
 
     def _objective_volt_for_pos(self, pos, xy):
         piezo_range = self._objective_piezo_act_range()
+        if piezo_range[0] == self._sample_scan_range['RT']['X']:
+            key = 'RT'
+        else:
+            key = 'LT'
         u_lim = self._obj_volt_ulim/1e6  
         obj_volt_range = np.array([0, u_lim])
         check_range = np.array([0.0 ,piezo_range[0]]) if xy else np.array([0.0 ,piezo_range[2]])
@@ -315,8 +325,8 @@ class SPM_ASC500(Base, ScannerInterface):
             pos_interp_xy = interp1d(np.array([0.0 ,piezo_range[0]]), obj_volt_range, kind='linear')
             pos_interp_z = interp1d(np.array([0.0 ,piezo_range[2]]), obj_volt_range, kind='linear')
         else:
-            pos_interp_xy = interp1d(np.array([0.0 ,piezo_range[0]]), np.array([0, self._sample_voltage_range['X']]), kind='linear')
-            pos_interp_z = interp1d(np.array([0.0 ,piezo_range[2]]), np.array([0, self._sample_voltage_range['Z']]), kind='linear')
+            pos_interp_xy = interp1d(np.array([0.0 ,piezo_range[0]]), np.array([0, self._sample_voltage_range[key]['X']]), kind='linear')
+            pos_interp_z = interp1d(np.array([0.0 ,piezo_range[2]]), np.array([0, self._sample_voltage_range[key]['Z']]), kind='linear')
         return pos_interp_xy(pos) if xy else pos_interp_z(pos)
 
     def check_interface_version(self, pause=None):
@@ -1534,14 +1544,14 @@ class SPM_ASC500(Base, ScannerInterface):
         @return dict: sample scanner range dict with requested entries in m 
                       (SI units).
         """
-        ret_dict = {'X': self._dev.base.setParameter(self._dev.base.getConst('ID_PIEZO_RANGE_X'), axis_dict['X']/(1e-12),0), 
-                'Y': self._dev.base.setParameter(self._dev.base.getConst('ID_PIEZO_RANGE_Y'), axis_dict['Y']/(1e-12),0), 
-                'Z': self._dev.base.setParameter(self._dev.base.getConst('ID_REG_ZABS_LIMM_A'), axis_dict['Z']/(1e-12),0)}
-        
-        self._dev.base.setParameter(self._dev.base.getConst('ID_PIEZO_RANGE_X'), axis_dict['X']/(1e-12),1)
-        self._dev.base.setParameter(self._dev.base.getConst('ID_PIEZO_RANGE_Y'), axis_dict['Y']/(1e-12),1)
-        self._dev.base.setParameter(self._dev.base.getConst('ID_REG_ZABS_LIMM_A'), axis_dict['Z']/(1e-12),1)
-        return {i : ret_dict[i[0]] for i in axis_dict.keys()}
+        ret_dict = {'X': self._dev.base.setParameter(self._dev.base.getConst('ID_PIEZO_RANGE_X'), axis_dict['RT']['X']/(1e-12),0), 
+                'Y': self._dev.base.setParameter(self._dev.base.getConst('ID_PIEZO_RANGE_Y'), axis_dict['RT']['Y']/(1e-12),0), 
+                'Z': self._dev.base.setParameter(self._dev.base.getConst('ID_REG_ZABS_LIMM_A'), axis_dict['RT']['Z']/(1e-12),0)}
+        key = 'LT' if self._LT_system else 'RT'
+        self._dev.base.setParameter(self._dev.base.getConst('ID_PIEZO_RANGE_X'), axis_dict[key]['X']/(1e-12),1)
+        self._dev.base.setParameter(self._dev.base.getConst('ID_PIEZO_RANGE_Y'), axis_dict[key]['Y']/(1e-12),1)
+        self._dev.base.setParameter(self._dev.base.getConst('ID_REG_ZABS_LIMM_A'), axis_dict[key]['Z']/(1e-12),1)
+        return {i : ret_dict[i[0]] for i in axis_dict['RT'].keys()}
     
     def set_sample_voltage_range(self, axis_dict={'X': 3,'Y': 3,'Z': 6}):
         """ Set the sample scanner voltage range for the provided axis label list. Only necessary if there is a bug which  makes Daisy forget the limits on restart
@@ -1555,15 +1565,16 @@ class SPM_ASC500(Base, ScannerInterface):
         @return dict: sample scanner range dict with requested entries in V 
                       (SI units).
         """
-        ret_dict = {'X': self._dev.base.setParameter(4105, int(axis_dict['X']/(305.2e-6)),0),  # the registry value in the header file is seemingly wrong. 4105 is found by testing to be correct
-                'Y': self._dev.base.setParameter(4105, int(axis_dict['Y']/(305.2e-6)),0),  # the registry value in the header file is seemingly wrong. 4105 is found by testing to be correct
-                'Z': self._dev.base.setParameter(self._dev.base.getConst('ID_REG_ZABS_LIM_A'), int(axis_dict['Z']/(19.07e-6)),0)}
-        self._dev.base.setParameter(4105, int(axis_dict['X']/(305.2e-6)),1)
-        self._dev.base.setParameter(self._dev.base.getConst('ID_REG_ZABS_LIM_A'), int(axis_dict['Z']/(19.07e-6)),1)
-        return {i : ret_dict[i[0]] for i in axis_dict.keys()}
+        ret_dict = {'X': self._dev.base.setParameter(4105, int(axis_dict['RT']['X']/(305.2e-6)),0),  # the registry value in the header file is seemingly wrong. 4105 is found by testing to be correct
+                'Y': self._dev.base.setParameter(4105, int(axis_dict['RT']['Y']/(305.2e-6)),0),  # the registry value in the header file is seemingly wrong. 4105 is found by testing to be correct
+                'Z': self._dev.base.setParameter(self._dev.base.getConst('ID_REG_ZABS_LIM_A'), int(axis_dict['RT']['Z']/(19.07e-6)),0)}
+        key = 'LT' if self._LT_system else 'RT'
+        self._dev.base.setParameter(4105, int(axis_dict[key]['X']/(305.2e-6)),1)
+        self._dev.base.setParameter(self._dev.base.getConst('ID_REG_ZABS_LIM_A'), int(axis_dict[key]['Z']/(19.07e-6)),1)
+        return {i : ret_dict[i[0]] for i in axis_dict['RT'].keys()}
 
     def get_sample_scan_range(self, axis_label_list=['X','Y','Z']):
-        """ Get the sample scanner range for the provided axis label list. 
+        """ Get the sample scanner range for the provided axis label list. 0
 
         @param list axis_label_list: the axis label string list, entries either 
                                      capitalized or lower case, possible values: 
