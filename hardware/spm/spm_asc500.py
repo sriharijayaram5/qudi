@@ -492,7 +492,7 @@ class SPM_ASC500(Base, ScannerInterface):
             # Here the time_back coming from idle_time will set how was the sample scanner moves around
             # time_forward is set by integration time and will determine time spend at each point. Currently weirdly divided between all points in a line.
 
-            while self._dev.base.getParameter(self._dev.base.getConst('ID_PATH_RUNNING'), 0)==1 or self._dev.base.getParameter(self._dev.base.getConst('ID_SCAN_STATUS'), 0)==2:
+            while self._dev.base.getParameter(self._dev.base.getConst('ID_PATH_RUNNING'), 0)==1: # had to remove scan status flag check in Bath setup - doesnt work no idea why
                 time.sleep(0.1)
                 pass
             while self.sample_is_moving():
@@ -508,7 +508,7 @@ class SPM_ASC500(Base, ScannerInterface):
 
             if self._spm_curr_sstyle==ScanStyle.POINT:
                 while True:
-                    if self._dev.base.getParameter(self._dev.base.getConst('ID_SCAN_STATUS'), 0)==0: #SCAN_STATUS=1 movement of scanner between points in v2, SCAN_STATUS=0 all other states
+                    if not self.sample_is_moving(): #SCAN_STATUS=1 movement of scanner between points in v2, SCAN_STATUS=0 all other states # had to remove scan status flag check in Bath setup - doesnt work no idea why
                         break
                 self._dev.base.setParameter(self._dev.base.getConst('ID_SPEC_PATHCTRL'), -1, 0 ) # -1 is grid mode
                 # self._dev.scanner.setRelativeOrigin(self.end_coords) # set after path or it will attempt going to origin for some reason
@@ -614,7 +614,7 @@ class SPM_ASC500(Base, ScannerInterface):
             # Here the time_back coming from idle_time will set how was the sample scanner moves around
             # time_forward is set by integration time and will determine time spend at each point. Currently weirdly divided between all points in a line.
 
-            while self._dev.base.getParameter(self._dev.base.getConst('ID_PATH_RUNNING'), 0)==1 or self._dev.base.getParameter(self._dev.base.getConst('ID_SCAN_STATUS'), 0)==1: #SCAN_STATUS=1 movement of scanner between points in v2, SCAN_STATUS=0 all other states
+            while self._dev.base.getParameter(self._dev.base.getConst('ID_PATH_RUNNING'), 0)==1 or self.sample_is_moving(): #SCAN_STATUS=1 movement of scanner between points in v2, SCAN_STATUS=0 all other states
                 time.sleep(0.1)
                 pass
 
@@ -632,9 +632,7 @@ class SPM_ASC500(Base, ScannerInterface):
             # self.set_sample_pos_abs({'X': x_pos,'Y': y_pos})
 
             if self._spm_curr_sstyle==ScanStyle.POINT:
-                while True:
-                    if self._dev.base.getParameter(self._dev.base.getConst('ID_SCAN_STATUS'), 0)==0: #SCAN_STATUS=1 movement of scanner between points in v2, SCAN_STATUS=0 all other states
-                        break
+                # had to remove scan status flag check in Bath setup - doesnt work no idea why
                 while self.sample_is_moving():
                     pass
                 self._dev.base.setParameter(self._dev.base.getConst('ID_SPEC_PATHCTRL'), -1, 0 ) # -1 is grid mode
@@ -693,24 +691,25 @@ class SPM_ASC500(Base, ScannerInterface):
             # Here the time_back coming from idle_time will set how was the sample scanner moves around
             # time_forward is set by integration time and will determine time spend at each point. Currently weirdly divided between all points in a line.
 
-            while self._dev.base.getParameter(self._dev.base.getConst('ID_PATH_RUNNING'), 0)==1 or self._dev.base.getParameter(self._dev.base.getConst('ID_SCAN_STATUS'), 0)==2:
+            while self._dev.base.getParameter(self._dev.base.getConst('ID_PATH_RUNNING'), 0)==1 or self.sample_is_moving(): # had to remove scan status flag check in Bath setup - doesnt work no idea why
                 time.sleep(0.1)
                 pass
 
             # time back is actually the scan speed from the GUI in m/s
             self._dev.base.setParameter(self._dev.base.getConst('ID_SCAN_PSPEED'), afm_scan_speed*1e9, 0)
+            self.log.info(f"Scan speed set to {afm_scan_speed*1e9}nm/s!")
             
             self._configureSampleAreaPath_new(point_grid_dict, self._line_points, self._lines_num, liftoff_mode, liftoff_height)
             self._polled_data = np.zeros(self._line_points) # mean is done anyway so linepoints shouldnt affect.  leaving it in since it was this way
             self._configurePathDataBuffering(sampTime=afm_int_time)
 
             #Move the sample scanner to the second point of the scan befor the path mode starts. A bug appears if the path mode starting position is the same like the current position.
-            x_pos, y_pos = scan_arr[0,1]
-            self.set_sample_pos_abs({'X': x_pos,'Y': y_pos})
+            # x_pos, y_pos = scan_arr[0,1]
+            # self.set_sample_pos_abs({'X': x_pos,'Y': y_pos}) # this will break it in the v2 hardware since the move function resets the scan offset, messes then with the path coordinate system
 
             if self._spm_curr_sstyle==ScanStyle.POINT:
                 while True:
-                    if self._dev.base.getParameter(self._dev.base.getConst('ID_SCAN_STATUS'), 0)==8: # should represent idle scan state
+                    if not self.sample_is_moving(): # should represent idle scan state # had to remove scan status flag check in Bath setup - doesnt work no idea why
                         break
                 self._dev.base.setParameter(self._dev.base.getConst('ID_SPEC_PATHCTRL'), -1, 0 ) # -1 is grid mode
                 self._dev.scanner.setRelativeOrigin(self.end_coords) # set after path or it will attempt going to origin for some reason
@@ -790,12 +789,12 @@ class SPM_ASC500(Base, ScannerInterface):
         
         self._dev.base.setParameter(4131, offset_x, 0 ) #From old header file
         self._dev.base.setParameter(4132, offset_y, 0 ) #From old header file
-        self._dev.base.setParameter(self._dev.base.getConst('ID_SCAN_MSPPX'), int(100e-3/2.5e-6), 0 ) 
+        # self._dev.base.setParameter(self._dev.base.getConst('ID_SCAN_MSPPX'), int(100e-3/2.5e-6), 0 ) 
         self._dev.base.setParameter(self._dev.base.getConst('ID_SCAN_ONCE'), 1, 0 ) 
         while self.sample_is_moving():
             pass
 
-        self._dev.base.setParameter(self._dev.base.getConst('ID_SCAN_COMMAND'), 1, 0 ) 
+        self._dev.base.setParameter(self._dev.base.getConst('ID_SCAN_COMMAND'), 1, 0 )
         self._dev.base.setParameter(self._dev.base.getConst('ID_SCAN_COMMAND'), 0, 0 ) 
         while self.sample_is_moving():
             pass
@@ -869,6 +868,10 @@ class SPM_ASC500(Base, ScannerInterface):
             self._dev.base.setParameter(self._dev.base.getConst('ID_PATH_ACTION'), 0, 3)
 
     def _configureSampleAreaPath_new(self, point_grid_dict, line_points, lines_num, liftoff_mode, liftoff_height):
+        area_corr0_start, area_corr0_stop, area_corr1_start, area_corr1_stop = point_grid_dict['bottom_left'][0], point_grid_dict['bottom_right'][0], point_grid_dict['bottom_left'][1], point_grid_dict['top_left'][1]
+        self._coords = [[area_corr0_start,area_corr1_start],[area_corr0_stop,area_corr1_stop]]
+        self._set_scan_area_daisy(area_corr0_start, area_corr0_stop, area_corr1_start, area_corr1_stop)
+
         self._dev.base.setParameter(self._dev.base.getConst('ID_SPEC_PATHCTRL'), 0, 0)
         self._dev.base.setParameter(self._dev.base.getConst('ID_SPEC_PATHPREP'), 1, 0)
         self._dev.base.setParameter(self._dev.base.getConst('ID_EXTTRG_TIMEOUT'), self._sync_in_timeout, 0) # 0ms timeout - will wait until SYNC IN is received
@@ -880,18 +883,16 @@ class SPM_ASC500(Base, ScannerInterface):
         # if going to use grid mode, i.e, ('ID_SPEC_PATHCTRL'), -1, 0, then the GUI_X/Y points of index 0,1,2,3 are the BL,BR,TL,TR coordinates of a parallelogram - BL is start and TR is end
         # coords = [BL,BR,TL,TR] 
 
-        self._coords = [point_grid_dict['bottom_left'],point_grid_dict['bottom_right'],point_grid_dict['top_left'],point_grid_dict['top_right']]
-        
-        self._dev.scanner.setNumberOfColumns(1)
-        self._dev.scanner.setNumberOfLines(1)
-        self._dev.scanner.setPixelSize(0)
-        self._dev.base.setParameter(self._dev.base.getConst('ID_SCAN_ROTATION'), 0, 0)
+        # self._dev.scanner.setNumberOfColumns(1)
+        # self._dev.scanner.setNumberOfLines(1)
+        # self._dev.scanner.setPixelSize(0)
+        # self._dev.base.setParameter(self._dev.base.getConst('ID_SCAN_ROTATION'), 0, 0)
         
         self.end_coords = point_grid_dict['bottom_left']
         
         for index, val in enumerate(self._coords):
-            self._dev.base.setParameter(self._dev.base.getConst('ID_PATH_GUI_X'), int(val[0]/10e-12), index)  # start point is current position
-            self._dev.base.setParameter(self._dev.base.getConst('ID_PATH_GUI_Y'), int(val[1]/10e-12), index)  # start point is current position
+            self._dev.base.setParameter(self._dev.base.getConst('ID_PATH_GUI_X'), int(val[0]*1e12), index)  # start point is current position
+            self._dev.base.setParameter(self._dev.base.getConst('ID_PATH_GUI_Y'), int(val[1]*1e12), index)  # start point is current position
 
         # define number path actions at a point ('ID_PATH_ACTION'), no. of actions, 0 
         self.liftoff_mode = False
@@ -973,7 +974,7 @@ class SPM_ASC500(Base, ScannerInterface):
 
         if self._spm_curr_mode == ScannerMode.PROBE_CONTACT:
             while True:
-                if self._dev.base.getParameter(self._dev.base.getConst('ID_PATH_RUNNING'), 0)==1 or self._dev.base.getParameter(self._dev.base.getConst('ID_SCAN_STATUS'), 0)==1: #SCAN_STATUS=1 movement of scanner between points in v2, SCAN_STATUS=0 all other states
+                if self._dev.base.getParameter(self._dev.base.getConst('ID_PATH_RUNNING'), 0)==1: #SCAN_STATUS=1 movement of scanner between points in v2, SCAN_STATUS=0 all other states # had to remove scan status flag check in Bath setup - doesnt work no idea why
                     pass
                 else:
                     break
@@ -1666,7 +1667,7 @@ class SPM_ASC500(Base, ScannerInterface):
         
         self._dev.base.setParameter(4131, offset_x, 0 ) #From old header
         self._dev.base.setParameter(4132, offset_y, 0 ) #From old header
-        self._dev.base.setParameter(self._dev.base.getConst('ID_SCAN_MSPPX'), 1, 0 ) 
+        # self._dev.base.setParameter(self._dev.base.getConst('ID_SCAN_MSPPX'), 1, 0 ) 
         self._dev.base.setParameter(self._dev.base.getConst('ID_SCAN_ONCE'), 1, 0 ) 
         while self.sample_is_moving():
             pass

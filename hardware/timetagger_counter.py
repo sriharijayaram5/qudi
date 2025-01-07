@@ -137,7 +137,7 @@ class TimeTaggerCounter(Base, SlowCounterInterface, RecorderInterface):
                 self._tagger,
                 channels=[self._channel_apd]
             )
-            self.log.info('Virtual maDE')
+            self.log.info('Virtual made')
 
     def on_deactivate(self):
         """ Shut down the TimeTagger.
