@@ -979,3 +979,15 @@ class APSMagnet(Base, MagnetInterface):
         @return int: (0: Ok, -1:error)
         """
         return -1
+    
+    def set_persistent_heater_state(self, state=False):
+        """Sets the switch for all axis"""
+        command = "ON" if state else "OFF"
+        self.write_to_axis('x', f'PSHTR {command}')
+        self.write_to_axis('y', f'PSHTR {command}')
+        self.write_to_axis('z', f'PSHTR {command}')
+        return 0
+
+    def get_persistent_heater_state(self):
+        """Sets the switch for all axis"""
+        return (self.query_to_axis('x', f'PSHTR?'),self.query_to_axis('y', f'PSHTR?'),self.query_to_axis('z', f'PSHTR?'))
