@@ -20,6 +20,7 @@ top-level directory of this distribution and at <https://github.com/Ulm-IQO/qudi
 """
 
 import serial
+import pyvisa
 from core.module import Base
 from core.configoption import ConfigOption
 import numpy as np
@@ -51,8 +52,9 @@ class APSMagnet(Base, MagnetInterface):
 
     """
     # config opts
-    addr_zx = ConfigOption('magnet_address_zx', missing='error')
-    addr_y = ConfigOption('magnet_address_y', missing='error')
+    addr_combined = ConfigOption('magnet_address_combined', missing='error')
+    addr_single = ConfigOption('magnet_address_single', missing='error')
+    channel_look_up = ConfigOption('channel_look_up', missing='error')
 
     x_constr = ConfigOption('magnet_x_constr', 0.001)
     y_constr = ConfigOption('magnet_y_constr', 0.001)
@@ -72,8 +74,9 @@ class APSMagnet(Base, MagnetInterface):
 
         @return int: (0: Ok, -1:error)
         """
-        self.ser_zx = serial.Serial(port=self.addr_zx, baudrate=9600, bytesize=8, timeout=2, stopbits=serial.STOPBITS_ONE)
-        self.ser_y = serial.Serial(port=self.addr_y, baudrate=9600, bytesize=8, timeout=2, stopbits=serial.STOPBITS_ONE)
+        rm = pyvisa.ResourceManager()
+        self.ser_combined = rm.open_resource(self.addr_combined)
+        self.ser_single = rm.open_resource(self.addr_single)
 
         self.x_dir = 'ZERO'
         self.y_dir = 'ZERO'
@@ -81,14 +84,14 @@ class APSMagnet(Base, MagnetInterface):
 
         self.tell({'x':'REMOTE', 'y':'REMOTE', 'z':'REMOTE'})
         self.tell({'x':'UNITS kG', 'y':'UNITS kG', 'z':'UNITS kG'})
-        ask_dict = {'x': "*IDN?", 'y': "*IDN?"}
+        ask_dict = {'x': "*IDN?", 'y': "*IDN?", 'z': "*IDN?"}
         answ_dict = self.ask(ask_dict)
         self.log.info("Magnets: {0}".format(answ_dict))
 
 
     def on_deactivate(self):
-        self.ser_zx.close()
-        self.ser_y.close()
+        self.ser_combined.close()
+        self.ser_single.close()
 
     def utf8_to_byte(self, myutf8):
         """
@@ -184,6 +187,22 @@ class APSMagnet(Base, MagnetInterface):
 
         return constraints
 
+    def write_to_axis(self, axis="x", value=""):
+        if not isinstance(self.channel_look_up[axis], str):
+            channel = self.channel_look_up[axis]["Chan"]
+            _ = self.ser_combined.write(f'CHAN {channel}\n')
+            _ = self.ser_combined.write(value)
+        else:
+            _ = self.ser_single.write(value)
+    
+    def query_to_axis(self, axis="x", value=""):
+        if not isinstance(self.channel_look_up[axis], str):
+            channel = self.channel_look_up[axis]["Chan"]
+            _ = self.ser_combined.write(f'CHAN {channel}\n')
+            return self.ser_combined.query(value)
+        else:
+            return self.ser_single.query(value)
+
     def tell(self, param_dict):
         """Send a command string to the magnet.
         @param dict param_dict: has to have one of the following keys: 'x', 'y' or 'z'
@@ -194,24 +213,22 @@ class APSMagnet(Base, MagnetInterface):
         if param_dict.get('x') is not None:
             if not param_dict['x'].endswith('\n'):
                 param_dict['x'] += '\n'
-            self.ser_zx.write(self.utf8_to_byte('CHAN 2\n'))
-            self.ser_zx.readline().decode()
-            self.ser_zx.write(self.utf8_to_byte(param_dict['x']))
-            self.ser_zx.readline().decode()
+
+            self.write_to_axis('x',param_dict['x'])
             internal_counter += 1
+
         if param_dict.get('y') is not None:
             if not param_dict['y'].endswith('\n'):
                 param_dict['y'] += '\n'
-            self.ser_y.write(self.utf8_to_byte(param_dict['y']))
-            self.ser_y.readline().decode()
+
+            self.write_to_axis('y',param_dict['y'])
             internal_counter += 1
+
         if param_dict.get('z') is not None:
             if not param_dict['z'].endswith('\n'):
                 param_dict['z'] += '\n'
-            self.ser_zx.write(self.utf8_to_byte('CHAN 1\n'))
-            self.ser_zx.readline().decode()
-            self.ser_zx.write(self.utf8_to_byte(param_dict['z']))
-            self.ser_zx.readline().decode()
+
+            self.write_to_axis('z',param_dict['z'])
             internal_counter += 1
 
         if internal_counter == 0:
@@ -232,39 +249,13 @@ class APSMagnet(Base, MagnetInterface):
         """
         answer_dict = {}
         if param_dict.get('x') is not None:
-            if not param_dict['x'].endswith('\n'):
-                param_dict['x'] += '\n'
+            answer_dict['x'] = self.query_to_axis('x',param_dict['x']).replace('\r', '').replace('\n', '')
 
-            self.ser_zx.write(self.utf8_to_byte('CHAN 2\n'))
-            self.ser_zx.readline().decode()
-            self.ser_zx.write(self.utf8_to_byte(param_dict['x']))
-            self.ser_zx.readline().decode()
-
-            answer_dict['x'] = self.byte_to_utf8(self.ser_zx.readline())  # receive an answer
-            answer_dict['x'] = answer_dict['x'].replace('\r', '')
-            answer_dict['x'] = answer_dict['x'].replace('\n', '')
         if param_dict.get('y') is not None:
-            if not param_dict['y'].endswith('\n'):
-                param_dict['y'] += '\n'
+            answer_dict['y'] = self.query_to_axis('y',param_dict['y']).replace('\r', '').replace('\n', '')
 
-            self.ser_y.write(self.utf8_to_byte(param_dict['y']))
-            self.ser_y.readline().decode()
-
-            answer_dict['y'] = self.byte_to_utf8(self.ser_y.readline())  # receive an answer
-            answer_dict['y'] = answer_dict['y'].replace('\r', '')
-            answer_dict['y'] = answer_dict['y'].replace('\n', '')
         if param_dict.get('z') is not None:
-            if not param_dict['z'].endswith('\n'):
-                param_dict['z'] += '\n'
-
-            self.ser_zx.write(self.utf8_to_byte('CHAN 1\n'))
-            self.ser_zx.readline().decode()
-            self.ser_zx.write(self.utf8_to_byte(param_dict['z']))
-            self.ser_zx.readline().decode()
-
-            answer_dict['z'] = self.byte_to_utf8(self.ser_zx.readline())  # receive an answer
-            answer_dict['z'] = answer_dict['z'].replace('\r', '')
-            answer_dict['z'] = answer_dict['z'].replace('\n', '')
+            answer_dict['z'] = self.query_to_axis('z',param_dict['z']).replace('\r', '').replace('\n', '')
 
         if len(answer_dict) == 0:
             self.log.warning('no parameter_dict was given therefore the '
@@ -341,7 +332,7 @@ class APSMagnet(Base, MagnetInterface):
         param_dict = {i:param_dict[i]*10 for i in param_dict.keys()}
 
         if check_var:
-            self.log.info(f'Setting in kG: {param_dict}')
+            self.log.info(f'Setting in kG: {[{k: round(param_dict[k], 6)} for k in param_dict]}') # just round in a funny way
             if param_dict.get('x') is not None:
                 lim = 'U' if old_dict['x']<=field_dict['x'] else 'L'
                 self.x_dir = 'UP' if lim=='U' else 'DOWN'
@@ -374,11 +365,11 @@ class APSMagnet(Base, MagnetInterface):
             @return int: error code (0:OK, -1:error)
             """
 
-        self.log.info(f'Ramping...')
+        # self.log.info(f'Ramping...')
         # self.x_dir = 'ZERO'
         # self.y_dir = 'ZERO'
         # self.z_dir = 'ZERO'
-        self.tell({'x':f'SWEEP {self.x_dir}', 'y':f'SWEEP {self.y_dir}', 'z':f'SWEEP {self.z_dir}'})
+        # self.tell({'x':f'SWEEP {self.x_dir}', 'y':f'SWEEP {self.y_dir}', 'z':f'SWEEP {self.z_dir}'})
 
         return 0
 
@@ -675,7 +666,7 @@ class APSMagnet(Base, MagnetInterface):
                           float z : representing the field strength in z direction
 
             """
-        ask_dict = {'x': "IOUT?\n", 'y': "IOUT?\n", 'z': "IOUT?\n"}
+        ask_dict = {'x': "IOUT?", 'y': "IOUT?", 'z': "IOUT?"}
         for i in range(10):
             answ_dict = self.ask(ask_dict)
             try:
@@ -768,9 +759,9 @@ class APSMagnet(Base, MagnetInterface):
             """
         temp_dict = {}
         ask_dict = {}
-        temp_dict['x'] = "ULIM?\n" if self.x_dir == 'UP' else "LLIM?\n"
-        temp_dict['y'] = "ULIM?\n" if self.y_dir == 'UP' else "LLIM?\n"
-        temp_dict['z'] = "ULIM?\n" if self.z_dir == 'UP' else "LLIM?\n"
+        temp_dict['x'] = "ULIM?" if self.x_dir == 'UP' else "LLIM?"
+        temp_dict['y'] = "ULIM?" if self.y_dir == 'UP' else "LLIM?"
+        temp_dict['z'] = "ULIM?" if self.z_dir == 'UP' else "LLIM?"
 
         if not param_list:
             ask_dict['x'] = temp_dict['x']

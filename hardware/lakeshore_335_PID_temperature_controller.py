@@ -38,7 +38,7 @@ class temperaturecontroller335(Base, PIDControllerInterface):
 
     temperature_controller:
         module.Class: 'lakeshore_335_PID_temperature_controller.temperaturecontroller335'
-        serial_port: 'COM1'
+        serial_port: 'COM6'
         output: 1 #Chose 1 or 2
         mode: 1 #0=off, 1=closed loop PID, 2=zone, 3=open loop, 4=monitor out, 5=warmup supply
         powerup: 0 #0=off, 1=on
@@ -206,7 +206,7 @@ class temperaturecontroller335(Base, PIDControllerInterface):
         @param (float) setpoint: The new setpoint value
         """
         str = f'SETP{self.output},{setpoint}'
-        # self.temp_controller.command(str)
+        self.temp_controller.command(str)
 
     def get_manual_value(self):
         """ Get the manual value, used if the device is disabled
@@ -242,10 +242,10 @@ class temperaturecontroller335(Base, PIDControllerInterface):
         """
         if enabled:
             str = f'RANGE{self.output},3'
-            # self.temp_controller.command(str)
+            self.temp_controller.command(str)
         else:
             str = f'RANGE{self.output},0'
-            # self.temp_controller.command(str)
+            self.temp_controller.command(str)
 
 
     def get_control_limits(self):
