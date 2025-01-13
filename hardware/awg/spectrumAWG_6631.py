@@ -931,8 +931,12 @@ class AWG663(Base, PulserInterface):
         
         ['sinA', 'sinB']
         """
-        self.instance.set_mode('multi')       
-        self.set_reps(0)
+        if trigger_type == 'none':
+            self.instance.set_mode('single')       
+            self.set_reps(0)
+        else:            
+            self.instance.set_mode('multi')       
+            self.set_reps(0)
         path = self.waveform_folder
         wave_form_list = self.get_waveform_names()
         
@@ -987,6 +991,8 @@ class AWG663(Base, PulserInterface):
             self.instance.init_ext_trigger()
         elif trigger_type == 'pos_edge_rearm':
             self.instance.init_ext_trigger_pos_edge_rearm(trig_level0, trig_level1)
+        elif trigger_type == 'none':
+            self.log.info("Multi replay mode running like normal stream. No trigger.")
         # setting of seqment size,i.e, replay length, and init of trigger done.
         
         # loading of the ensemble data, separating into channel .pkl files and then writing into data list done here

@@ -75,7 +75,7 @@ class ODMRCounterInterfuse(GenericLogic, ODMRCounterInterface):
             if run_IQ_status<0:
                 return -1
 
-        self._pulser.self.pulser.update_final_states(laser_power_voltage) #This also updates self._pulser._laser_power_voltage
+        self._pulser.update_final_states(laser_power_voltage) #This also updates self._pulser._laser_power_voltage
 
         channels = {'d0': 0.0 , 'd1': 0.0 , 'd2': 0.0 , 'd3': 0.0 , 'd4': 0.0 , 'd5': 0.0 , 'd6': 0.0 , 'd7': 0.0 , 'a0': 0.0, 'a1': 0.0}
         clear = lambda x: {i:0.0 for i in x.keys()}

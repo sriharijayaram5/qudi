@@ -101,7 +101,7 @@ class SPM_ASC500(Base, ScannerInterface):
         if self._sample_voltage_range:
             self.set_sample_voltage_range(self._sample_voltage_range)
 
-        self.set_sample_scanner_speed(100) # start up with a reasonably slow value
+        self.set_sample_scanner_speed(1000) # start up with a reasonably slow value
         if self._galvo_mode:
             self._dev.base.setParameter(self._dev.base.getConst('ID_GENDAC_LIMIT_RT'), self._obj_volt_ulim, 0)
             self._dev.base.setParameter(self._dev.base.getConst('ID_GENDAC_LIMIT_RT'), self._obj_volt_ulim, 1)
@@ -700,7 +700,7 @@ class SPM_ASC500(Base, ScannerInterface):
 
             if self._spm_curr_sstyle==ScanStyle.POINT:
                 while True:
-                    if self._dev.base.getParameter(self._dev.base.getConst('ID_SCAN_STATUS'), 0)==8: # should represent idle scan state
+                    if self._dev.base.getParameter(self._dev.base.getConst('ID_SCAN_STATUS'), 0)==0: # should represent idle scan state
                         break
                 self._dev.base.setParameter(self._dev.base.getConst('ID_SPEC_PATHCTRL'), -1, 0 ) # -1 is grid mode
                 # self._dev.scanner.setRelativeOrigin(self.end_coords) # set after path or it will attempt going to origin for some reason
@@ -780,7 +780,7 @@ class SPM_ASC500(Base, ScannerInterface):
         
         self._dev.base.setParameter(4131, offset_x, 0 ) #From old header file
         self._dev.base.setParameter(4132, offset_y, 0 ) #From old header file
-        self._dev.base.setParameter(self._dev.base.getConst('ID_SCAN_MSPPX'), int(100e-3/2.5e-6), 0 ) 
+        # self._dev.base.setParameter(self._dev.base.getConst('ID_SCAN_MSPPX'), int(100e-3/2.5e-6), 0 ) 
         self._dev.base.setParameter(self._dev.base.getConst('ID_SCAN_ONCE'), 1, 0 ) 
         while self.sample_is_moving():
             pass
@@ -871,17 +871,13 @@ class SPM_ASC500(Base, ScannerInterface):
         # coords = [BL,BR,TL,TR] 
 
         self._coords = [point_grid_dict['bottom_left'],point_grid_dict['top_right']]
-        
-        self._dev.scanner.setNumberOfColumns(1)
-        self._dev.scanner.setNumberOfLines(1)
-        self._dev.scanner.setPixelSize(0)
         self._dev.base.setParameter(self._dev.base.getConst('ID_SCAN_ROTATION'), 0, 0)
         
         self.end_coords = point_grid_dict['bottom_left']
         
         for index, val in enumerate(self._coords):
-            self._dev.base.setParameter(self._dev.base.getConst('ID_PATH_GUI_X'), int(val[0]/10e-12), index)  # start point is current position
-            self._dev.base.setParameter(self._dev.base.getConst('ID_PATH_GUI_Y'), int(val[1]/10e-12), index)  # start point is current position
+            self._dev.base.setParameter(self._dev.base.getConst('ID_PATH_GUI_X'), int(val[0]*1e12), index)  # start point is current position
+            self._dev.base.setParameter(self._dev.base.getConst('ID_PATH_GUI_Y'), int(val[1]*1e12), index)  # start point is current position
 
         # define number path actions at a point ('ID_PATH_ACTION'), no. of actions, 0 
         self.liftoff_mode = False
@@ -1656,7 +1652,7 @@ class SPM_ASC500(Base, ScannerInterface):
         
         self._dev.base.setParameter(4131, offset_x, 0 ) #From old header
         self._dev.base.setParameter(4132, offset_y, 0 ) #From old header
-        self._dev.base.setParameter(self._dev.base.getConst('ID_SCAN_MSPPX'), 1, 0 ) 
+        # self._dev.base.setParameter(self._dev.base.getConst('ID_SCAN_MSPPX'), 1, 0 ) 
         self._dev.base.setParameter(self._dev.base.getConst('ID_SCAN_ONCE'), 1, 0 ) 
         while self.sample_is_moving():
             pass
