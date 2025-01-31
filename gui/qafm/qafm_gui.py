@@ -271,6 +271,11 @@ class ProteusQGUI(GUIBase):
     err_margin_contrast = StatusVar('err_margin_contrast', default=1)
     n_samples = StatusVar('n_samples', default=50e3)
 
+    calc_mag_field = StatusVar('calc_mag_field', default = False)
+    single_res_meas = StatusVar('single_res_meas', default = True)
+    single_res_meas_gslac = StatusVar('single_res_meas_gslac', default = False)
+    double_res_meas = StatusVar('double_res_meas', default = False)
+
     def __init__(self, config, **kwargs):
         super().__init__(config=config, **kwargs)
 
@@ -451,6 +456,7 @@ class ProteusQGUI(GUIBase):
         self.initSettingsUI()
 
         self._qm.mw_tracking_mode_RadioButton.clicked.connect(lambda state, x=0: self.radioButton_behaviour_forGroupBox(state,x))
+        self._qafm_logic._podmr.sigVisSlopeChanged.connect(self.update_vis_slope)
         self._qm.mw_list_mode_RadioButton.clicked.connect(lambda state, x=1: self.radioButton_behaviour_forGroupBox(state,x))
         self._qm.loaded_sequence_mode_RadioButton.clicked.connect(lambda state, x=2: self.radioButton_behaviour_forGroupBox(state,x))
         self._qm.loaded_seq_track_freq_two_point_Checkbox.clicked.connect(lambda state: self.loaded_seq_track_freq_two_point_Checkbox_isClicked(state))
@@ -1119,6 +1125,12 @@ class ProteusQGUI(GUIBase):
         self._qm.esr_errorMarginContrast_SpinBox.setValue(self.err_margin_contrast )
         self._qm.esr_nSamples_SpinBox.setValue(self.n_samples )
 
+        self._qm.calculate_field_groupBox.setChecked(self.calc_mag_field)
+        self._qm.esr_single_res_RadioButton.setChecked(self.single_res_meas)
+        self._qm.esr_single_res_gslac_RadioButton.setChecked(self.single_res_meas_gslac)
+        self._qm.esr_double_res_RadioButton.setChecked(self.double_res_meas)
+        
+
     def store_status_var(self):
         """ Store all those variables to file. """
 
@@ -1208,6 +1220,11 @@ class ProteusQGUI(GUIBase):
         self.err_margin_offset = self._qm.esr_errorMarginOffset_SpinBox.value()
         self.err_margin_contrast = self._qm.esr_errorMarginContrast_SpinBox.value()
         self.n_samples = self._qm.esr_nSamples_SpinBox.value()
+
+        self.calc_mag_field = self._qm.calculate_field_groupBox.isChecked()
+        self.single_res_meas = self._qm.esr_single_res_RadioButton.isChecked()
+        self.single_res_meas_gslac = self._qm.esr_single_res_gslac_RadioButton.isChecked()
+        self.double_res_meas = self._qm.esr_double_res_RadioButton.isChecked()
 
     def get_all_data_matrices(self):
         """ more of a helper method to get all the data matrices. """
@@ -1708,6 +1725,21 @@ class ProteusQGUI(GUIBase):
         self._mw.afm_y_range_DSpinBox.setValue(self._mw.y_range_qafm_feature_DSpinBox.value())
         self.calc_x_pixel_size()
         self.calc_y_pixel_size()
+
+    def load_bias_data(self):
+        """ Ask the user for a file where the bias ODMR data is stored
+        """
+        biasfilepath = 'G:\\Data\\Qudi_Data'
+        filename = QtWidgets.QFileDialog.getOpenFileName(
+            self._mw,
+            'Chose bias ODMR data',
+            biasfilepath,
+            'Bias data (*_data_ch0_range0.dat)')[0]
+        if filename != '':
+            self.log.info(f'Bias data from file {filename} has been loaded into SPM modul.')
+            return np.loadtxt(filename).T
+        else:
+            return None
         
     # ========================================================================== 
     #         BEGIN: Creation and Adaptation of Display Widget
@@ -2994,6 +3026,9 @@ class ProteusQGUI(GUIBase):
         self._qafm_logic._spm.objective_lock = state
         self.toggle_obj_actions(not state)
 
+    def update_vis_slope(self, vis_slope):
+        self._qm.slope_label.setText('{:.2e}'.format(vis_slope))
+
     def radioButton_behaviour_forGroupBox(self, state, x):
         if x == 0:
             if state is True:
@@ -3275,8 +3310,16 @@ class ProteusQGUI(GUIBase):
         esr_mw_power = self._qm.esr_mw_power_DoubleSpinBox.value()
         esr_runs = self._qm.esr_runs_SpinBox.value()
         esr_tracking = self._qm.esr_tracking_checkBox.isChecked()
-        single_res = self._qm.esr_single_res_RadioButton.isChecked() 
-        single_res_gslac = self._qm.esr_single_res_gslac_RadioButton.isChecked()
+        if self._qm.calculate_field_groupBox.isChecked():
+            if self._qm.esr_single_res_RadioButton.isChecked():
+                calc_magnetic_field = 'single'
+                bias_data = self.load_bias_data()
+            elif self._qm.esr_single_res_gslac_RadioButton.isChecked():
+                calc_magnetic_field = 'single_gslac'
+                bias_data = self.load_bias_data()
+        else:
+            calc_magnetic_field = None
+            bias_data = None
 
         #Bayesian
         contrast = self._qm.esr_contrast_SpinBox.value()
@@ -3303,7 +3346,7 @@ class ProteusQGUI(GUIBase):
             freq_start=esr_freq_start, freq_stop=esr_freq_stop, 
             freq_step=esr_freq_step, esr_count_freq=esr_count_freq,
             mw_power=esr_mw_power, num_esr_runs=esr_runs, esr_tracking=esr_tracking, param_estimation=param_estimation, optbay=optbay,
-            single_res=single_res, single_res_gslac=single_res_gslac,
+            calc_magnetic_field=calc_magnetic_field, bias_data=bias_data,
             liftoff_mode=liftoff_mode, liftoff_height=liftoff_height)
 
     def stop_quantitative_measure_clicked(self):
@@ -3354,6 +3397,17 @@ class ProteusQGUI(GUIBase):
         liftoff_mode = self._mw.liftOffMode_groupBox.isChecked()
         liftoff_height = self._mw.liftOffHeight_doubleSpinBox.value()
 
+        if self._qm.calculate_field_groupBox.isChecked():
+            if self._qm.esr_single_res_RadioButton.isChecked():
+                calc_magnetic_field = 'single'
+                bias_data = self.load_bias_data()
+            elif self._qm.esr_single_res_gslac_RadioButton.isChecked():
+                calc_magnetic_field = 'single_gslac'
+                bias_data = self.load_bias_data()
+        else:
+            calc_magnetic_field = None
+            bias_data = None
+
         self._qafm_logic.start_scan_area_pulsed_qafm_fw_by_point(
             coord0_origin=x_origin, coord0_range=x_range, coord0_num=res_x, 
             coord1_origin=y_origin, coord1_range=y_range, coord1_num=res_y, rotation = rotation,
@@ -3365,7 +3419,8 @@ class ProteusQGUI(GUIBase):
             res_freq=res_freq, slope2_podmr=slope2_podmr, use_slope_track=use_slope_track,
             loaded_sequence_mode = loaded_sequence_mode, loaded_sequence_mode_tracking_two_point = loaded_sequence_mode_tracking_two_point,
             loaded_sequence_mode_tracking_podmr = loaded_sequence_mode_tracking_podmr, loaded_sequence_res_freq=loaded_sequence_res_freq, num_runs_tracking = pulse_repetition_tracking,
-            liftoff_mode=liftoff_mode, liftoff_height=liftoff_height)
+            liftoff_mode=liftoff_mode, liftoff_height=liftoff_height,
+            calc_magnetic_field=calc_magnetic_field, bias_data=bias_data)
 
     def stop_pulsed_measure_clicked(self):
         self.stop_any_scanning()

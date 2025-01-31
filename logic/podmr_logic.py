@@ -33,6 +33,7 @@ from collections import OrderedDict
 from interface.microwave_interface import MicrowaveMode
 from interface.microwave_interface import TriggerEdge
 import numpy as np
+from scipy.signal import savgol_filter, find_peaks
 import time
 import datetime
 import matplotlib.pyplot as plt
@@ -58,6 +59,7 @@ class ODMRLogic(GenericLogic):
     taskrunner = Connector(interface='TaskRunner')
     pulsed_master_AWG = Connector(interface='PulsedMasterLogic')
     pulse_creator = Connector(interface='GenericLogic')
+    pulsed_settings = Connector(interface='GenericLogic')
 
     sweep_mw_power = StatusVar('sweep_mw_power', -20)
     laser_power_voltage = StatusVar('laser_power_voltage_podmr',0.5)
@@ -86,6 +88,7 @@ class ODMRLogic(GenericLogic):
     sigOdmrFitUpdated = QtCore.Signal(np.ndarray, np.ndarray, dict, str)
     sigOdmrElapsedTimeUpdated = QtCore.Signal(float, str)
     sigAnalysisSettingsUpdated = QtCore.Signal(dict)
+    sigVisSlopeChanged = QtCore.Signal(float)
 
     def __init__(self, config, **kwargs):
         super().__init__(config=config, **kwargs)
@@ -103,6 +106,7 @@ class ODMRLogic(GenericLogic):
         self._taskrunner = self.taskrunner()
         self._pulsed_master_AWG = self.pulsed_master_AWG()
         self._pulse_creator = self.pulse_creator()
+        self._pulsed_settings = self.pulsed_settings()
 
         # Get hardware constraints
         limits = self.get_hw_constraints()
@@ -130,8 +134,9 @@ class ODMRLogic(GenericLogic):
         self.frequency_lists = []
         self.final_freq_list = []
 
-        self.bin_width_s = 1e-9
-        self.record_length_s = 3e-6
+        self.bin_width_s = self._pulsed_settings.bin_width
+        self.record_length_s = self._pulsed_settings.read_out_time
+        self.add_tt_read_out = self._pulsed_settings.add_tt_read_out
 
         # Set flags
         # for stopping a measurement
@@ -155,7 +160,7 @@ class ODMRLogic(GenericLogic):
         self._initialize_odmr_plots()
         self.odmr_raw_data = np.zeros(
             [self.odmr_plot_x.size,
-             int(self.record_length_s/self.bin_width_s),
+             int((self.record_length_s+self.add_tt_read_out)/self.bin_width_s),
              ]
         )
         self.vis_slope = 0
@@ -252,7 +257,7 @@ class ODMRLogic(GenericLogic):
         self.odmr_fit_y = np.zeros(self.odmr_fit_x.size)
 
         self.sigOdmrPlotsUpdated.emit(self.odmr_plot_x, self.odmr_plot_y, np.array([np.nan]), np.zeros_like(self.odmr_plot_y[0]))
-        self.laser_data = np.zeros((1,int(self.record_length_s/self.bin_width_s)))
+        self.laser_data = np.zeros((1,int((self.record_length_s+self.add_tt_read_out)/self.bin_width_s)))
         self.sigOdmrLaserDataUpdated.emit(self.laser_data)
         current_fit = self.fc.current_fit
         self.sigOdmrFitUpdated.emit(self.odmr_fit_x, self.odmr_fit_y, {}, current_fit)
@@ -380,7 +385,7 @@ class ODMRLogic(GenericLogic):
                         mode=11, # pulsed mode
                         params={'laser_pulses': laser_pulses,
                                 'bin_width_s': self.bin_width_s,
-                                'record_length_s': self.record_length_s,
+                                'record_length_s': self.record_length_s+self.add_tt_read_out,
                                 'max_counts': 0 } )
 
         self._odmr_counter._sc_device.start_recorder(arm=True)
@@ -411,6 +416,11 @@ class ODMRLogic(GenericLogic):
 
         self.elapsed_sweeps = 0
         self.elapsed_time = 0.0
+
+        self.bin_width_s = self._pulsed_settings.bin_width
+        self.record_length_s = self._pulsed_settings.read_out_time
+        self.add_tt_read_out = self._pulsed_settings.add_tt_read_out
+
         self._startTime = time.time()
         self.sigOdmrElapsedTimeUpdated.emit(self.elapsed_time, str(self.elapsed_sweeps))
 
@@ -428,7 +438,7 @@ class ODMRLogic(GenericLogic):
         # initialize raw_data array
         self.odmr_raw_data = np.zeros(
             [self.odmr_plot_x.size,
-             int(self.record_length_s/self.bin_width_s),
+             int((self.record_length_s+self.add_tt_read_out)/self.bin_width_s),
              ])
 
         self.sigNextLineTimer.start(1000)
@@ -517,11 +527,11 @@ class ODMRLogic(GenericLogic):
         cw_freq = end_freq + 100e6
 
         if len(self._pulse_creator.AWG._current_uploaded_ensembles) == 1 and check_name in self._pulse_creator.AWG._current_uploaded_ensembles:
-            self._pulse_creator.initialize_ensemble(laser_power_voltage = self.laser_power_voltage, pi_pulse = pp, read_out_time = self.record_length_s, LO_freq_0 = cw_freq, target_freq_0 = mw_start, power_0 = sweep_mw_power, printing = False, set_up_measurement = False)
+            self._pulse_creator.initialize_ensemble(laser_power_voltage = self.laser_power_voltage, pi_pulse = pp, read_out_time = self.record_length_s, add_tt_read_out = self.add_tt_read_out, LO_freq_0 = cw_freq, target_freq_0 = mw_start, power_0 = sweep_mw_power, printing = False, set_up_measurement = False)
             self._pulse_creator.sample_load_ready_pulsestreamer(name='read_out_jptr')
 
         elif check_name in self._pulsed_master_AWG.sequencegeneratorlogic()._saved_pulse_block_ensembles.keys():
-            self._pulse_creator.initialize_ensemble(laser_power_voltage = self.laser_power_voltage, pi_pulse = pp, read_out_time = self.record_length_s, LO_freq_0 = cw_freq, target_freq_0 = mw_start, power_0 = sweep_mw_power, printing = False, set_up_measurement = False)
+            self._pulse_creator.initialize_ensemble(laser_power_voltage = self.laser_power_voltage, pi_pulse = pp, read_out_time = self.record_length_s, add_tt_read_out = self.add_tt_read_out, LO_freq_0 = cw_freq, target_freq_0 = mw_start, power_0 = sweep_mw_power, printing = False, set_up_measurement = False)
             ensemble_list = [check_name]
             sequence_step_list = []
             for idx, ensemble in enumerate(ensemble_list):
@@ -537,7 +547,7 @@ class ODMRLogic(GenericLogic):
             self._pulse_creator.sample_load_ready_pulsestreamer(name='read_out_jptr')
             
         else:
-            self._pulse_creator.initialize_ensemble(laser_power_voltage = self.laser_power_voltage, pi_pulse = pp, read_out_time = self.record_length_s, LO_freq_0 = cw_freq, target_freq_0 = mw_start, power_0 = sweep_mw_power, printing = False, set_up_measurement = False)
+            self._pulse_creator.initialize_ensemble(laser_power_voltage = self.laser_power_voltage, pi_pulse = pp, read_out_time = self.record_length_s, add_tt_read_out = self.add_tt_read_out, LO_freq_0 = cw_freq, target_freq_0 = mw_start, power_0 = sweep_mw_power, printing = False, set_up_measurement = False)
             ensemble_list, sequence_step_list, name, var_list, alternating, freq_sweep = self._pulse_creator.PODMR(mw_start, mw_stop, mw_step, name) #Preparing Pulsestreamer and AWG without setting up the pulse measurement GUI or Timetagger
 
         self._mw_device.set_cw(cw_freq, sweep_mw_power)
@@ -659,6 +669,85 @@ class ODMRLogic(GenericLogic):
             ref_data = np.zeros(num_of_lasers)
         ref_time = (norm_end_bin*bin_width-norm_start_bin*bin_width)
         return signal_data, error_data, ref_data, ref_time
+    
+    def optimize_analysis_window(self):
+        bin_width_s = self.bin_width_s
+        data = self.laser_data
+
+        y = np.mean(data, axis=0)
+
+        if np.sum(y) == 0:
+            return
+        
+        else:
+            peaks,_ = find_peaks(x=y, height=y.max()*0.3)
+            peaks_ref,_ = find_peaks(x=y, height=y.max()*0.7)
+
+            start, stop = peaks[0], peaks_ref[-1]
+            opt_stop = round(stop*bin_width_s*1e9,0)
+            window = min(200e-9, (len(y)-start)*1e-9)
+
+            width = int(window/bin_width_s)
+            signal = np.sum(data[:,start:start+width], axis=1)
+            signal = signal/signal.max()
+
+            win_start = 10e-9
+            win_stop = min(200e-9, (len(y)-start)*1e-9)
+            windows = np.linspace(win_start, win_stop, 500)
+
+            fidelities = self.fidelity(windows, data, start)
+            maximum_F_ind = np.argmax(fidelities)
+
+            opt_window_size = round(windows[maximum_F_ind]*1e9,0)
+            start_positions = np.linspace(max(0,start*bin_width_s-opt_window_size/1e9), len(y)*bin_width_s - opt_window_size/1e9, 500)
+            fidelities_s = self.fidelity_for_starts(start_positions, data, opt_window_size/1e9)
+            maximum_F_ind = np.argmax(fidelities_s)
+            opt_start = round(start_positions[maximum_F_ind]*1e9,0)
+
+
+            self.log.info(f'Optimized analysis window:\n Analysis window start: {opt_start} ns\n Analysis window width: {opt_window_size} ns \n Reference window start: {opt_stop - opt_window_size} ns \n Reference window width: {opt_window_size} ns')
+
+            self.pulsed_analysis_settings['signal_start'] = opt_start/1e9
+            self.pulsed_analysis_settings['signal_end'] = (opt_start + opt_window_size)/1e9
+            self.pulsed_analysis_settings['norm_start'] = (opt_stop - opt_window_size)/1e9
+            self.pulsed_analysis_settings['norm_end'] = opt_stop/1e9
+
+            self.sigAnalysisSettingsUpdated.emit(self.pulsed_analysis_settings)
+
+            return
+
+    def sigma_r(self, signal):
+        signal = signal/signal.max()
+        a,b = signal[np.argmax(signal)], signal[np.argmin(signal)] 
+        C = (a-b)/(a+b)
+        n = (a+b)/2
+        return np.sqrt(1+(1/(C**2 * n)))
+    
+    def sigma_window(self, window, data, start):
+        binwidth = 1e-9
+        
+        width = int(window/binwidth)
+        signal = np.sum(data[:, start:start+width], axis=1)
+
+        # s_signal = savgol_filter(signal, 10, 3) # window size 51, polynomial order 3
+        return self.sigma_r(signal)
+    
+    def fidelity(self, windows, data, start):
+        ret = np.zeros_like(windows)
+        
+        for i, window in enumerate(windows):
+            ret[i] = 1.0/self.sigma_window(window, data, start)
+            
+        return ret
+    
+    def fidelity_for_starts(self, starts, data, window):
+        ret = np.zeros_like(starts)
+        starts = (starts/1e-9).astype(np.int32)
+        
+        for i, start in enumerate(starts):
+            ret[i] = 1.0/self.sigma_window(window, data, start)
+            
+        return ret
     
     def get_fit_functions(self):
         """ Return the hardware constraints/limits

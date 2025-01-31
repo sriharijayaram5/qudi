@@ -40,6 +40,7 @@ class PulsedJupyterLogic(GenericLogic):
 
     _pulsed_master = Connector(interface='GenericLogic')
     _pulsed_master_AWG = Connector(interface='GenericLogic')
+    _pulsed_settings = Connector(interface='GenericLogic')
 
     def __init__(self, config, **kwargs):
         """ 
@@ -53,6 +54,7 @@ class PulsedJupyterLogic(GenericLogic):
         self.pulsed_master = self._pulsed_master()
         self.pulser = self.pulsed_master.pulsedmeasurementlogic().pulsegenerator()
         self.pulsed_master_AWG = self._pulsed_master_AWG()
+        self.pulsed_settings = self._pulsed_settings()
         self.AWG = self.pulsed_master_AWG.pulsedmeasurementlogic().pulsegenerator()
         self.mw = self.pulsed_master.pulsedmeasurementlogic().microwave()
         self.mw1 = self.pulsed_master.pulsedmeasurementlogic().microwave1()
@@ -91,19 +93,45 @@ class PulsedJupyterLogic(GenericLogic):
     def on_deactivate(self):
         return
     
-    def initialize_ensemble(self, laser_power_voltage = 0.08, pi_pulse=1e-9, pi_half_pulse=1e-9, three_pi_half_pulse=1e-9, pi_pulse_1 = 1e-9, awg_sync_time=16e-9 + 476.5/1.25e9, 
-                            laser_waiting_time=1.5e-6, mw_waiting_time=1e-6, read_out_time=3e-6, bin_width = 1e-9,
+    def initialize_ensemble(self, laser_power_voltage = 0.08, pi_pulse=1e-9, pi_half_pulse=1e-9, three_pi_half_pulse=1e-9, pi_pulse_1 = 1e-9, awg_sync_time=None, 
+                            laser_waiting_time=None, mw_waiting_time=None, read_out_time=None, add_tt_read_out = None, bin_width = None,
                             LO_freq_0=3e9, target_freq_0=2.88e9, power_0=-20, LO_freq_1=3e9, target_freq_1=2.88e9, power_1=-100,
                             trigger_type = 'pos_edge', trigger_level0 = 0, trigger_level1 = 0,
                             switch_MW = False, printing = True, upload = True, set_up_measurement = True, check_current_sequence = False):
         
         self.pi_half_pulse = pi_half_pulse
         self.three_pi_half_pulse = three_pi_half_pulse
-        self.awg_sync_time = awg_sync_time #Has to be determined with sample clock
-        self.laser_waiting_time = laser_waiting_time
-        self.mw_waiting_time = mw_waiting_time
-        self.read_out_time = read_out_time
-        self.bin_width = bin_width
+
+        if awg_sync_time is None:
+            self.awg_sync_time = self.pulsed_settings.awg_sync_time #Has to be determined with sample clock
+        else: 
+            self.awg_synca_time = awg_sync_time
+
+        if laser_waiting_time is None:
+            self.laser_waiting_time = self.pulsed_settings.laser_waiting_time
+        else:
+            self.laser_waiting_time = laser_waiting_time
+
+        if mw_waiting_time is None:
+            self.mw_waiting_time = self.pulsed_settings.mw_waiting_time
+        else:
+            self.mw_waiting_time = mw_waiting_time
+
+        if read_out_time is None:
+            self.read_out_time = self.pulsed_settings.read_out_time
+        else:
+            self.read_out_time = read_out_time
+
+        if add_tt_read_out is None:
+            self.add_tt_read_out = self.pulsed_settings.add_tt_read_out
+        else:
+            self.add_tt_read_out = add_tt_read_out
+
+        if bin_width is None:
+            self.bin_width = self.pulsed_settings.bin_width
+        else:
+            self.bin_width = bin_width
+
         self.laser_volt = laser_power_voltage
         self.LO_freq_0 = LO_freq_0
         self.target_freq_0 = target_freq_0
@@ -363,7 +391,7 @@ class PulsedJupyterLogic(GenericLogic):
         if self.set_up_measurement:
             #Setup TimeTagger
             tau_num = len(tau_arr) * 2 if alternating else len(tau_arr)
-            self.pulsed_master_AWG.set_fast_counter_settings(bin_width = self.bin_width, record_length=self.read_out_time, number_of_gates=tau_num)
+            self.pulsed_master_AWG.set_fast_counter_settings(bin_width = self.bin_width, record_length=self.read_out_time + self.add_tt_read_out, number_of_gates=tau_num)
 
             #Setup pulsed GUI
             self.pulsed_master_AWG.set_measurement_settings(invoke_settings=False, 
@@ -462,7 +490,7 @@ class PulsedJupyterLogic(GenericLogic):
         if self.set_up_measurement:
             #Setup TimeTagger
             tau_num = len(tau_arr) * 2 if alternating else len(tau_arr)
-            self.pulsed_master_AWG.set_fast_counter_settings(bin_width = self.bin_width, record_length=self.read_out_time, number_of_gates=tau_num)
+            self.pulsed_master_AWG.set_fast_counter_settings(bin_width = self.bin_width, record_length=self.read_out_time + self.add_tt_read_out, number_of_gates=tau_num)
 
             #Setup pulsed GUI
             self.pulsed_master_AWG.set_measurement_settings(invoke_settings=False, 
@@ -551,7 +579,7 @@ class PulsedJupyterLogic(GenericLogic):
         if self.set_up_measurement:
             #Setup TimeTagger
             tau_num = len(tau_arr) * 2 if alternating else len(tau_arr)
-            self.pulsed_master_AWG.set_fast_counter_settings(bin_width = self.bin_width, record_length=self.read_out_time, number_of_gates=tau_num)
+            self.pulsed_master_AWG.set_fast_counter_settings(bin_width = self.bin_width, record_length=self.read_out_time+ self.add_tt_read_out, number_of_gates=tau_num)
 
             #Setup pulsed GUI
             self.pulsed_master_AWG.set_measurement_settings(invoke_settings=False, 
@@ -832,7 +860,7 @@ class PulsedJupyterLogic(GenericLogic):
         if name is None:
             name = 'laser-waiting-sweep-juptr'
 
-        alternating = False
+        alternating = True
         freq_sweep=False
         self.tau_arr = np.linspace(tau_start, tau_stop, num=tau_num)
         
@@ -844,6 +872,13 @@ class PulsedJupyterLogic(GenericLogic):
             self.ElementAWG(channels={}, length=tau) 
             #Pi pulse - reference
             self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse)
+            #Waiting time + read-out
+            self.ElementAWG(channels={'PS_Trig':True}, length=self.mw_waiting_time + self.read_out_time)
+
+            #Break after Initalisation/read out
+            self.ElementAWG(channels={}, length=tau) 
+            #Pi pulse - reference
+            self.ElementAWG(channels={}, length=self.pi_pulse)
             #Waiting time + read-out
             self.ElementAWG(channels={'PS_Trig':True}, length=self.mw_waiting_time + self.read_out_time)
 
@@ -2810,6 +2845,59 @@ class PulsedJupyterLogic(GenericLogic):
         ensemble_list = self.sample_load_ready_AWG_trigger_multi_replay(name, self.segments, self.tau_arr, alternating, freq_sweep, change_freq = False)
 
         return ensemble_list, name, self.tau_arr, alternating, freq_sweep, actual_t_0 #Sync duration is subtracted and thus total tau includes the sync duration for AWG and the closest to 16 samples is found since AWG requires it
+
+    def Iso_B_multi_gradiometry(self, osc_freq, t_0, overhead):
+        '''
+
+        '''
+        name = 'iso_b_multi-gradiometry-juptr'
+        
+        alternating = False
+        freq_sweep= False
+       
+        awg_t_0 = t_0 
+        awg_t_0_samples = int(awg_t_0*1.25e9)
+        while not (awg_t_0_samples % 16 == 0):
+            awg_t_0_samples += 1
+        awg_t_0_samples = int(awg_t_0_samples)
+        actual_t_0 = awg_t_0_samples/1.25e9  + self.awg_sync_time
+
+        self.AWG.instance.cards[0].set32(SPC_TRIG_DELAY, awg_t_0_samples)
+        self.AWG.instance.cards[1].set32(SPC_TRIG_DELAY, awg_t_0_samples)
+
+        osc_tau = 1/osc_freq
+        osc_tau_corr = osc_tau - overhead - actual_t_0
+        meas_time = self.laser_waiting_time + self.pi_pulse + self.mw_waiting_time + self.read_out_time
+        meas_num = int(np.floor(osc_tau_corr/meas_time))
+
+        if meas_num<1:
+            print('!!!Length of measurement is larger than tau of tip oscillation!!!')
+            return
+
+        self.tau_arr = np.linspace(1, meas_num, meas_num)
+
+        #Create pulse sequence for the AWG streamer
+        self.segments = {}
+
+        self.BlockAWG = []
+        meas_name = name + '-meas'
+
+        for tau in self.tau_arr:
+            #Break after Initalisation/read out
+            self.ElementAWG(channels={}, length=self.laser_waiting_time) 
+            #Pi pulse - reference
+            self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse)
+            #Waiting time + read-out
+            self.ElementAWG(channels={'PS_Trig':True}, length=self.mw_waiting_time + self.read_out_time)
+
+        self.segments[meas_name] = self.BlockAWG
+     
+        self.sample_load_ready_pulsestreamer(name='read_out_jptr')
+        
+        ensemble_list = self.sample_load_ready_AWG_trigger_multi_replay(name, self.segments, self.tau_arr, alternating, freq_sweep, change_freq = False)
+
+        return ensemble_list, name, self.tau_arr, alternating, freq_sweep, actual_t_0 #Sync duration is subtracted and thus total tau includes the sync duration for AWG and the closest to 16 samples is found since AWG requires it
+
 
     def CPMG1_gradiometry(self, t_0, tau, name=None):
         '''
