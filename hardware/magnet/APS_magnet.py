@@ -365,11 +365,11 @@ class APSMagnet(Base, MagnetInterface):
             @return int: error code (0:OK, -1:error)
             """
 
-        # self.log.info(f'Ramping...')
+        self.log.info(f'Ramping...')
         # self.x_dir = 'ZERO'
         # self.y_dir = 'ZERO'
         # self.z_dir = 'ZERO'
-        # self.tell({'x':f'SWEEP {self.x_dir}', 'y':f'SWEEP {self.y_dir}', 'z':f'SWEEP {self.z_dir}'})
+        self.tell({'x':f'SWEEP {self.x_dir}', 'y':f'SWEEP {self.y_dir}', 'z':f'SWEEP {self.z_dir}'})
 
         return 0
 

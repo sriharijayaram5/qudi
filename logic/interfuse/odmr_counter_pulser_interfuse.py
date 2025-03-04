@@ -53,7 +53,6 @@ class ODMRCounterInterfuse(GenericLogic, ODMRCounterInterface):
         self._lock_in_active = False
         self._oversampling = 10
         self._odmr_length = 100
-        self.secondary_source_duty_cycle = 1
 
     def on_deactivate(self):
         pass
@@ -102,14 +101,14 @@ class ODMRCounterInterfuse(GenericLogic, ODMRCounterInterface):
         channels[d_ch(self._pulser._laser_channel)] = 1.0
         channels[a_ch(self._pulser._laser_analog_channel)] = self._pulser._laser_power_voltage
         channels[d_ch(self._pulser._mw_switch)] = 1.0
-        block_1.append(init_length = (1/clock_frequency)*(self.secondary_source_duty_cycle), channels = channels, repetition = 1)
+        block_1.append(init_length = (1/clock_frequency), channels = channels, repetition = 1)
 
         channels = clear(channels)
         channels[d_ch(self._pulser._laser_channel)] = 1.0
         channels[a_ch(self._pulser._laser_analog_channel)] = self._pulser._laser_power_voltage
         channels[d_ch(self._pulser._pixel_stop)] = 1.0
         channels[d_ch(self._pulser._mw_switch)] = 0
-        block_1.append(init_length = 1e-6 + (1/clock_frequency)*(1-self.secondary_source_duty_cycle), channels = channels, repetition = 1)
+        block_1.append(init_length = 1e-6 + (1/clock_frequency), channels = channels, repetition = 1)
 
         channels = clear(channels)
         channels[d_ch(self._pulser._laser_channel)] = 1.0
@@ -130,11 +129,9 @@ class ODMRCounterInterfuse(GenericLogic, ODMRCounterInterface):
         self._pulse_creator.AWG.print_log_info = False
         self._pulse_creator.pulsed_master_AWG.sequencegeneratorlogic().print_log_info = False
         self._pulse_creator.pulsed_master.sequencegeneratorlogic().print_log_info = False
-        duty_cycle = self.secondary_source_duty_cycle
-        self.log.info(f"Setting up secondary source duty cycle as {duty_cycle*100}%.")
 
         self._pulse_creator.initialize_ensemble(laser_power_voltage = self._pulser._laser_power_voltage, target_freq_0 = mw_start, printing = False, set_up_measurement = False, check_current_sequence = self._check_sequence_in_mem)
-        ensemble_list, sequence_step_list, name, var_list, alternating, freq_sweep = self._pulse_creator.CW_ODMR(mw_start, mw_stop, mw_step, clock_frequency, duty_cycle) #Preparing Pulsestreamer and AWG without setting up the pulse measurement GUI or Timetagger
+        ensemble_list, sequence_step_list, name, var_list, alternating, freq_sweep = self._pulse_creator.CW_ODMR(mw_start, mw_stop, mw_step, clock_frequency) #Preparing Pulsestreamer and AWG without setting up the pulse measurement GUI or Timetagger
         
         self._pulse_creator.AWG.print_log_info = True
         self._pulse_creator.pulsed_master_AWG.sequencegeneratorlogic().print_log_info = True

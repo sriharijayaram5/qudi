@@ -685,7 +685,7 @@ class PulsedJupyterLogic(GenericLogic):
 
         return ensemble_list, sequence_step_list, name, self.tau_arr, alternating, freq_sweep
     
-    def CW_ODMR(self, mw_start, mw_stop, mw_step, clock_frequency=None, duty_cycle = 0, name = None):
+    def CW_ODMR(self, mw_start, mw_stop, mw_step, clock_frequency=None, name = None):
         '''
         Laser(532):       ▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇
         MW:               ▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇
@@ -727,8 +727,7 @@ class PulsedJupyterLogic(GenericLogic):
             self.BlockAWG = []
             freq_segment_name = name+f'-freq-({self.LO_freq_0-tau},{freq_segment_time})'
             #Playing current frequency
-            self.ElementAWG(channels={'MW_0':True, 'd_ch5': True}, length=freq_segment_time*(duty_cycle), freq_0=tau)
-            self.ElementAWG(channels={'MW_0':True}, length=freq_segment_time*(1-duty_cycle), freq_0=tau)
+            self.ElementAWG(channels={'MW_0':True}, length=freq_segment_time, freq_0=tau)
             self.segments[freq_segment_name] = self.BlockAWG
 
             step = {"step_index" : 2*idx,

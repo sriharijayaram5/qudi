@@ -139,7 +139,7 @@ class PIDGui(GUIBase):
 
 
         self.plot1.addItem(self._curve1)
-        self.plot1.addItem(self._curve3)
+        #self.plot1.addItem(self._curve3) #hiding curve3 to see the changes in curve1 better
         self.plot2.addItem(self._curve2)
 
         # self.updateViews()
