@@ -859,6 +859,10 @@ class SPM_ASC500(Base, ScannerInterface):
             self._dev.base.setParameter(self._dev.base.getConst('ID_PATH_ACTION'), 0, 3)
 
     def _configureSampleAreaPath_new(self, point_grid_dict, line_points, lines_num, liftoff_mode, liftoff_height):
+        area_corr0_start, area_corr0_stop, area_corr1_start, area_corr1_stop = point_grid_dict['bottom_left'][0], point_grid_dict['bottom_right'][0], point_grid_dict['bottom_left'][1], point_grid_dict['top_left'][1]
+        self._coords = [[area_corr0_start,area_corr1_start],[area_corr0_stop,area_corr1_stop]]
+        self._set_scan_area_daisy(area_corr0_start, area_corr0_stop, area_corr1_start, area_corr1_stop)
+
         self._dev.base.setParameter(self._dev.base.getConst('ID_SPEC_PATHCTRL'), 0, 0)
         self._dev.base.setParameter(self._dev.base.getConst('ID_SPEC_PATHPREP'), 1, 0)
         self._dev.base.setParameter(self._dev.base.getConst('ID_EXTTRG_TIMEOUT'), self._sync_in_timeout, 0) # 0ms timeout - will wait until SYNC IN is received
@@ -870,8 +874,10 @@ class SPM_ASC500(Base, ScannerInterface):
         # if going to use grid mode, i.e, ('ID_SPEC_PATHCTRL'), -1, 0, then the GUI_X/Y points of index 0,1,2,3 are the BL,BR,TL,TR coordinates of a parallelogram - BL is start and TR is end
         # coords = [BL,BR,TL,TR] 
 
-        self._coords = [point_grid_dict['bottom_left'],point_grid_dict['top_right']]
-        self._dev.base.setParameter(self._dev.base.getConst('ID_SCAN_ROTATION'), 0, 0)
+        # self._dev.scanner.setNumberOfColumns(1)
+        # self._dev.scanner.setNumberOfLines(1)
+        # self._dev.scanner.setPixelSize(0)
+        # self._dev.base.setParameter(self._dev.base.getConst('ID_SCAN_ROTATION'), 0, 0)
         
         self.end_coords = point_grid_dict['bottom_left']
         
@@ -886,19 +892,18 @@ class SPM_ASC500(Base, ScannerInterface):
             self.log.warning(f'Incorrect scan style for SPM area configuration.')
 
         elif liftoff_mode == True:
-            elf.liftoff_mode = liftoff_mode
+            self.liftoff_mode = liftoff_mode
             self.liftoff_height = liftoff_height
-            self._dev.base.setParameter(self._dev.base.getConst('ID_PATH_ACTION'), 6, 0)
+            self._dev.base.setParameter(self._dev.base.getConst('ID_PATH_ACTION'), 5, 0)
             # 0=manual handshake, 1..3=spectroscopy 1..3, 4=ext. handshake, 5=move Z home, 6=auto approach
             self._dev.base.setParameter(self._dev.base.getConst('ID_PATH_ACTION'), 0, 1)
             self._dev.base.setParameter(self._dev.base.getConst('ID_PATH_ACTION'), 2, 2)
-            self._dev.base.setParameter(self._dev.base.getConst('ID_PATH_ACTION'), 0, 3)
             #move home
-            self._dev.base.setParameter(self._dev.base.getConst('ID_PATH_ACTION'), 5, 4)
+            self._dev.base.setParameter(self._dev.base.getConst('ID_PATH_ACTION'), 5, 3)
             #ext shake
-            self._dev.base.setParameter(self._dev.base.getConst('ID_PATH_ACTION'), 0, 5)
+            self._dev.base.setParameter(self._dev.base.getConst('ID_PATH_ACTION'), 0, 4)
             #loop on
-            self._dev.base.setParameter(self._dev.base.getConst('ID_PATH_ACTION'), 6, 6)
+            self._dev.base.setParameter(self._dev.base.getConst('ID_PATH_ACTION'), 6, 5)
 
             #configuration of autoapproach settings
             # for HFAmpl signal
@@ -1591,7 +1596,7 @@ class SPM_ASC500(Base, ScannerInterface):
         """
 
         sc_pos = {} # sample scanner pos
-        sc_pos['X'], sc_pos['Y'], sc_pos['Z'] = self._dev.scanner.getPositionsXYZRel()
+        sc_pos['X'], sc_pos['Y'], sc_pos['Z'] = self._dev.base.getParameter(4131, 0)*1e-12, self._dev.base.getParameter(4132, 0)*1e-12, self._dev.base.getParameter(4152, 0)*1e-12
         
         return {i : sc_pos[i[0]] for i in axis_label_list}
 
