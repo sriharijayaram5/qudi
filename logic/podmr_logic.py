@@ -522,7 +522,7 @@ class ODMRLogic(GenericLogic):
         end_freq = mw_start + num_steps * mw_step
         var_range =  end_freq-mw_start
         var_list = np.linspace(mw_start, end_freq, num_steps + 1)
-        name = f'podmr-({var_range},{mw_step},{pp})'
+        name = f'podmr-({var_range},{mw_step},{pp},{self._pulsed_settings.laser_waiting_time},{self._pulsed_settings.mw_waiting_time},{self.record_length_s})'
         check_name = 'Jupyter-ensemble-'+name
         cw_freq = end_freq + 100e6
 
@@ -683,39 +683,46 @@ class ODMRLogic(GenericLogic):
             peaks,_ = find_peaks(x=y, height=y.max()*0.3)
             peaks_ref,_ = find_peaks(x=y, height=y.max()*0.7)
 
-            start, stop = peaks[0], peaks_ref[-1]
-            opt_stop = round(stop*bin_width_s*1e9,0)
-            window = min(200e-9, (len(y)-start)*1e-9)
+            start, stop = peaks[0], peaks[-1]
+            opt_stop = peaks_ref[-1]*bin_width_s
 
-            width = int(window/bin_width_s)
-            signal = np.sum(data[:,start:start+width], axis=1)
-            signal = signal/signal.max()
+            data_range = stop - start
 
-            win_start = 10e-9
-            win_stop = min(200e-9, (len(y)-start)*1e-9)
-            windows = np.linspace(win_start, win_stop, 500)
+            window_width_min = 1
+            window_width_max = int(data_range*0.5)
 
-            fidelities = self.fidelity(windows, data, start)
-            maximum_F_ind = np.argmax(fidelities)
+            window_start_min = max(start-int(data_range*0.25),0)
+            window_start_max = start+int(data_range/2)
 
-            opt_window_size = round(windows[maximum_F_ind]*1e9,0)
-            start_positions = np.linspace(max(0,start*bin_width_s-opt_window_size/1e9), len(y)*bin_width_s - opt_window_size/1e9, 500)
-            fidelities_s = self.fidelity_for_starts(start_positions, data, opt_window_size/1e9)
-            maximum_F_ind = np.argmax(fidelities_s)
-            opt_start = round(start_positions[maximum_F_ind]*1e9,0)
+            window_width_arr = np.linspace(window_width_min, window_width_max,window_width_max-window_width_min+1)
+            window_start_arr = np.linspace(window_start_min, window_start_max,window_start_max-window_start_min+1)
+            SNR_arr = np.zeros((len(window_width_arr),len(window_start_arr)))
 
+            for idx_width, window_width in enumerate(window_width_arr):
+                for idx_start, window_start in enumerate(window_start_arr):
+                    SNR_arr[idx_width, idx_start] = self.SNR(data, window_start, window_width)
 
-            self.log.info(f'Optimized analysis window:\n Analysis window start: {opt_start} ns\n Analysis window width: {opt_window_size} ns \n Reference window start: {opt_stop - opt_window_size} ns \n Reference window width: {opt_window_size} ns')
+            opt_width_idx, opt_start_idx = np.unravel_index(np.argmax(SNR_arr),SNR_arr.shape)
+            opt_start = window_start_arr[opt_start_idx]*bin_width_s
+            opt_width = window_width_arr[opt_width_idx]*bin_width_s
 
-            self.pulsed_analysis_settings['signal_start'] = opt_start/1e9
-            self.pulsed_analysis_settings['signal_end'] = (opt_start + opt_window_size)/1e9
-            self.pulsed_analysis_settings['norm_start'] = (opt_stop - opt_window_size)/1e9
-            self.pulsed_analysis_settings['norm_end'] = opt_stop/1e9
+            self.log.info(f'Optimized analysis window:\n Analysis window start: {opt_start*1e9} ns\n Analysis window width: {opt_width*1e9} ns \n Reference window start: {(opt_stop - opt_width)*1e9} ns \n Reference window width: {opt_width*1e9} ns')
+
+            self.pulsed_analysis_settings['signal_start'] = opt_start
+            self.pulsed_analysis_settings['signal_end'] = (opt_start + opt_width)
+            self.pulsed_analysis_settings['norm_start'] = (opt_stop - opt_width)
+            self.pulsed_analysis_settings['norm_end'] = opt_stop
 
             self.sigAnalysisSettingsUpdated.emit(self.pulsed_analysis_settings)
 
             return
 
+    def SNR(self, data, start, width):
+        stop = start+width
+        signal = np.sum(data[:, int(start):int(stop)], axis=1)
+        signal_max, signal_min = signal[np.argmax(signal)], signal[np.argmin(signal)] 
+        return (signal_max-signal_min)/np.sqrt(signal_max+signal_min)
+    
     def sigma_r(self, signal):
         signal = signal/signal.max()
         a,b = signal[np.argmax(signal)], signal[np.argmin(signal)] 

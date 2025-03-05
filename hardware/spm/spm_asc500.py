@@ -593,7 +593,9 @@ class SPM_ASC500(Base, ScannerInterface):
                        point_grid_dict,
                        scan_arr,
                        afm_int_time, afm_scan_speed,
-                       liftoff_mode, liftoff_height):
+                       liftoff_mode, liftoff_height,
+                       tip_osc_off, tip_osc_turn_off_time,
+                       tip_osc_turn_on_time, measure_tip_osc_on_and_off = False):
         """ Setup the scan line parameters
         
         @param float coord0_start: start point for coordinate 0 in m
@@ -641,8 +643,13 @@ class SPM_ASC500(Base, ScannerInterface):
 
             # time back is actually the scan speed from the GUI in m/s
             self._dev.base.setParameter(self._dev.base.getConst('ID_SCAN_PSPEED'), afm_scan_speed*1e9, 0)
+
+            self.manual_handshake_breakout_time = round(scan_arr[0,1,0]-scan_arr[0,0,0],9)/afm_scan_speed*10
+            self.manual_handshake_breakout_tag = False
+
+            self.lift_off_waiting_time = liftoff_height*1e9*1e-6 #The lift off waiting time is set as lift of height in nm in us: 10nm -> 10us
             
-            self._configureSampleAreaPath_new(point_grid_dict, self._line_points, self._lines_num, liftoff_mode, liftoff_height)
+            self._configureSampleAreaPath_new(point_grid_dict, self._line_points, self._lines_num, liftoff_mode, liftoff_height, tip_osc_off, tip_osc_turn_off_time, tip_osc_turn_on_time, measure_tip_osc_on_and_off)
             self._polled_data = np.zeros(self._line_points) # mean is done anyway so linepoints shouldnt affect.  leaving it in since it was this way
             # self._configurePathDataBuffering(sampTime=afm_int_time) #that is the method where the height measurement is realised via spectroscopy
             self.setup_height_measurement(afm_int_time=afm_int_time)
@@ -779,11 +786,13 @@ class SPM_ASC500(Base, ScannerInterface):
             self._dev.base.setParameter(self._dev.base.getConst('ID_PATH_ACTION'), 2, 2)
             self._dev.base.setParameter(self._dev.base.getConst('ID_PATH_ACTION'), 0, 3)
 
-    def _configureSampleAreaPath_new(self, point_grid_dict, line_points, lines_num, liftoff_mode, liftoff_height):
+    def _configureSampleAreaPath_new(self, point_grid_dict, line_points, lines_num, liftoff_mode, liftoff_height, tip_osc_off, tip_osc_turn_off_time, tip_osc_turn_on_time, measure_tip_osc_on_and_off):
         self._dev.base.setParameter(self._dev.base.getConst('ID_SPEC_PATHCTRL'), 0, 0)
         self._dev.base.setParameter(self._dev.base.getConst('ID_SPEC_PATHPREP'), 1, 0)
         self._dev.base.setParameter(self._dev.base.getConst('ID_EXTTRG_TIMEOUT'), self._sync_in_timeout, 0) # 0ms timeout - will wait until SYNC IN is received
-        self._dev.base.setParameter(self._dev.base.getConst('ID_EXTTRG_HS'), 1, 0) # enable trigger
+        self._dev.base.setParameter(self._dev.base.getConst('ID_EXTTRG_TIME'), 10, 0) #Set pulse time of external trigger to 10us
+        self._dev.base.setParameter(self._dev.base.getConst('ID_EXTTRG_COUNT'), 1, 0) #Set number of trigger pulses to 1
+        self._dev.base.setParameter(self._dev.base.getConst('ID_EXTTRG_HS'), 0, 0) # disable trigger
         self._dev.base.setParameter(self._dev.base.getConst('ID_EXTTRG_EDGE'), 0, 0) # 0 is rising edge
         # set number of xy grid points
         self._dev.base.setParameter(self._dev.base.getConst('ID_PATH_GRIDP_X'), line_points, 0)
@@ -807,20 +816,35 @@ class SPM_ASC500(Base, ScannerInterface):
         # define number path actions at a point ('ID_PATH_ACTION'), no. of actions, 0 
         self.liftoff_mode = False
         self.liftoff_height = 0
+        self.tip_osc_off = False
+        self.tip_osc_turn_off_time = 0
+        self.tip_osc_turn_on_time = 0
+        self.measure_tip_osc_on_and_off = False
         if self._spm_curr_sstyle == ScanStyle.LINE:
             self.log.warning(f'Incorrect scan style for SPM area configuration.')
 
         elif liftoff_mode == True:
+            if tip_osc_off:
+                self.tip_osc_off = tip_osc_off
+                self.tip_osc_turn_off_time = tip_osc_turn_off_time
+                self.tip_osc_turn_on_time = tip_osc_turn_on_time
+                self.measure_tip_osc_on_and_off = measure_tip_osc_on_and_off
+                self.TF_Amp = self._dev.afm.getTFExcitationAmplitude()
             self.liftoff_mode = liftoff_mode
             self.liftoff_height = liftoff_height
             self._dev.base.setParameter(self._dev.base.getConst('ID_PATH_ACTION'), 4, 0)
             # 0=manual handshake, 1..3=spectroscopy 1..3, 4=ext. handshake, 5=move Z home, 6=auto approach
+            #Ext trigger for sync
+            # self._dev.base.setParameter(self._dev.base.getConst('ID_PATH_ACTION'), 4, 1)
+            #Waiting for manual handshake until height measurement is done, needed for setting lift off height
             self._dev.base.setParameter(self._dev.base.getConst('ID_PATH_ACTION'), 0, 1)
-            #move home
+            #Do lift off
             self._dev.base.setParameter(self._dev.base.getConst('ID_PATH_ACTION'), 5, 2)
-            #ext shake
+            #Ext trigger for sync
+            # self._dev.base.setParameter(self._dev.base.getConst('ID_PATH_ACTION'), 4, 4)
+            #Waiting for manual handshake until measurements are done
             self._dev.base.setParameter(self._dev.base.getConst('ID_PATH_ACTION'), 0, 3)
-            #loop on
+            #Auto approach
             self._dev.base.setParameter(self._dev.base.getConst('ID_PATH_ACTION'), 6, 4)
 
             #configuration of autoapproach settings
@@ -842,6 +866,9 @@ class SPM_ASC500(Base, ScannerInterface):
             # handshake makes sure the tip waits at the next point until logic is ready to proceed
             self._dev.base.setParameter(self._dev.base.getConst('ID_PATH_ACTION'), 1, 0)
             # define which actions specifically ('ID_PATH_ACTION'), 0=manual handshake/2=Spec 1 dummy engine/4=external handshake, 1=as the first action if no. of actions>=1 
+            #Ext trigger for sync
+            # self._dev.base.setParameter(self._dev.base.getConst('ID_PATH_ACTION'), 4, 1)
+            #Waiting for manual handshake until measurements are done
             self._dev.base.setParameter(self._dev.base.getConst('ID_PATH_ACTION'), 0, 1)
 
     def _create_objective_line(self, xOffset, yOffset, pxSize, columns):
@@ -935,6 +962,8 @@ class SPM_ASC500(Base, ScannerInterface):
         
         current_height = 0
 
+        self.manual_handshake_breakout_tag = False
+
         if self._spm_curr_mode == ScannerMode.PROBE_CONTACT:
             while True:
                 if self._dev.base.getParameter(self._dev.base.getConst('ID_SPEC_PATHMANSTAT'), 0)==1:
@@ -943,23 +972,45 @@ class SPM_ASC500(Base, ScannerInterface):
                         if self.liftoff_mode:
                             self.set_liftoff_height(self.liftoff_height, current_height)
                             self._dev.base.setParameter(self._dev.base.getConst('ID_SPEC_PATHPROCEED') ,1 ,0) #in lift off mode an additional manual handshake is needed to continue with the lift off
+                            time.sleep(self.lift_off_waiting_time)
+                            # loop_start = time.monotonic()
                             while True:
-                                if self._dev.base.getParameter(self._dev.base.getConst('ID_SPEC_PATHMANSTAT'), 0)!=1:
+                                if self._dev.base.getParameter(self._dev.base.getConst('ID_SPEC_PATHMANSTAT'), 0)==1:
                                     break
-                                else:
-                                    pass
+                                elif self.manual_handshake_breakout_tag:
+                                    self.log.info('Forced break out of manual handshake waiting loop after lift off via tag.')
+                                    break
+                            
+                            if self.tip_osc_off:
+                                self._dev.afm.setTFExcitationAmplitude(0) #Turn off tip oscillation after Lift off
+                                time.sleep(self.tip_osc_turn_off_time)
+
                     else:
+                        if self.liftoff_mode and self.tip_osc_off and not self.measure_tip_osc_on_and_off:
+                            self._dev.afm.setTFExcitationAmplitude(self.TF_Amp) #Turn on tip oscillation after Lift off
+                            time.sleep(self.tip_osc_turn_on_time)
+
                         self._dev.base.setParameter(self._dev.base.getConst('ID_SPEC_PATHPROCEED') ,1 ,0)
+                        loop_start = time.monotonic()
                         while True:
                             if self._dev.base.getParameter(self._dev.base.getConst('ID_SPEC_PATHMANSTAT'), 0)!=1:
                                 break
-                            else:
-                                pass
+                            elif self.manual_handshake_breakout_tag:
+                                self.log.info('Forced break out of manual handshake waiting loop via tag.')
+                                break
+                            elif time.monotonic()-loop_start>self.manual_handshake_breakout_time:
+                                self.log.info('Forced break out of manual handshake waiting loop via time out.')
+                                break
 
                     return current_height
                 else:
                     pass 
         return 0
+    
+    def turn_on_tip_osc(self):
+        if self.liftoff_mode and self.tip_osc_off and self.measure_tip_osc_on_and_off:
+            self._dev.afm.setTFExcitationAmplitude(self.TF_Amp) #Turn on tip oscillation after Lift off
+            time.sleep(self.tip_osc_turn_on_time)
     
     def setup_height_measurement(self, afm_int_time = 1e-3):
         self.height_chNo = 11
