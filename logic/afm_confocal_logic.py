@@ -3378,6 +3378,8 @@ class AFMConfocalLogic(GenericLogic):
                                                                 coord1_num,
                                                                 rotation)
             
+            self._pulsed_scan_array['pulsed_fw']['Tracking'] = loaded_sequence_mode_tracking_two_point or loaded_sequence_mode_tracking_podmr
+            
             if loaded_sequence_mode_tracking_two_point or loaded_sequence_mode_tracking_podmr:
                 self._pulsed_scan_array['pulsed_fw']['data_tracking'] = np.zeros((coord1_num, coord0_num, freq_points_tracking))
                 self._pulsed_scan_array['pulsed_fw']['data_std_tracking'] = np.zeros((coord1_num, coord0_num, freq_points_tracking))
@@ -3409,7 +3411,7 @@ class AFMConfocalLogic(GenericLogic):
             #Save the measurement parameters
             start_time_afm_scan = datetime.datetime.now()
             for entry in self._qafm_scan_array:
-                self._qafm_scan_array[entry]['params']['Parameters for'] = 'QAFM arb. seqeunce measurement'
+                self._qafm_scan_array[entry]['params']['Parameters for'] = 'QAFM arb. sequence measurement'
                 self._qafm_scan_array[entry]['params']['axis name for coord0'] = 'X'
                 self._qafm_scan_array[entry]['params']['axis name for coord1'] = 'Y'
                 self._qafm_scan_array[entry]['params']['measurement plane'] = 'XY'
@@ -3422,13 +3424,15 @@ class AFMConfocalLogic(GenericLogic):
                 self._qafm_scan_array[entry]['params']['rotation (°)'] = rotation
 
                 if loaded_sequence_mode_tracking_podmr:
+                    self._qafm_scan_array[entry]['params']['Tracking'] = True
                     self._qafm_scan_array[entry]['params']['Tracking method'] = 'Full PODMR'
                     self._qafm_scan_array[entry]['params']['Pulsed start variable (s) or (Hz)'] = var_start_tracking
                     self._qafm_scan_array[entry]['params']['Pulsed stop variable (s) or (Hz)'] = var_stop_tracking
                     self._qafm_scan_array[entry]['params']['Pulsed step variable (s) or (Hz)'] = var_incr_tracking
                     self._qafm_scan_array[entry]['params']['MW Tracking mode'] = podmr_list_mode_tracking
 
-                if loaded_sequence_mode_tracking_two_point:
+                elif loaded_sequence_mode_tracking_two_point:
+                    self._qafm_scan_array[entry]['params']['Tracking'] = True
                     self._qafm_scan_array[entry]['params']['Tracking method'] = 'Two point'
                     self._qafm_scan_array[entry]['params']['Pulsed start variable (s) or (Hz)'] = var_start_tracking
                     self._qafm_scan_array[entry]['params']['Pulsed stop variable (s) or (Hz)'] = var_stop_tracking
@@ -3436,6 +3440,9 @@ class AFMConfocalLogic(GenericLogic):
                     self._qafm_scan_array[entry]['params']['Tracking repetitions per point'] = mw_tracking_mode_runs
                     self._qafm_scan_array[entry]['params']['delta_0'] = delta_0
                     self._qafm_scan_array[entry]['params']['slope'] = slope2_podmr
+
+                else:
+                    self._qafm_scan_array[entry]['params']['Tracking'] = False
 
                 self._qafm_scan_array[entry]['params']['pi Duration'] = pi_duration
                 self._qafm_scan_array[entry]['params']['MW power (dBm)'] = mw_power
