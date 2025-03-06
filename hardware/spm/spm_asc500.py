@@ -278,7 +278,7 @@ class SPM_ASC500(Base, ScannerInterface):
     
     def _objective_piezo_act_pos(self):
         piezo_range = self._objective_piezo_act_range()
-        if piezo_range[0] == self._sample_scan_range['LT']['X']:
+        if np.isclose(piezo_range[0], self._sample_scan_range['LT']['X'], rtol=1e-06, atol=100e-9, equal_nan=False):
             key = 'LT'
         else:
             key = 'RT'
@@ -310,7 +310,7 @@ class SPM_ASC500(Base, ScannerInterface):
 
     def _objective_volt_for_pos(self, pos, xy):
         piezo_range = self._objective_piezo_act_range()
-        if piezo_range[0] == self._sample_scan_range['RT']['X']:
+        if np.isclose(piezo_range[0], self._sample_scan_range['RT']['X'], rtol=1e-06, atol=100e-9, equal_nan=False):
             key = 'RT'
         else:
             key = 'LT'

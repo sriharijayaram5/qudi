@@ -124,8 +124,8 @@ class LevelsensorGui(GUIBase):
 
 
         self.plot1.addItem(self._curve1)
-        self.plot1.addItem(self._curve3)
-        self.plot1.addItem(self._curve2)
+        #self.plot1.addItem(self._curve3) # low level and high level, unnecessary for Helium bath
+        #self.plot1.addItem(self._curve2) # unnecessary for Helium bath
 
         # setting the x axis length correctly
         self._pw.setXRange(0, self._levelsensor_logic.getBufferLength() * self._levelsensor_logic.timestep)
