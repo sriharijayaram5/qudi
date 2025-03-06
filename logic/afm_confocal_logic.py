@@ -569,7 +569,7 @@ class AFMConfocalLogic(GenericLogic):
         self.optimum = False
         self.pickiness = 19
 
-        self.retract_after_scan = True
+        self.retract_after_scan = False
 
         # safety precaution in case the meas path does not exist
         if not os.path.exists(self._meas_path):
