@@ -172,7 +172,6 @@ class ProteusQGUI(GUIBase):
 
     _image_container = {}
     _cb_container = {}
-    _checkbox_container = {}
     _plot_container = {}
     _dockwidget_container = {}
 
@@ -211,6 +210,11 @@ class ProteusQGUI(GUIBase):
     _liftoff_mode = StatusVar('liftoff_mode', default = False)
     _liftoff_height = StatusVar('liftoff_height', default = 0)
 
+    _tip_osc_off = StatusVar('tip_osc_off', default = False)
+    _tip_osc_turn_off_time = StatusVar('tip_osc_turn_off_time', default = 0)
+    _tip_osc_turn_on_time = StatusVar('tip_osc_turn_on_time', default = 0)
+    _measure_tip_osc_on_and_off = StatusVar('measure_tip_osc_on_and_off', default = False)
+
     _current_origin = StatusVar('afm_current_origin', default = (13.5e-6,13.5e-6))
     _current_rotation = StatusVar('afm_current_rotation', default = 0)
 
@@ -219,9 +223,6 @@ class ProteusQGUI(GUIBase):
     # save here the period Optimizer value.
     _periodic_opti_time = StatusVar('periodic_opti_time', default=100)
     _periodic_opti_autorun = StatusVar('periodic_opti_autorun', default=False)
-
-    # here are the checked meas params stored, a list of strings
-    _stat_var_meas_params = StatusVar('stat_var_meas_params', default=[])
 
     # Quantitative Measurement parameters
     _qm_afm_int_time = StatusVar('qm_afm_int_time', default=0.1)
@@ -270,6 +271,11 @@ class ProteusQGUI(GUIBase):
     err_margin_offset = StatusVar('err_margin_offset', default=10e3)
     err_margin_contrast = StatusVar('err_margin_contrast', default=1)
     n_samples = StatusVar('n_samples', default=50e3)
+
+    calc_mag_field = StatusVar('calc_mag_field', default = False)
+    single_res_meas = StatusVar('single_res_meas', default = True)
+    single_res_meas_gslac = StatusVar('single_res_meas_gslac', default = False)
+    double_res_meas = StatusVar('double_res_meas', default = False)
 
     def __init__(self, config, **kwargs):
         super().__init__(config=config, **kwargs)
@@ -450,11 +456,15 @@ class ProteusQGUI(GUIBase):
         self.load_view()
         self.retrieve_status_var()
         self.update_temperature()
+        # self.set_current_pos_to_target()
+        # self.goto_obj_pos_clicked()
+
 
         # initialize the settings stuff
         self.initSettingsUI()
 
         self._qm.mw_tracking_mode_RadioButton.clicked.connect(lambda state, x=0: self.radioButton_behaviour_forGroupBox(state,x))
+        self._qafm_logic._podmr.sigVisSlopeChanged.connect(self.update_vis_slope)
         self._qm.mw_list_mode_RadioButton.clicked.connect(lambda state, x=1: self.radioButton_behaviour_forGroupBox(state,x))
         self._qm.loaded_sequence_mode_RadioButton.clicked.connect(lambda state, x=2: self.radioButton_behaviour_forGroupBox(state,x))
         self._qm.loaded_seq_track_freq_two_point_Checkbox.clicked.connect(lambda state: self.loaded_seq_track_freq_two_point_Checkbox_isClicked(state))
@@ -517,7 +527,6 @@ class ProteusQGUI(GUIBase):
         self._mw.centralwidget.hide()
         self._mw.setDockNestingEnabled(True)
         self._create_dockwidgets()
-        self._create_meas_params()
         self._set_aspect_ratio_images()
         self.split_view()
 
@@ -1064,11 +1073,12 @@ class ProteusQGUI(GUIBase):
         self._mw.liftOffMode_groupBox.setChecked(self._liftoff_mode)
         self._mw.liftOffHeight_doubleSpinBox.setValue(self._liftoff_height)
 
-        self._mw.scan_id_spinBox.setValue(self._scan_id)
+        self._mw.tipOscOff_groupbox.setChecked(self._tip_osc_off)
+        self._mw.tipOscOffTime_doubleSpinBox.setValue(self._tip_osc_turn_off_time)
+        self._mw.tipOscOnTime_doubleSpinBox.setValue(self._tip_osc_turn_on_time)
+        self._mw.measureTipOscOnOff_checkBox.setChecked(self._measure_tip_osc_on_and_off)
 
-        for entry in self._stat_var_meas_params:
-            if entry in self._checkbox_container:
-                self._checkbox_container[entry].setChecked(True)
+        self._mw.scan_id_spinBox.setValue(self._scan_id)
 
         self.set_optimizer_period(self._periodic_opti_time)
         self._mw.optimizer_request_autorun_CheckBox.setChecked(self._periodic_opti_autorun)
@@ -1123,6 +1133,12 @@ class ProteusQGUI(GUIBase):
         self._qm.esr_errorMarginContrast_SpinBox.setValue(self.err_margin_contrast )
         self._qm.esr_nSamples_SpinBox.setValue(self.n_samples )
 
+        self._qm.calculate_field_groupBox.setChecked(self.calc_mag_field)
+        self._qm.esr_single_res_RadioButton.setChecked(self.single_res_meas)
+        self._qm.esr_single_res_gslac_RadioButton.setChecked(self.single_res_meas_gslac)
+        self._qm.esr_double_res_RadioButton.setChecked(self.double_res_meas)
+        
+
     def store_status_var(self):
         """ Store all those variables to file. """
 
@@ -1158,13 +1174,12 @@ class ProteusQGUI(GUIBase):
         self._liftoff_mode = self._mw.liftOffMode_groupBox.isChecked()
         self._liftoff_height = self._mw.liftOffHeight_doubleSpinBox.value()
 
-        self._scan_id = self._mw.scan_id_spinBox.value()
+        self._tip_osc_off = self._mw.tipOscOff_groupbox.isChecked()
+        self._tip_osc_turn_off_time = self._mw.tipOscOffTime_doubleSpinBox.value()
+        self._tip_osc_turn_on_time = self._mw.tipOscOnTime_doubleSpinBox.value()
+        self._measure_tip_osc_on_and_off = self._mw.measureTipOscOnOff_checkBox.isChecked()
 
-        # store the selection of the measurement params
-        self._stat_var_meas_params = []
-        for entry in self._checkbox_container:
-            if self._checkbox_container[entry].isChecked():
-                self._stat_var_meas_params.append(entry)
+        self._scan_id = self._mw.scan_id_spinBox.value()
 
         self._periodic_opti_time = self._mw.optimizer_request_period_SpinBox.value()
         self._periodic_opti_autorun = self._mw.optimizer_request_autorun_CheckBox.isChecked()
@@ -1212,6 +1227,11 @@ class ProteusQGUI(GUIBase):
         self.err_margin_offset = self._qm.esr_errorMarginOffset_SpinBox.value()
         self.err_margin_contrast = self._qm.esr_errorMarginContrast_SpinBox.value()
         self.n_samples = self._qm.esr_nSamples_SpinBox.value()
+
+        self.calc_mag_field = self._qm.calculate_field_groupBox.isChecked()
+        self.single_res_meas = self._qm.esr_single_res_RadioButton.isChecked()
+        self.single_res_meas_gslac = self._qm.esr_single_res_gslac_RadioButton.isChecked()
+        self.double_res_meas = self._qm.esr_double_res_RadioButton.isChecked()
 
     def get_all_data_matrices(self):
         """ more of a helper method to get all the data matrices. """
@@ -1604,6 +1624,18 @@ class ProteusQGUI(GUIBase):
                 liftoff = loaded_dict['Lift-off Mode']
                 liftoff_height = loaded_dict['Lift-off Height']
 
+            if 'Tip oscillation off' not in loaded_dict.keys():
+                tip_osc_off = False
+                tip_osc_turn_off_time = 0
+                tip_osc_turn_on_time = 0
+                measure_tip_osc_on_and_off = False
+
+            else:
+                tip_osc_off = loaded_dict['Tip oscillation off']
+                tip_osc_turn_off_time = loaded_dict['Tip oscillation turn off time (s)']
+                tip_osc_turn_on_time = loaded_dict['Tip oscillation turn on time (s)']
+                measure_tip_osc_on_and_off = loaded_dict['Measure tip oscillation on and off']
+
             self._current_origin = (x_origin, y_origin)
             self._current_rotation = rotation
             self._mw.afm_x_origin_DSpinBox.setValue(x_origin)
@@ -1615,6 +1647,10 @@ class ProteusQGUI(GUIBase):
             self._mw.afm_rotation_DSpinBox.setValue(rotation)
             self._mw.liftOffMode_groupBox.setChecked(liftoff)
             self._mw.liftOffHeight_doubleSpinBox.setValue(liftoff_height)
+            self._mw.tipOscOff_groupbox.setChecked(tip_osc_off)
+            self._mw.tipOscOffTime_doubleSpinBox.setValue(tip_osc_turn_off_time)
+            self._mw.tipOscOnTime_doubleSpinBox.setValue(tip_osc_turn_on_time)
+            self._mw.measureTipOscOnOff_checkBox.setChecked(measure_tip_osc_on_and_off)
 
     def qafm_feature_groupBox_clicked(self, state):
 
@@ -1712,6 +1748,21 @@ class ProteusQGUI(GUIBase):
         self._mw.afm_y_range_DSpinBox.setValue(self._mw.y_range_qafm_feature_DSpinBox.value())
         self.calc_x_pixel_size()
         self.calc_y_pixel_size()
+
+    def load_bias_data(self):
+        """ Ask the user for a file where the bias ODMR data is stored
+        """
+        biasfilepath = 'G:\\Data\\Qudi_Data'
+        filename = QtWidgets.QFileDialog.getOpenFileName(
+            self._mw,
+            'Chose bias ODMR data',
+            biasfilepath,
+            'Bias data (*_data_ch0_range0.dat)')[0]
+        if filename != '':
+            self.log.info(f'Bias data from file {filename} has been loaded into SPM modul.')
+            return np.loadtxt(filename).T
+        else:
+            return None
         
     # ========================================================================== 
     #         BEGIN: Creation and Adaptation of Display Widget
@@ -2106,28 +2157,6 @@ class ProteusQGUI(GUIBase):
             grid.addWidget(radioButton_cb_per,    6, 1, 1, 1) # start [6,1], span 1 rows down, 1 column wide
             grid.addWidget(checkBox_tilt_corr,    7, 0, 1, 1) # start [7,0], span 1 rows down, 1 column wide
 
-
-    def _create_meas_params(self):
-        """ Generate CheckBoxes to control which AFM parameters are to be measured."""
-
-        meas_params_units = self._qafm_logic.get_afm_meas_params()
-        meas_params = list(meas_params_units)
-
-        for index, entry in enumerate(meas_params):
-
-            checkbox = CustomCheckBox(self._mw.scan_param_groupBox)
-            checkbox.setObjectName(entry)
-            checkbox.setText(entry)
-            checkbox.valueChanged_custom.connect(self._update_afm_dockwidget_by_name)
-            checkbox.setChecked(True)
-            checkbox.setChecked(False)
-            checkbox.setChecked(True)
-            checkbox.setEnabled(False)
-
-            self._mw.gridLayout_scan_params.addWidget(checkbox, index, 0, 1, 1)
-            self._checkbox_container[entry] = checkbox
-
-
     def _update_afm_dockwidget_by_name(self, make_visible, name):
         """ Helper method to call the correct dockwidget
 
@@ -2168,9 +2197,6 @@ class ProteusQGUI(GUIBase):
            unchecks any Scan parameter that was previously selected.
         """
         self._mw.restoreState(self.saved_default_view)
-
-        for entry in self._checkbox_container:
-            self._checkbox_container[entry].setChecked(False)
 
         self._dock_state == 'double'
 
@@ -2664,6 +2690,11 @@ class ProteusQGUI(GUIBase):
         liftoff_mode = self._mw.liftOffMode_groupBox.isChecked()
         liftoff_height = self._mw.liftOffHeight_doubleSpinBox.value()
 
+        #tip oscillation off mode
+        tip_osc_off = self._mw.tipOscOff_groupbox.isChecked()
+        tip_osc_turn_off_time = self._mw.tipOscOffTime_doubleSpinBox.value()
+        tip_osc_turn_on_time = self._mw.tipOscOnTime_doubleSpinBox.value()
+
         #Iso B parameters
         use_iso_B_mode = self._sd.iso_b_operation_CheckBox.isChecked()
         use_single_iso_B = self._mw.use_single_isob_RadioButton.isChecked()
@@ -2687,7 +2718,10 @@ class ProteusQGUI(GUIBase):
                                                             iso_B_freq2 = iso_B_freq2,
                                                             iso_B_power = iso_B_power,
                                                             liftoff_mode = liftoff_mode,
-                                                            liftoff_height = liftoff_height)
+                                                            liftoff_height = liftoff_height,
+                                                            tip_osc_off = tip_osc_off,
+                                                            tip_osc_turn_off_time = tip_osc_turn_off_time,
+                                                            tip_osc_turn_on_time = tip_osc_turn_on_time)
 
     def start_obj_scan_xy_scan_clicked(self):
         """ Manages what happens if the objective xy scan is started. """
@@ -2998,6 +3032,9 @@ class ProteusQGUI(GUIBase):
         self._qafm_logic._spm.objective_lock = state
         self.toggle_obj_actions(not state)
 
+    def update_vis_slope(self, vis_slope):
+        self._qm.slope_label.setText('{:.2e}'.format(vis_slope))
+
     def radioButton_behaviour_forGroupBox(self, state, x):
         if x == 0:
             if state is True:
@@ -3279,8 +3316,16 @@ class ProteusQGUI(GUIBase):
         esr_mw_power = self._qm.esr_mw_power_DoubleSpinBox.value()
         esr_runs = self._qm.esr_runs_SpinBox.value()
         esr_tracking = self._qm.esr_tracking_checkBox.isChecked()
-        single_res = self._qm.esr_single_res_RadioButton.isChecked() 
-        single_res_gslac = self._qm.esr_single_res_gslac_RadioButton.isChecked()
+        if self._qm.calculate_field_groupBox.isChecked():
+            if self._qm.esr_single_res_RadioButton.isChecked():
+                calc_magnetic_field = 'single'
+                bias_data = self.load_bias_data()
+            elif self._qm.esr_single_res_gslac_RadioButton.isChecked():
+                calc_magnetic_field = 'single_gslac'
+                bias_data = self.load_bias_data()
+        else:
+            calc_magnetic_field = None
+            bias_data = None
 
         #Bayesian
         contrast = self._qm.esr_contrast_SpinBox.value()
@@ -3300,6 +3345,11 @@ class ProteusQGUI(GUIBase):
         liftoff_mode = self._mw.liftOffMode_groupBox.isChecked()
         liftoff_height = self._mw.liftOffHeight_doubleSpinBox.value()
 
+        #tip oscillation off mode
+        tip_osc_off = self._mw.tipOscOff_groupbox.isChecked()
+        tip_osc_turn_off_time = self._mw.tipOscOffTime_doubleSpinBox.value()
+        tip_osc_turn_on_time = self._mw.tipOscOnTime_doubleSpinBox.value()
+
         self._qafm_logic.start_scan_area_quanti_qafm_fw_by_point(
             coord0_origin=x_origin, coord0_range=x_range, coord0_num=res_x, 
             coord1_origin=y_origin, coord1_range=y_range, coord1_num=res_y, rotation = rotation,
@@ -3307,8 +3357,9 @@ class ProteusQGUI(GUIBase):
             freq_start=esr_freq_start, freq_stop=esr_freq_stop, 
             freq_step=esr_freq_step, esr_count_freq=esr_count_freq,
             mw_power=esr_mw_power, num_esr_runs=esr_runs, esr_tracking=esr_tracking, param_estimation=param_estimation, optbay=optbay,
-            single_res=single_res, single_res_gslac=single_res_gslac,
-            liftoff_mode=liftoff_mode, liftoff_height=liftoff_height)
+            calc_magnetic_field=calc_magnetic_field, bias_data=bias_data,
+            liftoff_mode=liftoff_mode, liftoff_height=liftoff_height,
+            tip_osc_off = tip_osc_off, tip_osc_turn_off_time = tip_osc_turn_off_time, tip_osc_turn_on_time = tip_osc_turn_on_time)
 
     def stop_quantitative_measure_clicked(self):
         self.stop_any_scanning()
@@ -3358,6 +3409,23 @@ class ProteusQGUI(GUIBase):
         liftoff_mode = self._mw.liftOffMode_groupBox.isChecked()
         liftoff_height = self._mw.liftOffHeight_doubleSpinBox.value()
 
+        #tip oscillation off mode
+        tip_osc_off = self._mw.tipOscOff_groupbox.isChecked()
+        tip_osc_turn_off_time = self._mw.tipOscOffTime_doubleSpinBox.value()
+        tip_osc_turn_on_time = self._mw.tipOscOnTime_doubleSpinBox.value()
+        measure_tip_osc_on_and_off = self._mw.measureTipOscOnOff_checkBox.isChecked()
+
+        if self._qm.calculate_field_groupBox.isChecked():
+            if self._qm.esr_single_res_RadioButton.isChecked():
+                calc_magnetic_field = 'single'
+                bias_data = self.load_bias_data()
+            elif self._qm.esr_single_res_gslac_RadioButton.isChecked():
+                calc_magnetic_field = 'single_gslac'
+                bias_data = self.load_bias_data()
+        else:
+            calc_magnetic_field = None
+            bias_data = None
+
         self._qafm_logic.start_scan_area_pulsed_qafm_fw_by_point(
             coord0_origin=x_origin, coord0_range=x_range, coord0_num=res_x, 
             coord1_origin=y_origin, coord1_range=y_range, coord1_num=res_y, rotation = rotation,
@@ -3369,7 +3437,9 @@ class ProteusQGUI(GUIBase):
             res_freq=res_freq, slope2_podmr=slope2_podmr, use_slope_track=use_slope_track,
             loaded_sequence_mode = loaded_sequence_mode, loaded_sequence_mode_tracking_two_point = loaded_sequence_mode_tracking_two_point,
             loaded_sequence_mode_tracking_podmr = loaded_sequence_mode_tracking_podmr, loaded_sequence_res_freq=loaded_sequence_res_freq, num_runs_tracking = pulse_repetition_tracking,
-            liftoff_mode=liftoff_mode, liftoff_height=liftoff_height)
+            liftoff_mode=liftoff_mode, liftoff_height=liftoff_height,
+            tip_osc_off = tip_osc_off, tip_osc_turn_off_time = tip_osc_turn_off_time, tip_osc_turn_on_time = tip_osc_turn_on_time, measure_tip_osc_on_and_off = measure_tip_osc_on_and_off,
+            calc_magnetic_field=calc_magnetic_field, bias_data=bias_data)
 
     def stop_pulsed_measure_clicked(self):
         self.stop_any_scanning()
@@ -3426,6 +3496,9 @@ class ProteusQGUI(GUIBase):
         self._mw.y_pos_real_frame_DSpinBox.setRange(0.001e-6, self._afm_origin_y_max)
         self._mw.x_pos_rotation_frame_DSpinBox.setRange(0.001e-6, self._afm_origin_x_max)
         self._mw.y_pos_rotation_frame_DSpinBox.setRange(0.001e-6, self._afm_origin_y_max)
+
+        self._mw.afm_target_x_DSpinBox.setRange(0.0e-6, self._afm_origin_x_max)
+        self._mw.afm_target_y_DSpinBox.setRange(0.0e-6, self._afm_origin_y_max)
 
         vb = self._dockwidget_container['obj_xy']
         new_range = ((0, ranges['X']), (0, ranges['Y']))

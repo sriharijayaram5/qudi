@@ -210,6 +210,22 @@ class MicrowaveSgs(Base, MicrowaveInterface):
             time.sleep(0.2)
             dummy, is_running = self.get_status()
         return 0
+    
+    def cw_on_3(self):
+        """
+        Switches on cw microwave output.
+        Must return AFTER the device is actually running.
+
+        @return int: error code (0:OK, -1:error)
+        """
+
+        self._connection.write(':OUTP:STAT ON')
+        self._connection.write('*WAI')
+        dummy, is_running = self.get_status()
+        while not is_running:
+            time.sleep(0.02)
+            dummy, is_running = self.get_status()
+        return 0
 
     def set_cw(self, frequency=None, power=None):
         """
@@ -244,6 +260,69 @@ class MicrowaveSgs(Base, MicrowaveInterface):
         actual_freq = self.get_frequency()
         actual_power = self.get_power()
         return actual_freq, actual_power, mode
+    
+    def set_cw_2(self, frequency=None, power=None):
+        """
+        Configures the device for cw-mode and optionally sets frequency and/or power
+
+        @param float frequency: frequency to set in Hz
+        @param float power: power to set in dBm
+
+        @return tuple(float, float, str): with the relation
+            current frequency in Hz,
+            current power in dBm,
+            current mode
+        """
+        mode, is_running = self.get_status()
+        if is_running:
+            self.off()
+
+        # Activate CW mode
+        if mode != 'cw':
+            self._command_wait(':OPMode NORMal')
+
+        # Set CW frequency
+        if frequency is not None:
+            self._command_wait(':FREQuency:CW {0:f}'.format(frequency))
+
+        # Set CW power
+        if power is not None:
+            self._command_wait(':POWer:POWer {0:f}'.format(power))
+
+        return 
+    
+    def set_cw_3(self, frequency=None, power=None):
+        """
+        Configures the device for cw-mode and optionally sets frequency and/or power
+
+        @param float frequency: frequency to set in Hz
+
+        """
+        self.off()
+
+        # Activate CW mode
+        self._command_wait(':OPMode NORMal')
+        # Set CW frequency
+        self._command_wait(':FREQuency:CW {0:f}'.format(frequency))
+
+        return 
+    
+    def set_cw_tracking(self, frequency=None, power=None):
+        """
+        Configures the device for cw-mode and optionally sets frequency and/or power
+        !Ensure maximal set-cw is called before!
+
+        @param float frequency: frequency to set in Hz
+
+        """
+        # self.off()
+
+        # # Activate CW mode
+        # self._command_wait(':FREQ:MODE CW')
+        # Set CW frequency
+        self._command_wait(':FFASt {0:f}'.format(frequency))
+
+        return 
 
     def list_on(self):
         """

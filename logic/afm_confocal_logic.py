@@ -745,7 +745,7 @@ class AFMConfocalLogic(GenericLogic):
                                'scale_fac': 1,  # multiplication factor to obtain SI units
                                'si_units': 'c/s',
                                'nice_name': 'Fluorescence',
-                               'params': {'rotation': rotation},  # !!! here are all the measurement parameter saved
+                               'params': {'alternating': alternating, 'rotation': rotation},  # !!! here are all the measurement parameter saved
                                'display_range': None,
                                }
         self._pulsed_scan_array = meas_dict
@@ -1126,6 +1126,13 @@ class AFMConfocalLogic(GenericLogic):
                 'top_left': [scan_arr[-1, 0, 0], scan_arr[-1, 0, 1]],
                 'top_right': [scan_arr[-1, -1, 0], scan_arr[-1, -1, 1]]}
         return dict
+    
+    def wait_for_sync(self):
+        while True:
+            if self._counter.spm_sync.getDataTotalCounts()[0] == 1:
+                return 0
+            else:
+                pass
 
 # ==============================================================================
 #           QAFM area scan functions
@@ -1135,7 +1142,8 @@ class AFMConfocalLogic(GenericLogic):
                                             coord1_origin, coord1_range, coord1_num, rotation = 0,
                                             afm_int_time=0.1, afm_scan_speed=500e-9, counter_int_time = 0.02,
                                             use_iso_B_mode = False, use_single_iso_B = True, iso_B_freq1 = 2.87e9, iso_B_freq2 = 2.87e9, mw_power = -20,
-                                            liftoff_mode=False, liftoff_height=0):
+                                            liftoff_mode=False, liftoff_height=0,
+                                            tip_osc_off = False, tip_osc_turn_off_time = 0, tip_osc_turn_on_time = 0):
 
             """ QAFM measurement (optical + afm) forward for a scan by point. Iso B option is possible
 
@@ -1160,6 +1168,8 @@ class AFMConfocalLogic(GenericLogic):
             """
             self.sigQuantiScanStarted.emit()
             self._stop_request = False
+
+            measure_tip_osc_on_and_off = False
 
             coord0_start = coord0_origin-coord0_range/2
             coord0_stop = coord0_origin+coord0_range/2
@@ -1296,11 +1306,21 @@ class AFMConfocalLogic(GenericLogic):
                 self._qafm_scan_array[entry]['params']['Lift-off Mode'] = liftoff_mode
                 self._qafm_scan_array[entry]['params']['Lift-off Height'] = liftoff_height
 
+                self._qafm_scan_array[entry]['params']['Tip oscillation off'] = tip_osc_off and liftoff_mode
+                self._qafm_scan_array[entry]['params']['Tip oscillation turn off time (s)'] = tip_osc_turn_off_time
+                self._qafm_scan_array[entry]['params']['Tip oscillation turn on time (s)'] = tip_osc_turn_on_time
+                self._qafm_scan_array[entry]['params']['Measure tip oscillation on and off'] = measure_tip_osc_on_and_off
+
             #Set up the SPM device for performing a scan in path mode
-            ret_val, _ = self._spm.configure_scanner(mode=ScannerMode.PROBE_CONTACT,
-                                                                    params= {'line_points': coord0_num,
-                                                                             'lines_num': coord1_num},
-                                                                    scan_style=ScanStyle.POINT)
+            ret_val = self._spm.configure_area_new(point_grid_dict, self.scan_arr,
+                                     afm_int_time=afm_int_time,
+                                     afm_scan_speed=afm_scan_speed,
+                                     liftoff_mode=liftoff_mode,
+                                     liftoff_height=liftoff_height,
+                                     tip_osc_off = tip_osc_off,
+                                     tip_osc_turn_off_time = tip_osc_turn_off_time,
+                                     tip_osc_turn_on_time = tip_osc_turn_on_time,
+                                     measure_tip_osc_on_and_off = measure_tip_osc_on_and_off)
             
             if ret_val < 1:
                 self.sigQuantiScanFinished.emit()
@@ -1432,7 +1452,8 @@ class AFMConfocalLogic(GenericLogic):
                             coord1_origin=47*1e-6, coord1_range=52*1e-6, coord1_num=40, rotation = 0,
                             afm_int_time=4e-3, afm_scan_speed = 500e-9, counter_int_time = 0.02,
                             use_iso_B_mode = False, use_single_iso_B = True, iso_B_freq1 = 2.87e9, iso_B_freq2 = 2.87e9, iso_B_power = -20,
-                            liftoff_mode = False, liftoff_height = 50e-9):
+                            liftoff_mode = False, liftoff_height = 50e-9,
+                            tip_osc_off = False, tip_osc_turn_off_time = 0, tip_osc_turn_on_time = 0):
 
         if self._USE_THREADED:
             if self.check_thread_active():
@@ -1444,7 +1465,8 @@ class AFMConfocalLogic(GenericLogic):
                                                      coord1_origin, coord1_range, coord1_num, rotation,
                                                      afm_int_time, afm_scan_speed, counter_int_time,
                                                      use_iso_B_mode, use_single_iso_B, iso_B_freq1, iso_B_freq2, iso_B_power,
-                                                     liftoff_mode, liftoff_height),
+                                                     liftoff_mode, liftoff_height,
+                                                     tip_osc_off, tip_osc_turn_off_time, tip_osc_turn_on_time),
                                                name='qafm_fw_point')
 
             self.threadpool.start(self._worker_thread)
@@ -1551,8 +1573,9 @@ class AFMConfocalLogic(GenericLogic):
                                                    coord1_origin, coord1_range, coord1_num, rotation,
                                                    afm_int_time=0.1, afm_scan_speed=0.1, counter_int_time = 0.02,
                                                    freq_start=2.77e9, freq_stop=2.97e9, freq_step=1e6, esr_count_freq=200, mw_power=-25, num_esr_runs=30, esr_tracking = False,
-                                                   single_res=True, single_res_gslac = False,
-                                                   liftoff_mode=False, liftoff_height=0):
+                                                   calc_magnetic_field= None, bias_data= None,
+                                                   liftoff_mode=False, liftoff_height=0,
+                                                   tip_osc_off = False, tip_osc_turn_off_time = 0, tip_osc_turn_on_time = 0):
 
         """ QAFM quanti measurement (optical + afm+ cw odmr) forward for a scan by point.
 
@@ -1581,6 +1604,8 @@ class AFMConfocalLogic(GenericLogic):
         """
         self.sigQuantiScanStarted.emit()
         self._stop_request = False
+
+        measure_tip_osc_on_and_off = False
 
         coord0_start = coord0_origin-coord0_range/2
         coord0_stop = coord0_origin+coord0_range/2
@@ -1631,7 +1656,27 @@ class AFMConfocalLogic(GenericLogic):
         self._afm_meas_duration = 0
         self._scan_counter = 0
 
-        self._curr_scan_params = ['Height(Dac)','counts','b_field']
+        if calc_magnetic_field is not None:
+            self._curr_scan_params = ['Height(Dac)','counts','fit_param','b_field']
+            if calc_magnetic_field == 'single':
+                single_res = True
+                single_res_gslac = False
+            else:
+                single_res = False
+                single_res_gslac = True
+            if bias_data is not None:
+                var_list_bias, data_bias = (bias_data[0], bias_data[1])
+                fit = self._fitlogic.make_gaussian_fit(var_list_bias, data_bias,estimator=self._fitlogic.estimate_gaussian_dip)
+                res_freq_bias = fit.params['center'].value
+                bias_field = self.calc_mag_field_single_res(res_freq_bias, 
+                                                            self.ZFS, 
+                                                            self.E_FIELD,gslac=single_res_gslac)
+            else:
+                bias_field = 0
+        else:
+            self._curr_scan_params = ['Height(Dac)','counts','fit_param']
+            single_res = False
+            single_res_gslac = False
         self.scan_dir = 'fw'
 
         #Create dictonary for saving the current measured parameters
@@ -1660,7 +1705,14 @@ class AFMConfocalLogic(GenericLogic):
         #prepare arrays for specific modes
         self.res_freq_array = np.ones((coord1_num, coord0_num)) * LO_freq
         if esr_tracking:
-                self._esr_scan_array['esr_fw']['var_list'] = np.zeros((coord1_num, coord0_num, len(original_var_list)))
+            self._esr_scan_array['esr_fw']['var_list'] = np.zeros((coord1_num, coord0_num, len(original_var_list)))
+
+        if bias_data is not None:
+            self._esr_scan_array['esr_fw']['data_bias'] = data_bias
+            self._esr_scan_array['esr_fw']['var_list_bias'] = var_list_bias
+            self._esr_scan_array['esr_fw']['gslac_bias'] = single_res_gslac
+            self._esr_scan_array['esr_fw']['res_freq_bias'] = res_freq_bias
+            self._esr_scan_array['esr_fw']['b_field_bias'] = bias_field
 
         #Save the measurement parameters
         start_time_afm_scan = datetime.datetime.now()
@@ -1694,6 +1746,11 @@ class AFMConfocalLogic(GenericLogic):
             self._qafm_scan_array[entry]['params']['Lift-off Mode'] = liftoff_mode
             self._qafm_scan_array[entry]['params']['Lift-off Height'] = liftoff_height
 
+            self._qafm_scan_array[entry]['params']['Tip oscillation off'] = tip_osc_off and liftoff_mode
+            self._qafm_scan_array[entry]['params']['Tip oscillation turn off time (s)'] = tip_osc_turn_off_time
+            self._qafm_scan_array[entry]['params']['Tip oscillation turn on time (s)'] = tip_osc_turn_on_time
+            self._qafm_scan_array[entry]['params']['Measure tip oscillation on and off'] = measure_tip_osc_on_and_off
+
         #Set up the SPM device for performing a scan in path mode
         ret_val, _ = self._spm.configure_scanner(mode=ScannerMode.PROBE_CONTACT,
                                                                 params= {'line_points': coord0_num,
@@ -1711,10 +1768,14 @@ class AFMConfocalLogic(GenericLogic):
         
         #Configuring the scan area with SPM controller
         ret_val = self._spm.configure_area_new(point_grid_dict, self.scan_arr,
-                                    afm_int_time=afm_int_time,
-                                    afm_scan_speed=afm_scan_speed,
-                                    liftoff_mode=liftoff_mode,
-                                    liftoff_height=liftoff_height)
+                                     afm_int_time=afm_int_time,
+                                     afm_scan_speed=afm_scan_speed,
+                                     liftoff_mode=liftoff_mode,
+                                     liftoff_height=liftoff_height,
+                                     tip_osc_off = tip_osc_off,
+                                     tip_osc_turn_off_time = tip_osc_turn_off_time,
+                                     tip_osc_turn_on_time = tip_osc_turn_on_time,
+                                     measure_tip_osc_on_and_off = measure_tip_osc_on_and_off)
         
         if ret_val < 1:
             self.sigQuantiScanFinished.emit()
@@ -1778,16 +1839,12 @@ class AFMConfocalLogic(GenericLogic):
                 esr_meas_std = esr_meas.std(axis=0)
                 res_estimate = self.extract_resonance(esr_meas_mean, current_var_list, line_num, index)
                 self.res_freq_array[line_num,index] = res_estimate
+                self._scan_point['fit_param_fw'] = res_estimate
                 if single_res or single_res_gslac:
                     self._scan_point['b_field_fw'] =  self.calc_mag_field_single_res(res_estimate, 
                                                                 self.ZFS, 
-                                                                self.E_FIELD,gslac=single_res_gslac)
+                                                                self.E_FIELD,gslac=single_res_gslac) - bias_field
                     
-                else:
-                    self._scan_point['b_field_fw'] = 0
-                
-
-
                 #measure counts
                 self._counter._tagger.sync()
                 self._counter.countrate.startFor(int(counter_int_time*1e12), clear = True)
@@ -1862,8 +1919,9 @@ class AFMConfocalLogic(GenericLogic):
                                                         afm_int_time=0.1, afm_scan_speed=0.1, counter_int_time = 0.02,
                                                         freq_start=2.77e9, freq_stop=2.97e9, freq_step=1e6,
                                                         esr_count_freq=200, mw_power=-25, num_esr_runs=30, param_estimation = (-30e3,100e3,0.5e3,7e6,1),
-                                                        single_res=True, single_res_gslac = False,
-                                                        liftoff_mode=False, liftoff_height=0):
+                                                        calc_magnetic_field= None, bias_data= None,
+                                                        liftoff_mode=False, liftoff_height=0,
+                                                        tip_osc_off = False, tip_osc_turn_off_time = 0, tip_osc_turn_on_time = 0):
 
         """ QAFM quanti bayesian measurement (optical + afm) forward for a scan by point.
 
@@ -1893,6 +1951,8 @@ class AFMConfocalLogic(GenericLogic):
         """
         self.sigQuantiScanStarted.emit()
         self._stop_request = False
+
+        measure_tip_osc_on_and_off = False
 
         coord0_start = coord0_origin-coord0_range/2
         coord0_stop = coord0_origin+coord0_range/2
@@ -1936,7 +1996,27 @@ class AFMConfocalLogic(GenericLogic):
         self._afm_meas_duration = 0
         self._scan_counter = 0
 
-        self._curr_scan_params = ['Height(Dac)','counts','b_field']
+        if calc_magnetic_field is not None:
+            self._curr_scan_params = ['Height(Dac)','counts','fit_param','b_field']
+            if calc_magnetic_field == 'single':
+                single_res = True
+                single_res_gslac = False
+            else:
+                single_res = False
+                single_res_gslac = True
+            if bias_data is not None:
+                var_list_bias, data_bias = (bias_data[0], bias_data[1])
+                fit = self._fitlogic.make_gaussian_fit(var_list_bias, data_bias,estimator=self._fitlogic.estimate_gaussian_dip)
+                res_freq_bias = fit.params['center'].value
+                bias_field = self.calc_mag_field_single_res(res_freq_bias, 
+                                                            self.ZFS, 
+                                                            self.E_FIELD,gslac=single_res_gslac)
+            else:
+                bias_field = 0
+        else:
+            self._curr_scan_params = ['Height(Dac)','counts','fit_param']
+            single_res = False
+            single_res_gslac = False
         self.scan_dir = 'fw'
 
         self._scan_point = self.initialize_scan_point(self.scan_dir, self._curr_scan_params)
@@ -1959,6 +2039,13 @@ class AFMConfocalLogic(GenericLogic):
                                                                 coord1_start, coord1_stop, 
                                                                 coord1_num,
                                                                 rotation)
+        
+        if bias_data is not None:
+            self._esr_scan_array['esr_fw']['data_bias'] = data_bias
+            self._esr_scan_array['esr_fw']['var_list_bias'] = var_list_bias
+            self._esr_scan_array['esr_fw']['gslac_bias'] = single_res_gslac
+            self._esr_scan_array['esr_fw']['res_freq_bias'] = res_freq_bias
+            self._esr_scan_array['esr_fw']['b_field_bias'] = bias_field
 
         # save the measurement parameter
         start_time_afm_scan = datetime.datetime.now()
@@ -1992,6 +2079,10 @@ class AFMConfocalLogic(GenericLogic):
             self._qafm_scan_array[entry]['params']['Measurement start'] = start_time_afm_scan.isoformat()
             self._qafm_scan_array[entry]['params']['Lift-off Mode'] = liftoff_mode
             self._qafm_scan_array[entry]['params']['Lift-off Height'] = liftoff_height
+            self._qafm_scan_array[entry]['params']['Tip oscillation off'] = tip_osc_off and liftoff_mode
+            self._qafm_scan_array[entry]['params']['Tip oscillation turn off time (s)'] = tip_osc_turn_off_time
+            self._qafm_scan_array[entry]['params']['Tip oscillation turn on time (s)'] = tip_osc_turn_on_time
+            self._qafm_scan_array[entry]['params']['Measure tip oscillation on and off'] = measure_tip_osc_on_and_off
 
         #Set up the SPM device for performing a scan in path mode
         ret_val, _ = self._spm.configure_scanner(mode=ScannerMode.PROBE_CONTACT,
@@ -2010,10 +2101,14 @@ class AFMConfocalLogic(GenericLogic):
         
         #Configuring the scan area with SPM controller
         ret_val = self._spm.configure_area_new(point_grid_dict, self.scan_arr,
-                                    afm_int_time=afm_int_time,
-                                    afm_scan_speed=afm_scan_speed,
-                                    liftoff_mode=liftoff_mode,
-                                    liftoff_height=liftoff_height)
+                                     afm_int_time=afm_int_time,
+                                     afm_scan_speed=afm_scan_speed,
+                                     liftoff_mode=liftoff_mode,
+                                     liftoff_height=liftoff_height,
+                                     tip_osc_off = tip_osc_off,
+                                     tip_osc_turn_off_time = tip_osc_turn_off_time,
+                                     tip_osc_turn_on_time = tip_osc_turn_on_time,
+                                     measure_tip_osc_on_and_off = measure_tip_osc_on_and_off)
         
         if ret_val < 1:
             self.sigQuantiScanFinished.emit()
@@ -2122,40 +2217,13 @@ class AFMConfocalLogic(GenericLogic):
                             'fwhm': fwhm,
                             'center': params[0].mean(),
                             'params': params}
+                
+                self._scan_point['fit_param_fw'] = params[0].mean()
 
-                mag_field = 0.0
-
-                try:
-                    # perform analysis and fit for the measured data:
-                    if single_res or single_res_gslac:
-                        mod,add_params = self._fitlogic.make_lorentzian_model()
-                        add_params['sigma'].set(value=param_dict['fwhm']/2, vary=True, min=0, max=param_dict['fwhm'])
-                        add_params['amplitude'].set(value=param_dict['amp'], vary=True, max=params[1].max(), min=params[1].min())
-                        add_params['offset'].set(value=param_dict['offset'], vary=True, max=params[2].max(), min=params[2].min()) 
-                        add_params['center'].set(value=param_dict['center'], vary=True, max=params[0].max(), min=params[0].min())
-                        res = self._fitlogic.make_lorentzian_fit(bay_x,
-                                                                 bay_y,
-                                                                 estimator=self._fitlogic.estimate_lorentzian_dip,
-                                                                 add_params=add_params)
-
-                        esr_data_fit = res.best_fit
-
-                        res_freq = res.params['center'].value
-                        #FIXME: use Tesla not Gauss, right not, this is just for display purpose
-                        mag_field =  self.calc_mag_field_single_res(res_freq, 
-                                                                    self.ZFS, 
-                                                                    self.E_FIELD, single_res_gslac) * 10000
-
-                    else:   
-                        mag_field =  self.calc_mag_field_single_res(params[0].mean(), 
-                                                                    self.ZFS, 
-                                                                    self.E_FIELD, single_res_gslac) * 10000 
-
-                except:
-                    self.log.warning(f'Fit was not working at line {line_num} and index {index}. Data needs to be post-processed.')
-    
-                # here the b_field is saved:
-                self._scan_point['b_field_fw'] = mag_field
+                if single_res or single_res_gslac:
+                    self._scan_point['b_field_fw'] =  self.calc_mag_field_single_res(params[0].mean(), 
+                                                                self.ZFS, 
+                                                                self.E_FIELD,gslac=single_res_gslac) - bias_field
 
                 self._spm.scan_point(move_along=True)
 
@@ -2291,8 +2359,9 @@ class AFMConfocalLogic(GenericLogic):
                                                 afm_int_time=0.1, afm_scan_speed=0.1, counter_int_time=0.02,
                                                 freq_start=2.77e9, freq_stop=2.97e9, freq_step=1e6, esr_count_freq=200, mw_power=-25, num_esr_runs=30, esr_tracking = False, 
                                                 param_estimation=(-30e3,100e3,0.5e3,7e6,1), optbay=False,
-                                                single_res=True, single_res_gslac = False,
-                                                liftoff_mode=False, liftoff_height=0):
+                                                calc_magnetic_field= None, bias_data= None,
+                                                liftoff_mode=False, liftoff_height=0,
+                                                tip_osc_off = False, tip_osc_turn_off_time = 0, tip_osc_turn_on_time = 0):
 
         if self.check_thread_active():
             self.log.error("A measurement is currently running, stop it first!")
@@ -2303,8 +2372,9 @@ class AFMConfocalLogic(GenericLogic):
                                                       coord1_origin, coord1_range, coord1_num, rotation,
                                                       afm_int_time, afm_scan_speed, counter_int_time,
                                                       freq_start, freq_stop, freq_step, esr_count_freq, mw_power, num_esr_runs, esr_tracking,
-                                                      single_res, single_res_gslac, 
-                                                      liftoff_mode, liftoff_height),
+                                                      calc_magnetic_field, bias_data, 
+                                                      liftoff_mode, liftoff_height,
+                                                      tip_osc_off, tip_osc_turn_off_time, tip_osc_turn_on_time),
                                                 name='qanti_thread')
         else:
             self._worker_thread = WorkerThread(target=self.scan_true_area_quanti_bayesian_qafm_fw_by_point,
@@ -2312,8 +2382,9 @@ class AFMConfocalLogic(GenericLogic):
                                                       coord1_origin, coord1_range, coord1_num, rotation,
                                                       afm_int_time, afm_scan_speed, counter_int_time, 
                                                       freq_start, freq_stop, freq_step, esr_count_freq, mw_power, num_esr_runs, param_estimation,
-                                                      single_res, single_res_gslac,
-                                                      liftoff_mode, liftoff_height),
+                                                      calc_magnetic_field, bias_data,
+                                                      liftoff_mode, liftoff_height,
+                                                      tip_osc_off, tip_osc_turn_off_time, tip_osc_turn_on_time),
                                                 name='qanti_thread')
         self.threadpool.start(self._worker_thread)
 
@@ -2327,7 +2398,9 @@ class AFMConfocalLogic(GenericLogic):
                                                             mw_power=-25, pi_duration=100e-9, num_runs=30,
                                                             res_freq=2.87e9, delta_0=1e6, repetitions=1,
                                                             slope2_podmr=1, use_slope_track=True,
-                                                            liftoff_mode=False, liftoff_height=0):
+                                                            liftoff_mode=False, liftoff_height=0,
+                                                            tip_osc_off = False, tip_osc_turn_off_time = 0, tip_osc_turn_on_time = 0,
+                                                            calc_magnetic_field= None, bias_data= None):
 
             """ QAFM Tracking measurement (afm + resonance tracking) forward for a scan by point.
 
@@ -2356,6 +2429,8 @@ class AFMConfocalLogic(GenericLogic):
             self.sigQuantiScanStarted.emit()
             self._stop_request = False
 
+            measure_tip_osc_on_and_off = False
+
             coord0_start = coord0_origin-coord0_range/2
             coord0_stop = coord0_origin+coord0_range/2
             coord1_start = coord1_origin-coord1_range/2
@@ -2377,6 +2452,7 @@ class AFMConfocalLogic(GenericLogic):
             alternating = False
             bin_width_s = self._podmr.bin_width_s
             record_length_s = self._podmr.record_length_s
+            add_tt_read_out = self._podmr.add_tt_read_out
             analysis_settings = self._podmr.pulsed_analysis_settings
             var_list = np.linspace(var_start, var_stop, freq_points, endpoint=True)
             if not use_slope_track:
@@ -2384,7 +2460,7 @@ class AFMConfocalLogic(GenericLogic):
 
             #Set up the AWG for the pulse measurement. Upload the IQ signal for + and - delta frequencies. Should be triggerable. Only the CW MW will change during scan
             LO_freq = res_freq + 100e6 #AWG will play 100MHz +- delta_0. This is the convention for us
-            self.pulsed_jupyter_logic.initialize_ensemble(laser_power_voltage = self._podmr.laser_power_voltage, pi_pulse=pi_duration, LO_freq_0=LO_freq, target_freq_0=res_freq, power_0=mw_power, printing = False)
+            self.pulsed_jupyter_logic.initialize_ensemble(laser_power_voltage = self._podmr.laser_power_voltage, pi_pulse=pi_duration, read_out_time= record_length_s, LO_freq_0=LO_freq, target_freq_0=res_freq, power_0=mw_power, printing = False)
             self.pulsed_jupyter_logic.sample_load_ready_AWG_for_SPM_tracking(res_freq, delta_0, num_runs)
 
             #Set up the pulsestreamer for the read out part of the pulse measurement
@@ -2398,7 +2474,7 @@ class AFMConfocalLogic(GenericLogic):
             mode=HWRecorderMode.GENERAL_PULSED,
             params={'laser_pulses': freq_points,
                     'bin_width_s': bin_width_s,
-                    'record_length_s': record_length_s,
+                    'record_length_s': record_length_s+add_tt_read_out,
                     'max_counts': int(num_runs-1)} )
 
             #Set up the microwave source. During the scan, the played frequency will be updated with the result of the last tracking measurement.
@@ -2414,7 +2490,27 @@ class AFMConfocalLogic(GenericLogic):
             self._afm_meas_duration = 0
             self._scan_counter = 0
 
-            self._curr_scan_params = ['Height(Dac)','counts','fit_param']
+            if calc_magnetic_field is not None:
+                self._curr_scan_params = ['Height(Dac)','counts','fit_param','b_field']
+                if calc_magnetic_field == 'single':
+                    single_res = True
+                    single_res_gslac = False
+                else:
+                    single_res = False
+                    single_res_gslac = True
+                if bias_data is not None:
+                    var_list_bias, data_bias = (bias_data[0], bias_data[1])
+                    fit = self._fitlogic.make_gaussian_fit(var_list_bias, data_bias,estimator=self._fitlogic.estimate_gaussian_dip)
+                    res_freq_bias = fit.params['center'].value
+                    bias_field = self.calc_mag_field_single_res(res_freq_bias, 
+                                                                self.ZFS, 
+                                                                self.E_FIELD,gslac=single_res_gslac)
+                else:
+                    bias_field = 0
+            else:
+                self._curr_scan_params = ['Height(Dac)','counts','fit_param']
+                single_res = False
+                single_res_gslac = False
             self.scan_dir = 'fw'
 
             #Create dictonary for saving the current measured parameters
@@ -2437,7 +2533,7 @@ class AFMConfocalLogic(GenericLogic):
             self._pulsed_scan_array = self.initialize_pulsed_scan_array(var_list, alternating,
                                                                 freq_points,
                                                                 bin_width_s,
-                                                                record_length_s,
+                                                                record_length_s+add_tt_read_out,
                                                                 coord0_start, 
                                                                 coord0_stop, 
                                                                 coord0_num,
@@ -2445,6 +2541,13 @@ class AFMConfocalLogic(GenericLogic):
                                                                 coord1_stop, 
                                                                 coord1_num,
                                                                 rotation)
+            
+            if bias_data is not None:
+                self._pulsed_scan_array['pulsed_fw']['data_bias'] = data_bias
+                self._pulsed_scan_array['pulsed_fw']['var_list_bias'] = var_list_bias
+                self._pulsed_scan_array['pulsed_fw']['gslac_bias'] = single_res_gslac
+                self._pulsed_scan_array['pulsed_fw']['res_freq_bias'] = res_freq_bias
+                self._pulsed_scan_array['pulsed_fw']['b_field_bias'] = bias_field
 
             #prepare arrays for specific modes
             self.res_freq_array = np.ones((coord1_num, coord0_num)) * res_freq 
@@ -2484,6 +2587,14 @@ class AFMConfocalLogic(GenericLogic):
                 self._qafm_scan_array[entry]['params']['Lift-off Mode'] = liftoff_mode
                 self._qafm_scan_array[entry]['params']['Lift-off Height'] = liftoff_height
 
+                self._qafm_scan_array[entry]['params']['Tip oscillation off'] = tip_osc_off and liftoff_mode
+                self._qafm_scan_array[entry]['params']['Tip oscillation turn off time (s)'] = tip_osc_turn_off_time
+                self._qafm_scan_array[entry]['params']['Tip oscillation turn on time (s)'] = tip_osc_turn_on_time
+                self._qafm_scan_array[entry]['params']['Measure tip oscillation on and off'] = measure_tip_osc_on_and_off
+
+            #Prepare timetagger for sync with the spm
+            # self._counter._prepare_spm_sync()
+
             #Set up the SPM device for performing a scan in path mode
             ret_val, _ = self._spm.configure_scanner(mode=ScannerMode.PROBE_CONTACT,
                                                                     params= {'line_points': coord0_num,
@@ -2504,7 +2615,11 @@ class AFMConfocalLogic(GenericLogic):
                                      afm_int_time=afm_int_time,
                                      afm_scan_speed=afm_scan_speed,
                                      liftoff_mode=liftoff_mode,
-                                     liftoff_height=liftoff_height)
+                                     liftoff_height=liftoff_height,
+                                     tip_osc_off = tip_osc_off,
+                                     tip_osc_turn_off_time = tip_osc_turn_off_time,
+                                     tip_osc_turn_on_time = tip_osc_turn_on_time,
+                                     measure_tip_osc_on_and_off = measure_tip_osc_on_and_off)
             
             if ret_val < 1:
                 self.sigQuantiScanFinished.emit()
@@ -2531,8 +2646,11 @@ class AFMConfocalLogic(GenericLogic):
                     counts = 0 
 
                     # do movement and height scan
-                    self._scan_point['Height(Dac)_fw'] = self._spm.scan_point() #allows moving of AFM
+                    # self.wait_for_sync()
+                    self._scan_point['Height(Dac)_fw'] = self._spm.scan_point() #Measures height. Gives manual handshake if in lift off mode
                     self.sigNewAFMPos.emit(self.get_afm_pos())
+                    # if liftoff_mode:
+                    #     self.wait_for_sync()  
 
                     for n in range(mw_tracking_mode_runs):
                         self._counter.start_recorder(arm=True)
@@ -2569,8 +2687,17 @@ class AFMConfocalLogic(GenericLogic):
                         self.res_freq_array[line_num,index] = res_estimate
                         counts = counts + np.mean(ref_data)/ref_time/num_runs
                     
-                    self._spm.scan_point(move_along=True)
+                    # self._counter._prepare_spm_sync()
+                    # self._counter.spm_sync.clear()
+                    # self._counter.spm_sync.start()
+                    # self._counter._tagger.sync(timeout=5000)
+                    self._spm.scan_point(move_along=True) #Gives manual handshake to proceed to the next point
                     self._scan_point['fit_param_fw'] = self.res_freq_array[line_num, index]
+
+                    if single_res or single_res_gslac:
+                        self._scan_point['b_field_fw'] =  self.calc_mag_field_single_res(res_estimate, 
+                                                                    self.ZFS, 
+                                                                    self.E_FIELD,gslac=single_res_gslac) - bias_field
 
                     # here the counts can be saved:
                     self._scan_point['counts_fw'] = counts/mw_tracking_mode_runs
@@ -2588,11 +2715,11 @@ class AFMConfocalLogic(GenericLogic):
                         # self._qafm_scan_array[name]['corr_plane_coeff'] = C.copy()
 
                     self._pulsed_scan_array['pulsed_fw']['data'][line_num][index] = pulsed_ret0 if not alternating else pulsed_ret0[0]
-                    self._pulsed_scan_array['pulsed_fw']['data_std'][line_num][index] = pulsed_ret1 if not alternating else pulsed_ret0[1]
+                    self._pulsed_scan_array['pulsed_fw']['data_std'][line_num][index] = pulsed_ret1 if not alternating else pulsed_ret1[0]
                     if alternating:
-                        self._pulsed_scan_array['pulsed_fw']['data_alternating'][line_num][index] = pulsed_ret1[0]
+                        self._pulsed_scan_array['pulsed_fw']['data_alternating'][line_num][index] = pulsed_ret0[1]
                         self._pulsed_scan_array['pulsed_fw']['data_alternating_std'][line_num][index] = pulsed_ret1[1]
-                        self._pulsed_scan_array['pulsed_fw']['data_delta'][line_num][index] = pulsed_ret0[0] - pulsed_ret1[0]
+                        self._pulsed_scan_array['pulsed_fw']['data_delta'][line_num][index] = pulsed_ret0[0] - pulsed_ret0[1]
                         
                     # self._pulsed_scan_array['pulsed_fw']['data_fit'][line_num][index] = pulsed_ret0
                     self._pulsed_scan_array['pulsed_fw']['data_raw'][line_num][index] = pulsed_meas
@@ -2648,8 +2775,9 @@ class AFMConfocalLogic(GenericLogic):
                                             mw_power=-20, pi_duration=100e-9, num_runs=30,
                                             freq_start = 2.87e9, freq_stop = 2.89e9, freq_step = 1e6,
                                             podmr_list_mode_tracking = False,
-                                            liftoff_mode=False,
-                                            liftoff_height=0):
+                                            liftoff_mode=False, liftoff_height=0,
+                                            tip_osc_off = False, tip_osc_turn_off_time = 0, tip_osc_turn_on_time = 0,
+                                            calc_magnetic_field= None, bias_data= None):
 
             """ QAFM Tracking measurement (afm + full PODMR spectrum) forward for a scan by point.
 
@@ -2677,6 +2805,8 @@ class AFMConfocalLogic(GenericLogic):
             """
             self.sigQuantiScanStarted.emit()
             self._stop_request = False
+
+            measure_tip_osc_on_and_off = False
 
             coord0_start = coord0_origin-coord0_range/2
             coord0_stop = coord0_origin+coord0_range/2
@@ -2714,6 +2844,7 @@ class AFMConfocalLogic(GenericLogic):
             current_var_list = original_var_list
             bin_width_s = self._podmr.bin_width_s
             record_length_s = self._podmr.record_length_s
+            add_tt_read_out = self._podmr.add_tt_read_out
             analysis_settings = self._podmr.pulsed_analysis_settings
 
             #Set up the Timetagger as the recorder for the pulse measurement
@@ -2724,7 +2855,7 @@ class AFMConfocalLogic(GenericLogic):
             mode=HWRecorderMode.GENERAL_PULSED,
             params={'laser_pulses': freq_points,
                     'bin_width_s': bin_width_s,
-                    'record_length_s': record_length_s,
+                    'record_length_s': record_length_s+add_tt_read_out,
                     'max_counts': int(num_runs-1)} )
 
             #Set up the microwave source. During the scan, the played frequency will be updated, if the tracking option is active
@@ -2739,7 +2870,27 @@ class AFMConfocalLogic(GenericLogic):
             self._afm_meas_duration = 0
             self._scan_counter = 0
 
-            self._curr_scan_params = ['Height(Dac)','counts','fit_param']
+            if calc_magnetic_field is not None:
+                self._curr_scan_params = ['Height(Dac)','counts','fit_param','b_field']
+                if calc_magnetic_field == 'single':
+                    single_res = True
+                    single_res_gslac = False
+                else:
+                    single_res = False
+                    single_res_gslac = True
+                if bias_data is not None:
+                    var_list_bias, data_bias = (bias_data[0], bias_data[1])
+                    fit = self._fitlogic.make_gaussian_fit(var_list_bias, data_bias,estimator=self._fitlogic.estimate_gaussian_dip)
+                    res_freq_bias = fit.params['center'].value
+                    bias_field = self.calc_mag_field_single_res(res_freq_bias, 
+                                                                self.ZFS, 
+                                                                self.E_FIELD,gslac=single_res_gslac)
+                else:
+                    bias_field = 0
+            else:
+                self._curr_scan_params = ['Height(Dac)','counts','fit_param']
+                single_res = False
+                single_res_gslac = False
             self.scan_dir = 'fw'
 
             #Create dictonary for saving the current measured parameters
@@ -2762,7 +2913,7 @@ class AFMConfocalLogic(GenericLogic):
             self._pulsed_scan_array = self.initialize_pulsed_scan_array(original_var_list, alternating,
                                                                 freq_points,
                                                                 bin_width_s,
-                                                                record_length_s,
+                                                                record_length_s+add_tt_read_out,
                                                                 coord0_start, 
                                                                 coord0_stop, 
                                                                 coord0_num,
@@ -2770,6 +2921,13 @@ class AFMConfocalLogic(GenericLogic):
                                                                 coord1_stop, 
                                                                 coord1_num,
                                                                 rotation)
+            
+            if bias_data is not None:
+                self._pulsed_scan_array['pulsed_fw']['data_bias'] = data_bias
+                self._pulsed_scan_array['pulsed_fw']['var_list_bias'] = var_list_bias
+                self._pulsed_scan_array['pulsed_fw']['gslac_bias'] = single_res_gslac
+                self._pulsed_scan_array['pulsed_fw']['res_freq_bias'] = res_freq_bias
+                self._pulsed_scan_array['pulsed_fw']['b_field_bias'] = bias_field
 
             #prepare arrays for specific modes
             self.res_freq_array = np.ones((coord1_num, coord0_num)) * LO_freq
@@ -2807,6 +2965,11 @@ class AFMConfocalLogic(GenericLogic):
                 self._qafm_scan_array[entry]['params']['Lift-off Mode'] = liftoff_mode
                 self._qafm_scan_array[entry]['params']['Lift-off Height'] = liftoff_height
 
+                self._qafm_scan_array[entry]['params']['Tip oscillation off'] = tip_osc_off and liftoff_mode
+                self._qafm_scan_array[entry]['params']['Tip oscillation turn off time (s)'] = tip_osc_turn_off_time
+                self._qafm_scan_array[entry]['params']['Tip oscillation turn on time (s)'] = tip_osc_turn_on_time
+                self._qafm_scan_array[entry]['params']['Measure tip oscillation on and off'] = measure_tip_osc_on_and_off
+
             #Set up the SPM device for performing a scan in path mode
             ret_val, _ = self._spm.configure_scanner(mode=ScannerMode.PROBE_CONTACT,
                                                                     params= {'line_points': coord0_num,
@@ -2827,7 +2990,11 @@ class AFMConfocalLogic(GenericLogic):
                                      afm_int_time=afm_int_time,
                                      afm_scan_speed=afm_scan_speed,
                                      liftoff_mode=liftoff_mode,
-                                     liftoff_height=liftoff_height)
+                                     liftoff_height=liftoff_height,
+                                     tip_osc_off = tip_osc_off,
+                                     tip_osc_turn_off_time = tip_osc_turn_off_time,
+                                     tip_osc_turn_on_time = tip_osc_turn_on_time,
+                                     measure_tip_osc_on_and_off = measure_tip_osc_on_and_off)
             
             if ret_val < 1:
                 self.sigQuantiScanFinished.emit()
@@ -2892,6 +3059,11 @@ class AFMConfocalLogic(GenericLogic):
                     self._spm.scan_point(move_along=True)
                     self._scan_point['fit_param_fw'] = self.res_freq_array[line_num, index]
 
+                    if single_res or single_res_gslac:
+                        self._scan_point['b_field_fw'] =  self.calc_mag_field_single_res(res_estimate, 
+                                                                    self.ZFS, 
+                                                                    self.E_FIELD,gslac=single_res_gslac) - bias_field
+
                     # here the counts can be saved:
                     self._scan_point['counts_fw'] = np.mean(ref_data)/ref_time/num_runs
                     for name in self._scan_point.keys():
@@ -2908,11 +3080,11 @@ class AFMConfocalLogic(GenericLogic):
                         # self._qafm_scan_array[name]['corr_plane_coeff'] = C.copy()
 
                     self._pulsed_scan_array['pulsed_fw']['data'][line_num][index] = pulsed_ret0 if not alternating else pulsed_ret0[0]
-                    self._pulsed_scan_array['pulsed_fw']['data_std'][line_num][index] = pulsed_ret1 if not alternating else pulsed_ret0[1]
+                    self._pulsed_scan_array['pulsed_fw']['data_std'][line_num][index] = pulsed_ret1 if not alternating else pulsed_ret1[0]
                     if alternating:
-                        self._pulsed_scan_array['pulsed_fw']['data_alternating'][line_num][index] = pulsed_ret1[0]
+                        self._pulsed_scan_array['pulsed_fw']['data_alternating'][line_num][index] = pulsed_ret0[1]
                         self._pulsed_scan_array['pulsed_fw']['data_alternating_std'][line_num][index] = pulsed_ret1[1]
-                        self._pulsed_scan_array['pulsed_fw']['data_delta'][line_num][index] = pulsed_ret0[0] - pulsed_ret1[0]
+                        self._pulsed_scan_array['pulsed_fw']['data_delta'][line_num][index] = pulsed_ret0[0] - pulsed_ret0[1]
                         
                     # self._pulsed_scan_array['pulsed_fw']['data_fit'][line_num][index] = pulsed_ret0
                     self._pulsed_scan_array['pulsed_fw']['data_raw'][line_num][index] = pulsed_meas
@@ -2970,7 +3142,9 @@ class AFMConfocalLogic(GenericLogic):
                                                                       delta_0 = 1e6, repetitions = 1, slope2_podmr = 10e-9, use_slope_track = False,
                                                                       loaded_sequence_mode_tracking_podmr = False, 
                                                                       freq_start = 2.87e9, freq_stop = 2.89e9, freq_step = 1e6, podmr_list_mode_tracking = False, num_runs_tracking = 30,
-                                                                      liftoff_mode=False, liftoff_height=0):
+                                                                      liftoff_mode=False, liftoff_height=0,
+                                                                      tip_osc_off = False, tip_osc_turn_off_time = 0, tip_osc_turn_on_time = 0, measure_tip_osc_on_and_off = False,
+                                                                      calc_magnetic_field= None, bias_data= None):
 
             """ QAFM arbitrary sequence measurement (afm + arb. sequence (+ res. freq. tracking with full podmr or two point)) forward for a scan by point.
 
@@ -3038,9 +3212,8 @@ class AFMConfocalLogic(GenericLogic):
                 uploaded_sequence_step_list[0]['step_index'] = 0
                 uploaded_sequence_step_list[0]['step_loops'] = num_runs
                 uploaded_sequence_step_list[0]['next_step_index'] = 0
-                uploaded_sequence_step_list[0]['step_end_cond'] = 'stop'
+                uploaded_sequence_step_list[0]['step_end_cond'] = 'always'
                 tracking_step = 1 #arb. sequence is step 0, tracking is step 1
-                manual_pulser_off = False
 
             #Prepare the sequence step list, if there are several segments uploaded on the AWG (e.g. for T1 measurements). 
             #In this case, the AWG cannot be stopped after the pulsed measurement with the step_end_cond = 'stop', so one has to end it manually.
@@ -3052,7 +3225,7 @@ class AFMConfocalLogic(GenericLogic):
                     step['next_step_index'] = 0 if idx+1 == len(uploaded_sequence_step_list) else idx+1
                     step['step_end_cond'] = 'always'
                 tracking_step = len(uploaded_sequence_step_list) #ar. sequence is step 0 to len(uploaded_sequence_step_list)-1, tracking is step len(uploaded_sequence_step_list)
-                manual_pulser_off = True
+
 
             explicit_steps_list = uploaded_sequence_step_list
             LO_freq = loaded_sequence_res_freq +100e6
@@ -3062,7 +3235,7 @@ class AFMConfocalLogic(GenericLogic):
             laser_pulses = self._pulsed_master_AWG.measurement_settings['number_of_lasers']
             var_list = self._pulsed_master_AWG.measurement_settings['controlled_variable']
             bin_width_s = self._pulsed_master_AWG.fast_counter_settings['bin_width']
-            record_length_s = self._pulsed_master_AWG.fast_counter_settings['record_length']
+            record_length_s = self._pulsed_master_AWG.fast_counter_settings['record_length'] #This already includes the extra time for the timetagger add_tt_read_out
             analysis_settings = self._pulsed_master_AWG.analysis_settings
 
             #Set up the pulse measurement run at each point
@@ -3089,6 +3262,7 @@ class AFMConfocalLogic(GenericLogic):
                 bin_width_s_tracking = self._podmr.bin_width_s
                 record_length_s_tracking = self._podmr.record_length_s
                 analysis_settings_tracking = self._podmr.pulsed_analysis_settings
+                add_tt_read_out_tracking = self._podmr.add_tt_read_out
 
             #Upload and pepare the AWG and pulsestreamer for the two point sequence for tracking the res. frequency.
             if loaded_sequence_mode_tracking_two_point:
@@ -3114,6 +3288,7 @@ class AFMConfocalLogic(GenericLogic):
                 bin_width_s_tracking = self._podmr.bin_width_s
                 record_length_s_tracking = self._podmr.record_length_s
                 analysis_settings_tracking = self._podmr.pulsed_analysis_settings
+                add_tt_read_out_tracking = self._podmr.add_tt_read_out
                 if not use_slope_track:
                     slope2_podmr = self._podmr.vis_slope
             
@@ -3133,7 +3308,7 @@ class AFMConfocalLogic(GenericLogic):
                 mode=HWRecorderMode.GENERAL_PULSED,
                 params={'laser_pulses': laser_pulses, #already includes alternating information
                         'bin_width_s': bin_width_s,
-                        'record_length_s': record_length_s,
+                        'record_length_s': record_length_s, #This already includes the extra time for the timetagger add_tt_read_out
                         'max_counts': int(num_runs-1)})
 
             #Set up the microwave source. During the scan, the played frequency will be updated, if the tracking option is active
@@ -3149,7 +3324,27 @@ class AFMConfocalLogic(GenericLogic):
             self._scan_counter = 0
 
             if  loaded_sequence_mode_tracking_two_point or loaded_sequence_mode_tracking_podmr:
-                self._curr_scan_params = ['Height(Dac)','counts','fit_param']
+                if calc_magnetic_field is not None:
+                    self._curr_scan_params = ['Height(Dac)','counts','fit_param','b_field']
+                    if calc_magnetic_field == 'single':
+                        single_res = True
+                        single_res_gslac = False
+                    else:
+                        single_res = False
+                        single_res_gslac = True
+                    if bias_data is not None:
+                        var_list_bias, data_bias = (bias_data[0], bias_data[1])
+                        fit = self._fitlogic.make_gaussian_fit(var_list_bias, data_bias,estimator=self._fitlogic.estimate_gaussian_dip)
+                        res_freq_bias = fit.params['center'].value
+                        bias_field = self.calc_mag_field_single_res(res_freq_bias, 
+                                                                    self.ZFS, 
+                                                                    self.E_FIELD,gslac=single_res_gslac)
+                    else:
+                        bias_field = 0
+                else:
+                    self._curr_scan_params = ['Height(Dac)','counts','fit_param']
+                    single_res = False
+                    single_res_gslac = False
             else:
                 self._curr_scan_params = ['Height(Dac)','counts']
             self.scan_dir = 'fw'
@@ -3174,7 +3369,7 @@ class AFMConfocalLogic(GenericLogic):
             self._pulsed_scan_array = self.initialize_pulsed_scan_array(var_list, alternating,
                                                                 laser_pulses,
                                                                 bin_width_s,
-                                                                record_length_s,
+                                                                record_length_s, #This already includes the extra time for the timetagger add_tt_read_out
                                                                 coord0_start, 
                                                                 coord0_stop, 
                                                                 coord0_num,
@@ -3183,21 +3378,40 @@ class AFMConfocalLogic(GenericLogic):
                                                                 coord1_num,
                                                                 rotation)
             
+            self._pulsed_scan_array['pulsed_fw']['Tracking'] = loaded_sequence_mode_tracking_two_point or loaded_sequence_mode_tracking_podmr
+            
             if loaded_sequence_mode_tracking_two_point or loaded_sequence_mode_tracking_podmr:
                 self._pulsed_scan_array['pulsed_fw']['data_tracking'] = np.zeros((coord1_num, coord0_num, freq_points_tracking))
                 self._pulsed_scan_array['pulsed_fw']['data_std_tracking'] = np.zeros((coord1_num, coord0_num, freq_points_tracking))
-                self._pulsed_scan_array['pulsed_fw']['data_raw_tracking'] = np.zeros((coord1_num, coord0_num, freq_points_tracking, int(record_length_s_tracking/bin_width_s_tracking)))
+                self._pulsed_scan_array['pulsed_fw']['data_raw_tracking'] = np.zeros((coord1_num, coord0_num, freq_points_tracking, int((record_length_s_tracking+add_tt_read_out_tracking)/bin_width_s_tracking)))
                 if podmr_list_mode_tracking and loaded_sequence_mode_tracking_podmr:
                     self._pulsed_scan_array['pulsed_fw']['var_list_tracking'] = np.zeros((coord1_num, coord0_num, len(var_list_tracking)))
                 else:
                     self._pulsed_scan_array['pulsed_fw']['var_list_tracking'] = var_list_tracking
+
+                if bias_data is not None:
+                    self._pulsed_scan_array['pulsed_fw']['data_bias'] = data_bias
+                    self._pulsed_scan_array['pulsed_fw']['var_list_bias'] = var_list_bias
+                    self._pulsed_scan_array['pulsed_fw']['gslac_bias'] = single_res_gslac
+                    self._pulsed_scan_array['pulsed_fw']['res_freq_bias'] = res_freq_bias
+                    self._pulsed_scan_array['pulsed_fw']['b_field_bias'] = bias_field
+
+            if liftoff_mode and measure_tip_osc_on_and_off:
+                self._pulsed_scan_array['pulsed_fw']['tip_osc_on'] = {'data': np.zeros((coord1_num, coord0_num, int(laser_pulses/2) if alternating else laser_pulses)),
+                                                                      'data_std': np.zeros((coord1_num, coord0_num, int(laser_pulses/2) if alternating else laser_pulses)),
+                                                                      'data_alternating': np.zeros((coord1_num, coord0_num, int(laser_pulses/2) if alternating else laser_pulses)),
+                                                                      'data_alternating_std': np.zeros((coord1_num, coord0_num, int(laser_pulses/2) if alternating else laser_pulses)),
+                                                                      'data_delta': np.zeros((coord1_num, coord0_num, int(laser_pulses/2) if alternating else laser_pulses)),
+                                                                      'data_raw': np.zeros((coord1_num, coord0_num, laser_pulses, int(record_length_s/bin_width_s)))
+                                                                    }
+
             #prepare arrays for specific modes
             self.res_freq_array = np.ones((coord1_num, coord0_num)) * res_freq
 
             #Save the measurement parameters
             start_time_afm_scan = datetime.datetime.now()
             for entry in self._qafm_scan_array:
-                self._qafm_scan_array[entry]['params']['Parameters for'] = 'QAFM arb. seqeunce measurement'
+                self._qafm_scan_array[entry]['params']['Parameters for'] = 'QAFM arb. sequence measurement'
                 self._qafm_scan_array[entry]['params']['axis name for coord0'] = 'X'
                 self._qafm_scan_array[entry]['params']['axis name for coord1'] = 'Y'
                 self._qafm_scan_array[entry]['params']['measurement plane'] = 'XY'
@@ -3210,13 +3424,15 @@ class AFMConfocalLogic(GenericLogic):
                 self._qafm_scan_array[entry]['params']['rotation (°)'] = rotation
 
                 if loaded_sequence_mode_tracking_podmr:
+                    self._qafm_scan_array[entry]['params']['Tracking'] = True
                     self._qafm_scan_array[entry]['params']['Tracking method'] = 'Full PODMR'
                     self._qafm_scan_array[entry]['params']['Pulsed start variable (s) or (Hz)'] = var_start_tracking
                     self._qafm_scan_array[entry]['params']['Pulsed stop variable (s) or (Hz)'] = var_stop_tracking
                     self._qafm_scan_array[entry]['params']['Pulsed step variable (s) or (Hz)'] = var_incr_tracking
                     self._qafm_scan_array[entry]['params']['MW Tracking mode'] = podmr_list_mode_tracking
 
-                if loaded_sequence_mode_tracking_two_point:
+                elif loaded_sequence_mode_tracking_two_point:
+                    self._qafm_scan_array[entry]['params']['Tracking'] = True
                     self._qafm_scan_array[entry]['params']['Tracking method'] = 'Two point'
                     self._qafm_scan_array[entry]['params']['Pulsed start variable (s) or (Hz)'] = var_start_tracking
                     self._qafm_scan_array[entry]['params']['Pulsed stop variable (s) or (Hz)'] = var_stop_tracking
@@ -3224,6 +3440,9 @@ class AFMConfocalLogic(GenericLogic):
                     self._qafm_scan_array[entry]['params']['Tracking repetitions per point'] = mw_tracking_mode_runs
                     self._qafm_scan_array[entry]['params']['delta_0'] = delta_0
                     self._qafm_scan_array[entry]['params']['slope'] = slope2_podmr
+
+                else:
+                    self._qafm_scan_array[entry]['params']['Tracking'] = False
 
                 self._qafm_scan_array[entry]['params']['pi Duration'] = pi_duration
                 self._qafm_scan_array[entry]['params']['MW power (dBm)'] = mw_power
@@ -3235,6 +3454,15 @@ class AFMConfocalLogic(GenericLogic):
                 self._qafm_scan_array[entry]['params']['Measurement start'] = start_time_afm_scan.isoformat()
                 self._qafm_scan_array[entry]['params']['Lift-off Mode'] = liftoff_mode
                 self._qafm_scan_array[entry]['params']['Lift-off Height'] = liftoff_height
+
+                self._qafm_scan_array[entry]['params']['Tip oscillation off'] = tip_osc_off and liftoff_mode
+                self._qafm_scan_array[entry]['params']['Tip oscillation turn off time (s)'] = tip_osc_turn_off_time
+                self._qafm_scan_array[entry]['params']['Tip oscillation turn on time (s)'] = tip_osc_turn_on_time
+                self._qafm_scan_array[entry]['params']['Measure tip oscillation on and off'] = measure_tip_osc_on_and_off
+
+            #Prepare timetagger for sync with the spm
+            # self._counter._prepare_spm_sync()
+            # self.sync_counter = 1
 
             #Set up the SPM device for performing a scan in path mode
             ret_val, _ = self._spm.configure_scanner(mode=ScannerMode.PROBE_CONTACT,
@@ -3256,7 +3484,11 @@ class AFMConfocalLogic(GenericLogic):
                                      afm_int_time=afm_int_time,
                                      afm_scan_speed=afm_scan_speed,
                                      liftoff_mode=liftoff_mode,
-                                     liftoff_height=liftoff_height)
+                                     liftoff_height=liftoff_height,
+                                     tip_osc_off = tip_osc_off,
+                                     tip_osc_turn_off_time = tip_osc_turn_off_time,
+                                     tip_osc_turn_on_time = tip_osc_turn_on_time,
+                                     measure_tip_osc_on_and_off = measure_tip_osc_on_and_off)
             
             if ret_val < 1:
                 self.sigQuantiScanFinished.emit()
@@ -3280,8 +3512,11 @@ class AFMConfocalLogic(GenericLogic):
                         self.sigQAFMScanInitialized.emit()
 
                     # do movement and height scan
+                    # self.wait_for_sync()
                     self._scan_point['Height(Dac)_fw'] = self._spm.scan_point() #allows moving of AFM
                     self.sigNewAFMPos.emit(self.get_afm_pos())
+                    # if liftoff_mode:
+                    #     self.wait_for_sync()
 
                     if loaded_sequence_mode_tracking_two_point or loaded_sequence_mode_tracking_podmr:
                         counts = 0
@@ -3290,7 +3525,7 @@ class AFMConfocalLogic(GenericLogic):
                                 mode=HWRecorderMode.GENERAL_PULSED,
                                 params={'laser_pulses': freq_points_tracking,
                                         'bin_width_s': bin_width_s_tracking,
-                                        'record_length_s': record_length_s_tracking,
+                                        'record_length_s': record_length_s_tracking+add_tt_read_out_tracking,
                                         'max_counts': int(num_runs_tracking-1)})
                         
                         #setup the tracking step for AWG
@@ -3324,7 +3559,7 @@ class AFMConfocalLogic(GenericLogic):
                                 # obtain pulsed two point traccking measurement
                                 pulsed_meas = self._counter.get_measurements()[0] # this is the blocking statement
                         
-                                pulsed_ret0, pulsed_ret1, ref_data, ref_time = self.analyse_pulsed_meas(analysis_settings, pulsed_meas, alternating, False, True)
+                                pulsed_ret0, pulsed_ret1, ref_data, ref_time = self.analyse_pulsed_meas(analysis_settings, pulsed_meas, alternating_tracking, False, True)
 
                                 #two point tracking analysis
                                 res_estimate, vis = self.tracking_analysis(pulsed_ret0, line_num, index, slope2_podmr, res_estimate, use_slope_track)
@@ -3376,6 +3611,11 @@ class AFMConfocalLogic(GenericLogic):
                         self._pulsed_scan_array['pulsed_fw']['data_std_tracking'][line_num][index] = pulsed_ret1 
                         self._pulsed_scan_array['pulsed_fw']['data_raw_tracking'][line_num][index] = pulsed_meas
 
+                        if single_res or single_res_gslac:
+                            self._scan_point['b_field_fw'] =  self.calc_mag_field_single_res(res_estimate, 
+                                                                        self.ZFS, 
+                                                                        self.E_FIELD,gslac=single_res_gslac) - bias_field
+
                         #set the mw source to the resonance frequency
                         try:
                             # self._mw.set_cw_2(res_estimate, mw_power) #trying with _3 to minimize unnecessary calls to device
@@ -3390,7 +3630,7 @@ class AFMConfocalLogic(GenericLogic):
                                 mode=HWRecorderMode.GENERAL_PULSED,
                                 params={'laser_pulses': laser_pulses, #already includes alternating information
                                         'bin_width_s': bin_width_s,
-                                        'record_length_s': record_length_s,
+                                        'record_length_s': record_length_s, #This already includes the extra time for the timetagger add_tt_read_out
                                         'max_counts': int(num_runs-1)})
                         
                         #set the sequence step to the position of the arb. pulse sequence
@@ -3406,16 +3646,50 @@ class AFMConfocalLogic(GenericLogic):
                     pulsed_meas = self._counter.get_measurements()[0] # this is the blocking statement
 
                     #Stop the AWG if necessary
-                    if manual_pulser_off:
-                        self._pulsed_master_AWG.pulsedmeasurementlogic().pulsegenerator().pulser_off()
+                    self._pulsed_master_AWG.pulsedmeasurementlogic().pulsegenerator().pulser_off()
             
                     pulsed_ret0, pulsed_ret1, ref_data, ref_time = self.analyse_pulsed_meas(analysis_settings, pulsed_meas, alternating, False, False)
+
+                    if liftoff_mode and measure_tip_osc_on_and_off:
+                        self._spm.turn_on_tip_osc() #Turn on tip oscillation and measure again
+
+                        #arm recorder for arb. sequence
+                        self._counter.start_recorder(arm=True)
+
+                        #Start arb. pulsed sequence measurement
+                        self._pulsed_master_AWG.pulsedmeasurementlogic().pulsegenerator().pulser_on()
+                        
+                        # obtain pulsed measurement
+                        pulsed_meas_tip_osc_on = self._counter.get_measurements()[0] # this is the blocking statement
+
+                        #Stop the AWG if necessary
+                        self._pulsed_master_AWG.pulsedmeasurementlogic().pulsegenerator().pulser_off()
+                
+                        pulsed_ret0_tip_osc_on, pulsed_ret1_tip_osc_on, ref_data_tip_osc_on, ref_time_tip_osc_on = self.analyse_pulsed_meas(analysis_settings, pulsed_meas_tip_osc_on, alternating, False, False)
+
+                        if alternating:
+                            counts = (counts + np.mean(ref_data_tip_osc_on[0])/ref_time_tip_osc_on[0]/num_runs+ np.mean(ref_data_tip_osc_on[1])/ref_time_tip_osc_on[1]/num_runs)/3
+                        else:
+                            counts = (counts + np.mean(ref_data_tip_osc_on)/ref_time_tip_osc_on/num_runs)/2
+
+                        self._pulsed_scan_array['pulsed_fw']['tip_osc_on']['data'][line_num][index] = pulsed_ret0_tip_osc_on if not alternating else pulsed_ret0_tip_osc_on[0]
+                        self._pulsed_scan_array['pulsed_fw']['tip_osc_on']['data_std'][line_num][index] = pulsed_ret1_tip_osc_on if not alternating else pulsed_ret1_tip_osc_on[0]
+                        if alternating:
+                            self._pulsed_scan_array['pulsed_fw']['tip_osc_on']['data_alternating'][line_num][index] = pulsed_ret0_tip_osc_on[1]
+                            self._pulsed_scan_array['pulsed_fw']['tip_osc_on']['data_alternating_std'][line_num][index] = pulsed_ret1_tip_osc_on[1]
+                            self._pulsed_scan_array['pulsed_fw']['tip_osc_on']['data_delta'][line_num][index] = pulsed_ret0_tip_osc_on[0] - pulsed_ret0_tip_osc_on[1]
+                            
+                        # self._pulsed_scan_array['pulsed_fw']['data_fit'][line_num][index] = pulsed_ret0
+                        self._pulsed_scan_array['pulsed_fw']['tip_osc_on']['data_raw'][line_num][index] = pulsed_meas_tip_osc_on
                     
                     self._spm.scan_point(move_along=True)
 
                     # here the counts can be saved:
                     if loaded_sequence_mode_tracking_two_point or loaded_sequence_mode_tracking_podmr:
-                        self._scan_point['counts_fw'] = (counts + np.mean(ref_data)/ref_time/num_runs)/2
+                        if alternating:
+                            self._scan_point['counts_fw'] = (counts + np.mean(ref_data[0])/ref_time[0]/num_runs+ np.mean(ref_data[1])/ref_time[1]/num_runs)/3
+                        else:
+                            self._scan_point['counts_fw'] = (counts + np.mean(ref_data)/ref_time/num_runs)/2
                     else:
                         self._scan_point['counts_fw'] = np.mean(ref_data)/ref_time/num_runs
                     for name in self._scan_point.keys():
@@ -3432,11 +3706,11 @@ class AFMConfocalLogic(GenericLogic):
                         # self._qafm_scan_array[name]['corr_plane_coeff'] = C.copy()
 
                     self._pulsed_scan_array['pulsed_fw']['data'][line_num][index] = pulsed_ret0 if not alternating else pulsed_ret0[0]
-                    self._pulsed_scan_array['pulsed_fw']['data_std'][line_num][index] = pulsed_ret1 if not alternating else pulsed_ret0[1]
+                    self._pulsed_scan_array['pulsed_fw']['data_std'][line_num][index] = pulsed_ret1 if not alternating else pulsed_ret1[0]
                     if alternating:
-                        self._pulsed_scan_array['pulsed_fw']['data_alternating'][line_num][index] = pulsed_ret1[0]
+                        self._pulsed_scan_array['pulsed_fw']['data_alternating'][line_num][index] = pulsed_ret0[1]
                         self._pulsed_scan_array['pulsed_fw']['data_alternating_std'][line_num][index] = pulsed_ret1[1]
-                        self._pulsed_scan_array['pulsed_fw']['data_delta'][line_num][index] = pulsed_ret0[0] - pulsed_ret1[0]
+                        self._pulsed_scan_array['pulsed_fw']['data_delta'][line_num][index] = pulsed_ret0[0] - pulsed_ret0[1]
                         
                     # self._pulsed_scan_array['pulsed_fw']['data_fit'][line_num][index] = pulsed_ret0
                     self._pulsed_scan_array['pulsed_fw']['data_raw'][line_num][index] = pulsed_meas
@@ -3508,7 +3782,7 @@ class AFMConfocalLogic(GenericLogic):
                 data0, err0, ref_data0, ref_time0 = analysis_method(*args0)
                 data1, err1, ref_data1, ref_time1 = analysis_method(*args1)
 
-        return (data, err, ref_data, ref_time) if not alternating else ((data0, err0, ref_data0, ref_time0), (data1, err1, ref_data1, ref_time1))
+        return (data, err, ref_data, ref_time) if not alternating else ((data0, data1), (err0, err1), (ref_data0, ref_data1), (ref_time0, ref_time1))
     
     def tracking_analysis(self, pulsed_ret0, line_num, index, slope2_podmr, prev, use_slope_track):
         visibility = (pulsed_ret0[1] - pulsed_ret0[0])/(pulsed_ret0[1] + pulsed_ret0[0])
@@ -3549,7 +3823,9 @@ class AFMConfocalLogic(GenericLogic):
                                                 mw_tracking_mode=False, repetitions=1, delta_0=1e6, res_freq=2.87e9, slope2_podmr=1, use_slope_track=False,
                                                 loaded_sequence_mode = False, loaded_sequence_mode_tracking_two_point = False,
                                                 loaded_sequence_mode_tracking_podmr = False, loaded_sequence_res_freq = 2.87e9, num_runs_tracking = 30,
-                                                liftoff_mode=False, liftoff_height=0):
+                                                liftoff_mode=False, liftoff_height=0,
+                                                tip_osc_off = False, tip_osc_turn_off_time = 0, tip_osc_turn_on_time = 0, measure_tip_osc_on_and_off = False,
+                                                calc_magnetic_field= None, bias_data= None):
 
         if self.check_thread_active():
             self.log.error("A measurement is currently running, stop it first!")
@@ -3563,7 +3839,9 @@ class AFMConfocalLogic(GenericLogic):
                     mw_power, pi_duration, num_runs, 
                     res_freq, delta_0, repetitions,
                     slope2_podmr, use_slope_track,
-                    liftoff_mode,liftoff_height)
+                    liftoff_mode,liftoff_height,
+                    tip_osc_off, tip_osc_turn_off_time, tip_osc_turn_on_time,
+                    calc_magnetic_field, bias_data)
             
         elif mw_list_mode:
             fnt_target = self.scan_true_area_AWG_pulsed_PODMR_qafm_fw_by_point
@@ -3573,7 +3851,9 @@ class AFMConfocalLogic(GenericLogic):
                   mw_power, pi_duration, num_runs,
                   freq_start, freq_stop, freq_step,
                   podmr_list_mode_tracking,
-                  liftoff_mode, liftoff_height)
+                  liftoff_mode, liftoff_height,
+                  tip_osc_off, tip_osc_turn_off_time, tip_osc_turn_on_time,
+                  calc_magnetic_field, bias_data)
             
         elif loaded_sequence_mode:
             fnt_target = self.scan_true_area_AWG_pulsed_arbitrary_sequence_qafm_fw_by_point
@@ -3583,7 +3863,9 @@ class AFMConfocalLogic(GenericLogic):
                   mw_power, pi_duration, num_runs, loaded_sequence_res_freq,
                   loaded_sequence_mode_tracking_two_point, res_freq, delta_0, repetitions, slope2_podmr, use_slope_track,
                   loaded_sequence_mode_tracking_podmr, freq_start, freq_stop, freq_step, podmr_list_mode_tracking, num_runs_tracking,
-                  liftoff_mode, liftoff_height)
+                  liftoff_mode, liftoff_height,
+                  tip_osc_off, tip_osc_turn_off_time, tip_osc_turn_on_time, measure_tip_osc_on_and_off,
+                  calc_magnetic_field, bias_data)
         else:
             self.log.error("Selected mode is not supported")
             return
@@ -5109,7 +5391,7 @@ class AFMConfocalLogic(GenericLogic):
             pickle_fname = os.path.join(save_path,filename)
 
             with open(pickle_fname, 'wb') as f:
-                pickle.dump(data, f)
+                pickle.dump(data, f, protocol=4)
 
         # this method will be anyway skipped, if no data are present.
         self.save_quantitative_data(tag=tag, probe_name=probe_name, sample_name=sample_name,
@@ -5333,7 +5615,7 @@ class AFMConfocalLogic(GenericLogic):
             pickle_fname = os.path.join(save_path,filename)
 
             with open(pickle_fname, 'wb') as f:
-                pickle.dump(data, f)
+                pickle.dump(data, f, protocol=4)
     
     def save_quantitative_data(self, tag=None, probe_name=None, sample_name=None,
                                use_qudi_savescheme=False, root_path=None, 
@@ -5421,7 +5703,7 @@ class AFMConfocalLogic(GenericLogic):
             pickle_fname = os.path.join(save_path,filename)
 
             with open(pickle_fname, 'wb') as f:
-                pickle.dump(data, f)
+                pickle.dump(data, f, protocol=4)
 
 
 

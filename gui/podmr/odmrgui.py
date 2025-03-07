@@ -134,6 +134,18 @@ class ODMRGui(GUIBase):
         self._mw.laser_power_voltage_DoubleSpinBox.setMaximum(1) #Maximum Amplitude of pulsestreamer analog output in [V]
         self._mw.laser_power_voltage_DoubleSpinBox.setMinimum(0) #Minimum Amplitude of pulsestreamer analog output in [V]
 
+        self._mw.analysis_window_start_DoubleSpinBox.setMaximum(self._odmr_logic.record_length_s + self._odmr_logic.add_tt_read_out)
+        self._mw.analysis_window_start_DoubleSpinBox.setMinimum(0)
+
+        self._mw.analysis_window_width_DoubleSpinBox.setMaximum(self._odmr_logic.record_length_s + self._odmr_logic.add_tt_read_out)
+        self._mw.analysis_window_width_DoubleSpinBox.setMinimum(0)
+
+        self._mw.reference_window_start_DoubleSpinBox.setMaximum(self._odmr_logic.record_length_s + self._odmr_logic.add_tt_read_out)
+        self._mw.reference_window_start_DoubleSpinBox.setMinimum(0)
+
+        self._mw.reference_window_width_DoubleSpinBox.setMaximum(self._odmr_logic.record_length_s + self._odmr_logic.add_tt_read_out)
+        self._mw.reference_window_width_DoubleSpinBox.setMinimum(0)
+
         # Add grid layout for ranges
         groupBox = QtWidgets.QGroupBox(self._mw.dockWidgetContents_3)
         groupBox.setAlignment(QtCore.Qt.AlignLeft)
@@ -450,6 +462,14 @@ class ODMRGui(GUIBase):
         self.sig_end_line.sigPositionChangeFinished.connect(self.analysis_settings_changed)
         self.ref_start_line.sigPositionChangeFinished.connect(self.analysis_settings_changed)
         self.ref_end_line.sigPositionChangeFinished.connect(self.analysis_settings_changed)
+
+        self._mw.analysis_window_start_DoubleSpinBox.editingFinished.connect(self.analysis_settings_changed_spinBox)
+        self._mw.analysis_window_width_DoubleSpinBox.editingFinished.connect(self.analysis_settings_changed_spinBox)
+        self._mw.reference_window_start_DoubleSpinBox.editingFinished.connect(self.analysis_settings_changed_spinBox)
+        self._mw.reference_window_width_DoubleSpinBox.editingFinished.connect(self.analysis_settings_changed_spinBox)
+
+        self._mw.optimize_analysis_pushButton.clicked.connect(self.optimize_analysis_klicked)
+        
         return
 
     
@@ -459,6 +479,14 @@ class ODMRGui(GUIBase):
         self.sig_end_line.sigPositionChangeFinished.disconnect()
         self.ref_start_line.sigPositionChangeFinished.disconnect()
         self.ref_end_line.sigPositionChangeFinished.disconnect()
+
+        self._mw.analysis_window_start_DoubleSpinBox.editingFinished.disconnect()
+        self._mw.analysis_window_width_DoubleSpinBox.editingFinished.disconnect()
+        self._mw.reference_window_start_DoubleSpinBox.editingFinished.disconnect()
+        self._mw.reference_window_width_DoubleSpinBox.editingFinished.disconnect()
+
+        self._mw.optimize_analysis_pushButton.clicked.disconnect()
+
         return
     
     def sweep_settings_changed(self):
@@ -494,6 +522,7 @@ class ODMRGui(GUIBase):
         self.odmr_slope_line.setData(x,y)
         vb = self.odmr_image.getViewBox()
         vb.setRange(xRange=(x.min(), x.max()), yRange=(self.vis_arr.min(), self.vis_arr.max()))
+        self._odmr_logic.sigVisSlopeChanged.emit(m)
         
 
     @QtCore.Slot()
@@ -501,7 +530,18 @@ class ODMRGui(GUIBase):
         """
 
         @return:
+
         """
+
+        self._mw.analysis_window_start_DoubleSpinBox.blockSignals(True)
+        self._mw.analysis_window_width_DoubleSpinBox.blockSignals(True)
+        self._mw.reference_window_start_DoubleSpinBox.blockSignals(True)
+        self._mw.reference_window_width_DoubleSpinBox.blockSignals(True)
+        self.sig_start_line.blockSignals(True)
+        self.sig_end_line.blockSignals(True)
+        self.ref_start_line.blockSignals(True)
+        self.ref_end_line.blockSignals(True)
+
         settings_dict = dict()
 
         sig_start = self.sig_start_line.value()
@@ -513,10 +553,66 @@ class ODMRGui(GUIBase):
         settings_dict['norm_start'] = ref_start if ref_start <= ref_end else ref_end
         settings_dict['norm_end'] = ref_end if ref_end >= ref_start else ref_start
 
+        self._mw.analysis_window_start_DoubleSpinBox.setValue(settings_dict['signal_start'])
+        self._mw.analysis_window_width_DoubleSpinBox.setValue(settings_dict['signal_end']-settings_dict['signal_start'])
+        self._mw.reference_window_start_DoubleSpinBox.setValue(settings_dict['norm_start'])
+        self._mw.reference_window_width_DoubleSpinBox.setValue(settings_dict['norm_end']-settings_dict['norm_start'])
+        self.sig_start_line.setValue(settings_dict['signal_start'])
+        self.sig_end_line.setValue(settings_dict['signal_end'])
+        self.ref_start_line.setValue(settings_dict['norm_start'])
+        self.ref_end_line.setValue(settings_dict['norm_end'])
+
         # odmrlogic set params
         self._odmr_logic.pulsed_analysis_settings = settings_dict
         if self._odmr_logic.module_state() != 'locked':
             self._odmr_logic.analyse_pulsed_meas(self._odmr_logic.pulsed_analysis_settings, self._odmr_logic.laser_data)
+
+        self._mw.analysis_window_start_DoubleSpinBox.blockSignals(False)
+        self._mw.analysis_window_width_DoubleSpinBox.blockSignals(False)
+        self._mw.reference_window_start_DoubleSpinBox.blockSignals(False)
+        self._mw.reference_window_width_DoubleSpinBox.blockSignals(False)
+        self.sig_start_line.blockSignals(False)
+        self.sig_end_line.blockSignals(False)
+        self.ref_start_line.blockSignals(False)
+        self.ref_end_line.blockSignals(False)
+
+        return
+    
+    def analysis_settings_changed_spinBox(self):
+        """
+
+        @return:
+        """
+        settings_dict = dict()
+
+        self.sig_start_line.blockSignals(True)
+        self.sig_end_line.blockSignals(True)
+        self.ref_start_line.blockSignals(True)
+        self.ref_end_line.blockSignals(True)
+
+        sig_start = self._mw.analysis_window_start_DoubleSpinBox.value()
+        sig_end = sig_start + self._mw.analysis_window_width_DoubleSpinBox.value()
+        ref_start = self._mw.reference_window_start_DoubleSpinBox.value()
+        ref_end = ref_start + self._mw.reference_window_width_DoubleSpinBox.value()
+        settings_dict['signal_start'] = sig_start if sig_start <= sig_end else sig_end
+        settings_dict['signal_end'] = sig_end if sig_end >= sig_start else sig_start
+        settings_dict['norm_start'] = ref_start if ref_start <= ref_end else ref_end
+        settings_dict['norm_end'] = ref_end if ref_end >= ref_start else ref_start
+
+        self.sig_start_line.setValue(settings_dict['signal_start'])
+        self.sig_end_line.setValue(settings_dict['signal_end'])
+        self.ref_start_line.setValue(settings_dict['norm_start'])
+        self.ref_end_line.setValue(settings_dict['norm_end'])
+
+        # odmrlogic set params
+        self._odmr_logic.pulsed_analysis_settings = settings_dict
+        if self._odmr_logic.module_state() != 'locked':
+            self._odmr_logic.analyse_pulsed_meas(self._odmr_logic.pulsed_analysis_settings, self._odmr_logic.laser_data)
+
+        self.sig_start_line.blockSignals(False)
+        self.sig_end_line.blockSignals(False)
+        self.ref_start_line.blockSignals(False)
+        self.ref_end_line.blockSignals(False)
 
         return
     
@@ -533,22 +629,38 @@ class ODMRGui(GUIBase):
         self.sig_end_line.blockSignals(True)
         self.ref_start_line.blockSignals(True)
         self.ref_end_line.blockSignals(True)
+        self._mw.analysis_window_start_DoubleSpinBox.blockSignals(True)
+        self._mw.analysis_window_width_DoubleSpinBox.blockSignals(True)
+        self._mw.reference_window_start_DoubleSpinBox.blockSignals(True)
+        self._mw.reference_window_width_DoubleSpinBox.blockSignals(True)
+
 
         if 'signal_start' in settings_dict:
             self.sig_start_line.setValue(settings_dict['signal_start'])
+            self._mw.analysis_window_start_DoubleSpinBox.setValue(settings_dict['signal_start'])
         if 'norm_start' in settings_dict:
             self.ref_start_line.setValue(settings_dict['norm_start'])
+            self._mw.reference_window_start_DoubleSpinBox.setValue(settings_dict['norm_start'])
         if 'signal_end' in settings_dict:
             self.sig_end_line.setValue(settings_dict['signal_end'])
+            self._mw.analysis_window_width_DoubleSpinBox.setValue(settings_dict['signal_end']-settings_dict['signal_start'])
         if 'norm_end' in settings_dict:
             self.ref_end_line.setValue(settings_dict['norm_end'])
+            self._mw.reference_window_width_DoubleSpinBox.setValue(settings_dict['norm_end']-settings_dict['norm_start'])
 
         # unblock signals
         self.sig_start_line.blockSignals(False)
         self.sig_end_line.blockSignals(False)
         self.ref_start_line.blockSignals(False)
         self.ref_end_line.blockSignals(False)
+        self._mw.analysis_window_start_DoubleSpinBox.blockSignals(False)
+        self._mw.analysis_window_width_DoubleSpinBox.blockSignals(False)
+        self._mw.reference_window_start_DoubleSpinBox.blockSignals(False)
+        self._mw.reference_window_width_DoubleSpinBox.blockSignals(False)
         return
+    
+    def optimize_analysis_klicked(self):
+        self._odmr_logic.optimize_analysis_window()
 
     def add_ranges_gui_elements_clicked(self):
         """
@@ -845,6 +957,7 @@ class ODMRGui(GUIBase):
             self._mw.odmr_PlotWidget.removeItem(self.odmr_slope_line)
             self._mw.odmr_PlotWidget.removeItem(self.slope_start_line)
             self._mw.slope_label.setText('{:.2e}'.format(0))
+            self._odmr_logic.sigVisSlopeChanged.emit(0)
             self.signal_image_error_bars.setData(x=x_data,
                                                 y=odmr_data_y[self.display_channel],
                                                 top=odmr_data_y_err,

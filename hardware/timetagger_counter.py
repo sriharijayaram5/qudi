@@ -96,6 +96,7 @@ class TimeTaggerCounter(Base, SlowCounterInterface, RecorderInterface):
     _pixelclock_end_chn = ConfigOption('pixelclock_end_chn', 3, missing='error')
     _channel_detect = ConfigOption('timetagger_channel_detect', 2, missing='error')
     _channel_next = ConfigOption('timetagger_channel_next', 3, missing='error')
+    _spm_sync = ConfigOption('timetagger_spm_sync', 4, missing='error')
     _recorder_constraints = RecorderConstraints()
 
     def on_activate(self):
@@ -501,6 +502,15 @@ class TimeTaggerCounter(Base, SlowCounterInterface, RecorderInterface):
 
         self.pulsed.setMaxCounts(max_counts)
         self.recorder = self.pulsed
+        return 0
+    
+    def _prepare_spm_sync(self):
+
+        self.spm_sync = tt.Counter(
+            tagger=self._tagger,
+            channels=[self._spm_sync]
+            )
+
         return 0
 
     def start_recorder(self, arm=False):
