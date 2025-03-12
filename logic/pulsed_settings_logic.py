@@ -52,6 +52,13 @@ class PulsedSettingsLogic(GenericLogic):
     read_out_time = StatusVar('read_out_time', 1e-6)
     add_tt_read_out = StatusVar('add_tt_read_out', 0.6e-6)
     bin_width = StatusVar('bin_width', 1e-9)
+    awg_sync_time_default = 16e-9 + 476.5/1.25e9 #Has to be determined with sample clock
+    laser_waiting_time_default = 1.5e-6
+    mw_waiting_time_default = 0.1e-6
+    read_out_time_default = 1e-6
+    add_tt_read_out_default = 0.6e-6
+    bin_width_default = 1e-9
+    pulsed_assets_deleted = False
 
     def __init__(self, config, **kwargs):
         super().__init__(config=config, **kwargs)
@@ -60,12 +67,14 @@ class PulsedSettingsLogic(GenericLogic):
         """ Initialisation performed during activation of the module.
         """
 
-        self.awg_sync_time = 16e-9 + 476.5/1.25e9 #Has to be determined with sample clock
-        self.laser_waiting_time= 1.5e-6
-        self.mw_waiting_time= 0.1e-6
-        self.read_out_time= 1e-6
-        self.add_tt_read_out = 0.6e-6
-        self.bin_width = 1e-9
+        # self.awg_sync_time = 16e-9 + 476.5/1.25e9 #Has to be determined with sample clock
+        # self.laser_waiting_time= 1.5e-6
+        # self.mw_waiting_time= 0.1e-6
+        # self.read_out_time= 1e-6
+        # self.add_tt_read_out = 0.6e-6
+        # self.bin_width = 1e-9
+        self.pulsed_assets_deleted = False
+
 
     def on_deactivate(self):
         """ Perform required deactivation. """
