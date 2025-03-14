@@ -700,6 +700,11 @@ class SPM_ASC500(Base, ScannerInterface):
             # time back is actually the scan speed from the GUI in m/s
             self._dev.base.setParameter(self._dev.base.getConst('ID_SCAN_PSPEED'), afm_scan_speed*1e9, 0)
             self.log.info(f"Scan speed set to {afm_scan_speed*1e9}nm/s!")
+
+            self.manual_handshake_breakout_time = round(scan_arr[0,1,0]-scan_arr[0,0,0],9)/afm_scan_speed*10
+            self.manual_handshake_breakout_tag = False
+
+            self.lift_off_waiting_time = liftoff_height*1e9*1e-6 #The lift off waiting time is set as lift of height in nm in us: 10nm -> 10us
             
             self._configureSampleAreaPath_new(point_grid_dict, self._line_points, self._lines_num, liftoff_mode, liftoff_height)
             self._polled_data = np.zeros(self._line_points) # mean is done anyway so linepoints shouldnt affect.  leaving it in since it was this way
@@ -956,6 +961,44 @@ class SPM_ASC500(Base, ScannerInterface):
             # self._dev.base.setParameter(self._dev.base.getConst('ID_PATH_ACTION'), 4, 1)
             #Waiting for manual handshake until measurements are done
             self._dev.base.setParameter(self._dev.base.getConst('ID_PATH_ACTION'), 0, 1)
+
+    def turn_on_tip_osc(self):
+        if self.liftoff_mode and self.tip_osc_off and self.measure_tip_osc_on_and_off:
+            self._dev.afm.setTFExcitationAmplitude(self.TF_Amp) #Turn on tip oscillation after Lift off
+            time.sleep(self.tip_osc_turn_on_time)
+    
+    def setup_height_measurement(self, afm_int_time = 1e-3):
+        self.height_chNo = 11
+        self.height_bufSize = 200
+        self.afm_int_time = afm_int_time
+        self._dev.base.configureChannel(self.height_chNo, # any Number between 0 and 13.
+                                self._dev.base.getConst('CHANCONN_PERMANENT'), # How you want to the data to be triggered
+                                self._dev.base.getConst('CHANADC_ZOUTINV'), #The Channel you want to get the data from
+                                1, # 0/1 -  if you want to switch on averaging
+                                afm_int_time/self.height_bufSize) # Scanner sample time [s]
+        self._dev.base.configureDataBuffering(self.height_chNo, self.height_bufSize) # chNo = same as above; bufSize = Buffersize.
+        # MAKE SURE BUFFER SIZE IS GREATER THAN 128 FOR TIME TRIGGERED DATA
+        self.cur_Z_max_range = self._dev.base.getParameter(self._dev.base.getConst('ID_REG_ZABS_LIMM'), 0)*1e-12
+
+    def measure_height(self):
+        time.sleep(self.afm_int_time)
+        while True:
+            # Wait until buffer is full
+            if self._dev.base.waitForFullBuffer(self.height_chNo) != 0:
+                break
+        buffer = self._dev.base.getDataBuffer(self.height_chNo, 0, self.height_bufSize)
+        values = buffer[3][:]
+        meta = buffer[4]
+        phys_vals = []
+        unit = self._dev.base.getUnitVal(meta)
+        scaling = 1
+        if 'Milli' in unit:
+            scaling = 1e-3
+        if 'Micro' in unit:
+            scaling = 1e-6
+        for val in values:
+            phys_vals.append(self._dev.base.convValue2Phys(meta, val)*scaling)
+        return np.mean(phys_vals)
 
     def _create_objective_line(self, xOffset, yOffset, pxSize, columns):
         self.objective_scan_line = {}
