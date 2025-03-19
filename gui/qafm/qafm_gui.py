@@ -277,6 +277,17 @@ class ProteusQGUI(GUIBase):
     single_res_meas_gslac = StatusVar('single_res_meas_gslac', default = False)
     double_res_meas = StatusVar('double_res_meas', default = False)
 
+    tip_osc_gradiometry_mode = StatusVar('tip_osc_gradiometry_mode', default = True)
+    trigger_delay = StatusVar('trigger_delay', default = 1e-6)
+    artificial_sig_lock_in_mode = StatusVar('artificial_sig_lock_in_mode', default = False)
+    pulsed_scheme_index = StatusVar('pulsed_scheme_index', default= 0)
+    pulsed_scheme_repetitions = StatusVar('pulsed_scheme_repetitions', default = 1)
+    waiting_time_tau = StatusVar('waiting_time_tau', default=1e-6)
+    pi_duration_gradiometry = StatusVar('pi_duration_gradiometry', default = 100e-9)
+    res_freq_gradiometry = StatusVar('res_freq_gradiometry', default = 2.87e9)
+    gradiometry_mw_power = StatusVar('gradiometry_mw_power', default=-20)
+    pulse_repetition_gradiometry = StatusVar('pulse_repetition_gradiometry', default = 100000)
+
     def __init__(self, config, **kwargs):
         super().__init__(config=config, **kwargs)
 
@@ -410,6 +421,11 @@ class ProteusQGUI(GUIBase):
 
         self._qm.Start_Pulsed_PushButton.clicked.connect(self.disable_scan_actions_quanti)
 
+        self._qm.Start_Gradiometry_PushButton.clicked.connect(self.start_gradiometry_measure_clicked)
+        self._qm.Stop_Gradiometry_PushButton.clicked.connect(self.stop_gradiometry_measure_clicked)
+
+        self._qm.Start_Gradiometry_PushButton.clicked.connect(self.disable_scan_actions_quanti)
+
         self._qafm_logic.sigQuantiScanFinished.connect(self.enable_scan_actions_quanti)
         self._qafm_logic.sigQuantiScanFinished.connect(self.autosave_quantitative_measurement)
 
@@ -424,7 +440,10 @@ class ProteusQGUI(GUIBase):
         self._qm.esr_mw_power_DoubleSpinBox.setMaximum(mw_limits[1])
 
         self._qm.pulsed_mw_power_DoubleSpinBox.setMinimum(mw_limits[0])
-        self._qm.pulsed_mw_power_DoubleSpinBox.setMaximum(mw_limits[1])    
+        self._qm.pulsed_mw_power_DoubleSpinBox.setMaximum(mw_limits[1])
+
+        self._qm.gradiometry_mw_power_DoubleSpinBox.setMinimum(mw_limits[0])
+        self._qm.gradiometry_mw_power_DoubleSpinBox.setMaximum(mw_limits[1])  
 
         # Initialize iso b parameter
         self._mw.use_single_isob_RadioButton.toggled.connect(self._set_iso_b_single_mode)
@@ -448,6 +467,10 @@ class ProteusQGUI(GUIBase):
         # Set everything up for the optimizer request 
         self.initOptimizerRequestUI()
 
+        # Set up Combobox to chose Gradiometry pulsed scheme
+        self.gradiometry_pulse_schemes = ['Hahn Echo','CPMG']
+        self.initGradiometryComboBox()
+
         self.initAboutUI()     # provide version number and hardware status
         self.load_view()
         self.retrieve_status_var()
@@ -465,6 +488,12 @@ class ProteusQGUI(GUIBase):
         self._qm.loaded_sequence_mode_RadioButton.clicked.connect(lambda state, x=2: self.radioButton_behaviour_forGroupBox(state,x))
         self._qm.loaded_seq_track_freq_two_point_Checkbox.clicked.connect(lambda state: self.loaded_seq_track_freq_two_point_Checkbox_isClicked(state))
         self._qm.loaded_seq_track_freq_PODMR_Checkbox.clicked.connect(lambda state: self.loaded_seq_track_freq_PODMR_Checkbox_isClicked(state))
+
+        self._qm.tip_osc_gradiometry_RadioButton.clicked.connect(lambda state, x=0: self.radioButton_behaviour_forGroupBox_gradiometry(state,x))
+        self._qm.artificial_signal_lock_in_RadioButton.clicked.connect(lambda state, x=1: self.radioButton_behaviour_forGroupBox_gradiometry(state,x))
+        self._qm.pulsed_scheme_comboBox.currentTextChanged.connect(lambda text: self.gradiometry_behaviour_comboBox(text))
+        self.gradiometry_behaviour_comboBox(self._qm.pulsed_scheme_comboBox.currentText())
+        
 
     def on_deactivate(self):
         """ Deactivate the module properly.
@@ -589,6 +618,15 @@ class ProteusQGUI(GUIBase):
 
         # react on setting changes by the logic
         self._qafm_logic.sigSettingsUpdated.connect(self.keep_former_qafm_settings)
+
+    def initGradiometryComboBox(self):
+        all_items = []
+        for i in range(self._qm.pulsed_scheme_comboBox.count()):
+            all_items.append(self._qm.pulsed_scheme_comboBox.itemText(i))
+        for f in self.gradiometry_pulse_schemes:
+            if f in all_items:
+                continue
+            self._qm.pulsed_scheme_comboBox.addItem(f)
 
     # ==========================================================================
     #               Start Methods for the AboutDialog 
@@ -1134,6 +1172,16 @@ class ProteusQGUI(GUIBase):
         self._qm.esr_single_res_gslac_RadioButton.setChecked(self.single_res_meas_gslac)
         self._qm.esr_double_res_RadioButton.setChecked(self.double_res_meas)
         
+        self._qm.tip_osc_gradiometry_RadioButton.setChecked(self.tip_osc_gradiometry_mode)
+        self._qm.trigger_delay_DoubleSpinBox.setValue(self.trigger_delay)
+        self._qm.artificial_signal_lock_in_RadioButton.setChecked(self.artificial_sig_lock_in_mode)
+        self._qm.pulsed_scheme_comboBox.setCurrentIndex(self.pulsed_scheme_index)
+        self._qm.pulsed_scheme_repetitions_doubleSpinBox.setValue(self.pulsed_scheme_repetitions)
+        self._qm.waiting_time_tau_doubleSpinBox.setValue(self.waiting_time_tau)
+        self._qm.pi_duration_gradiometry_doubleSpinBox.setValue(self.pi_duration_gradiometry)
+        self._qm.res_freq_gradiometry_DoubleSpinBox.setValue(self.res_freq_gradiometry)
+        self._qm.gradiometry_mw_power_DoubleSpinBox.setValue(self.gradiometry_mw_power)
+        self._qm.pulse_repetitions_gradiometry_spinBox.setValue(self.pulse_repetition_gradiometry)
 
     def store_status_var(self):
         """ Store all those variables to file. """
@@ -1228,6 +1276,17 @@ class ProteusQGUI(GUIBase):
         self.single_res_meas = self._qm.esr_single_res_RadioButton.isChecked()
         self.single_res_meas_gslac = self._qm.esr_single_res_gslac_RadioButton.isChecked()
         self.double_res_meas = self._qm.esr_double_res_RadioButton.isChecked()
+
+        self.tip_osc_gradiometry_mode = self._qm.tip_osc_gradiometry_RadioButton.isChecked()
+        self.trigger_delay = self._qm.trigger_delay_DoubleSpinBox.value()
+        self.artificial_sig_lock_in_mode = self._qm.artificial_signal_lock_in_RadioButton.isChecked()
+        self.pulsed_scheme_index = self._qm.pulsed_scheme_comboBox.currentIndex()
+        self.pulsed_scheme_repetitions = self._qm.pulsed_scheme_repetitions_doubleSpinBox.value()
+        self.waiting_time_tau = self._qm.waiting_time_tau_doubleSpinBox.value()
+        self.pi_duration_gradiometry = self._qm.pi_duration_gradiometry_doubleSpinBox.value()
+        self.res_freq_gradiometry = self._qm.res_freq_gradiometry_DoubleSpinBox.value()
+        self.gradiometry_mw_power = self._qm.gradiometry_mw_power_DoubleSpinBox.value()
+        self.pulse_repetition_gradiometry = self._qm.pulse_repetitions_gradiometry_spinBox.value()
 
     def get_all_data_matrices(self):
         """ more of a helper method to get all the data matrices. """
@@ -1906,6 +1965,11 @@ class ProteusQGUI(GUIBase):
 
             if ('fit_param' in obj_name):
                 dockwidget.graphicsView_matrix.sigMouseAreaSelected.connect(lambda area: self.zoom_scan(area, 'fit_param'))
+                dockwidget.graphicsView_matrix.sigCrosshairDraggedPosChanged.connect(functools.partial(self.update_from_crosshair_qafm_scan, obj_name))
+                dockwidget.graphicsView_matrix.set_crosshair_size((20e-9,20e-9))
+
+            if ('phase' in obj_name):
+                dockwidget.graphicsView_matrix.sigMouseAreaSelected.connect(lambda area: self.zoom_scan(area, 'phase'))
                 dockwidget.graphicsView_matrix.sigCrosshairDraggedPosChanged.connect(functools.partial(self.update_from_crosshair_qafm_scan, obj_name))
                 dockwidget.graphicsView_matrix.set_crosshair_size((20e-9,20e-9))
 
@@ -2619,7 +2683,7 @@ class ProteusQGUI(GUIBase):
 
         @param bool is_checked: pass the state of the zoom button (checked or not).
         """
-        for obj in ['obj_xy', 'obj_yz', 'obj_xz','Height(Dac)_bw','Height(Dac)_fw','counts_bw','counts_fw','fit_param_fw','fit_param_bw','b_field_fw','b_field_bw']:
+        for obj in ['obj_xy', 'obj_yz', 'obj_xz','Height(Dac)_bw','Height(Dac)_fw','counts_bw','counts_fw','fit_param_fw','fit_param_bw','b_field_fw','b_field_bw','phase_fw','phase_bw']:
             dw = self._dockwidget_container[obj].graphicsView_matrix
             dw.toggle_selection(is_checked)
             dw.toggle_zoom_by_selection(is_checked)
@@ -2648,7 +2712,7 @@ class ProteusQGUI(GUIBase):
             self._mw.obj_y_max_DSpinBox.setValue(max(a_bounds))
             self._mw.obj_z_min_DSpinBox.setValue(min(b_bounds))
             self._mw.obj_z_max_DSpinBox.setValue(max(b_bounds))
-        elif ('Height(Dac)' in obj_name) or ('counts' in obj_name) or ('fit_param' in obj_name) or ('b_field' in obj_name):
+        elif ('Height(Dac)' in obj_name) or ('counts' in obj_name) or ('fit_param' in obj_name) or ('b_field' in obj_name) or ('phase' in obj_name):
             rotation = self._mw.afm_rotation_DSpinBox.value()
             x_range = max(a_bounds) - min(a_bounds)
             y_range = max(b_bounds) - min(b_bounds)
@@ -3104,6 +3168,32 @@ class ProteusQGUI(GUIBase):
             else:
                 self._qm.loaded_sequence_mode_RadioButton.setChecked(True)
 
+    def radioButton_behaviour_forGroupBox_gradiometry(self, state, x):
+        if x == 0:
+            if state is True:
+                self._qm.artificial_signal_lock_in_RadioButton.setChecked(False)
+                self._qm.label_2.setEnabled(False)
+                self._qm.trigger_delay_DoubleSpinBox.setEnabled(True)
+                self._qm.label_34.setEnabled(True)
+            else:
+                self._qm.tip_osc_gradiometry_RadioButton.setChecked(True)
+        if x == 1:
+            if state is True:
+                self._qm.tip_osc_gradiometry_RadioButton.setChecked(False)
+                self._qm.trigger_delay_DoubleSpinBox.setEnabled(False)
+                self._qm.label_34.setEnabled(False)
+                self._qm.label_2.setEnabled(True) 
+            else:
+                self._qm.artificial_signal_lock_in_RadioButton.setChecked(True)
+        
+    def gradiometry_behaviour_comboBox(self, text):
+        if text == 'Hahn Echo':
+            self._qm.pulsed_scheme_repetitions_doubleSpinBox.setEnabled(False)
+            self._qm.pulsed_scheme_repetitions_label.setEnabled(False)
+        else:
+            self._qm.pulsed_scheme_repetitions_doubleSpinBox.setEnabled(True)
+            self._qm.pulsed_scheme_repetitions_label.setEnabled(True)
+
     def loaded_seq_track_freq_two_point_Checkbox_isClicked(self, state):
         if state:
             self._qm.label_24.setEnabled(True)
@@ -3280,11 +3370,13 @@ class ProteusQGUI(GUIBase):
         self.enable_scan_actions()
         self._qm.Start_QM_PushButton.setEnabled(True)
         self._qm.Start_Pulsed_PushButton.setEnabled(True)
+        self._qm.Start_Gradiometry_PushButton.setEnabled(True)
 
     def disable_scan_actions_quanti(self):
         self.disable_scan_actions()
         self._qm.Start_QM_PushButton.setEnabled(False)
         self._qm.Start_Pulsed_PushButton.setEnabled(False)
+        self._qm.Start_Gradiometry_PushButton.setEnabled(False)
         
 
     def start_quantitative_measure_clicked(self, continue_meas=False):
@@ -3438,6 +3530,78 @@ class ProteusQGUI(GUIBase):
             calc_magnetic_field=calc_magnetic_field, bias_data=bias_data)
 
     def stop_pulsed_measure_clicked(self):
+        self.stop_any_scanning()
+
+    def start_gradiometry_measure_clicked(self, continue_meas=False):
+        x_origin = self._mw.afm_x_origin_DSpinBox.value()
+        x_range = self._mw.afm_x_range_DSpinBox.value()
+        y_origin = self._mw.afm_y_origin_DSpinBox.value()
+        y_range = self._mw.afm_y_range_DSpinBox.value()
+        res_x = self._mw.afm_x_num_SpinBox.value()
+        res_y = self._mw.afm_y_num_SpinBox.value()
+        rotation = self._mw.afm_rotation_DSpinBox.value()
+
+        self._current_origin = (x_origin, y_origin)
+        self._current_rotation = rotation
+
+        afm_int_time = self._sd.int_time_sample_scan_DoubleSpinBox.value()
+        afm_scan_speed = self._sd.idle_move_scan_sample_DoubleSpinBox.value()
+
+        tip_osc_mode = self._qm.tip_osc_gradiometry_RadioButton.isChecked()
+        trigger_delay_t_0 = self._qm.trigger_delay_DoubleSpinBox.value()
+        
+        artificial_sig_mode = self._qm.artificial_signal_lock_in_RadioButton.isChecked()
+
+        used_pulsed_scheme = self._qm.pulsed_scheme_comboBox.currentText()
+        pulsed_scheme_repetitions_N = self._qm.pulsed_scheme_repetitions_doubleSpinBox.value()
+        waiting_time_tau = self._qm.trigger_delay_DoubleSpinBox.value()
+        pi_duration = self._qm.pi_duration_gradiometry_doubleSpinBox.value()
+        res_freq = self._qm.res_freq_gradiometry_DoubleSpinBox.value()
+        mw_power = self._qm.gradiometry_mw_power_DoubleSpinBox.value()
+        measurement_repetitions = self._qm.pulse_repetitions_gradiometry_spinBox.value()
+        
+        #liftoff mode
+        liftoff_mode = self._mw.liftOffMode_groupBox.isChecked()
+        liftoff_height = self._mw.liftOffHeight_doubleSpinBox.value()
+
+        if tip_osc_mode and not liftoff_mode:
+            self.log.error('Scan is not started. Gradiometry measurement based on tip oscillation is started without Lift-off mode enabled. Enable the lift-off mode!')
+            return
+
+        #tip oscillation off mode
+        tip_osc_off = self._mw.tipOscOff_groupbox.isChecked()
+        tip_osc_turn_off_time = self._mw.tipOscOffTime_doubleSpinBox.value()
+        tip_osc_turn_on_time = self._mw.tipOscOnTime_doubleSpinBox.value()
+        measure_tip_osc_on_and_off = self._mw.measureTipOscOnOff_checkBox.isChecked()
+
+        if tip_osc_mode and tip_osc_off:
+            self.log.error('Scan is not started. Gradiometry measurement based on tip oscillation is started with tip oscillation off. Disable the tip oscillation off mode!')
+            return
+
+        # if self._qm.calculate_field_groupBox.isChecked():
+        #     if self._qm.esr_single_res_RadioButton.isChecked():
+        #         calc_magnetic_field = 'single'
+        #         bias_data = self.load_bias_data()
+        #     elif self._qm.esr_single_res_gslac_RadioButton.isChecked():
+        #         calc_magnetic_field = 'single_gslac'
+        #         bias_data = self.load_bias_data()
+        # else:
+        #     calc_magnetic_field = None
+        #     bias_data = None
+
+        self.disable_scan_actions_quanti()
+        self._qafm_logic.start_scan_area_pulsed_qafm_fw_by_point(
+            coord0_origin=x_origin, coord0_range=x_range, coord0_num=res_x, 
+            coord1_origin=y_origin, coord1_range=y_range, coord1_num=res_y, rotation = rotation,
+            afm_int_time=afm_int_time, afm_scan_speed=afm_scan_speed,
+            tip_osc_mode=tip_osc_mode, trigger_delay_t_0=trigger_delay_t_0,
+            artificial_sig_mode=artificial_sig_mode,
+            used_pulsed_scheme = used_pulsed_scheme, pulsed_scheme_repetitions_N = pulsed_scheme_repetitions_N, waiting_time_tau = waiting_time_tau,
+            pi_duration = pi_duration, res_freq = res_freq, mw_power=mw_power, num_runs=measurement_repetitions,
+            liftoff_mode=liftoff_mode, liftoff_height=liftoff_height,
+            tip_osc_off = tip_osc_off, tip_osc_turn_off_time = tip_osc_turn_off_time, tip_osc_turn_on_time = tip_osc_turn_on_time, measure_tip_osc_on_and_off = measure_tip_osc_on_and_off)
+
+    def stop_gradiometry_measure_clicked(self):
         self.stop_any_scanning()
 
     @staticmethod
