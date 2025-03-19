@@ -1332,12 +1332,6 @@ class AFMConfocalLogic(GenericLogic):
             self.sigQAFMScanInitialized.emit()
 
             for line_num in range(coord1_num):
-
-                # for a continue measurement event, skip the first measurements
-                # until one has reached the desired line, then continue from there.
-                # if line_num < self._spm_line_num:
-                #     continue
-
                 for index in range(coord0_num):
                     
                     #Work around to ensure that the QAFM image is adjusted for the new scan parameters
@@ -1345,7 +1339,6 @@ class AFMConfocalLogic(GenericLogic):
                         self.sigQAFMScanInitialized.emit()
 
                     #do movement and height scan
-                    # time.sleep(1)
                     self._scan_point['Height(Dac)_fw'] = self._spm.scan_point() #allows moving of AFM
                     self.sigNewAFMPos.emit(self.get_afm_pos())
 
@@ -1372,16 +1365,6 @@ class AFMConfocalLogic(GenericLogic):
 
                     for name in self._scan_point.keys():
                         self._qafm_scan_array[name]['data'][line_num][index] = self._scan_point[name] * self._qafm_scan_array[name]['scale_fac']            
-                        # x_range = [self._qafm_scan_array[name]['coord0_arr'][0], 
-                        #         self._qafm_scan_array[name]['coord0_arr'][-1]]
-                        # y_range = [self._qafm_scan_array[name]['coord1_arr'][0], 
-                        #         self._qafm_scan_array[name]['coord1_arr'][line_num]]
-                        # xy_data = self._qafm_scan_array[name]['data'][:line_num+1]
-                        # _,C = self.correct_plane(xy_data=xy_data,x_range=x_range,y_range=y_range)
-                        # # update plane equation
-                        # self._qafm_scan_array[name]['params']['correction_plane_eq'] = str(C.tolist())
-                        # self._qafm_scan_array[name]['params']['image_correction'] = str(self._qafm_scan_array[name]['image_correction'])
-                        # self._qafm_scan_array[name]['corr_plane_coeff'] = C.copy()
 
                     self._scan_counter += 1
 
@@ -1730,12 +1713,6 @@ class AFMConfocalLogic(GenericLogic):
         self.sigQAFMScanInitialized.emit()
 
         for line_num in range(coord1_num):
-
-            # for a continue measurement event, skip the first measurements
-            # until one has reached the desired line, then continue from there.
-            # if line_num < self._spm_line_num:
-            #     continue
-
             for index in range(coord0_num):
                 
                 #Work around to ensure that the QAFM image is adjusted for the new scan parameters
@@ -1756,9 +1733,7 @@ class AFMConfocalLogic(GenericLogic):
                     current_var_list = original_var_list + res_estimate - LO_freq
 
                     try:
-                        # self._mw.set_cw_2(res_estimate, mw_power) #trying with _3 to minimize unnecessary calls to device
                         self._mw.set_cw_tracking(res_estimate, mw_power) # minimal cw set function _3 is used which does not repeat setting of power
-                        # self._mw.cw_on_3() # no need for ON maybe - since never switched OFF
                     except:
                         self._stop_request = True
                         self.log.warning('Something has gone wrong with MW device connection!')
@@ -1797,17 +1772,7 @@ class AFMConfocalLogic(GenericLogic):
                 self._spm.scan_point(move_along=True)
 
                 for name in self._scan_point.keys():
-                    self._qafm_scan_array[name]['data'][line_num][index] = self._scan_point[name] * self._qafm_scan_array[name]['scale_fac']            
-                    # x_range = [self._qafm_scan_array[name]['coord0_arr'][0], 
-                    #         self._qafm_scan_array[name]['coord0_arr'][-1]]
-                    # y_range = [self._qafm_scan_array[name]['coord1_arr'][0], 
-                    #         self._qafm_scan_array[name]['coord1_arr'][line_num]]
-                    # xy_data = self._qafm_scan_array[name]['data'][:line_num+1]
-                    # _,C = self.correct_plane(xy_data=xy_data,x_range=x_range,y_range=y_range)
-                    # # update plane equation
-                    # self._qafm_scan_array[name]['params']['correction_plane_eq'] = str(C.tolist())
-                    # self._qafm_scan_array[name]['params']['image_correction'] = str(self._qafm_scan_array[name]['image_correction'])
-                    # self._qafm_scan_array[name]['corr_plane_coeff'] = C.copy()
+                    self._qafm_scan_array[name]['data'][line_num][index] = self._scan_point[name] * self._qafm_scan_array[name]['scale_fac']
 
                 self._esr_scan_array['esr_fw']['data'][line_num][index] = esr_meas_mean
                 self._esr_scan_array['esr_fw']['data_std'][line_num][index] = esr_meas_std
@@ -2029,12 +1994,6 @@ class AFMConfocalLogic(GenericLogic):
         self.sigQAFMScanInitialized.emit()
         
         for line_num in range(coord1_num):
-
-            # for a continue measurement event, skip the first measurements
-            # until one has reached the desired line, then continue from there.
-            # if line_num < self._spm_line_num:
-            #     continue
-
             for index in range(coord0_num):
 
                 #Work around to ensure that the QAFM image is adjusted for the new scan parameters
@@ -2162,22 +2121,6 @@ class AFMConfocalLogic(GenericLogic):
                 # save measured data in array:
                 for name in self._scan_point.keys():
                     self._qafm_scan_array[name]['data'][line_num][index] = self._scan_point[name] * self._qafm_scan_array[name]['scale_fac']
-                    # x_range = [self._qafm_scan_array[name]['coord0_arr'][0], 
-                    #         self._qafm_scan_array[name]['coord0_arr'][-1]]
-                    # y_range = [self._qafm_scan_array[name]['coord1_arr'][0], 
-                    #         self._qafm_scan_array[name]['coord1_arr'][line_num]]
-                    # xy_data = self._qafm_scan_array[name]['data'][:line_num+1]
-                    # _,C = self.correct_plane(xy_data=xy_data,x_range=x_range,y_range=y_range)
-                    # update plane equation
-                    # self._qafm_scan_array[name]['params']['correction_plane_eq'] = str(C.tolist())
-                    # self._qafm_scan_array[name]['params']['image_correction'] = str(self._qafm_scan_array[name]['image_correction'])
-                    # self._qafm_scan_array[name]['corr_plane_coeff'] = C.copy()
-
-                # self._esr_scan_array['esr_fw']['data'][line_num][index] = bay_y
-                # self._esr_scan_array['esr_fw']['data_std'][line_num][index] = esr_meas_std
-                # self._esr_scan_array['esr_fw']['data_fit'][line_num][index] = esr_data_fit
-
-                # For debugging, display status text:
 
                 self._scan_counter += 1
 
@@ -2520,7 +2463,6 @@ class AFMConfocalLogic(GenericLogic):
             self.sigQAFMScanInitialized.emit()
 
             for line_num in range(coord1_num):
-
                 for index in range(coord0_num):
 
                     #Work around to ensure that the QAFM image is adjusted for the new scan parameters
@@ -2575,17 +2517,7 @@ class AFMConfocalLogic(GenericLogic):
                     # here the counts can be saved:
                     self._scan_point['counts_fw'] = counts/mw_tracking_mode_runs
                     for name in self._scan_point.keys():
-                        self._qafm_scan_array[name]['data'][line_num][index] = self._scan_point[name] * self._qafm_scan_array[name]['scale_fac']            
-                        # x_range = [self._qafm_scan_array[name]['coord0_arr'][0], 
-                        #         self._qafm_scan_array[name]['coord0_arr'][-1]]
-                        # y_range = [self._qafm_scan_array[name]['coord1_arr'][0], 
-                        #         self._qafm_scan_array[name]['coord1_arr'][line_num]]
-                        # xy_data = self._qafm_scan_array[name]['data'][:line_num+1]
-                        # _,C = self.correct_plane(xy_data=xy_data,x_range=x_range,y_range=y_range)
-                        # # update plane equation
-                        # self._qafm_scan_array[name]['params']['correction_plane_eq'] = str(C.tolist())
-                        # self._qafm_scan_array[name]['params']['image_correction'] = str(self._qafm_scan_array[name]['image_correction'])
-                        # self._qafm_scan_array[name]['corr_plane_coeff'] = C.copy()
+                        self._qafm_scan_array[name]['data'][line_num][index] = self._scan_point[name] * self._qafm_scan_array[name]['scale_fac']
 
                     self._pulsed_scan_array['pulsed_fw']['data'][line_num][index] = pulsed_ret0 if not alternating else pulsed_ret0[0]
                     self._pulsed_scan_array['pulsed_fw']['data_std'][line_num][index] = pulsed_ret1 if not alternating else pulsed_ret0[1]
@@ -2843,7 +2775,6 @@ class AFMConfocalLogic(GenericLogic):
             self.sigQAFMScanInitialized.emit()
 
             for line_num in range(coord1_num):
-
                 for index in range(coord0_num):
 
                     #Work around to ensure that the QAFM image is adjusted for the new scan parameters
@@ -3419,17 +3350,7 @@ class AFMConfocalLogic(GenericLogic):
                     else:
                         self._scan_point['counts_fw'] = np.mean(ref_data)/ref_time/num_runs
                     for name in self._scan_point.keys():
-                        self._qafm_scan_array[name]['data'][line_num][index] = self._scan_point[name] * self._qafm_scan_array[name]['scale_fac']            
-                        # x_range = [self._qafm_scan_array[name]['coord0_arr'][0], 
-                        #         self._qafm_scan_array[name]['coord0_arr'][-1]]
-                        # y_range = [self._qafm_scan_array[name]['coord1_arr'][0], 
-                        #         self._qafm_scan_array[name]['coord1_arr'][line_num]]
-                        # xy_data = self._qafm_scan_array[name]['data'][:line_num+1]
-                        # _,C = self.correct_plane(xy_data=xy_data,x_range=x_range,y_range=y_range)
-                        # # update plane equation
-                        # self._qafm_scan_array[name]['params']['correction_plane_eq'] = str(C.tolist())
-                        # self._qafm_scan_array[name]['params']['image_correction'] = str(self._qafm_scan_array[name]['image_correction'])
-                        # self._qafm_scan_array[name]['corr_plane_coeff'] = C.copy()
+                        self._qafm_scan_array[name]['data'][line_num][index] = self._scan_point[name] * self._qafm_scan_array[name]['scale_fac']
 
                     self._pulsed_scan_array['pulsed_fw']['data'][line_num][index] = pulsed_ret0 if not alternating else pulsed_ret0[0]
                     self._pulsed_scan_array['pulsed_fw']['data_std'][line_num][index] = pulsed_ret1 if not alternating else pulsed_ret0[1]

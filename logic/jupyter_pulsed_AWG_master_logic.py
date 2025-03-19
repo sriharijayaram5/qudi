@@ -2945,12 +2945,7 @@ class PulsedJupyterLogic(GenericLogic):
 
     def CPMG1_gradiometry(self, t_0, tau, name=None):
         '''
-        Laser(532):       ▇▇▇▇▇▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▇▇▇▇▇
-        MW:               ▁▁▁▁▁▁▁▇pi/2▇▁▁▁▁▁▁▁▁▁▁▇pi▇▁▁▁▁▁▁▁▁▁▁▇pi/2▇▁▁▁▁▁▁▁
-                                       X        t/2       X        t/2        X
-        Laser(532):       ▇▇▇▇▇▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▇▇▇▇▇
-        MW:               ▁▁▁▁▁▁▁▇pi/2▇▁▁▁▁▁▁▁▁▁▁▇pi▇▁▁▁▁▁▁▁▁▁▁▇pi/2▇▁▁▁▁▁▁▁
-                                       X        t/2       X        t/2        -X
+                 
         '''
         if name is None:
             name = 'CPMG1-gradiometry-juptr'
@@ -2961,20 +2956,134 @@ class PulsedJupyterLogic(GenericLogic):
             print('!!!Given configuration of pi-pulse duration, number of pulses and tau resulting in negativ values!!!')
             return
 
-        tau = tau - 2*self.pi_pulse
+        tau = tau - self.pi_pulse # excluding both pi/2 pulses
+        t_0_overhead = (self.pi_pulse + tau/2+ self.awg_sync_time)
+        awg_t_0 = t_0 - t_0_overhead
+        if awg_t_0<0:
+            print(f"Minimum t0 is {t_0_overhead*1e6}us!")
+            return None
+        actual_t_0 = awg_t_0
 
-        awg_t_0 = t_0 - (self.pi_pulse + 3*tau/4+ self.awg_sync_time)
-        awg_t_0_samples = int(awg_t_0*1.25e9)
-        if awg_t_0_samples<0:
-            print(f'!!!Given configuration of t_0, pi_pulse and tau resulting in negativ values!!!\nMinimum value is {(0.5*self.pi_pulse + tau/2+ self.awg_sync_time)/1e-6}us')
+        self.tau_arr = np.array([1,2]) #1 is for the final rotation around X, 2 is the final rotation around Y. Only important if meaurement is run via pulsed Gui to reduce confusion
+
+        #Create pulse sequence for the AWG streamer
+        self.segments = {}
+
+        #Run rotation around X
+        self.BlockAWG = []
+        x_meas_name = name + '-x-meas'
+
+        self.ElementAWG(channels={}, length=awg_t_0)
+        #Pi/2 pulse
+        self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse/2)
+        #First waiting time + tau/2
+        self.ElementAWG(channels={}, length=tau/(2))
+        #Pi pulse
+        self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse)
+        #Second waiting time + tau/2
+        self.ElementAWG(channels={}, length=tau/(2))
+        #Pi/2 pulse
+        self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse/2)
+        #Waiting time + read-out
+        self.ElementAWG(channels={'PS_Trig':True}, length=self.mw_waiting_time + self.read_out_time)
+        #Break after Initalisation/read out
+        self.ElementAWG(channels={}, length=self.laser_waiting_time)
+
+        self.segments[x_meas_name] = self.BlockAWG
+
+        #Run rotation around Y
+        self.BlockAWG = []
+        y_meas_name = name + '-y-meas'
+
+        self.ElementAWG(channels={}, length=awg_t_0)
+        #Pi/2 pulse
+        self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse/2)
+        #First waiting time + tau/2
+        self.ElementAWG(channels={}, length=tau/(2))
+        #Pi pulse
+        self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse)
+        #Second waiting time + tau/2
+        self.ElementAWG(channels={}, length=tau/(2))
+        #Pi/2 pulse
+        self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse/2, phase_0=90)
+        #Waiting time + read-out
+        self.ElementAWG(channels={'PS_Trig':True}, length=self.mw_waiting_time + self.read_out_time)
+        #Break after Initalisation/read out
+        self.ElementAWG(channels={}, length=self.laser_waiting_time)
+
+        self.segments[y_meas_name] = self.BlockAWG
+        
+        #Alternating X run
+        self.BlockAWG = []
+        x_alt_meas_name = name + '-x-alt-meas'
+
+        self.ElementAWG(channels={}, length=awg_t_0)
+        #Pi/2 pulse
+        self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse/2)
+        #First waiting time + tau/2
+        self.ElementAWG(channels={}, length=tau/(2))
+        #Pi pulse
+        self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse)
+        #Second waiting time + tau/2
+        self.ElementAWG(channels={}, length=tau/(2))
+        #Pi/2 pulse
+        self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse/2, phase_0=180)
+        #Waiting time + read-out
+        self.ElementAWG(channels={'PS_Trig':True}, length=self.mw_waiting_time + self.read_out_time)
+        #Break after Initalisation/read out
+        self.ElementAWG(channels={}, length=self.laser_waiting_time)
+
+        self.segments[x_alt_meas_name] = self.BlockAWG
+        
+        #Alternating Y run
+        self.BlockAWG = []
+        y_alt_meas_name = name + '-y-alt-meas'
+
+        self.ElementAWG(channels={}, length=awg_t_0)
+        #Pi/2 pulse
+        self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse/2)
+        #First waiting time + tau/2
+        self.ElementAWG(channels={}, length=tau/(2))
+        #Pi pulse
+        self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse)
+        #Second waiting time + tau/2
+        self.ElementAWG(channels={}, length=tau/(2))
+        #Pi/2 pulse
+        self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse/2, phase_0=270)
+        #Waiting time + read-out
+        self.ElementAWG(channels={'PS_Trig':True}, length=self.mw_waiting_time + self.read_out_time)
+        #Break after Initalisation/read out
+        self.ElementAWG(channels={}, length=self.laser_waiting_time)
+
+        self.segments[y_alt_meas_name] = self.BlockAWG
+        
+        self.sample_load_ready_pulsestreamer(name='read_out_jptr')
+        
+        ensemble_list = self.sample_load_ready_AWG_trigger_multi_replay(name, self.segments, self.tau_arr, alternating, freq_sweep, change_freq = True)
+
+        return ensemble_list, name, self.tau_arr, alternating, freq_sweep, actual_t_0 #Pi pulse duration is subtracted and thus total tau includes the Pi pulse
+    
+    def CPMG2_gradiometry(self, t_0, tau, name=None):
+        '''
+                 
+        '''
+        if name is None:
+            name = 'CPMG2-gradiometry-juptr'
+        
+        alternating = True
+        freq_sweep= False
+        if tau<2*self.pi_pulse:
+            print('!!!Given configuration of pi-pulse duration, number of pulses and tau resulting in negativ values!!!')
             return
-        while not (awg_t_0_samples % 16 == 0):
-            awg_t_0_samples += 1
 
-        actual_t_0 = awg_t_0_samples/1.25e9 + self.pi_pulse + tau/2 + self.awg_sync_time
-
-        self.AWG.instance.cards[0].set32(SPC_TRIG_DELAY, awg_t_0_samples)
-        self.AWG.instance.cards[1].set32(SPC_TRIG_DELAY, awg_t_0_samples)
+        tau = tau - 2*self.pi_pulse 
+       
+        t_0_overhead = (3/2*self.pi_pulse + tau/2+ self.awg_sync_time)
+        awg_t_0 = t_0 - t_0_overhead
+        if awg_t_0<0:
+            print(f"Minimum t0 is {t_0_overhead*1e6}us!")
+            return None
+        actual_t_0 = awg_t_0
 
         
         self.tau_arr = np.array([1,2]) #1 is for the final rotation around X, 2 is the final rotation around Y. Only important if meaurement is run via pulsed Gui to reduce confusion
@@ -2985,7 +3094,8 @@ class PulsedJupyterLogic(GenericLogic):
         #Run rotation around X
         self.BlockAWG = []
         x_meas_name = name + '-x-meas'
-
+        
+        self.ElementAWG(channels={}, length=awg_t_0)
         #Pi/2 pulse
         self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse/2)
         #First waiting time + tau/2
@@ -3011,6 +3121,7 @@ class PulsedJupyterLogic(GenericLogic):
         self.BlockAWG = []
         y_meas_name = name + '-y-meas'
 
+        self.ElementAWG(channels={}, length=awg_t_0)
         #Pi/2 pulse
         self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse/2)
         #First waiting time + tau/2
@@ -3036,6 +3147,7 @@ class PulsedJupyterLogic(GenericLogic):
         self.BlockAWG = []
         x_alt_meas_name = name + '-x-alt-meas'
 
+        self.ElementAWG(channels={}, length=awg_t_0)
         #Pi/2 pulse
         self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse/2)
         #First waiting time + tau/2
@@ -3061,6 +3173,7 @@ class PulsedJupyterLogic(GenericLogic):
         self.BlockAWG = []
         y_alt_meas_name = name + '-y-alt-meas'
 
+        self.ElementAWG(channels={}, length=awg_t_0)
         #Pi/2 pulse
         self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse/2)
         #First waiting time + tau/2
@@ -3087,7 +3200,8 @@ class PulsedJupyterLogic(GenericLogic):
         ensemble_list = self.sample_load_ready_AWG_trigger_multi_replay(name, self.segments, self.tau_arr, alternating, freq_sweep, change_freq = True)
 
         return ensemble_list, name, self.tau_arr, alternating, freq_sweep, actual_t_0 #Pi pulse duration is subtracted and thus total tau includes the Pi pulse
-    
+
+
     def CPMG1_gradiometry_t_0(self, t_0_start, t_0_stop, t_0_num, tau):
         #############################################################
         #!!!!! This method cannot be run with the current pulsed measurement modul, as this only support two traces, while 4 traces are measured in this method!!!!!
@@ -3454,6 +3568,77 @@ class PulsedJupyterLogic(GenericLogic):
         ensemble_list = self.sample_load_ready_AWG_trigger_multi_replay(name, self.segments, self.tau_arr, alternating, freq_sweep, change_freq = True)
 
         return ensemble_list, name, self.tau_arr, alternating, freq_sweep, actual_t_0 #Pi pulse duration is subtracted and thus total tau includes the Pi pulse
+
+    def CPMG1_test(self, tau_start, tau_stop, tau_num, name = None):
+        '''
+                 
+        '''
+        if name is None:
+            name = 'CPMG1-test-juptr'
+        
+        alternating = True
+        freq_sweep= False
+        if tau_start<2*self.pi_pulse:
+            print('!!!Given configuration of pi-pulse duration, number of pulses and tau resulting in negativ values!!!')
+            return
+
+        alternating = True
+        freq_sweep=False
+        self.tau_arr = np.linspace(tau_start, tau_stop, num=tau_num) - self.pi_pulse #compensating the pi_pulse run time
+        
+        #Create pulse sequence for the AWG streamer
+        self.segments = {}
+
+        #Run rotation around X
+        
+        x_meas_name = name + '-x-meas'
+
+        max_tau = self.tau_arr[-1]
+        for tau in self.tau_arr:
+            self.BlockAWG = []
+            #Pi/2 pulse
+            self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse/2)
+            #First waiting time + tau/2
+            self.ElementAWG(channels={}, length=tau/(2))
+            #Pi pulse
+            self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse)
+            #Second waiting time + tau/2
+            self.ElementAWG(channels={}, length=tau/(2))
+            #Pi/2 pulse
+            self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse/2)
+            #Waiting time + read-out
+            self.ElementAWG(channels={'PS_Trig':True}, length=self.mw_waiting_time + self.read_out_time)
+            #Break after Initalisation/read out
+            self.ElementAWG(channels={}, length=self.laser_waiting_time)
+            self.ElementAWG(channels={}, length=(max_tau - tau))
+
+            self.segments[x_meas_name+F"{tau}0"] = self.BlockAWG
+            self.BlockAWG = []
+
+            #Pi/2 pulse
+            self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse/2)
+            #First waiting time + tau/2
+            self.ElementAWG(channels={}, length=tau/(2))
+            #Pi pulse
+            self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse)
+            #Second waiting time + tau/2
+            self.ElementAWG(channels={}, length=tau/(2))
+            #Pi/2 pulse
+            self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse/2, phase_0=180)
+            #Waiting time + read-out
+            self.ElementAWG(channels={'PS_Trig':True}, length=self.mw_waiting_time + self.read_out_time)
+            #Break after Initalisation/read out
+            self.ElementAWG(channels={}, length=self.laser_waiting_time)
+
+            self.ElementAWG(channels={}, length=(max_tau - tau))
+
+            self.segments[x_meas_name+F"{tau}1"] = self.BlockAWG
+        
+        self.sample_load_ready_pulsestreamer(name='read_out_jptr')
+        
+        ensemble_list = self.sample_load_ready_AWG_trigger_multi_replay(name, self.segments, self.tau_arr, alternating, freq_sweep, change_freq = True)
+
+        return ensemble_list, name, self.tau_arr, alternating, freq_sweep #Pi pulse duration is subtracted and thus total tau includes the Pi pulse
 
     ############################################################
     #Lock-in measurements where AWG provides the lock-in signal#
