@@ -2762,6 +2762,14 @@ class ProteusQGUI(GUIBase):
         iso_B_freq2 = self._mw.freq2_isob_freq_DSpinBox.value()
         iso_B_power = self._mw.isob_power_DSpinBox.value()
 
+        if use_iso_B_mode:
+            if use_single_iso_B:
+                self.scan_type = 'Iso_B_single'
+            else:
+                self.scan_type = 'Iso_B'
+        else:
+            self.scan_type = 'AFM'
+
         self._qafm_logic.start_scan_true_area_qafm_fw_by_point(coord0_origin=x_origin,
                                                             coord0_range=x_range,
                                                             coord0_num=res_x,
@@ -3305,7 +3313,7 @@ class ProteusQGUI(GUIBase):
         """
         self._mw.actionSaveDataQAFM.setEnabled(False)
 
-        tag = f'scan{self._mw.scan_id_spinBox.value()}_' + self._mw.qafm_save_LineEdit.text() 
+        tag = f'scan{self._mw.scan_id_spinBox.value()}_' + self.scan_type + '_' + self._mw.qafm_save_LineEdit.text() 
         probe_name = self._mw.probename_LineEdit.text()
         sample_name = self._mw.samplename_LineEdit.text()
 
@@ -3330,7 +3338,7 @@ class ProteusQGUI(GUIBase):
 
         self._mw.actionSaveDataQAFM.setEnabled(False)
 
-        tag = f'scan{self._mw.scan_id_spinBox.value()}_' + self._mw.qafm_save_LineEdit.text() + '_autosave'
+        tag = 'autosave_'+ f'scan{self._mw.scan_id_spinBox.value()}_' + self.scan_type + '_' + self._mw.qafm_save_LineEdit.text()
         probe_name = self._mw.probename_LineEdit.text()
         sample_name = self._mw.samplename_LineEdit.text()
 
@@ -3438,6 +3446,11 @@ class ProteusQGUI(GUIBase):
         tip_osc_turn_off_time = self._mw.tipOscOffTime_doubleSpinBox.value()
         tip_osc_turn_on_time = self._mw.tipOscOnTime_doubleSpinBox.value()
 
+        if optbay:
+            self.scan_type = 'CW_Bayesian'
+        else:
+            self.scan_type = 'CW_ODMR'
+
         self._qafm_logic.start_scan_area_quanti_qafm_fw_by_point(
             coord0_origin=x_origin, coord0_range=x_range, coord0_num=res_x, 
             coord1_origin=y_origin, coord1_range=y_range, coord1_num=res_y, rotation = rotation,
@@ -3513,6 +3526,21 @@ class ProteusQGUI(GUIBase):
         else:
             calc_magnetic_field = None
             bias_data = None
+
+        if mw_tracking_mode:
+            self.scan_type = 'Two_point_tracking'
+        elif mw_list_mode:
+            self.scan_type = 'PODMR'
+        else:
+            arb_pulse_measurement = self._qm.loaded_sequence_label.text()
+            if arb_pulse_measurement == '':
+                arb_pulse_measurement = 'Arb_pulse_meas'
+            if loaded_sequence_mode_tracking_two_point:
+                self.scan_type = f'{arb_pulse_measurement}_with_two_point_tracking'
+            elif loaded_sequence_mode_tracking_podmr:
+                self.scan_type = f'{arb_pulse_measurement}_with_PODMR'
+            else:
+                self.scan_type = arb_pulse_measurement
 
         self._qafm_logic.start_scan_area_pulsed_qafm_fw_by_point(
             coord0_origin=x_origin, coord0_range=x_range, coord0_num=res_x, 
@@ -3590,7 +3618,13 @@ class ProteusQGUI(GUIBase):
         #     bias_data = None
 
         self.disable_scan_actions_quanti()
-        self._qafm_logic.start_scan_area_pulsed_qafm_fw_by_point(
+
+        if tip_osc_mode:
+            self.scan_type = 'Tip_osc_gradiometry'
+        elif artificial_sig_mode:
+            self.scan_type = 'Art_sig_lock_in'
+
+        self._qafm_logic.start_scan_area_gradiometry_qafm_fw_by_point(
             coord0_origin=x_origin, coord0_range=x_range, coord0_num=res_x, 
             coord1_origin=y_origin, coord1_range=y_range, coord1_num=res_y, rotation = rotation,
             afm_int_time=afm_int_time, afm_scan_speed=afm_scan_speed,
