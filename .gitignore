@@ -36,4 +36,9 @@ notebooks/APS100.ipynb
 .ipynb
 .json
 .ipynb
+<<<<<<< HEAD
 hardware/spm/spm_library/
+=======
+hardware/spm/spm_library/ASC500_Python_Control
+hardware/spm/spm_library
+>>>>>>> RT_SPM_Reworked
