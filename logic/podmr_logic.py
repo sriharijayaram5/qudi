@@ -238,6 +238,7 @@ class ODMRLogic(GenericLogic):
             freqs = np.arange(mw_start, mw_stop + mw_step, mw_step)
             final_freq_list.extend(freqs)
             self.frequency_lists.append(freqs)
+        self.log.debug(self.frequency_lists[0].shape)
 
         if type(self.final_freq_list) == list:
             self.final_freq_list = np.array(final_freq_list)

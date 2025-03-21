@@ -706,7 +706,7 @@ class SPM_ASC500(Base, ScannerInterface):
 
             self.lift_off_waiting_time = liftoff_height*1e9*1e-6 #The lift off waiting time is set as lift of height in nm in us: 10nm -> 10us
             
-            self._configureSampleAreaPath_new(point_grid_dict, self._line_points, self._lines_num, liftoff_mode, liftoff_height)
+            self._configureSampleAreaPath_new(point_grid_dict, self._line_points, self._lines_num, liftoff_mode, liftoff_height, tip_osc_off, tip_osc_turn_off_time, tip_osc_turn_on_time, measure_tip_osc_on_and_off)
             self._polled_data = np.zeros(self._line_points) # mean is done anyway so linepoints shouldnt affect.  leaving it in since it was this way
             # self._configurePathDataBuffering(sampTime=afm_int_time) #that is the method where the height measurement is realised via spectroscopy
             self.setup_height_measurement(afm_int_time=afm_int_time)
@@ -875,7 +875,7 @@ class SPM_ASC500(Base, ScannerInterface):
             self._dev.base.setParameter(self._dev.base.getConst('ID_PATH_ACTION'), 2, 2)
             self._dev.base.setParameter(self._dev.base.getConst('ID_PATH_ACTION'), 0, 3)
 
-    def _configureSampleAreaPath_new(self, point_grid_dict, line_points, lines_num, liftoff_mode, liftoff_height):
+    def _configureSampleAreaPath_new(self, point_grid_dict, line_points, lines_num, liftoff_mode, liftoff_height, tip_osc_off, tip_osc_turn_off_time, tip_osc_turn_on_time, measure_tip_osc_on_and_off):
         area_corr0_start, area_corr0_stop, area_corr1_start, area_corr1_stop = point_grid_dict['bottom_left'][0], point_grid_dict['bottom_right'][0], point_grid_dict['bottom_left'][1], point_grid_dict['top_left'][1]
         self._coords = [[area_corr0_start,area_corr1_start],[area_corr0_stop,area_corr1_stop]]
         self._set_scan_area_daisy(area_corr0_start, area_corr0_stop, area_corr1_start, area_corr1_stop)
