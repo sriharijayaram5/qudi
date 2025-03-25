@@ -1311,16 +1311,12 @@ class AFMConfocalLogic(GenericLogic):
                 self._qafm_scan_array[entry]['params']['Tip oscillation turn on time (s)'] = tip_osc_turn_on_time
                 self._qafm_scan_array[entry]['params']['Measure tip oscillation on and off'] = measure_tip_osc_on_and_off
 
-            #Set up the SPM device for performing a scan in path mode
-            ret_val = self._spm.configure_area_new(point_grid_dict, self.scan_arr,
-                                     afm_int_time=afm_int_time,
-                                     afm_scan_speed=afm_scan_speed,
-                                     liftoff_mode=liftoff_mode,
-                                     liftoff_height=liftoff_height,
-                                     tip_osc_off = tip_osc_off,
-                                     tip_osc_turn_off_time = tip_osc_turn_off_time,
-                                     tip_osc_turn_on_time = tip_osc_turn_on_time,
-                                     measure_tip_osc_on_and_off = measure_tip_osc_on_and_off)
+            #Set up the SPM device for performing a scan 
+            ret_val, _ = self._spm.configure_scanner(mode=ScannerMode.PROBE_CONTACT,
+                                                                    params= {'line_points': coord0_num,
+                                                                             'lines_num': coord1_num},
+                                                                    scan_style=ScanStyle.POINT)
+            
             
             if ret_val < 1:
                 self.sigQuantiScanFinished.emit()
@@ -1336,7 +1332,11 @@ class AFMConfocalLogic(GenericLogic):
                                      afm_int_time=afm_int_time,
                                      afm_scan_speed=afm_scan_speed,
                                      liftoff_mode=liftoff_mode,
-                                     liftoff_height=liftoff_height)
+                                     liftoff_height=liftoff_height,
+                                     tip_osc_off = tip_osc_off,
+                                     tip_osc_turn_off_time = tip_osc_turn_off_time,
+                                     tip_osc_turn_on_time = tip_osc_turn_on_time,
+                                     measure_tip_osc_on_and_off = measure_tip_osc_on_and_off)
             
             if ret_val < 1:
                 self.sigQuantiScanFinished.emit()
