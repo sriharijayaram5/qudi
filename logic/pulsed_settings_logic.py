@@ -61,9 +61,9 @@ class PulsedSettingsLogic(GenericLogic):
         """
 
         self.awg_sync_time = 16e-9 + 476.5/1.25e9 #Has to be determined with sample clock
-        self.laser_waiting_time= 1.5e-6
+        self.laser_waiting_time= 1e-6
         self.mw_waiting_time= 0.1e-6
-        self.read_out_time= 2e-6
+        self.read_out_time= 3e-6
         self.add_tt_read_out = 0.6e-6
         self.bin_width = 1e-9
 
