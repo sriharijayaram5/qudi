@@ -1183,8 +1183,6 @@ class AFMConfocalLogic(GenericLogic):
             self.scan_arr = self.create_scan_array(coord0_origin, coord0_range, coord0_num,
                                             coord1_origin, coord1_range,
                                             coord1_num, rotation)
-            
-            point_grid_dict = self.create_point_grid_dict(self.scan_arr)
 
             #Setup timetagger for counter measurements
             self._counter._tagger.sync()
@@ -1316,15 +1314,10 @@ class AFMConfocalLogic(GenericLogic):
                 self._qafm_scan_array[entry]['params']['Measure tip oscillation on and off'] = measure_tip_osc_on_and_off
 
             #Set up the SPM device for performing a scan in path mode
-            ret_val = self._spm.configure_area_new(point_grid_dict, self.scan_arr,
-                                     afm_int_time=afm_int_time,
-                                     afm_scan_speed=afm_scan_speed,
-                                     liftoff_mode=liftoff_mode,
-                                     liftoff_height=liftoff_height,
-                                     tip_osc_off = tip_osc_off,
-                                     tip_osc_turn_off_time = tip_osc_turn_off_time,
-                                     tip_osc_turn_on_time = tip_osc_turn_on_time,
-                                     measure_tip_osc_on_and_off = measure_tip_osc_on_and_off)
+            ret_val, _ = self._spm.configure_scanner(mode=ScannerMode.PROBE_CONTACT,
+                                                                    params= {'line_points': coord0_num,
+                                                                                'lines_num': coord1_num},
+                                                                    scan_style=ScanStyle.POINT)
             
             if ret_val < 1:
                 self.sigQuantiScanFinished.emit()
@@ -1336,11 +1329,15 @@ class AFMConfocalLogic(GenericLogic):
                 return self._qafm_scan_array
             
             #Configuring the scan area with SPM controller
-            ret_val = self._spm.configure_area_new(point_grid_dict, self.scan_arr,
-                                     afm_int_time=afm_int_time,
-                                     afm_scan_speed=afm_scan_speed,
-                                     liftoff_mode=liftoff_mode,
-                                     liftoff_height=liftoff_height)
+            ret_val = self._spm.configure_area_new(self.scan_arr,
+                                            afm_int_time=afm_int_time,
+                                            afm_scan_speed=afm_scan_speed,
+                                            liftoff_mode=liftoff_mode,
+                                            liftoff_height=liftoff_height,
+                                            tip_osc_off = tip_osc_off,
+                                            tip_osc_turn_off_time = tip_osc_turn_off_time,
+                                            tip_osc_turn_on_time = tip_osc_turn_on_time,
+                                            measure_tip_osc_on_and_off = measure_tip_osc_on_and_off)
             
             if ret_val < 1:
                 self.sigQuantiScanFinished.emit()
@@ -1602,8 +1599,6 @@ class AFMConfocalLogic(GenericLogic):
         self.scan_arr = self.create_scan_array(coord0_origin, coord0_range, coord0_num,
                                         coord1_origin, coord1_range,
                                         coord1_num, rotation)
-        
-        point_grid_dict = self.create_point_grid_dict(self.scan_arr)
 
         #Setup the AWG and pulsestreamer for CW ODMR
         self.pulsed_jupyter_logic.AWG.print_log_info = False
@@ -1754,7 +1749,7 @@ class AFMConfocalLogic(GenericLogic):
             return self._qafm_scan_array
         
         #Configuring the scan area with SPM controller
-        ret_val = self._spm.configure_area_new(point_grid_dict, self.scan_arr,
+        ret_val = self._spm.configure_area_new(self.scan_arr,
                                      afm_int_time=afm_int_time,
                                      afm_scan_speed=afm_scan_speed,
                                      liftoff_mode=liftoff_mode,
@@ -1931,9 +1926,6 @@ class AFMConfocalLogic(GenericLogic):
         self.scan_arr = self.create_scan_array(coord0_origin, coord0_range, coord0_num,
                                         coord1_origin, coord1_range,
                                         coord1_num, rotation)
-        
-        point_grid_dict = self.create_point_grid_dict(self.scan_arr)
-
 
         freq_list = np.arange(freq_start, freq_stop+freq_step, freq_step) 
         freq_points = len(freq_list)
@@ -2069,7 +2061,7 @@ class AFMConfocalLogic(GenericLogic):
             return self._qafm_scan_array
         
         #Configuring the scan area with SPM controller
-        ret_val = self._spm.configure_area_new(point_grid_dict, self.scan_arr,
+        ret_val = self._spm.configure_area_new(self.scan_arr,
                                      afm_int_time=afm_int_time,
                                      afm_scan_speed=afm_scan_speed,
                                      liftoff_mode=liftoff_mode,
@@ -2386,8 +2378,6 @@ class AFMConfocalLogic(GenericLogic):
             self.scan_arr = self.create_scan_array(coord0_origin, coord0_range, coord0_num,
                                             coord1_origin, coord1_range,
                                             coord1_num, rotation)
-            
-            point_grid_dict = self.create_point_grid_dict(self.scan_arr)
 
             #Set up the pulse measurement run at each point
             #Get parameters for the pulsed tracking measurement
@@ -2415,8 +2405,7 @@ class AFMConfocalLogic(GenericLogic):
 
             #Set up the Timetagger as the recorder for the pulse measurement
             # make the counter for pulsed measurement ready
-            # 2 histograms are still working for the AWG mode since we measure the two frequencies alternativels. Max counts must be dealt with
-            # maybe integration_time/record_length_s -> max_counts
+            # 2 histograms are still working for the AWG mode since we measure the two frequencies alternativels.
             ret_val = self._counter.configure_recorder(
             mode=HWRecorderMode.GENERAL_PULSED,
             params={'laser_pulses': freq_points,
@@ -2539,9 +2528,6 @@ class AFMConfocalLogic(GenericLogic):
                 self._qafm_scan_array[entry]['params']['Tip oscillation turn on time (s)'] = tip_osc_turn_on_time
                 self._qafm_scan_array[entry]['params']['Measure tip oscillation on and off'] = measure_tip_osc_on_and_off
 
-            #Prepare timetagger for sync with the spm
-            # self._counter._prepare_spm_sync()
-
             #Set up the SPM device for performing a scan in path mode
             ret_val, _ = self._spm.configure_scanner(mode=ScannerMode.PROBE_CONTACT,
                                                                     params= {'line_points': coord0_num,
@@ -2558,7 +2544,7 @@ class AFMConfocalLogic(GenericLogic):
                 return self._qafm_scan_array
             
             #Configuring the scan area with SPM controller
-            ret_val = self._spm.configure_area_new(point_grid_dict, self.scan_arr,
+            ret_val = self._spm.configure_area_new(self.scan_arr,
                                      afm_int_time=afm_int_time,
                                      afm_scan_speed=afm_scan_speed,
                                      liftoff_mode=liftoff_mode,
@@ -2592,17 +2578,13 @@ class AFMConfocalLogic(GenericLogic):
                     counts = 0 
 
                     # do movement and height scan
-                    # self.wait_for_sync()
-                    self._scan_point['Height(Dac)_fw'] = self._spm.scan_point() #Measures height. Gives manual handshake if in lift off mode
+                    self._scan_point['Height(Dac)_fw'] = self._spm.scan_point() #Move to new position, measures height, do liftoff and turn off tip oscillation if wanted.
                     self.sigNewAFMPos.emit(self.get_afm_pos())
-                    # if liftoff_mode:
-                    #     self.wait_for_sync()  
 
                     for n in range(mw_tracking_mode_runs):
-                        self._counter.start_recorder(arm=True)
                         # prepare mw source, recorder and pulse_streamer at every point if neede
-                        # set_list takes 273ms but can work for all HF modes but sweep is faster although works only for evenly spaced hence no HF mode
-                        # mw_tracking_mode
+                        self._counter.start_recorder(arm=True)
+                        
                         if line_num==0 and index==0:
                             coord = (line_num,index)
                         elif line_num!=0 and index==0:
@@ -2612,9 +2594,7 @@ class AFMConfocalLogic(GenericLogic):
                         res_estimate = self.res_freq_array[coord] if n==0 else res_estimate
 
                         try:
-                            # self._mw.set_cw_2(res_estimate, mw_power) #trying with _3 to minimize unnecessary calls to device
                             self._mw.set_cw_tracking(res_estimate + 100e6, mw_power) # minimal cw set function _3 is used which does not repeat setting of power
-                            # self._mw.cw_on_3() # no need for ON maybe - since never switched OFF
                         except:
                             self._stop_request = True
                             self.log.warning('Something has gone wrong with MW device connection!')
@@ -2633,11 +2613,7 @@ class AFMConfocalLogic(GenericLogic):
                         self.res_freq_array[line_num,index] = res_estimate
                         counts = counts + np.mean(ref_data)/ref_time/num_runs
                     
-                    # self._counter._prepare_spm_sync()
-                    # self._counter.spm_sync.clear()
-                    # self._counter.spm_sync.start()
-                    # self._counter._tagger.sync(timeout=5000)
-                    self._spm.scan_point(move_along=True) #Gives manual handshake to proceed to the next point
+                    self._spm.scan_point(move_along=True) #Turns on tip oscillation and approaches the sample if needed
                     self._scan_point['fit_param_fw'] = self.res_freq_array[line_num, index]
 
                     if single_res or single_res_gslac:
@@ -2657,7 +2633,6 @@ class AFMConfocalLogic(GenericLogic):
                         self._pulsed_scan_array['pulsed_fw']['data_alternating_std'][line_num][index] = pulsed_ret1[1]
                         self._pulsed_scan_array['pulsed_fw']['data_delta'][line_num][index] = pulsed_ret0[0] - pulsed_ret0[1]
                         
-                    # self._pulsed_scan_array['pulsed_fw']['data_fit'][line_num][index] = pulsed_ret0
                     self._pulsed_scan_array['pulsed_fw']['data_raw'][line_num][index] = pulsed_meas
 
                     self._scan_counter += 1
@@ -2752,8 +2727,6 @@ class AFMConfocalLogic(GenericLogic):
             self.scan_arr = self.create_scan_array(coord0_origin, coord0_range, coord0_num,
                                             coord1_origin, coord1_range,
                                             coord1_num, rotation)
-            
-            point_grid_dict = self.create_point_grid_dict(self.scan_arr)
 
             #Set up the pulse measurement run at each point
             #Upload and pepare the AWG and pulsestreamer for the PODMR sequence. Only the CW MW will change during scan, if tracking is active
@@ -2922,7 +2895,7 @@ class AFMConfocalLogic(GenericLogic):
                 return self._qafm_scan_array
             
             #Configuring the scan area with SPM controller
-            ret_val = self._spm.configure_area_new(point_grid_dict, self.scan_arr,
+            ret_val = self._spm.configure_area_new(self.scan_arr,
                                      afm_int_time=afm_int_time,
                                      afm_scan_speed=afm_scan_speed,
                                      liftoff_mode=liftoff_mode,
@@ -3119,8 +3092,6 @@ class AFMConfocalLogic(GenericLogic):
             self.scan_arr = self.create_scan_array(coord0_origin, coord0_range, coord0_num,
                                             coord1_origin, coord1_range,
                                             coord1_num, rotation)
-            
-            point_grid_dict = self.create_point_grid_dict(self.scan_arr)
 
             #Prepare the arb. sequence for qafm scan
             uploaded_sequence_step_list = self.pulsed_jupyter_logic.AWG._current_uploaded_sequence_step_list
@@ -3415,7 +3386,7 @@ class AFMConfocalLogic(GenericLogic):
                 return self._qafm_scan_array
             
             #Configuring the scan area with SPM controller
-            ret_val = self._spm.configure_area_new(point_grid_dict, self.scan_arr,
+            ret_val = self._spm.configure_area_new(self.scan_arr,
                                      afm_int_time=afm_int_time,
                                      afm_scan_speed=afm_scan_speed,
                                      liftoff_mode=liftoff_mode,
@@ -3855,8 +3826,6 @@ class AFMConfocalLogic(GenericLogic):
         self.scan_arr = self.create_scan_array(coord0_origin, coord0_range, coord0_num,
                                         coord1_origin, coord1_range,
                                         coord1_num, rotation)
-        
-        point_grid_dict = self.create_point_grid_dict(self.scan_arr)
 
         #Set up the pulse measurement run at each point
         #Get parameters for the pulsed tracking measurement
@@ -3997,7 +3966,7 @@ class AFMConfocalLogic(GenericLogic):
             return self._qafm_scan_array
         
         #Configuring the scan area with SPM controller
-        ret_val = self._spm.configure_area_new(point_grid_dict, self.scan_arr,
+        ret_val = self._spm.configure_area_new(self.scan_arr,
                                     afm_int_time=afm_int_time,
                                     afm_scan_speed=afm_scan_speed,
                                     liftoff_mode=liftoff_mode,
@@ -4363,13 +4332,6 @@ class AFMConfocalLogic(GenericLogic):
 
             self._scan_counter = 0
 
-            # check input values
-        ret_val |= self._spm.check_spm_scan_params_by_plane(plane,
-                                                            coord0_start,
-                                                            coord0_stop,
-                                                            coord1_start,
-                                                            coord1_stop)
-
         if ret_val < 1:
             return self._obj_scan_array
 
@@ -4554,12 +4516,6 @@ class AFMConfocalLogic(GenericLogic):
                                                                    coord1_start,
                                                                    coord1_stop,
                                                                    coord1_num)
-        # check input values
-        # ret_val |= self._spm.check_spm_scan_params_by_plane(plane,
-        #                                                     coord0_start,
-        #                                                     coord0_stop,
-        #                                                     coord1_start,
-        #                                                     coord1_stop)
 
         if ret_val < 1:
             return self._opti_scan_array
@@ -4696,12 +4652,7 @@ class AFMConfocalLogic(GenericLogic):
         self._opti_scan_array = self.initialize_opti_z_scan_array(coord0_start,
                                                                   coord0_stop,
                                                                   res)
-        # check input values
-        # ret_val |= self._spm.check_spm_scan_params_by_plane(plane,
-        #                                                     coord0_start,
-        #                                                     coord0_stop,
-        #                                                     coord1_start,
-        #                                                     coord1_stop)
+
         if ret_val < 1:
             return self._opti_scan_array
 
