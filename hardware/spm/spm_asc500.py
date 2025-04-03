@@ -328,7 +328,7 @@ class SPM_ASC500(Base, ScannerInterface):
     
     def _objective_piezo_act_pos(self):
         piezo_range = self._objective_piezo_act_range()
-        if self._obj_volt_ulim:
+        if self._galvo_mode:
             u_lim = self._obj_volt_ulim/1e6
         else:
             u_lim = self._dev.base.getParameter(self._dev.base.getConst('ID_GENDAC_LIMIT_CT'), 0)/1e6  
