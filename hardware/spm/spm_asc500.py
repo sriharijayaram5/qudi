@@ -881,6 +881,28 @@ class SPM_ASC500(Base, ScannerInterface):
             self._dev.base.setParameter(self._dev.base.getConst('ID_SPEC_MSPOINTS'), int(sampTime/2.5e-6), self.spec_engine_dummy)
             self._dev.base.configureDataBuffering(self._chn_no, self.spec_count) # chNo = same as above; bufSize = Buffersize.
 
+    def _find_spec_count(self, start_cart, stop_cart, m, xy=True):
+        spec_engine = 2
+        n = 3e6//(305.2*m)
+        spec_count0 = int(np.round(3/(305.2e-6*n)))
+        success = False
+        for i in range(100):
+            k = 1
+            for j in range(2):
+                sc0 = spec_count0+i*(k)
+                k*=-1
+                start = self._objective_volt_for_pos(start_cart, xy)
+                stop = self._objective_volt_for_pos(stop_cart, xy)
+                self._dev.base.setParameter(self._dev.base.getConst('ID_SPEC_START_DISP'), start*1e3, spec_engine)
+                self._dev.base.setParameter(self._dev.base.getConst('ID_SPEC_END_DISP'), stop*1e3, spec_engine)
+                self._dev.base.setParameter(self._dev.base.getConst('ID_SPEC_COUNT'), sc0, spec_engine)
+                self._dev.base.setParameter(self._dev.base.getConst('ID_SPEC_STATUS'), 0, spec_engine)
+                time.sleep(0.1)
+                sc = self._dev.base.getParameter(self._dev.base.getConst('ID_SPEC_COUNT'), spec_engine)
+                if sc==sc0:
+                    return sc
+        return -1
+
     def _poll_path_data(self):
         '''
         Polls the buffer after the spec engine is triggered at each point. _grabASCData is a blocking statement that only passes after buffer is full.
