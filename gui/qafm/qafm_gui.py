@@ -457,6 +457,8 @@ class ProteusQGUI(GUIBase):
         self._mw.freq2_isob_freq_DSpinBox.setMinimalStep = 10e3
         self._mw.isob_power_DSpinBox.setMinimalStep = 0.01
 
+        self.scan_type = ''
+
         self._qafm_logic.sigIsoBParamsUpdated.connect(self.update_iso_b_param)
         self.update_iso_b_param()
 
@@ -1330,7 +1332,7 @@ class ProteusQGUI(GUIBase):
                                                                 0, 30e-6, 30, 
                                                                 0, 30e-6, 30, 0)
 
-        pulsed_scan_array = self._qafm_logic.initialize_pulsed_scan_array(np.linspace(10e-9,100e-9,10), False,
+        pulsed_scan_array, pulsed_scan_array_raw = self._qafm_logic.initialize_pulsed_scan_array(np.linspace(10e-9,100e-9,10), False,
                                                                 len(np.linspace(10e-9,100e-9,10)), 1e-9, 3e-6,
                                                                 0, 30e-6, 30, 
                                                                 0, 30e-6, 30, 0)
