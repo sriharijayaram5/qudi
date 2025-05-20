@@ -131,7 +131,7 @@ class MicrowaveSmiq(Base, MicrowaveInterface):
             limits.max_power = 13
         elif self.model == 'SMIQ03B':
             limits.max_frequency = 3.3e9
-            limits.max_power = 13
+            limits.max_power = 16
         elif self.model == 'SMIQ03HD':
             limits.max_frequency = 3.3e9
             limits.max_power = 13

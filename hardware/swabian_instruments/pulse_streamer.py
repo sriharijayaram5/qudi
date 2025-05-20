@@ -57,7 +57,7 @@ class PulseStreamer(Base, PulserInterface):
     _mw_switch = ConfigOption('mw_switch', 4, missing='info')
     _mw_trig = ConfigOption('mw_trig', 5, missing='info')
     _awg_trig = ConfigOption('awg_trig', 6, missing='info')
-    _laser_power_voltage_max = ConfigOption('laser_power_voltage_max', 0.65, missing='info')
+    _laser_power_voltage_max = ConfigOption('laser_power_voltage_max', 1.01, missing='info')
 
     _use_external_clock = ConfigOption('use_external_clock', False, missing='info')
     _external_clock_option = ConfigOption('external_clock_option', 0, missing='info')

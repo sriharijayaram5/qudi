@@ -885,6 +885,47 @@ class PulsedJupyterLogic(GenericLogic):
 
         return ensemble_list, sequence_step_list, name, self.tau_arr, alternating, freq_sweep
     
+    # def MW_waiting_sweep(self, tau_start, tau_stop, tau_num, name = None):
+    #     '''
+    #     Laser(532):       ▇▇▇▇▇▁▁▁▁▁▁▇▇▇▇▇
+    #     MW:               ▁▁▁▁▁▁▁▁▇▇▁▁▁▁▁▁▁
+    #                               tau-sweep             
+    #     '''        
+    #     if name is None:
+    #         name = 'MW-waiting-sweep-juptr'
+
+    #     alternating = True
+    #     freq_sweep=False
+    #     self.tau_arr = np.linspace(tau_start, tau_stop, num=tau_num)
+        
+    #     #Create pulse sequence for the AWG
+    #     self.BlockAWG = []
+
+    #     for tau in self.tau_arr:
+    #         #Break after Initalisation/read out
+    #         self.ElementAWG(channels={}, length=self.laser_waiting_time) 
+    #         #Pi pulse - reference
+    #         self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse)
+    #         #MW Waiting time
+    #         self.ElementAWG(channels={}, length=tau)
+    #         #read out time
+    #         self.ElementAWG(channels={'PS_Trig':True}, length=self.read_out_time)
+
+    #         #Break after Initalisation/read out
+    #         self.ElementAWG(channels={}, length=self.laser_waiting_time) 
+    #         #Pi pulse - reference
+    #         self.ElementAWG(channels={}, length=self.pi_pulse)
+    #         #MW Waiting time
+    #         self.ElementAWG(channels={}, length=tau)
+    #         #read out time
+    #         self.ElementAWG(channels={'PS_Trig':True}, length=self.read_out_time)
+
+    #     self.sample_load_ready_pulsestreamer(name='read_out_jptr')
+        
+    #     ensemble_list, sequence_step_list = self.sample_load_ready_AWG(name, self.tau_arr, alternating, freq_sweep, change_freq = True)
+
+    #     return ensemble_list, sequence_step_list, name, self.tau_arr, alternating, freq_sweep
+    
     def Charge_dynamic_alt(self, waiting_time = 1e-6, name = None):
         '''
         Laser(532):       ▇▇▇▇▇▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▇▇▇▇▇

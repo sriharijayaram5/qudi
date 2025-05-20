@@ -518,7 +518,7 @@ class ODMRLogic(GenericLogic):
             for mw_start, mw_stop, mw_step in zip(self.mw_starts, self.mw_stops, self.mw_steps):
                 num_steps = int(np.rint((mw_stop - mw_start) / mw_step))
                 end_freq = mw_start + num_steps * mw_step
-                freq_list = np.linspace(mw_start, end_freq, num_steps)
+                freq_list = np.linspace(mw_start, end_freq, num_steps + 1)
 
                 # adjust the end frequency in order to have an integer multiple of step size
                 # The master module (i.e. GUI) will be notified about the changed end frequency
@@ -527,6 +527,8 @@ class ODMRLogic(GenericLogic):
                 used_starts.append(mw_start)
                 used_steps.append(mw_step)
                 used_stops.append(end_freq)
+
+            print(final_freq_list)
 
             final_freq_list = np.array(final_freq_list)
             if len(final_freq_list) >= limits.list_maxentries:

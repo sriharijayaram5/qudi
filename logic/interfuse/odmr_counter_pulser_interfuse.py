@@ -87,6 +87,7 @@ class ODMRCounterInterfuse(GenericLogic, ODMRCounterInterface):
         channels = clear(channels)
         channels[d_ch(self._pulser._laser_channel)] = 1.0
         channels[a_ch(self._pulser._laser_analog_channel)] = self._pulser._laser_power_voltage
+        channels[d_ch(self._pulser._mw_switch)] = 1.0
         #block_1.append(init_length = 1e-6, channels = channels, repetition = 1)
         # Changes done by Toni to get a duty cycle for the microwave
         block_1.append(init_length = 1e-3, channels = channels, repetition = 1)
@@ -95,6 +96,7 @@ class ODMRCounterInterfuse(GenericLogic, ODMRCounterInterface):
         channels[d_ch(self._pulser._laser_channel)] = 1.0
         channels[a_ch(self._pulser._laser_analog_channel)] = self._pulser._laser_power_voltage
         channels[d_ch(self._pulser._pixel_start)] = 1.0
+        channels[d_ch(self._pulser._mw_switch)] = 1.0
         block_1.append(init_length = 1e-6, channels = channels, repetition = 1)
 
         channels = clear(channels)
@@ -108,14 +110,14 @@ class ODMRCounterInterfuse(GenericLogic, ODMRCounterInterface):
         channels[a_ch(self._pulser._laser_analog_channel)] = self._pulser._laser_power_voltage
         channels[d_ch(self._pulser._pixel_stop)] = 1.0
         channels[d_ch(self._pulser._mw_switch)] = 0
-        block_1.append(init_length = 1e-6 + (1/clock_frequency), channels = channels, repetition = 1)
+        block_1.append(init_length = 1e-6, channels = channels, repetition = 1)
 
         channels = clear(channels)
         channels[d_ch(self._pulser._laser_channel)] = 1.0
         channels[a_ch(self._pulser._laser_analog_channel)] = self._pulser._laser_power_voltage
-        
         channels[d_ch(self._pulser._mw_trig)] = 1.0
         block_1.append(init_length = 1e-6, channels = channels, repetition = 1)
+        # block_1.append(init_length = 100e-6, channels = channels, repetition = 1)
 
         seq.append([(block_1, 1)])
 

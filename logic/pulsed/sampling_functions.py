@@ -153,6 +153,7 @@ class SamplingFunctions:
 
     @classmethod
     def import_sampling_functions(cls, path_list):
+        print(path_list)
         param_dict = dict()
         for path in path_list:
             if not os.path.exists(path):
