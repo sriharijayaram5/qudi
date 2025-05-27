@@ -963,6 +963,56 @@ class PulsedJupyterLogic(GenericLogic):
 
         return ensemble_list, sequence_step_list, name, self.tau_arr, alternating, freq_sweep
     
+    def Beating_Rabi(self, pi_spacing, pi_pulse_num_stop, readout_on_second, waiting_time_after_readout, name = None):
+        '''
+        Laser(532):       ▇▇▇▇▇▁▁▁▁▁▁▇▇▇▇▇
+        MW:               ▁▁▁▁▁▁▁▁▇▇▁▁▁▁▁▁▁
+                                  tau-sweep             
+        '''        
+        if name is None:
+            name = 'beating-rabi-juptr'
+
+        alternating = True
+        freq_sweep=False
+
+        if readout_on_second:
+            self.tau_arr = np.arange(0,int(pi_pulse_num_stop)+2,2)
+
+        else:
+            self.tau_arr = np.arange(0,int(pi_pulse_num_stop)+1,1)
+        
+        #Create pulse sequence for the AWG
+        self.BlockAWG = []
+
+        for tau in self.tau_arr:
+            #Break after Initalisation/read out
+            self.ElementAWG(channels={}, length=self.laser_waiting_time) 
+            for i in range(tau):
+                #Pi pulse - reference
+                self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse)
+                self.ElementAWG(channels={}, length=pi_spacing)
+            #Waiting time + read-out
+            self.ElementAWG(channels={}, length=self.pi_pulse)
+            self.ElementAWG(channels={'PS_Trig':True}, length=self.mw_waiting_time + self.read_out_time)
+            self.ElementAWG(channels={}, length=waiting_time_after_readout)
+
+            #Break after Initalisation/read out
+            self.ElementAWG(channels={}, length=self.laser_waiting_time) 
+            for i in range(tau):
+                #Pi pulse - reference
+                self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse)
+                self.ElementAWG(channels={}, length=pi_spacing)
+            #Waiting time + read-out
+            self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse)
+            self.ElementAWG(channels={'PS_Trig':True}, length=self.mw_waiting_time + self.read_out_time)
+            self.ElementAWG(channels={}, length=waiting_time_after_readout)
+
+        self.sample_load_ready_pulsestreamer(name='read_out_jptr')
+        
+        ensemble_list, sequence_step_list = self.sample_load_ready_AWG(name, self.tau_arr, alternating, freq_sweep, change_freq = True)
+
+        return ensemble_list, sequence_step_list, name, self.tau_arr, alternating, freq_sweep
+    
     def T1_optical_exp(self, tau_start, tau_stop, tau_num, name = None):
         '''
         Laser(532):       ▇▇▇▇▇▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▇▇▇▇▇
@@ -1030,6 +1080,72 @@ class PulsedJupyterLogic(GenericLogic):
         ensemble_list, sequence_step_list = self.sample_load_ready_AWG_sequence(self.segments, self.sequence_step_list, self.tau_arr, alternating, freq_sweep, change_freq = True)
 
         return ensemble_list, sequence_step_list, name, self.tau_arr, alternating, freq_sweep
+    
+    def T1_optical_lin(self, tau_start, tau_stop, tau_num, name = None):
+        '''
+        Laser(532):       ▇▇▇▇▇▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▇▇▇▇▇
+        MW:               ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+                                                t             
+        '''        
+        if name is None:
+            name = 't1-opti-lin-juptr'
+        
+        alternating = False
+        freq_sweep= False
+        if tau_start<self.mw_waiting_time:
+            print('!!!Given configuration of pi-pulse duration, number of pulses and tau_start resulting in negativ values!!!')
+            return
+        self.tau_arr = np.linspace(tau_start, tau_stop, num=tau_num)-self.mw_waiting_time #Pi pulse duration is subtracted and thus total tau includes the Pi pulse
+
+        #Create pulse sequence for the AWG streamer
+        self.BlockAWG = []
+
+        for tau in self.tau_arr:
+            #Break after Initalisation/read out
+            self.ElementAWG(channels={}, length=tau)
+            self.ElementAWG(channels={'PS_Trig':True}, length=self.mw_waiting_time + self.read_out_time)
+        
+        self.sample_load_ready_pulsestreamer(name='read_out_jptr')
+        
+        self.tau_arr = self.tau_arr+self.mw_waiting_time
+        
+        ensemble_list, sequence_step_list = self.sample_load_ready_AWG(name, self.tau_arr, alternating, freq_sweep, change_freq = True)
+
+        return ensemble_list, sequence_step_list, name, self.tau_arr, alternating, freq_sweep #Pi pulse duration is subtracted and thus total tau includes the Pi pulse   
+    
+    def T1_optical_lin_with_pi_pulse(self, tau_start, tau_stop, tau_num, name = None):
+        '''
+        Laser(532):       ▇▇▇▇▇▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▇▇▇▇▇
+        MW:               ▁▁▁▁▁▁▁▇pi▇▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+                                      X         t             
+        '''        
+        if name is None:
+            name = 't1-opti-lin-pi-pulse-juptr'
+        
+        alternating = False
+        freq_sweep= False
+        if tau_start<(self.mw_waiting_time+self.pi_pulse+self.laser_waiting_time):
+            print('!!!Given configuration of pi-pulse duration, number of pulses and tau_start resulting in negativ values!!!')
+            return
+        self.tau_arr = np.linspace(tau_start, tau_stop, num=tau_num)-(self.mw_waiting_time+self.pi_pulse+self.laser_waiting_time) #Pi pulse duration is subtracted and thus total tau includes the Pi pulse
+
+        #Create pulse sequence for the AWG streamer
+        self.BlockAWG = []
+
+        for tau in self.tau_arr:
+            #Break after Initalisation/read out
+            self.ElementAWG(channels={}, length=self.laser_waiting_time)
+            self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse)
+            self.ElementAWG(channels={}, length=tau)
+            self.ElementAWG(channels={'PS_Trig':True}, length=self.mw_waiting_time + self.read_out_time)
+        
+        self.sample_load_ready_pulsestreamer(name='read_out_jptr')
+        
+        self.tau_arr = self.tau_arr+(self.mw_waiting_time+self.pi_pulse+self.laser_waiting_time)
+        
+        ensemble_list, sequence_step_list = self.sample_load_ready_AWG(name, self.tau_arr, alternating, freq_sweep, change_freq = True)
+
+        return ensemble_list, sequence_step_list, name, self.tau_arr, alternating, freq_sweep #Pi pulse duration is subtracted and thus total tau includes the Pi pulse   
         
     def T1_alt_exp(self, tau_start, tau_stop, tau_num, name = None):
         '''
@@ -1264,6 +1380,51 @@ class PulsedJupyterLogic(GenericLogic):
         ensemble_list, sequence_step_list = self.sample_load_ready_AWG_sequence(self.segments, self.sequence_step_list, self.tau_arr, alternating, freq_sweep, change_freq = True)
 
         return ensemble_list, sequence_step_list, name, self.tau_arr, alternating, freq_sweep
+    
+    def T1_dark_init_alt_lin(self, tau_start, tau_stop, tau_num, name = None):
+        '''
+        Laser(532):       ▇▇▇▇▇▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▇▇▇▇▇
+        MW:               ▁▁▁▁▁▁▁▇pi▇▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+                                    X(-1)             t             
+        Laser(532):       ▇▇▇▇▇▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▇▇▇▇▇
+        MW:               ▁▁▁▁▁▁▁▇pi▇▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▇pi▇▁▁▁▁▁▁▁
+                                    X(-1)             t             X(-1)
+        '''        
+        if name is None:
+            name = 't1-dark-init-alt-lin-juptr'
+        
+        alternating = True
+        freq_sweep= False
+        if tau_start<(2*self.pi_pulse+self.laser_waiting_time+self.mw_waiting_time):
+            print('!!!Given configuration of pi-pulse duration, number of pulses and tau_start resulting in negativ values!!!')
+            return
+        self.tau_arr = np.linspace(tau_start, tau_stop, num=tau_num)-(2*self.pi_pulse+self.laser_waiting_time+self.mw_waiting_time) #Pi pulse duration is subtracted and thus total tau includes the Pi pulse
+
+        #Create pulse sequence for the AWG streamer
+        self.BlockAWG = []
+
+        for tau in self.tau_arr:
+            #Break after Initalisation/read out
+            self.ElementAWG(channels={}, length=self.laser_waiting_time)
+            self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse)
+            self.ElementAWG(channels={}, length=tau)
+            self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse)
+            self.ElementAWG(channels={'PS_Trig':True}, length=self.mw_waiting_time + self.read_out_time)
+            
+            #Alternating run
+            self.ElementAWG(channels={}, length=self.laser_waiting_time)
+            self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse)
+            self.ElementAWG(channels={}, length=tau)
+            self.ElementAWG(channels={}, length=self.pi_pulse)
+            self.ElementAWG(channels={'PS_Trig':True}, length=self.mw_waiting_time + self.read_out_time)
+        
+        self.sample_load_ready_pulsestreamer(name='read_out_jptr')
+        
+        self.tau_arr = self.tau_arr+(2*self.pi_pulse+self.laser_waiting_time+self.mw_waiting_time)
+        
+        ensemble_list, sequence_step_list = self.sample_load_ready_AWG(name, self.tau_arr, alternating, freq_sweep, change_freq = True)
+
+        return ensemble_list, sequence_step_list, name, self.tau_arr, alternating, freq_sweep #Pi pulse duration is subtracted and thus total tau includes the Pi pulse   
         
     def T1_DQ_alt_exp(self, tau_start, tau_stop, tau_num, name = None):
         '''
@@ -1495,6 +1656,49 @@ class PulsedJupyterLogic(GenericLogic):
         ensemble_list, sequence_step_list = self.sample_load_ready_AWG_sequence(self.segments, self.sequence_step_list, self.tau_arr, alternating, freq_sweep, change_freq = True)
 
         return ensemble_list, sequence_step_list, name, self.tau_arr, alternating, freq_sweep
+    
+    def T1_SQ_alt_lin(self, tau_start, tau_stop, tau_num, name = None):
+        '''
+        Laser(532):       ▇▇▇▇▇▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▇▇▇▇▇
+        MW:               ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+                                                t             
+        Laser(532):       ▇▇▇▇▇▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▇▇▇▇▇
+        MW:               ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▇pi▇▁▁▁▁▁▁▁
+                                                t                    X(-1)
+        '''        
+        if name is None:
+            name = 't1-sq-alt-lin-juptr'
+        
+        alternating = True
+        freq_sweep= False
+        if tau_start<(self.pi_pulse+self.laser_waiting_time+self.mw_waiting_time):
+            print('!!!Given configuration of pi-pulse duration, number of pulses and tau_start resulting in negativ values!!!')
+            return
+        self.tau_arr = np.linspace(tau_start, tau_stop, num=tau_num)-(self.pi_pulse+self.laser_waiting_time+self.mw_waiting_time) #Pi pulse duration is subtracted and thus total tau includes the Pi pulse
+
+        #Create pulse sequence for the AWG streamer
+        self.BlockAWG = []
+
+        for tau in self.tau_arr:
+            #Break after Initalisation/read out
+            self.ElementAWG(channels={}, length=self.laser_waiting_time)
+            self.ElementAWG(channels={}, length=tau)
+            self.ElementAWG(channels={}, length=self.pi_pulse)
+            self.ElementAWG(channels={'PS_Trig':True}, length=self.mw_waiting_time + self.read_out_time)
+            
+            #Alternating run
+            self.ElementAWG(channels={}, length=self.laser_waiting_time)
+            self.ElementAWG(channels={}, length=tau)
+            self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse)
+            self.ElementAWG(channels={'PS_Trig':True}, length=self.mw_waiting_time + self.read_out_time)
+        
+        self.sample_load_ready_pulsestreamer(name='read_out_jptr')
+        
+        self.tau_arr = self.tau_arr+(self.pi_pulse+self.laser_waiting_time+self.mw_waiting_time)
+        
+        ensemble_list, sequence_step_list = self.sample_load_ready_AWG(name, self.tau_arr, alternating, freq_sweep, change_freq = True)
+
+        return ensemble_list, sequence_step_list, name, self.tau_arr, alternating, freq_sweep #Pi pulse duration is subtracted and thus total tau includes the Pi pulse   
     
     def Ramsey_alt_phased(self, tau_start, tau_stop, tau_num, name = None):
         '''
