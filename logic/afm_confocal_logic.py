@@ -37,6 +37,7 @@ import threading
 import numpy as np
 import os
 import pickle
+import joblib
 import re
 import time
 import datetime
@@ -424,6 +425,8 @@ class AFMConfocalLogic(GenericLogic):
     sigQuantiScanStarted = QtCore.Signal()
     sigQuantiScanFinished = QtCore.Signal()
 
+    sigSaveTempData = QtCore.Signal(bool)
+
     # Single IsoB Parameter
     sigIsoBParamsUpdated = QtCore.Signal()
 
@@ -446,6 +449,8 @@ class AFMConfocalLogic(GenericLogic):
     # Move Settings
     # _sg_idle_move_target_sample = StatusVar(default=0.5)
     # _sg_idle_move_target_obj = StatusVar(default=0.5)
+    _sg_retract_after_scan = StatusVar(default = True)
+    _sg_keep_position_after_force_stop = StatusVar(default = False)
 
     # Scan Settings
     _sg_idle_move_scan_sample = StatusVar(default=0.1)
@@ -458,6 +463,8 @@ class AFMConfocalLogic(GenericLogic):
     _sg_root_folder_name = StatusVar(default='')
     _sg_create_summary_pic = StatusVar(default=True)
     _sg_save_to_gwyddion = StatusVar(default=False)
+    _sg_save_raw_time_traces = StatusVar(default = False)
+    _sg_save_temp_data = StatusVar(default = False)
 
     # Save scan automatically after it has finished
     _sg_auto_save_quanti = StatusVar(default=False)
@@ -549,7 +556,7 @@ class AFMConfocalLogic(GenericLogic):
                                                                 0, 100e-6, 10, 
                                                                 0, 100e-6, 10, 0)
 
-        self._pulsed_scan_array = self.initialize_pulsed_scan_array(np.linspace(10e-9,100e-9,10), False,
+        self._pulsed_scan_array, self._pulsed_scan_array_raw = self.initialize_pulsed_scan_array(np.linspace(10e-9,100e-9,10), False,
                                                                 len(np.linspace(10e-9,100e-9,10)), 1e-9, 3e-6,
                                                                 0, 100e-6, 10, 
                                                                 0, 100e-6, 10, 0)
@@ -568,8 +575,6 @@ class AFMConfocalLogic(GenericLogic):
 
         self.optimum = False
         self.pickiness = 19
-
-        self.retract_after_scan = True
 
         # safety precaution in case the meas path does not exist
         if not os.path.exists(self._meas_path):
@@ -719,7 +724,7 @@ class AFMConfocalLogic(GenericLogic):
     
     def initialize_pulsed_scan_array(self, var_list, alternating, laser_pulses, bin_width_s, record_length_s,
                                   coord0_start, coord0_stop, num_columns,
-                                  coord1_start, coord1_stop, num_rows, rotation):
+                                  coord1_start, coord1_stop, num_rows, rotation, save_raw_data = False):
         """ Initialize the ESR scan array data.
         The dimensions are not the same for the ESR data, it is a 3 dimensional
         tensor rather then a 2 dimentional matrix. """
@@ -727,6 +732,7 @@ class AFMConfocalLogic(GenericLogic):
 
         name = 'pulsed'
         meas_dict = {}
+        meas_dict_raw = {}
         meas_dir = ['fw']
         n_var = laser_pulses
         n_bins = int(record_length_s/bin_width_s)
@@ -741,7 +747,6 @@ class AFMConfocalLogic(GenericLogic):
                                'data_fit': np.zeros((num_rows, num_columns, int(n_var/2) if alternating else n_var)),
                                'data_alternating_fit': np.zeros((num_rows, num_columns, int(n_var/2) if alternating else n_var)),
                                'data_delta': np.zeros((num_rows, num_columns, int(n_var/2) if alternating else n_var)),
-                               'data_raw': np.zeros((num_rows, num_columns, n_var, n_bins)),
                                'coord0_arr': np.linspace(coord0_start, coord0_stop, num_columns, endpoint=True),
                                'coord1_arr': np.linspace(coord1_start, coord1_stop, num_rows, endpoint=True),
                                'coord2_arr': var_list,
@@ -750,10 +755,26 @@ class AFMConfocalLogic(GenericLogic):
                                'si_units': 'c/s',
                                'nice_name': 'Fluorescence',
                                'params': {'alternating': alternating, 'rotation': rotation},  # !!! here are all the measurement parameter saved
-                               'display_range': None,
+                               'display_range': None
                                }
+            
+            if save_raw_data:
+                meas_dict_raw[name] = {'data_raw': np.zeros((num_rows, num_columns, n_var, n_bins)),
+                                        'coord0_arr': np.linspace(coord0_start, coord0_stop, num_columns, endpoint=True),
+                                        'coord1_arr': np.linspace(coord1_start, coord1_stop, num_rows, endpoint=True),
+                                        'coord2_arr': var_list,
+                                        'measured_units': 'Raw signal',
+                                        'scale_fac': 1,  # multiplication factor to obtain SI units
+                                        'si_units': 'c/s',
+                                        'nice_name': 'Fluorescence',
+                                        'params': {'alternating': alternating, 'rotation': rotation},  # !!! here are all the measurement parameter saved
+                                        'display_range': None,
+                                        'save_raw_data': save_raw_data}
+            else:
+                meas_dict_raw[name] = {'save_raw_data': save_raw_data}
         self._pulsed_scan_array = meas_dict
-        return meas_dict
+        self._pulsed_scan_array_raw = meas_dict_raw
+        return meas_dict, meas_dict_raw
 
 
     def initialize_obj_scan_array(self, plane_name, coord0_start, coord0_stop, num_columns, 
@@ -859,6 +880,8 @@ class AFMConfocalLogic(GenericLogic):
 
         # settings dictionary
         sd = {}
+        sd['retract_after_scan'] = self._sg_retract_after_scan
+        sd['keep_position_after_force_stop'] = self._sg_keep_position_after_force_stop
         # Move Settings
         # sd['idle_move_target_sample'] = self._sg_idle_move_target_sample
         # sd['idle_move_target_obj'] = self._sg_idle_move_target_obj
@@ -874,6 +897,8 @@ class AFMConfocalLogic(GenericLogic):
         sd['auto_save_quanti'] = self._sg_auto_save_quanti
         sd['auto_save_qafm'] = self._sg_auto_save_qafm
         sd['save_to_gwyddion'] = self._sg_save_to_gwyddion
+        sd['save_raw_time_traces'] = self._sg_save_raw_time_traces
+        sd['save_temp_data'] = self._sg_save_temp_data
         # Optimizer Settings
         sd['optimizer_x_range'] = self._sg_optimizer_x_range
         sd['optimizer_x_res'] = self._sg_optimizer_x_res
@@ -1412,17 +1437,21 @@ class AFMConfocalLogic(GenericLogic):
             stop_time_afm_scan = datetime.datetime.now()
             self._afm_meas_duration = self._afm_meas_duration + (stop_time_afm_scan - start_time_afm_scan).total_seconds()
 
+            keep_position = False
+            
             if line_num == self._spm_line_num:
                 self.log.info(f'Scan finished at {int(self._afm_meas_duration)}s. Yeehaa!')
             else:
                 self.log.info(f'Scan stopped at {int(self._afm_meas_duration)}s.')
+                if self._sg_keep_position_after_force_stop:
+                    keep_position = True
 
             for entry in self._qafm_scan_array:
                 self._qafm_scan_array[entry]['params']['Measurement stop'] = stop_time_afm_scan.isoformat()
                 self._qafm_scan_array[entry]['params']['Total measurement time (s)'] = self._afm_meas_duration
 
             # clean up the spm
-            self._spm.finish_scan(retract=self.retract_after_scan)
+            self._spm.finish_scan(retract=self._sg_retract_after_scan, keep_position = keep_position)
             self._mw.off()
             # self._counter.stop_measurement()
             self._pulsed_master_AWG.pulsedmeasurementlogic().pulsegenerator().pulser_off()
@@ -1588,6 +1617,8 @@ class AFMConfocalLogic(GenericLogic):
         """
         self.sigQuantiScanStarted.emit()
         self._stop_request = False
+
+        save_temp_data = self._sg_save_temp_data
 
         measure_tip_osc_on_and_off = False
 
@@ -1840,6 +1871,12 @@ class AFMConfocalLogic(GenericLogic):
                 # remove possibility to stop during line scan.
                 if self._stop_request:
                     break
+            
+            if save_temp_data:
+                if line_num == 0:
+                    self.sigSaveTempData.emit(True)
+                else:
+                    self.sigSaveTempData.emit(False)
 
             time_now = time.monotonic()
             total_time = round((time_now - time_prev)/(line_num * coord0_num + index + 1) * (coord0_num*coord1_num)/60/60,3)
@@ -1858,17 +1895,21 @@ class AFMConfocalLogic(GenericLogic):
         stop_time_afm_scan = datetime.datetime.now()
         self._afm_meas_duration = self._afm_meas_duration + (stop_time_afm_scan - start_time_afm_scan).total_seconds()
 
+        keep_position = False
+            
         if line_num == self._spm_line_num:
             self.log.info(f'Scan finished at {int(self._afm_meas_duration)}s. Yeehaa!')
         else:
             self.log.info(f'Scan stopped at {int(self._afm_meas_duration)}s.')
+            if self._sg_keep_position_after_force_stop:
+                keep_position = True
 
         for entry in self._qafm_scan_array:
             self._qafm_scan_array[entry]['params']['Measurement stop'] = stop_time_afm_scan.isoformat()
             self._qafm_scan_array[entry]['params']['Total measurement time (s)'] = self._afm_meas_duration
 
         # clean up the spm
-        self._spm.finish_scan(retract=self.retract_after_scan)
+        self._spm.finish_scan(retract=self._sg_retract_after_scan, keep_position = keep_position)
         self._mw.off()
         self._counter.stop_measurement()
         self._pulsed_master_AWG.pulsedmeasurementlogic().pulsegenerator().pulser_off()
@@ -1915,6 +1956,8 @@ class AFMConfocalLogic(GenericLogic):
         """
         self.sigQuantiScanStarted.emit()
         self._stop_request = False
+
+        save_temp_data = self._sg_save_temp_data
 
         measure_tip_osc_on_and_off = False
 
@@ -2194,6 +2237,12 @@ class AFMConfocalLogic(GenericLogic):
                 if self._stop_request:
                     break
 
+            if save_temp_data:
+                if line_num == 0:
+                    self.sigSaveTempData.emit(True)
+                else:
+                    self.sigSaveTempData.emit(False)
+
             time_now = time.monotonic()
             total_time = round((time_now - time_prev)/(line_num * coord0_num + index + 1) * (coord0_num*coord1_num)/60/60,3)
             time_rem = round(total_time - (time_now - time_prev)/60/60,3)
@@ -2211,17 +2260,21 @@ class AFMConfocalLogic(GenericLogic):
         self._afm_meas_duration = self._afm_meas_duration + (
                     stop_time_afm_scan - start_time_afm_scan).total_seconds()
 
+        keep_position = False
+            
         if line_num == self._spm_line_num:
             self.log.info(f'Scan finished at {int(self._afm_meas_duration)}s. Yeehaa!')
         else:
             self.log.info(f'Scan stopped at {int(self._afm_meas_duration)}s.')
+            if self._sg_keep_position_after_force_stop:
+                keep_position = True
 
         for entry in self._qafm_scan_array:
             self._qafm_scan_array[entry]['params']['Measurement stop'] = stop_time_afm_scan.isoformat()
             self._qafm_scan_array[entry]['params']['Total measurement time (s)'] = self._afm_meas_duration
 
         # clean up the spm
-        self._spm.finish_scan(retract=self.retract_after_scan)
+        self._spm.finish_scan(retract=self._sg_retract_after_scan, keep_position = keep_position)
         self._mw.off()
         self._counter.stop_measurement()
         self._pulser.pulser_off()
@@ -2368,6 +2421,9 @@ class AFMConfocalLogic(GenericLogic):
             self.sigQuantiScanStarted.emit()
             self._stop_request = False
 
+            save_raw_data = self._sg_save_raw_time_traces
+            save_temp_data = self._sg_save_temp_data
+
             measure_tip_osc_on_and_off = False
 
             coord0_start = coord0_origin-coord0_range/2
@@ -2466,7 +2522,7 @@ class AFMConfocalLogic(GenericLogic):
                                                                     self.scan_dir)
 
             #Create dictonary for saving the raw pulsed data for each pixel
-            self._pulsed_scan_array = self.initialize_pulsed_scan_array(var_list, alternating,
+            self._pulsed_scan_array, self._pulsed_scan_array_raw = self.initialize_pulsed_scan_array(var_list, alternating,
                                                                 freq_points,
                                                                 bin_width_s,
                                                                 record_length_s+add_tt_read_out,
@@ -2476,7 +2532,7 @@ class AFMConfocalLogic(GenericLogic):
                                                                 coord1_start, 
                                                                 coord1_stop, 
                                                                 coord1_num,
-                                                                rotation)
+                                                                rotation, save_raw_data)
             
             if bias_data is not None:
                 self._pulsed_scan_array['pulsed_fw']['data_bias'] = data_bias
@@ -2633,7 +2689,9 @@ class AFMConfocalLogic(GenericLogic):
                         self._pulsed_scan_array['pulsed_fw']['data_alternating_std'][line_num][index] = pulsed_ret1[1]
                         self._pulsed_scan_array['pulsed_fw']['data_delta'][line_num][index] = pulsed_ret0[0] - pulsed_ret0[1]
                         
-                    self._pulsed_scan_array['pulsed_fw']['data_raw'][line_num][index] = pulsed_meas
+                    # self._pulsed_scan_array['pulsed_fw']['data_fit'][line_num][index] = pulsed_ret0
+                    if save_raw_data:
+                        self._pulsed_scan_array_raw['pulsed_fw']['data_raw'][line_num][index] = pulsed_meas
 
                     self._scan_counter += 1
 
@@ -2642,6 +2700,12 @@ class AFMConfocalLogic(GenericLogic):
                     # remove possibility to stop during line scan.
                     if self._stop_request:
                         break
+
+                if save_temp_data:
+                    if line_num == 0:
+                        self.sigSaveTempData.emit(True)
+                    else:
+                        self.sigSaveTempData.emit(False)
 
                 time_now = time.monotonic()
                 total_time = round((time_now - time_prev)/(line_num * coord0_num + index + 1) * (coord0_num*coord1_num)/60/60,3)
@@ -2660,17 +2724,21 @@ class AFMConfocalLogic(GenericLogic):
             stop_time_afm_scan = datetime.datetime.now()
             self._afm_meas_duration = self._afm_meas_duration + (stop_time_afm_scan - start_time_afm_scan).total_seconds()
 
+            keep_position = False
+            
             if line_num == self._spm_line_num:
                 self.log.info(f'Scan finished at {int(self._afm_meas_duration)}s. Yeehaa!')
             else:
                 self.log.info(f'Scan stopped at {int(self._afm_meas_duration)}s.')
+                if self._sg_keep_position_after_force_stop:
+                    keep_position = True
 
             for entry in self._qafm_scan_array:
                 self._qafm_scan_array[entry]['params']['Measurement stop'] = stop_time_afm_scan.isoformat()
                 self._qafm_scan_array[entry]['params']['Total measurement time (s)'] = self._afm_meas_duration
 
             # clean up the spm
-            self._spm.finish_scan(retract=self.retract_after_scan)
+            self._spm.finish_scan(retract=self._sg_retract_after_scan, keep_position = keep_position)
             self._mw.off()
             self._counter.stop_measurement()
             self._pulsed_master_AWG.pulsedmeasurementlogic().pulsegenerator().pulser_off()
@@ -2716,6 +2784,9 @@ class AFMConfocalLogic(GenericLogic):
             """
             self.sigQuantiScanStarted.emit()
             self._stop_request = False
+
+            save_raw_data = self._sg_save_raw_time_traces
+            save_temp_data = self._sg_save_temp_data
 
             measure_tip_osc_on_and_off = False
 
@@ -2819,7 +2890,7 @@ class AFMConfocalLogic(GenericLogic):
                                                                     self.scan_dir)
 
             #Create dictonary for saving the raw pulsed data for each pixel
-            self._pulsed_scan_array = self.initialize_pulsed_scan_array(original_var_list, alternating,
+            self._pulsed_scan_array, self._pulsed_scan_array_raw = self.initialize_pulsed_scan_array(original_var_list, alternating,
                                                                 freq_points,
                                                                 bin_width_s,
                                                                 record_length_s+add_tt_read_out,
@@ -2829,7 +2900,7 @@ class AFMConfocalLogic(GenericLogic):
                                                                 coord1_start, 
                                                                 coord1_stop, 
                                                                 coord1_num,
-                                                                rotation)
+                                                                rotation, save_raw_data)
             
             if bias_data is not None:
                 self._pulsed_scan_array['pulsed_fw']['data_bias'] = data_bias
@@ -2842,6 +2913,8 @@ class AFMConfocalLogic(GenericLogic):
             self.res_freq_array = np.ones((coord1_num, coord0_num)) * LO_freq
             if podmr_list_mode_tracking:
                 self._pulsed_scan_array['pulsed_fw']['var_list'] = np.zeros((coord1_num, coord0_num, len(original_var_list)))
+                if save_raw_data:
+                    self._pulsed_scan_array_raw['pulsed_fw']['var_list'] = np.zeros((coord1_num, coord0_num, len(original_var_list)))
 
             #Save the measurement parameters
             start_time_afm_scan = datetime.datetime.now()
@@ -2937,6 +3010,8 @@ class AFMConfocalLogic(GenericLogic):
                             coord = (line_num,index-1) 
                             res_estimate = self.res_freq_array[coord]+var_range/2+100e6
                         self._pulsed_scan_array['pulsed_fw']['var_list'][line_num][index] = original_var_list + res_estimate - LO_freq
+                        if save_raw_data:
+                            self._pulsed_scan_array_raw['pulsed_fw']['var_list'][line_num][index] = original_var_list + res_estimate - LO_freq
                         current_var_list = original_var_list + res_estimate - LO_freq
 
                         try:
@@ -2995,7 +3070,8 @@ class AFMConfocalLogic(GenericLogic):
                         self._pulsed_scan_array['pulsed_fw']['data_delta'][line_num][index] = pulsed_ret0[0] - pulsed_ret0[1]
                         
                     # self._pulsed_scan_array['pulsed_fw']['data_fit'][line_num][index] = pulsed_ret0
-                    self._pulsed_scan_array['pulsed_fw']['data_raw'][line_num][index] = pulsed_meas
+                    if save_raw_data:
+                        self._pulsed_scan_array_raw['pulsed_fw']['data_raw'][line_num][index] = pulsed_meas
 
                     self._scan_counter += 1
 
@@ -3004,6 +3080,12 @@ class AFMConfocalLogic(GenericLogic):
                     # remove possibility to stop during line scan.
                     if self._stop_request:
                         break
+
+                if save_temp_data:
+                    if line_num == 0:
+                        self.sigSaveTempData.emit(True)
+                    else:
+                        self.sigSaveTempData.emit(False)
 
                 time_now = time.monotonic()
                 total_time = round((time_now - time_prev)/(line_num * coord0_num + index + 1) * (coord0_num*coord1_num)/60/60,3)
@@ -3022,17 +3104,21 @@ class AFMConfocalLogic(GenericLogic):
             stop_time_afm_scan = datetime.datetime.now()
             self._afm_meas_duration = self._afm_meas_duration + (stop_time_afm_scan - start_time_afm_scan).total_seconds()
 
+            keep_position = False
+            
             if line_num == self._spm_line_num:
                 self.log.info(f'Scan finished at {int(self._afm_meas_duration)}s. Yeehaa!')
             else:
                 self.log.info(f'Scan stopped at {int(self._afm_meas_duration)}s.')
+                if self._sg_keep_position_after_force_stop:
+                    keep_position = True
 
             for entry in self._qafm_scan_array:
                 self._qafm_scan_array[entry]['params']['Measurement stop'] = stop_time_afm_scan.isoformat()
                 self._qafm_scan_array[entry]['params']['Total measurement time (s)'] = self._afm_meas_duration
 
             # clean up the spm
-            self._spm.finish_scan(retract=self.retract_after_scan)
+            self._spm.finish_scan(retract=self._sg_retract_after_scan, keep_position = keep_position)
             self._mw.off()
             self._counter.stop_measurement()
             self._pulsed_master_AWG.pulsedmeasurementlogic().pulsegenerator().pulser_off()
@@ -3080,6 +3166,9 @@ class AFMConfocalLogic(GenericLogic):
             """
             self.sigQuantiScanStarted.emit()
             self._stop_request = False
+
+            save_raw_data = self._sg_save_raw_time_traces
+            save_temp_data = self._sg_save_temp_data
 
             podmr_tracking_name ='podmr-qafm-scan'
             two_point_tracking_name = 'two-point-tracking-qafm-scan'
@@ -3272,7 +3361,7 @@ class AFMConfocalLogic(GenericLogic):
                                                                     self.scan_dir)
 
             #Create dictonary for saving the raw pulsed data for each pixel
-            self._pulsed_scan_array = self.initialize_pulsed_scan_array(var_list, alternating,
+            self._pulsed_scan_array, self._pulsed_scan_array_raw = self.initialize_pulsed_scan_array(var_list, alternating,
                                                                 laser_pulses,
                                                                 bin_width_s,
                                                                 record_length_s, #This already includes the extra time for the timetagger add_tt_read_out
@@ -3282,18 +3371,25 @@ class AFMConfocalLogic(GenericLogic):
                                                                 coord1_start, 
                                                                 coord1_stop, 
                                                                 coord1_num,
-                                                                rotation)
+                                                                rotation, save_raw_data)
             
             self._pulsed_scan_array['pulsed_fw']['Tracking'] = loaded_sequence_mode_tracking_two_point or loaded_sequence_mode_tracking_podmr
+            if save_raw_data:
+                self._pulsed_scan_array_raw['pulsed_fw']['Tracking'] = loaded_sequence_mode_tracking_two_point or loaded_sequence_mode_tracking_podmr
             
             if loaded_sequence_mode_tracking_two_point or loaded_sequence_mode_tracking_podmr:
                 self._pulsed_scan_array['pulsed_fw']['data_tracking'] = np.zeros((coord1_num, coord0_num, freq_points_tracking))
                 self._pulsed_scan_array['pulsed_fw']['data_std_tracking'] = np.zeros((coord1_num, coord0_num, freq_points_tracking))
-                self._pulsed_scan_array['pulsed_fw']['data_raw_tracking'] = np.zeros((coord1_num, coord0_num, freq_points_tracking, int((record_length_s_tracking+add_tt_read_out_tracking)/bin_width_s_tracking)))
+                if save_raw_data:
+                    self._pulsed_scan_array_raw['pulsed_fw']['data_raw_tracking'] = np.zeros((coord1_num, coord0_num, freq_points_tracking, int((record_length_s_tracking+add_tt_read_out_tracking)/bin_width_s_tracking)))
                 if podmr_list_mode_tracking and loaded_sequence_mode_tracking_podmr:
                     self._pulsed_scan_array['pulsed_fw']['var_list_tracking'] = np.zeros((coord1_num, coord0_num, len(var_list_tracking)))
+                    if save_raw_data:
+                        self._pulsed_scan_array_raw['pulsed_fw']['var_list_tracking'] = np.zeros((coord1_num, coord0_num, len(var_list_tracking)))
                 else:
                     self._pulsed_scan_array['pulsed_fw']['var_list_tracking'] = var_list_tracking
+                    if save_raw_data:
+                        self._pulsed_scan_array_raw['pulsed_fw']['var_list_tracking'] = var_list_tracking
 
                 if bias_data is not None:
                     self._pulsed_scan_array['pulsed_fw']['data_bias'] = data_bias
@@ -3307,9 +3403,10 @@ class AFMConfocalLogic(GenericLogic):
                                                                       'data_std': np.zeros((coord1_num, coord0_num, int(laser_pulses/2) if alternating else laser_pulses)),
                                                                       'data_alternating': np.zeros((coord1_num, coord0_num, int(laser_pulses/2) if alternating else laser_pulses)),
                                                                       'data_alternating_std': np.zeros((coord1_num, coord0_num, int(laser_pulses/2) if alternating else laser_pulses)),
-                                                                      'data_delta': np.zeros((coord1_num, coord0_num, int(laser_pulses/2) if alternating else laser_pulses)),
-                                                                      'data_raw': np.zeros((coord1_num, coord0_num, laser_pulses, int(record_length_s/bin_width_s)))
+                                                                      'data_delta': np.zeros((coord1_num, coord0_num, int(laser_pulses/2) if alternating else laser_pulses))
                                                                     }
+                if save_raw_data:
+                    self._pulsed_scan_array_raw['pulsed_fw']['tip_osc_on'] = {'data_raw': np.zeros((coord1_num, coord0_num, laser_pulses, int(record_length_s/bin_width_s)))}
 
             #prepare arrays for specific modes
             self.res_freq_array = np.ones((coord1_num, coord0_num)) * res_freq
@@ -3488,6 +3585,8 @@ class AFMConfocalLogic(GenericLogic):
                                     coord = (line_num,index-1) 
                                     res_estimate = self.res_freq_array[coord]+var_range_tracking/2+100e6
                                 self._pulsed_scan_array['pulsed_fw']['var_list_tracking'][line_num][index] = original_var_list + res_estimate - LO_freq
+                                if save_raw_data:
+                                    self._pulsed_scan_array_raw['pulsed_fw']['var_list_tracking'][line_num][index] = original_var_list + res_estimate - LO_freq
                                 var_list_tracking = original_var_list + res_estimate - LO_freq  
                                 
                             else:
@@ -3515,7 +3614,8 @@ class AFMConfocalLogic(GenericLogic):
                         self._scan_point['fit_param_fw'] = self.res_freq_array[line_num, index]
                         self._pulsed_scan_array['pulsed_fw']['data_tracking'][line_num][index] = pulsed_ret0 
                         self._pulsed_scan_array['pulsed_fw']['data_std_tracking'][line_num][index] = pulsed_ret1 
-                        self._pulsed_scan_array['pulsed_fw']['data_raw_tracking'][line_num][index] = pulsed_meas
+                        if save_raw_data:
+                            self._pulsed_scan_array_raw['pulsed_fw']['data_raw_tracking'][line_num][index] = pulsed_meas
 
                         if single_res or single_res_gslac:
                             self._scan_point['b_field_fw'] =  self.calc_mag_field_single_res(res_estimate, 
@@ -3586,7 +3686,8 @@ class AFMConfocalLogic(GenericLogic):
                             self._pulsed_scan_array['pulsed_fw']['tip_osc_on']['data_delta'][line_num][index] = pulsed_ret0_tip_osc_on[0] - pulsed_ret0_tip_osc_on[1]
                             
                         # self._pulsed_scan_array['pulsed_fw']['data_fit'][line_num][index] = pulsed_ret0
-                        self._pulsed_scan_array['pulsed_fw']['tip_osc_on']['data_raw'][line_num][index] = pulsed_meas_tip_osc_on
+                        if save_raw_data:
+                            self._pulsed_scan_array_raw['pulsed_fw']['tip_osc_on']['data_raw'][line_num][index] = pulsed_meas_tip_osc_on
                     
                     self._spm.scan_point(move_along=True)
 
@@ -3612,7 +3713,8 @@ class AFMConfocalLogic(GenericLogic):
                         self._pulsed_scan_array['pulsed_fw']['data_delta'][line_num][index] = pulsed_ret0[0] - pulsed_ret0[1]
                         
                     # self._pulsed_scan_array['pulsed_fw']['data_fit'][line_num][index] = pulsed_ret0
-                    self._pulsed_scan_array['pulsed_fw']['data_raw'][line_num][index] = pulsed_meas
+                    if save_raw_data:
+                        self._pulsed_scan_array_raw['pulsed_fw']['data_raw'][line_num][index] = pulsed_meas
 
                     self._scan_counter += 1
 
@@ -3622,6 +3724,12 @@ class AFMConfocalLogic(GenericLogic):
                     if self._stop_request:
                         break
 
+                if save_temp_data:
+                    if line_num == 0:
+                        self.sigSaveTempData.emit(True)
+                    else:
+                        self.sigSaveTempData.emit(False)
+                
                 time_now = time.monotonic()
                 total_time = round((time_now - time_prev)/(line_num * coord0_num + index + 1) * (coord0_num*coord1_num)/60/60,3)
                 time_rem = round(total_time - (time_now - time_prev)/60/60,3)
@@ -3639,17 +3747,21 @@ class AFMConfocalLogic(GenericLogic):
             stop_time_afm_scan = datetime.datetime.now()
             self._afm_meas_duration = self._afm_meas_duration + (stop_time_afm_scan - start_time_afm_scan).total_seconds()
 
+            keep_position = False
+            
             if line_num == self._spm_line_num:
                 self.log.info(f'Scan finished at {int(self._afm_meas_duration)}s. Yeehaa!')
             else:
                 self.log.info(f'Scan stopped at {int(self._afm_meas_duration)}s.')
+                if self._sg_keep_position_after_force_stop:
+                    keep_position = True
 
             for entry in self._qafm_scan_array:
                 self._qafm_scan_array[entry]['params']['Measurement stop'] = stop_time_afm_scan.isoformat()
                 self._qafm_scan_array[entry]['params']['Total measurement time (s)'] = self._afm_meas_duration
 
             # clean up the spm
-            self._spm.finish_scan(retract=self.retract_after_scan)
+            self._spm.finish_scan(retract=self._sg_retract_after_scan, keep_position = keep_position)
             self._mw.off()
             self._counter.stop_measurement()
             self._pulsed_master_AWG.pulsedmeasurementlogic().pulsegenerator().pulser_off()
@@ -3813,6 +3925,9 @@ class AFMConfocalLogic(GenericLogic):
         self.sigQuantiScanStarted.emit()
         self._stop_request = False
 
+        save_raw_data = self._sg_save_raw_time_traces
+        save_temp_data = self._sg_save_temp_data
+
         measure_tip_osc_on_and_off = False
         tip_osc_off = False
         tip_osc_turn_off_time = 0
@@ -3895,7 +4010,7 @@ class AFMConfocalLogic(GenericLogic):
                                                                 self.scan_dir)
 
         #Create dictonary for saving the raw pulsed data for each pixel
-        self._pulsed_scan_array = self.initialize_pulsed_scan_array(var_list, alternating,
+        self._pulsed_scan_array, self._pulsed_scan_array_raw = self.initialize_pulsed_scan_array(var_list, alternating,
                                                             freq_points,
                                                             bin_width_s,
                                                             record_length_s+add_tt_read_out,
@@ -3905,7 +4020,7 @@ class AFMConfocalLogic(GenericLogic):
                                                             coord1_start, 
                                                             coord1_stop, 
                                                             coord1_num,
-                                                            rotation)
+                                                            rotation, save_raw_data)
 
         #Save the measurement parameters
         start_time_afm_scan = datetime.datetime.now()
@@ -4036,17 +4151,7 @@ class AFMConfocalLogic(GenericLogic):
                 self._scan_point['phase_fw'] = math.atan2((c_ya-c_y),(c_x-c_xa))
 
                 for name in self._scan_point.keys():
-                    self._qafm_scan_array[name]['data'][line_num][index] = self._scan_point[name] * self._qafm_scan_array[name]['scale_fac']            
-                    # x_range = [self._qafm_scan_array[name]['coord0_arr'][0], 
-                    #         self._qafm_scan_array[name]['coord0_arr'][-1]]
-                    # y_range = [self._qafm_scan_array[name]['coord1_arr'][0], 
-                    #         self._qafm_scan_array[name]['coord1_arr'][line_num]]
-                    # xy_data = self._qafm_scan_array[name]['data'][:line_num+1]
-                    # _,C = self.correct_plane(xy_data=xy_data,x_range=x_range,y_range=y_range)
-                    # # update plane equation
-                    # self._qafm_scan_array[name]['params']['correction_plane_eq'] = str(C.tolist())
-                    # self._qafm_scan_array[name]['params']['image_correction'] = str(self._qafm_scan_array[name]['image_correction'])
-                    # self._qafm_scan_array[name]['corr_plane_coeff'] = C.copy()
+                    self._qafm_scan_array[name]['data'][line_num][index] = self._scan_point[name] * self._qafm_scan_array[name]['scale_fac']
 
                 self._pulsed_scan_array['pulsed_fw']['data'][line_num][index] = pulsed_ret0 if not alternating else pulsed_ret0[0]
                 self._pulsed_scan_array['pulsed_fw']['data_std'][line_num][index] = pulsed_ret1 if not alternating else pulsed_ret1[0]
@@ -4056,7 +4161,8 @@ class AFMConfocalLogic(GenericLogic):
                     self._pulsed_scan_array['pulsed_fw']['data_delta'][line_num][index] = pulsed_ret0[0] - pulsed_ret0[1]
                     
                 # self._pulsed_scan_array['pulsed_fw']['data_fit'][line_num][index] = pulsed_ret0
-                self._pulsed_scan_array['pulsed_fw']['data_raw'][line_num][index] = pulsed_meas
+                if save_raw_data:
+                    self._pulsed_scan_array_raw['pulsed_fw']['data_raw'][line_num][index] = pulsed_meas
 
                 self._scan_counter += 1
 
@@ -4066,6 +4172,12 @@ class AFMConfocalLogic(GenericLogic):
                 if self._stop_request:
                     break
 
+            if save_temp_data:
+                if line_num == 0:
+                    self.sigSaveTempData.emit(True)
+                else:
+                    self.sigSaveTempData.emit(False)
+            
             time_now = time.monotonic()
             total_time = round((time_now - time_prev)/(line_num * coord0_num + index + 1) * (coord0_num*coord1_num)/60/60,3)
             time_rem = round(total_time - (time_now - time_prev)/60/60,3)
@@ -4083,17 +4195,21 @@ class AFMConfocalLogic(GenericLogic):
         stop_time_afm_scan = datetime.datetime.now()
         self._afm_meas_duration = self._afm_meas_duration + (stop_time_afm_scan - start_time_afm_scan).total_seconds()
 
+        keep_position = False
+            
         if line_num == self._spm_line_num:
             self.log.info(f'Scan finished at {int(self._afm_meas_duration)}s. Yeehaa!')
         else:
             self.log.info(f'Scan stopped at {int(self._afm_meas_duration)}s.')
+            if self._sg_keep_position_after_force_stop:
+                keep_position = True
 
         for entry in self._qafm_scan_array:
             self._qafm_scan_array[entry]['params']['Measurement stop'] = stop_time_afm_scan.isoformat()
             self._qafm_scan_array[entry]['params']['Total measurement time (s)'] = self._afm_meas_duration
 
         # clean up the spm
-        self._spm.finish_scan(retract=self.retract_after_scan)
+        self._spm.finish_scan(retract=self._sg_retract_after_scan, keep_position = keep_position)
         self._mw.off()
         self._counter.stop_measurement()
         self._pulsed_master_AWG.pulsedmeasurementlogic().pulsegenerator().pulser_off()
@@ -4410,7 +4526,7 @@ class AFMConfocalLogic(GenericLogic):
         self._obj_scan_array[arr_name]['params']['Total measurement time (s)'] = self._obj_meas_duration
 
         # clean up the spm
-        self._spm.finish_scan()
+        self._spm.finish_obj_scan()
         # clean up the counter
         # self._counter.stop_measurement()
         if self.module_state()!='idle':
@@ -4579,7 +4695,7 @@ class AFMConfocalLogic(GenericLogic):
         # self._counter.stop_measurement()
 
         # clean up the spm
-        self._spm.finish_scan()
+        self._spm.finish_obj_scan()
 
 
         return self._opti_scan_array
@@ -4704,7 +4820,7 @@ class AFMConfocalLogic(GenericLogic):
         self._opti_scan_array[opti_name]['params']['Total measurement time (s)'] = self._opti_meas_duration
 
         # clean up the spm
-        self._spm.finish_scan()
+        self._spm.finish_obj_scan()
         # clean up the counter
         # self._counter.stop_measurement()
 
@@ -5342,6 +5458,9 @@ class AFMConfocalLogic(GenericLogic):
     
     def get_pulsed_data(self):
         return self._pulsed_scan_array
+    
+    def get_pulsed_data_raw(self):
+        return self._pulsed_scan_array_raw
 
     def get_obj_pos(self, pos_list=['x', 'y', 'z']):
         """ Get objective position.
@@ -5717,8 +5836,19 @@ class AFMConfocalLogic(GenericLogic):
             filename = timestamp.strftime('%Y%m%d-%H%M-%S' + '_' + filelabel + '.pickle')
             pickle_fname = os.path.join(save_path,filename)
 
-            with open(pickle_fname, 'wb') as f:
-                pickle.dump(data, f, protocol=4)
+            try:
+                with open(pickle_fname, 'wb') as f:
+                    pickle.dump(data, f, protocol=4)
+            except:
+                self.log.info('QAFM data to large for pickel. Trying out joblib pickling instead.')
+                try:
+                    filename = timestamp.strftime('%Y%m%d-%H%M-%S' + '_' + filelabel + '_joblib.pickle')
+                    joblib_fname = os.path.join(save_path,filename)
+                    with open(joblib_fname, 'wb') as f:
+                        joblib.dump(data, f, compress = 3)
+                except:
+                    self.log.error('Joblib pickle failed. QAFM data is not saved as pickle. Data has to be saved saparetly.')
+
 
         # this method will be anyway skipped, if no data are present.
         self.save_quantitative_data(tag=tag, probe_name=probe_name, sample_name=sample_name,
@@ -5735,6 +5865,87 @@ class AFMConfocalLogic(GenericLogic):
             # threaded
             self.start_save_to_gwyddion(dataobj=data,
                                           gwyobjtype='qafm',filename=os.path.join(save_path,filename))
+
+            # main thread, for debugging
+            #self._save_to_gwyddion(dataobj=data,gwyobjtype='qafm',filename=os.path.join(save_path,filename))
+            self.increase_save_counter()
+
+    def save_temp_qafm_data(self, tag=None, probe_name=None, sample_name=None,
+                       use_qudi_savescheme=True, root_path=None, 
+                       daily_folder=True, first_save = True):
+
+        scan_params = self.get_curr_scan_params()
+        
+        if scan_params == []:
+            self.log.warning('Nothing measured to be saved for the QAFM measurement. Save routine skipped.')
+            self.sigQAFMDataSaved.emit()
+            return
+
+        if first_save:
+            self.temp_save_path =  self.get_qafm_save_directory(use_qudi_savescheme=use_qudi_savescheme,
+                                                                root_path=root_path,
+                                                                daily_folder=daily_folder,
+                                                                probe_name=probe_name,
+                                                                sample_name=sample_name)
+            self.temp_timestamp = datetime.datetime.now()
+            
+
+        data = self.get_qafm_data()
+
+        if sample_name is not None:
+            tag += f'_{sample_name}'
+        if probe_name is not None:
+            tag += f'_{probe_name}'
+
+        empty_array = np.ones(len(scan_params))
+
+        for index, entry in enumerate(scan_params):
+            figure_data = data[entry]['data']
+
+            # check whether figure has only zeros as data, skip this then
+            if not np.any(figure_data):
+                self.log.debug(f'The data array "{entry}" contains only zeros and will be not saved.')
+                empty_array[index] = 0
+                continue
+
+        #Save qafm_array in pickle
+        if np.any(empty_array):
+            filelabel = 'qafm_array_raw'
+            if tag is not None:
+                filelabel = f'{tag}_{filelabel}'
+
+            filename = self.temp_timestamp.strftime('%Y%m%d-%H%M-%S' + '_' + filelabel + '.pickle')
+            pickle_fname = os.path.join(self.temp_save_path,filename)
+
+            try:
+                with open(pickle_fname, 'wb') as f:
+                    pickle.dump(data, f, protocol=4)
+            except:
+                self.log.info('QAFM data to large for pickel. Trying out joblib pickling instead.')
+                try:
+                    filename = self.temp_timestamp.strftime('%Y%m%d-%H%M-%S' + '_' + filelabel + '_joblib.pickle')
+                    joblib_fname = os.path.join(self.temp_save_path,filename)
+                    with open(joblib_fname, 'wb') as f:
+                        joblib.dump(data, f, compress = 3)
+                except:
+                    self.log.error('Joblib pickle failed. QAFM data is not saved as pickle. Data has to be saved saparetly.')
+
+
+        # this method will be anyway skipped, if no data are present.
+        self.save_temp_quantitative_data(tag=tag, probe_name=probe_name, sample_name=sample_name,
+                                    use_qudi_savescheme=use_qudi_savescheme, root_path=root_path, 
+                                    daily_folder=daily_folder, timestamp = self.temp_timestamp, first_save = first_save)
+
+        self.save_temp_pulsed_data(tag=tag, probe_name=probe_name, sample_name=sample_name,
+                                    use_qudi_savescheme=use_qudi_savescheme, root_path=root_path, 
+                                    daily_folder=daily_folder, timestamp = self.temp_timestamp, first_save = first_save)
+
+        if self._sg_save_to_gwyddion:
+            filename = self.temp_timestamp.strftime('%Y%m%d-%H%M-%S' + '_' + tag + '_QAFM.gwy') 
+
+            # threaded
+            self.start_save_to_gwyddion(dataobj=data,
+                                          gwyobjtype='qafm',filename=os.path.join(self.temp_save_path,filename))
 
             # main thread, for debugging
             #self._save_to_gwyddion(dataobj=data,gwyobjtype='qafm',filename=os.path.join(save_path,filename))
@@ -5859,6 +6070,7 @@ class AFMConfocalLogic(GenericLogic):
             timestamp = datetime.datetime.now()
 
         data = self.get_pulsed_data()
+        data_raw = self.get_pulsed_data_raw()
 
         empty_array = np.ones((len(data),2))
 
@@ -5878,7 +6090,6 @@ class AFMConfocalLogic(GenericLogic):
                 std_err_data = data[entry][f'data{alt}_std']
                 fit_data = data[entry][f'data{alt}_fit']
                 delta_data = data[entry][f'data_delta']
-                raw_data = data[entry][f'data_raw']
 
                 # check whether figure has only zeros as data, skip this then
                 save_list = [f'data{alt}', f'data{alt}_std', f'data{alt}_fit', 'data_raw']
@@ -5926,11 +6137,11 @@ class AFMConfocalLogic(GenericLogic):
                     self.increase_save_counter()
 
                 
-                if self._sg_save_to_gwyddion:
-                    filename_pfx = timestamp.strftime('%Y%m%d-%H%M-%S' + '_' + tag ) 
-                    self.start_save_to_gwyddion(dataobj=data[entry], gwyobjtype='esr',
-                                                filename=os.path.join(save_path,f"{filename_pfx}_{entry}.gwy"))
-                    self.increase_save_counter()
+            if self._sg_save_to_gwyddion:
+                filename_pfx = timestamp.strftime('%Y%m%d-%H%M-%S' + '_' + tag ) 
+                self.start_save_to_gwyddion(dataobj=data[entry], gwyobjtype='esr',
+                                            filename=os.path.join(save_path,f"{filename_pfx}_{entry}.gwy"))
+                self.increase_save_counter()
                 
         #Save pulsed_array in pickle
         if np.any(empty_array):
@@ -5941,8 +6152,121 @@ class AFMConfocalLogic(GenericLogic):
             filename = timestamp.strftime('%Y%m%d-%H%M-%S' + '_' + filelabel + '.pickle')
             pickle_fname = os.path.join(save_path,filename)
 
-            with open(pickle_fname, 'wb') as f:
-                pickle.dump(data, f, protocol=4)
+            try:
+                with open(pickle_fname, 'wb') as f:
+                    pickle.dump(data, f, protocol=4)
+            except:
+                self.log.info('Pulsed data to large for pickel. Trying out joblib pickling instead.')
+                try:
+                    filename = timestamp.strftime('%Y%m%d-%H%M-%S' + '_' + filelabel + '_joblib.pickle')
+                    joblib_fname = os.path.join(save_path,filename)
+                    with open(joblib_fname, 'wb') as f:
+                        joblib.dump(data, f, compress = 3)
+                except:
+                    self.log.error('Joblib pickle failed. Pulsed data is not saved as pickle. Data has to be saved saparetly.')
+
+            #Save pulsed_array_raw in pickle
+            if data_raw[list(data_raw.keys())[0]]['save_raw_data']:
+                filelabel = 'pulsed_array_raw_tt_traces'
+                if tag is not None:
+                    filelabel = f'{tag}_{filelabel}'
+
+                filename = timestamp.strftime('%Y%m%d-%H%M-%S' + '_' + filelabel + '.pickle')
+                pickle_fname = os.path.join(save_path,filename)
+            
+                try:
+                    with open(pickle_fname, 'wb') as f:
+                        pickle.dump(data_raw, f, protocol=4)
+                except:
+                    self.log.info('Raw pulsed data to large for pickel. Trying out joblib pickling instead.')
+                    try:
+                        filename = timestamp.strftime('%Y%m%d-%H%M-%S' + '_' + filelabel + '_joblib.pickle')
+                        joblib_fname = os.path.join(save_path,filename)
+                        with open(joblib_fname, 'wb') as f:
+                            joblib.dump(data_raw, f, compress = 3)
+                    except:
+                        self.log.error('Joblib pickle failed. Raw pulsed data is not saved as pickle. Data has to be saved saparetly.')
+
+    def save_temp_pulsed_data(self, tag=None, probe_name=None, sample_name=None,
+                               use_qudi_savescheme=False, root_path=None, 
+                               daily_folder=True, timestamp = None, first_save = True):
+
+        if first_save:
+            self.temp_save_path =  self.get_qafm_save_directory(use_qudi_savescheme=use_qudi_savescheme,
+                                                    root_path=root_path,
+                                                    daily_folder=daily_folder,
+                                                    probe_name=probe_name,
+                                                    sample_name=sample_name)
+
+        if timestamp is None:
+            timestamp = datetime.datetime.now()
+        
+        data = self.get_pulsed_data()
+        data_raw = self.get_pulsed_data_raw()
+
+        empty_array = np.ones((len(data),2))
+
+        # go basically through the esr_fw and esr_bw scans.
+        for index, entry in enumerate(data):
+            for alt_index, alt in enumerate(['', '_alternating']):
+                figure_data = data[entry][f'data{alt}']
+
+                if not np.any(figure_data):
+                    self.log.debug(f'The data array "{entry}" contains only zeros and will be not saved.')
+                    empty_array[index,alt_index] = 0
+                    continue
+
+                
+            if self._sg_save_to_gwyddion:
+                filename_pfx = timestamp.strftime('%Y%m%d-%H%M-%S' + '_' + tag ) 
+                self.start_save_to_gwyddion(dataobj=data[entry], gwyobjtype='esr',
+                                            filename=os.path.join(self.temp_save_path,f"{filename_pfx}_{entry}.gwy"))
+                self.increase_save_counter()
+                
+        #Save pulsed_array in pickle
+        if np.any(empty_array):
+            filelabel = 'pulsed_array_raw'
+            if tag is not None:
+                filelabel = f'{tag}_{filelabel}'
+
+            filename = timestamp.strftime('%Y%m%d-%H%M-%S' + '_' + filelabel + '.pickle')
+            pickle_fname = os.path.join(self.temp_save_path,filename)
+
+            try:
+                with open(pickle_fname, 'wb') as f:
+                    pickle.dump(data, f, protocol=4)
+            except:
+                self.log.info('Pulsed data to large for pickel. Trying out joblib pickling instead.')
+                try:
+                    filename = timestamp.strftime('%Y%m%d-%H%M-%S' + '_' + filelabel + '_joblib.pickle')
+                    joblib_fname = os.path.join(self.temp_save_path,filename)
+                    with open(joblib_fname, 'wb') as f:
+                        joblib.dump(data, f, compress = 3)
+                except:
+                    self.log.error('Joblib pickle failed. Pulsed data is not saved as pickle. Data has to be saved saparetly.')
+
+            #Save pulsed_array_raw in pickle
+            if data_raw[list(data_raw.keys())[0]]['save_raw_data']:
+                filelabel = 'pulsed_array_raw_tt_traces'
+                if tag is not None:
+                    filelabel = f'{tag}_{filelabel}'
+
+                filename = timestamp.strftime('%Y%m%d-%H%M-%S' + '_' + filelabel + '.pickle')
+                pickle_fname = os.path.join(self.temp_save_path,filename)
+
+                try:
+                    with open(pickle_fname, 'wb') as f:
+                        pickle.dump(data_raw, f, protocol=4)
+                except:
+                    self.log.info('Raw pulsed data to large for pickel. Trying out joblib pickling instead.')
+                    try:
+                        filename = timestamp.strftime('%Y%m%d-%H%M-%S' + '_' + filelabel + '_joblib.pickle')
+                        joblib_fname = os.path.join(self.temp_save_path,filename)
+                        with open(joblib_fname, 'wb') as f:
+                            joblib.dump(data_raw, f, compress = 3)
+                    except:
+                        self.log.error('Joblib pickle failed. Raw pulsed data is not saved as pickle. Data has to be saved saparetly.')
+
     
     def save_quantitative_data(self, tag=None, probe_name=None, sample_name=None,
                                use_qudi_savescheme=False, root_path=None, 
@@ -6029,10 +6353,82 @@ class AFMConfocalLogic(GenericLogic):
             filename = timestamp.strftime('%Y%m%d-%H%M-%S' + '_' + filelabel + '.pickle')
             pickle_fname = os.path.join(save_path,filename)
 
-            with open(pickle_fname, 'wb') as f:
-                pickle.dump(data, f, protocol=4)
+            try:
+                with open(pickle_fname, 'wb') as f:
+                    pickle.dump(data, f, protocol=4)
+            except:
+                self.log.info('ESR data to large for pickel. Trying out joblib pickling instead.')
+                try:
+                    filename = timestamp.strftime('%Y%m%d-%H%M-%S' + '_' + filelabel + '_joblib.pickle')
+                    joblib_fname = os.path.join(save_path,filename)
+                    with open(joblib_fname, 'wb') as f:
+                        joblib.dump(data, f, compress = 3)
+                except:
+                    self.log.error('Joblib pickle failed. ESR data is not saved as pickle. Data has to be saved saparetly.')
 
+    def save_temp_quantitative_data(self, tag=None, probe_name=None, sample_name=None,
+                               use_qudi_savescheme=False, root_path=None, 
+                               daily_folder=True, timestamp = None, first_save = True):
 
+        if first_save:
+            self.temp_save_path =  self.get_qafm_save_directory(use_qudi_savescheme=use_qudi_savescheme,
+                                                  root_path=root_path,
+                                                  daily_folder=daily_folder,
+                                                  probe_name=probe_name,
+                                                  sample_name=sample_name)
+            
+        if timestamp is None:
+            timestamp = datetime.datetime.now()
+
+        data = self.get_esr_data()
+
+        empty_array = np.ones(len(data))
+
+        # go basically through the esr_fw and esr_bw scans.
+        for index, entry in enumerate(data):
+            parameters = {}
+            parameters.update(data[entry]['params'])
+            nice_name = data[entry]['nice_name']
+            unit = data[entry]['si_units']
+
+            parameters['Name of measured signal'] = nice_name
+            parameters['Units of measured signal'] = unit
+
+            figure_data = data[entry]['data']
+
+            # check whether figure has only zeros as data, skip this then
+            if not np.any(figure_data):
+                self.log.debug(f'The data array "{entry}" contains only zeros and will be not saved.')
+                empty_array[index] = 0
+                continue
+            
+            if self._sg_save_to_gwyddion:
+                filename_pfx = timestamp.strftime('%Y%m%d-%H%M-%S' + '_' + tag ) 
+                self.start_save_to_gwyddion(dataobj=data[entry], gwyobjtype='esr',
+                                            filename=os.path.join(self.temp_save_path,f"{filename_pfx}_{entry}.gwy"))
+                self.increase_save_counter()
+
+        #Save esr_array in pickle
+        if np.any(empty_array):
+            filelabel = 'esr_array_raw'
+            if tag is not None:
+                filelabel = f'{tag}_{filelabel}'
+
+            filename = timestamp.strftime('%Y%m%d-%H%M-%S' + '_' + filelabel + '.pickle')
+            pickle_fname = os.path.join(self.temp_save_path,filename)
+
+            try:
+                with open(pickle_fname, 'wb') as f:
+                    pickle.dump(data, f, protocol=4)
+            except:
+                self.log.info('ESR data to large for pickel. Trying out joblib pickling instead.')
+                try:
+                    filename = timestamp.strftime('%Y%m%d-%H%M-%S' + '_' + filelabel + '_joblib.pickle')
+                    joblib_fname = os.path.join(self.temp_save_path,filename)
+                    with open(joblib_fname, 'wb') as f:
+                        joblib.dump(data, f, compress = 3)
+                except:
+                    self.log.error('Joblib pickle failed. ESR data is not saved as pickle. Data has to be saved saparetly.')
 
     def increase_save_counter(self, ret_val=0):
         """ Update the save counter.

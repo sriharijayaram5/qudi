@@ -429,6 +429,8 @@ class ProteusQGUI(GUIBase):
         self._qafm_logic.sigQuantiScanFinished.connect(self.enable_scan_actions_quanti)
         self._qafm_logic.sigQuantiScanFinished.connect(self.autosave_quantitative_measurement)
 
+        self._qafm_logic.sigSaveTempData.connect(self.autosave_temp_qafm_data)
+
         # Pulsed signals
         self._qafm_logic.pulsed_master_AWG().sigLoadedAssetUpdated.connect(self._update_pulsed_asset)
         self._qafm_logic.pulsed_master_AWG().sigUpdateLoadedAssetLabel.connect(self._update_pulsed_asset)
@@ -456,6 +458,8 @@ class ProteusQGUI(GUIBase):
         self._mw.freq1_isob_freq_DSpinBox.setMinimalStep = 10e3
         self._mw.freq2_isob_freq_DSpinBox.setMinimalStep = 10e3
         self._mw.isob_power_DSpinBox.setMinimalStep = 0.01
+
+        self.scan_type = ''
 
         self._qafm_logic.sigIsoBParamsUpdated.connect(self.update_iso_b_param)
         self.update_iso_b_param()
@@ -959,6 +963,8 @@ class ProteusQGUI(GUIBase):
         # create a settings dict
         sd = {}
 
+        sd['retract_after_scan'] = self._sd.retract_after_scan_checkBox.isChecked()
+        sd['keep_position_after_force_stop'] = self._sd.keep_position_after_forced_stop_checkBox.isChecked()
         # general settings
         # sd['idle_move_target_sample'] = self._sd.idle_move_target_sample_DoubleSpinBox.value()
         # sd['idle_move_target_obj'] = self._sd.idle_move_target_obj_DoubleSpinBox.value()
@@ -978,6 +984,8 @@ class ProteusQGUI(GUIBase):
         sd['auto_save_quanti'] = self._sd.auto_save_quanti_CheckBox.isChecked()
         sd['auto_save_qafm'] = self._sd.auto_save_qafm_CheckBox.isChecked()
         sd['save_to_gwyddion'] = self._sd.save_to_gwyddion_CheckBox.isChecked()
+        sd['save_raw_time_traces'] = self._sd.save_raw_timetraces_CheckBox.isChecked()
+        sd['save_temp_data'] = self._sd.save_temp_data_CheckBox.isChecked()
 
         # optimizer settings
         sd['optimizer_x_range'] = self._sd.optimizer_x_range_DoubleSpinBox.value()
@@ -1032,6 +1040,9 @@ class ProteusQGUI(GUIBase):
         
         sd = self._qafm_logic.get_qafm_settings()
 
+        self._sd.retract_after_scan_checkBox.setChecked(sd['retract_after_scan'])
+        self._sd.keep_position_after_forced_stop_checkBox.setChecked(sd['keep_position_after_force_stop'])
+
         # general settings
         # self._sd.idle_move_target_sample_DoubleSpinBox.setValue(sd['idle_move_target_sample'])
         # self._sd.idle_move_target_obj_DoubleSpinBox.setValue(sd['idle_move_target_obj'])
@@ -1047,6 +1058,8 @@ class ProteusQGUI(GUIBase):
         self._sd.auto_save_quanti_CheckBox.setChecked(sd['auto_save_quanti'])
         self._sd.auto_save_qafm_CheckBox.setChecked(sd['auto_save_qafm'])
         self._sd.save_to_gwyddion_CheckBox.setChecked(sd['save_to_gwyddion'])
+        self._sd.save_raw_timetraces_CheckBox.setChecked(sd['save_raw_time_traces'])
+        self._sd.save_temp_data_CheckBox.setChecked(sd['save_temp_data'])
         # optimizer settings
         self._sd.optimizer_x_range_DoubleSpinBox.setValue(sd['optimizer_x_range'])
         self._sd.optimizer_x_res_SpinBox.setValue(sd['optimizer_x_res'])
@@ -1104,13 +1117,13 @@ class ProteusQGUI(GUIBase):
 
         self._mw.afm_rotation_DSpinBox.setValue(self._afm_rotation)
 
-        self._mw.liftOffMode_groupBox.setChecked(self._liftoff_mode)
-        self._mw.liftOffHeight_doubleSpinBox.setValue(self._liftoff_height)
-
         self._mw.tipOscOff_groupbox.setChecked(self._tip_osc_off)
         self._mw.tipOscOffTime_doubleSpinBox.setValue(self._tip_osc_turn_off_time)
         self._mw.tipOscOnTime_doubleSpinBox.setValue(self._tip_osc_turn_on_time)
         self._mw.measureTipOscOnOff_checkBox.setChecked(self._measure_tip_osc_on_and_off)
+
+        self._mw.liftOffMode_groupBox.setChecked(self._liftoff_mode)
+        self._mw.liftOffHeight_doubleSpinBox.setValue(self._liftoff_height)
 
         self._mw.scan_id_spinBox.setValue(self._scan_id)
 
@@ -1144,7 +1157,6 @@ class ProteusQGUI(GUIBase):
         self._qm.pulsed_freq_stop_DoubleSpinBox.setValue(self.podmr_freq_stop)
         self._qm.pulsed_freq_step_SpinBox.setValue(self.podmr_freq_step)
 
-        self._qm.loaded_sequence_mode_RadioButton.setChecked(self.loaded_sequence_mode)
         self._qm.loaded_seq_res_freq_DoubleSpinBox.setValue(self.loaded_seq_res_freq)
         self._qm.loaded_seq_track_freq_two_point_Checkbox.setChecked(self.loaded_seq_track_freq_two_point)
         if self._qm.loaded_seq_track_freq_two_point_Checkbox.isChecked():
@@ -1153,6 +1165,7 @@ class ProteusQGUI(GUIBase):
         if self._qm.loaded_seq_track_freq_PODMR_Checkbox.isChecked():
             self.loaded_seq_track_freq_PODMR_Checkbox_isClicked(True)
         self._qm.pulse_repetition_tracking_spinBox.setValue(self.pulse_repetition_tracking)
+        self._qm.loaded_sequence_mode_RadioButton.setChecked(self.loaded_sequence_mode)
         
         self._qm.pulse_repetition_spinBox.setValue(self.pulse_repetition)
         self._qm.pi_duration_doubleSpinBox.setValue(self.pi_duration)
@@ -1330,7 +1343,7 @@ class ProteusQGUI(GUIBase):
                                                                 0, 30e-6, 30, 
                                                                 0, 30e-6, 30, 0)
 
-        pulsed_scan_array = self._qafm_logic.initialize_pulsed_scan_array(np.linspace(10e-9,100e-9,10), False,
+        pulsed_scan_array, pulsed_scan_array_raw = self._qafm_logic.initialize_pulsed_scan_array(np.linspace(10e-9,100e-9,10), False,
                                                                 len(np.linspace(10e-9,100e-9,10)), 1e-9, 3e-6,
                                                                 0, 30e-6, 30, 
                                                                 0, 30e-6, 30, 0)
@@ -3347,6 +3360,19 @@ class ProteusQGUI(GUIBase):
                                         daily_folder=True)        
         self._mw.scan_id_spinBox.setValue(self._mw.scan_id_spinBox.value()+1)
 
+    def autosave_temp_qafm_data(self, first_save):
+        """ Save automatically after scan has finished the data. """
+
+        self._mw.actionSaveDataQAFM.setEnabled(False)
+
+        tag = 'temp_save_'+ f'scan{self._mw.scan_id_spinBox.value()}_' + self.scan_type + '_' + self._mw.qafm_save_LineEdit.text()
+        probe_name = self._mw.probename_LineEdit.text()
+        sample_name = self._mw.samplename_LineEdit.text()
+
+        self._qafm_logic.save_temp_qafm_data(tag, probe_name, sample_name,
+                                        use_qudi_savescheme=True,
+                                        daily_folder=True, first_save = first_save)
+
 
     def enable_qafm_save_button(self):
         """Method making sure the save button is enabled after qafm data is saved. 
@@ -3536,9 +3562,11 @@ class ProteusQGUI(GUIBase):
             if arb_pulse_measurement == '':
                 arb_pulse_measurement = 'Arb_pulse_meas'
             if loaded_sequence_mode_tracking_two_point:
-                self.scan_type = f'{arb_pulse_measurement}_with_two_point_tracking'
+                s = f'{arb_pulse_measurement}_with_two_point_tracking'
+                self.scan_type = s.strip()
             elif loaded_sequence_mode_tracking_podmr:
-                self.scan_type = f'{arb_pulse_measurement}_with_PODMR'
+                s = f'{arb_pulse_measurement}_with_PODMR'
+                self.scan_type = s.strip()
             else:
                 self.scan_type = arb_pulse_measurement
 

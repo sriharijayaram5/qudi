@@ -707,6 +707,9 @@
                    <property name="suffix">
                     <string>Hz</string>
                    </property>
+                   <property name="decimals">
+                    <number>5</number>
+                   </property>
                    <property name="minimum">
                     <double>1.000000000000000</double>
                    </property>
@@ -953,6 +956,9 @@
                   <widget class="ScienDSpinBox" name="loaded_seq_res_freq_DoubleSpinBox">
                    <property name="suffix">
                     <string>Hz</string>
+                   </property>
+                   <property name="decimals">
+                    <number>5</number>
                    </property>
                    <property name="minimum">
                     <double>0.000000000000000</double>
@@ -1328,6 +1334,9 @@
                <widget class="ScienDSpinBox" name="res_freq_gradiometry_DoubleSpinBox">
                 <property name="suffix">
                  <string>Hz</string>
+                </property>
+                <property name="decimals">
+                 <number>5</number>
                 </property>
                 <property name="minimum">
                  <double>0.000000000000000</double>

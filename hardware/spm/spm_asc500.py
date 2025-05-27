@@ -778,6 +778,11 @@ class SPM_ASC500(Base, ScannerInterface):
                 else:
                     current_height = self.measure_height()
         return current_height
+    
+    def turn_on_tip_osc(self):
+        if self.liftoff_mode and self.tip_osc_off and self.measure_tip_osc_on_and_off:
+            self._dev.afm.setTFExcitationAmplitude(self.TF_Amp) #Turn on tip oscillation after Lift off
+            time.sleep(self.tip_osc_turn_on_time)
 
     def next_position_in_scan_arr(self):
         pos = self.mover.next_position()
@@ -826,8 +831,15 @@ class SPM_ASC500(Base, ScannerInterface):
         new_pos = self.cur_Z_max_range-current_height-liftoff_height # ASC500 goes to 102pm if negative
         self._dev.base.setParameter(self._dev.base.getConst('ID_REG_LOOP_ON'), 0, 0)
         self._dev.base.setParameter(self._dev.base.getConst('ID_REG_SET_Z_M'), new_pos*1e12, 0)
+
+        loop_start = time.monotonic()
         while not self.liftoff_at_target(new_pos):
-            pass
+            if self.breakout_sample_at_target_handshake:
+                self.log.warning('Breakout from sample_at_target loop via handshake.')
+                break
+            elif time.monotonic()-loop_start>0.1:
+                self.log.warning('Breakout from sample_at_target loop via time out.')
+                break
         
         return current_height
     
@@ -955,7 +967,7 @@ class SPM_ASC500(Base, ScannerInterface):
         phys_vals = np.array([self._polled_data])
         return phys_vals
 
-    def finish_scan(self, retract=False):
+    def finish_scan(self, retract=False, keep_position = False):
         """ Request completion of the current scan line 
         It is correct (but not abs necessary) to end each scan 
         process by this method. There is no problem for 'Point' scan, 
@@ -969,10 +981,25 @@ class SPM_ASC500(Base, ScannerInterface):
         if retract:
             self.retract_probe()
 
-        self.set_sample_pos_abs({"X":self.scan_arr[0,0,0], "Y":self.scan_arr[0,0,1]})
+        if not keep_position:
+            self.set_sample_pos_abs({"X":self.scan_arr[0,0,0], "Y":self.scan_arr[0,0,1]})
 
         self._dev.aap.setAApAproachMode(0) # [0, 1] Ramp/Loop
         self._dev.aap.setAApModeAfter(1) # [0, 1, 2] On/Retract/Off
+
+        return 1
+    
+    def finish_obj_scan(self):
+        """ Request completion of the current scan line 
+        It is correct (but not abs necessary) to end each scan 
+        process by this method. There is no problem for 'Point' scan, 
+        performed with 'scan_point', to stop it at any moment. But
+        'Line' scan will stop after a line was finished, otherwise 
+        your software may hang until scan line is complete.
+
+        @return int: status variable with: 0 = call failed, 1 = call successfull
+        """
+        self._spm_curr_state =  ScannerState.IDLE
 
         return 1
     
@@ -1403,9 +1430,8 @@ class SPM_ASC500(Base, ScannerInterface):
                 self.log.warning(f'Sample scanner {i} to abs. position outside scan range: {axis_dict[i]*1e6:.3f} um')
                 return self.get_sample_pos(list(axis_dict.keys()))
             
-
+        curr_pos = self.get_sample_pos()
         if self._old_ASC:
-            curr_pos = self.get_sample_pos()
             curr_pos.update(axis_dict)
             position_values = self.pos_interp_xy(curr_pos)
             self._dev.base.setParameter(self._dev.base.getConst('ID_POSI_TARGET_X'), int(position_values["X"]), 0 ) 
@@ -1419,8 +1445,18 @@ class SPM_ASC500(Base, ScannerInterface):
                 self._dev.base.setParameter(self._dev.base.getConst(const_dict[i[0].upper()]), axis_dict[i]*1e11, 0 )
         
         self._dev.base.setParameter(self._dev.base.getConst('ID_POSI_GOTO'), 1, 0)
+
+        self.travel_distance = np.sqrt((curr_pos['X']-axis_dict['X'])**2+(curr_pos['Y']-axis_dict['Y'])**2)
+        self.travel_time = self.travel_distance/(self._dev.base.getParameter(self._dev.base.getConst('ID_SCAN_PSPEED'))*1e-9)
+        self.breakout_sample_at_target_handshake = False
+        loop_start = time.monotonic()
         while not self.sample_at_target(axis_dict):
-            pass
+            if self.breakout_sample_at_target_handshake:
+                self.log.warning('Breakout from sample_at_target loop via handshake.')
+                break
+            elif time.monotonic()-loop_start>self.travel_time*10:
+                self.log.warning('Breakout from sample_at_target loop via time out.')
+                break
         return self.get_sample_pos(list(axis_dict.keys()))
     
     def set_sample_pos_rel(self, axis_rel_dict, move_time=0.1):
@@ -1467,7 +1503,7 @@ class SPM_ASC500(Base, ScannerInterface):
         pos = self.get_sample_pos()
         a = np.array([pos["X"], pos["Y"]])
         b = np.array([target["X"], target["Y"]])
-        return np.all(np.isclose(a, b, rtol=1e-09, atol=1e-09, equal_nan=False))
+        return np.all(np.isclose(a, b, rtol=0, atol=1e-09, equal_nan=False))
 
     # Probe lifting functions
     # ========================
