@@ -1,0 +1,154 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>MainWindow</class>
+ <widget class="QMainWindow" name="MainWindow">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>506</width>
+    <height>402</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>qudi: Temperature alert</string>
+  </property>
+  <widget class="QWidget" name="centralwidget">
+   <layout class="QGridLayout" name="gridLayout">
+    <item row="4" column="1">
+     <widget class="ScienDSpinBox" name="T_setpoint_waiting_time_DSpinBox">
+      <property name="minimumSize">
+       <size>
+        <width>70</width>
+        <height>0</height>
+       </size>
+      </property>
+      <property name="suffix">
+       <string>s</string>
+      </property>
+      <property name="decimals">
+       <number>2</number>
+      </property>
+     </widget>
+    </item>
+    <item row="3" column="1">
+     <widget class="ScienDSpinBox" name="temp_cntrl_diff_DSpinBox">
+      <property name="minimumSize">
+       <size>
+        <width>70</width>
+        <height>0</height>
+       </size>
+      </property>
+      <property name="suffix">
+       <string>K</string>
+      </property>
+      <property name="decimals">
+       <number>2</number>
+      </property>
+     </widget>
+    </item>
+    <item row="7" column="0">
+     <widget class="QLabel" name="label_5">
+      <property name="text">
+       <string>Check period:</string>
+      </property>
+     </widget>
+    </item>
+    <item row="7" column="1">
+     <widget class="ScienDSpinBox" name="check_period_DSpinBox">
+      <property name="minimumSize">
+       <size>
+        <width>70</width>
+        <height>0</height>
+       </size>
+      </property>
+      <property name="suffix">
+       <string>s</string>
+      </property>
+      <property name="decimals">
+       <number>2</number>
+      </property>
+     </widget>
+    </item>
+    <item row="6" column="0">
+     <widget class="QLabel" name="label_4">
+      <property name="text">
+       <string>Compressor failure temperature threshhold:</string>
+      </property>
+     </widget>
+    </item>
+    <item row="4" column="0">
+     <widget class="QLabel" name="label_3">
+      <property name="text">
+       <string>Waiting time after temperature setpoint change:</string>
+      </property>
+     </widget>
+    </item>
+    <item row="6" column="1">
+     <widget class="ScienDSpinBox" name="compressor_failure_temp_treshhold_DSpinBox">
+      <property name="minimumSize">
+       <size>
+        <width>70</width>
+        <height>0</height>
+       </size>
+      </property>
+      <property name="suffix">
+       <string>K</string>
+      </property>
+      <property name="decimals">
+       <number>2</number>
+      </property>
+     </widget>
+    </item>
+    <item row="3" column="0">
+     <widget class="QLabel" name="label_2">
+      <property name="text">
+       <string>Allowed temperature control difference:</string>
+      </property>
+     </widget>
+    </item>
+    <item row="1" column="0">
+     <widget class="QCheckBox" name="temp_ctrl_warning_checkBox">
+      <property name="text">
+       <string>Temperture control warning </string>
+      </property>
+     </widget>
+    </item>
+    <item row="1" column="1">
+     <widget class="QCheckBox" name="compressor_failure_warning_checkBox">
+      <property name="text">
+       <string>Compressor failure warning</string>
+      </property>
+     </widget>
+    </item>
+   </layout>
+  </widget>
+  <action name="action_delete_all_pulsed_assets">
+   <property name="text">
+    <string>Delete all pulsed assets</string>
+   </property>
+  </action>
+  <action name="action_restore_default_values">
+   <property name="text">
+    <string>Restore default values</string>
+   </property>
+  </action>
+ </widget>
+ <customwidgets>
+  <customwidget>
+   <class>ScienDSpinBox</class>
+   <extends>QDoubleSpinBox</extends>
+   <header location="global">qtwidgets.scientific_spinbox.h</header>
+  </customwidget>
+ </customwidgets>
+ <tabstops>
+  <tabstop>temp_ctrl_warning_checkBox</tabstop>
+  <tabstop>compressor_failure_warning_checkBox</tabstop>
+  <tabstop>temp_cntrl_diff_DSpinBox</tabstop>
+  <tabstop>T_setpoint_waiting_time_DSpinBox</tabstop>
+  <tabstop>compressor_failure_temp_treshhold_DSpinBox</tabstop>
+  <tabstop>check_period_DSpinBox</tabstop>
+ </tabstops>
+ <resources/>
+ <connections/>
+</ui>

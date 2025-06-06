@@ -293,6 +293,7 @@ class AFMConfocalLogic(GenericLogic):
     pulsed_master_AWG = Connector(interface='PulsedMasterLogic')
     podmr = Connector(interface='ODMRLogic')
     _pulsed_jupyter_logic = Connector(interface='GenericLogic')
+    telebotlogic = Connector(interface='GenericLogic')
 
     # configuration parameters/options for the logic. In the config file you
     # have to specify the parameter, here: 'conf_1'
@@ -532,6 +533,7 @@ class AFMConfocalLogic(GenericLogic):
         self._AWG = self._pulsed_master_AWG.pulsedmeasurementlogic().pulsegenerator()
         self._podmr = self.podmr()
         self.pulsed_jupyter_logic = self._pulsed_jupyter_logic()
+        self._telebotlogic = self.telebotlogic()
 
         self._qafm_scan_array = self.initialize_qafm_scan_array(0, 100e-6, 10, 
                                                                 0, 100e-6, 10,
@@ -568,13 +570,22 @@ class AFMConfocalLogic(GenericLogic):
     
         self.sigSaveDataGwyddion.connect(self._save_to_gwyddion)
         self.sigSaveDataGwyddionFinished.connect(self.decrease_save_counter)
-        self.sigQAFMScanFinished.connect(self.send_telegram_message)
-        self.sigQuantiScanFinished.connect(self.send_telegram_message)
+
+        #Telegram bot connectors and important parameters
+        self._telebotlogic.sigScanRequest.connect(self.scan_request)
+        self._scan_line = 0
+        self._scan_index = 0
+        self.total_time = 0
+        self.time_rem = 0
+        self.fut_str = 0
+        self.scan_type = 'None'
 
         self._meas_path = os.path.abspath(self._meas_path)
 
         self.optimum = False
         self.pickiness = 19
+
+        
 
         # safety precaution in case the meas path does not exist
         if not os.path.exists(self._meas_path):
@@ -1198,6 +1209,8 @@ class AFMConfocalLogic(GenericLogic):
             self.sigQuantiScanStarted.emit()
             self._stop_request = False
 
+            self.scan_type = 'AFM'
+
             measure_tip_osc_on_and_off = False
 
             coord0_start = coord0_origin-coord0_range/2
@@ -1214,6 +1227,7 @@ class AFMConfocalLogic(GenericLogic):
 
             if use_iso_B_mode:
                 if use_single_iso_B:
+                    self.scan_type = 'AFM with single iso B'
                     #Set up the AWG run at each point
                     #Upload and pepare the AWG and pulsestreamer for the single Iso B scan sequence.
                     LO_freq = iso_B_freq1+100e6
@@ -1232,6 +1246,7 @@ class AFMConfocalLogic(GenericLogic):
                     self.pulsed_jupyter_logic.AWG.load_ready_sequence_mode(explicit_steps_list)
                     
                 else:
+                    self.scan_type = 'AFM with double iso B'
                     #Set up the AWG run at each point
                     #Upload and pepare the AWG and pulsestreamer for the double Iso B scan sequence.
                     if iso_B_freq1>iso_B_freq2:
@@ -1378,7 +1393,9 @@ class AFMConfocalLogic(GenericLogic):
             self.sigQAFMScanInitialized.emit()
 
             for line_num in range(coord1_num):
+                self._scan_line = line_num
                 for index in range(coord0_num):
+                    self._scan_index = index
                     
                     #Work around to ensure that the QAFM image is adjusted for the new scan parameters
                     if index == 1 and line_num == 0:
@@ -1417,15 +1434,17 @@ class AFMConfocalLogic(GenericLogic):
                     # emit a signal at every point, so that update can happen in real time.
                     self.sigQAFMLineScanFinished.emit()
                     # remove possibility to stop during line scan.
+
+                    time_now = time.monotonic()
+                    self.total_time = round((time_now - time_prev)/(line_num * coord0_num + index + 1) * (coord0_num*coord1_num)/60/60,3)
+                    self.time_rem = round(self.total_time - (time_now - time_prev)/60/60,3)
+                    fut = datetime.datetime.now() + datetime.timedelta(hours=self.time_rem)
+                    self.fut_str = fut.strftime('%c')
+
                     if self._stop_request:
                         break
 
-                time_now = time.monotonic()
-                total_time = round((time_now - time_prev)/(line_num * coord0_num + index + 1) * (coord0_num*coord1_num)/60/60,3)
-                time_rem = round(total_time - (time_now - time_prev)/60/60,3)
-                fut = datetime.datetime.now() + datetime.timedelta(hours=time_rem)
-                fut_str = fut.strftime('%c')
-                self.log.info(f'Line number {line_num} completed. \nTime remaining: {time_rem}/{total_time}hrs \nEstimated finish: {fut_str}')
+                self.log.info(f'Line number {line_num} completed. \nTime remaining: {self.time_rem}/{self.total_time}hrs \nEstimated finish: {self.fut_str}')
 
                 # store the current line number
                 self._spm_line_num = line_num
@@ -1618,6 +1637,8 @@ class AFMConfocalLogic(GenericLogic):
         self.sigQuantiScanStarted.emit()
         self._stop_request = False
 
+        self.scan_type = 'Full CW-ODMR'
+
         save_temp_data = self._sg_save_temp_data
 
         measure_tip_osc_on_and_off = False
@@ -1804,8 +1825,9 @@ class AFMConfocalLogic(GenericLogic):
         self.sigQAFMScanInitialized.emit()
 
         for line_num in range(coord1_num):
+            self._scan_line = line_num
             for index in range(coord0_num):
-                
+                self._scan_index = index
                 #Work around to ensure that the QAFM image is adjusted for the new scan parameters
                 if index == 1 and line_num == 0:
                     self.sigQAFMScanInitialized.emit()
@@ -1868,6 +1890,13 @@ class AFMConfocalLogic(GenericLogic):
 
                 # emit a signal at every point, so that update can happen in real time.
                 self.sigQAFMLineScanFinished.emit()
+
+                time_now = time.monotonic()
+                self.total_time = round((time_now - time_prev)/(line_num * coord0_num + index + 1) * (coord0_num*coord1_num)/60/60,3)
+                self.time_rem = round(self.total_time - (time_now - time_prev)/60/60,3)
+                fut = datetime.datetime.now() + datetime.timedelta(hours=self.time_rem)
+                self.fut_str = fut.strftime('%c')
+
                 # remove possibility to stop during line scan.
                 if self._stop_request:
                     break
@@ -1878,12 +1907,8 @@ class AFMConfocalLogic(GenericLogic):
                 else:
                     self.sigSaveTempData.emit(False)
 
-            time_now = time.monotonic()
-            total_time = round((time_now - time_prev)/(line_num * coord0_num + index + 1) * (coord0_num*coord1_num)/60/60,3)
-            time_rem = round(total_time - (time_now - time_prev)/60/60,3)
-            fut = datetime.datetime.now() + datetime.timedelta(hours=time_rem)
-            fut_str = fut.strftime('%c')
-            self.log.info(f'Line number {line_num} completed. \nTime remaining: {time_rem}/{total_time}hrs \nEstimated finish: {fut_str}')
+            
+            self.log.info(f'Line number {line_num} completed. \nTime remaining: {self.time_rem}/{self.total_time}hrs \nEstimated finish: {self.fut_str}')
 
             # store the current line number
             self._spm_line_num = line_num
@@ -1956,6 +1981,8 @@ class AFMConfocalLogic(GenericLogic):
         """
         self.sigQuantiScanStarted.emit()
         self._stop_request = False
+
+        self.scan_type = 'Bayesian CW-ODMR'
 
         save_temp_data = self._sg_save_temp_data
 
@@ -2128,7 +2155,9 @@ class AFMConfocalLogic(GenericLogic):
         self.sigQAFMScanInitialized.emit()
         
         for line_num in range(coord1_num):
+            self._scan_line = line_num
             for index in range(coord0_num):
+                self._scan_index = index
 
                 #Work around to ensure that the QAFM image is adjusted for the new scan parameters
                 if index == 1 and line_num == 0:
@@ -2233,6 +2262,13 @@ class AFMConfocalLogic(GenericLogic):
 
                 # emit a signal at every point, so that update can happen in real time.
                 self.sigQAFMLineScanFinished.emit()
+
+                time_now = time.monotonic()
+                self.total_time = round((time_now - time_prev)/(line_num * coord0_num + index + 1) * (coord0_num*coord1_num)/60/60,3)
+                self.time_rem = round(self.total_time - (time_now - time_prev)/60/60,3)
+                fut = datetime.datetime.now() + datetime.timedelta(hours=self.time_rem)
+                self.fut_str = fut.strftime('%c')
+
                 # possibility to stop during line scan.
                 if self._stop_request:
                     break
@@ -2243,12 +2279,7 @@ class AFMConfocalLogic(GenericLogic):
                 else:
                     self.sigSaveTempData.emit(False)
 
-            time_now = time.monotonic()
-            total_time = round((time_now - time_prev)/(line_num * coord0_num + index + 1) * (coord0_num*coord1_num)/60/60,3)
-            time_rem = round(total_time - (time_now - time_prev)/60/60,3)
-            fut = datetime.datetime.now() + datetime.timedelta(hours=time_rem)
-            fut_str = fut.strftime('%c')
-            self.log.info(f'Line number {line_num} completed. \nTime remaining: {time_rem}/{total_time}hrs \nEstimated finish: {fut_str}')
+            self.log.info(f'Line number {line_num} completed. \nTime remaining: {self.time_rem}/{self.total_time}hrs \nEstimated finish: {self.fut_str}')
 
             # store the current line number
             self._spm_line_num = line_num
@@ -2420,6 +2451,8 @@ class AFMConfocalLogic(GenericLogic):
             """
             self.sigQuantiScanStarted.emit()
             self._stop_request = False
+
+            self.scan_type = 'Two point tracking'
 
             save_raw_data = self._sg_save_raw_time_traces
             save_temp_data = self._sg_save_temp_data
@@ -2624,7 +2657,9 @@ class AFMConfocalLogic(GenericLogic):
             self.sigQAFMScanInitialized.emit()
 
             for line_num in range(coord1_num):
+                self._scan_line = line_num
                 for index in range(coord0_num):
+                    self._scan_index = index
 
                     #Work around to ensure that the QAFM image is adjusted for the new scan parameters
                     if index == 1 and line_num == 0:
@@ -2697,6 +2732,13 @@ class AFMConfocalLogic(GenericLogic):
 
                     # emit a signal at every point, so that update can happen in real time.
                     self.sigQAFMLineScanFinished.emit()
+
+                    time_now = time.monotonic()
+                    self.total_time = round((time_now - time_prev)/(line_num * coord0_num + index + 1) * (coord0_num*coord1_num)/60/60,3)
+                    self.time_rem = round(self.total_time - (time_now - time_prev)/60/60,3)
+                    fut = datetime.datetime.now() + datetime.timedelta(hours=self.time_rem)
+                    self.fut_str = fut.strftime('%c')
+
                     # remove possibility to stop during line scan.
                     if self._stop_request:
                         break
@@ -2707,12 +2749,7 @@ class AFMConfocalLogic(GenericLogic):
                     else:
                         self.sigSaveTempData.emit(False)
 
-                time_now = time.monotonic()
-                total_time = round((time_now - time_prev)/(line_num * coord0_num + index + 1) * (coord0_num*coord1_num)/60/60,3)
-                time_rem = round(total_time - (time_now - time_prev)/60/60,3)
-                fut = datetime.datetime.now() + datetime.timedelta(hours=time_rem)
-                fut_str = fut.strftime('%c')
-                self.log.info(f'Line number {line_num} completed. \nTime remaining: {time_rem}/{total_time}hrs \nEstimated finish: {fut_str}')
+                self.log.info(f'Line number {line_num} completed. \nTime remaining: {self.time_rem}/{self.total_time}hrs \nEstimated finish: {self.fut_str}')
 
                 # store the current line number
                 self._spm_line_num = line_num
@@ -2784,6 +2821,8 @@ class AFMConfocalLogic(GenericLogic):
             """
             self.sigQuantiScanStarted.emit()
             self._stop_request = False
+
+            self.scan_type = 'Full PODMR'
 
             save_raw_data = self._sg_save_raw_time_traces
             save_temp_data = self._sg_save_temp_data
@@ -2992,7 +3031,9 @@ class AFMConfocalLogic(GenericLogic):
             self.sigQAFMScanInitialized.emit()
 
             for line_num in range(coord1_num):
+                self._scan_line = line_num
                 for index in range(coord0_num):
+                    self._scan_index = index
 
                     #Work around to ensure that the QAFM image is adjusted for the new scan parameters
                     if index == 1 and line_num == 0:
@@ -3077,6 +3118,13 @@ class AFMConfocalLogic(GenericLogic):
 
                     # emit a signal at every point, so that update can happen in real time.
                     self.sigQAFMLineScanFinished.emit()
+
+                    time_now = time.monotonic()
+                    self.total_time = round((time_now - time_prev)/(line_num * coord0_num + index + 1) * (coord0_num*coord1_num)/60/60,3)
+                    self.time_rem = round(self.total_time - (time_now - time_prev)/60/60,3)
+                    fut = datetime.datetime.now() + datetime.timedelta(hours=self.time_rem)
+                    self.fut_str = fut.strftime('%c')
+
                     # remove possibility to stop during line scan.
                     if self._stop_request:
                         break
@@ -3087,12 +3135,7 @@ class AFMConfocalLogic(GenericLogic):
                     else:
                         self.sigSaveTempData.emit(False)
 
-                time_now = time.monotonic()
-                total_time = round((time_now - time_prev)/(line_num * coord0_num + index + 1) * (coord0_num*coord1_num)/60/60,3)
-                time_rem = round(total_time - (time_now - time_prev)/60/60,3)
-                fut = datetime.datetime.now() + datetime.timedelta(hours=time_rem)
-                fut_str = fut.strftime('%c')
-                self.log.info(f'Line number {line_num} completed. \nTime remaining: {time_rem}/{total_time}hrs \nEstimated finish: {fut_str}')
+                self.log.info(f'Line number {line_num} completed. \nTime remaining: {self.time_rem}/{self.total_time}hrs \nEstimated finish: {self.fut_str}')
 
                 # store the current line number
                 self._spm_line_num = line_num
@@ -3167,6 +3210,8 @@ class AFMConfocalLogic(GenericLogic):
             self.sigQuantiScanStarted.emit()
             self._stop_request = False
 
+            self.scan_type = 'Arb. pulse meas.'
+
             save_raw_data = self._sg_save_raw_time_traces
             save_temp_data = self._sg_save_temp_data
 
@@ -3236,6 +3281,7 @@ class AFMConfocalLogic(GenericLogic):
             #Set up the pulse measurement run at each point
             #Upload and pepare the AWG and pulsestreamer for the PODMR sequence for tracking the res. frequency.
             if loaded_sequence_mode_tracking_podmr:
+                self.scan_type = 'Arb. pulse meas. with two point tracking'
                 self.pulsed_jupyter_logic.initialize_ensemble(laser_power_voltage = self._podmr.laser_power_voltage, pi_pulse=pi_duration, LO_freq_0=freq_start, target_freq_0=freq_start, power_0=mw_power, printing = False, upload = False, set_up_measurement = False)
                 AWG_ensemble_list, AWG_sequence_step_list, PS_seq_name, original_var_list, alternating_tracking, freq_sweep = self.pulsed_jupyter_logic.PODMR(freq_start, freq_stop, freq_step, podmr_tracking_name)
                 LO_freq = self.pulsed_jupyter_logic.LO_freq_0
@@ -3261,6 +3307,7 @@ class AFMConfocalLogic(GenericLogic):
 
             #Upload and pepare the AWG and pulsestreamer for the two point sequence for tracking the res. frequency.
             if loaded_sequence_mode_tracking_two_point:
+                self.scan_type = 'Arb. pulse meas. with full PODMR'
                 LO_freq = res_freq + 100e6 #AWG will play 100MHz +- delta_0. This is the convention for us
                 self.pulsed_jupyter_logic.initialize_ensemble(laser_power_voltage = self._podmr.laser_power_voltage, pi_pulse=pi_duration, LO_freq_0=LO_freq, target_freq_0=res_freq, power_0=mw_power, printing = False, upload = False, set_up_measurement = False)
                 AWG_ensemble_list, AWG_sequence_step_list, PS_seq_name, original_var_list, alternating_tracking, freq_sweep = self.pulsed_jupyter_logic.Tracking(res_freq, delta_0, two_point_tracking_name)
@@ -3507,8 +3554,9 @@ class AFMConfocalLogic(GenericLogic):
             self.sigQAFMScanInitialized.emit()
 
             for line_num in range(coord1_num):
-
+                self._scan_line = line_num
                 for index in range(coord0_num):
+                    self._scan_index = index
 
                     #Work around to ensure that the QAFM image is adjusted for the new scan parameters
                     if index == 1 and line_num == 0:
@@ -3720,6 +3768,13 @@ class AFMConfocalLogic(GenericLogic):
 
                     # emit a signal at every point, so that update can happen in real time.
                     self.sigQAFMLineScanFinished.emit()
+
+                    time_now = time.monotonic()
+                    self.total_time = round((time_now - time_prev)/(line_num * coord0_num + index + 1) * (coord0_num*coord1_num)/60/60,3)
+                    self.time_rem = round(self.total_time - (time_now - time_prev)/60/60,3)
+                    fut = datetime.datetime.now() + datetime.timedelta(hours=self.time_rem)
+                    self.fut_str = fut.strftime('%c')
+
                     # remove possibility to stop during line scan.
                     if self._stop_request:
                         break
@@ -3730,12 +3785,7 @@ class AFMConfocalLogic(GenericLogic):
                     else:
                         self.sigSaveTempData.emit(False)
                 
-                time_now = time.monotonic()
-                total_time = round((time_now - time_prev)/(line_num * coord0_num + index + 1) * (coord0_num*coord1_num)/60/60,3)
-                time_rem = round(total_time - (time_now - time_prev)/60/60,3)
-                fut = datetime.datetime.now() + datetime.timedelta(hours=time_rem)
-                fut_str = fut.strftime('%c')
-                self.log.info(f'Line number {line_num} completed. \nTime remaining: {time_rem}/{total_time}hrs \nEstimated finish: {fut_str}')
+                self.log.info(f'Line number {line_num} completed. \nTime remaining: {self.time_rem}/{self.total_time}hrs \nEstimated finish: {self.fut_str}')
 
                 # store the current line number
                 self._spm_line_num = line_num
@@ -3925,6 +3975,8 @@ class AFMConfocalLogic(GenericLogic):
         self.sigQuantiScanStarted.emit()
         self._stop_request = False
 
+        self.scan_type = 'Gradiometry'
+
         save_raw_data = self._sg_save_raw_time_traces
         save_temp_data = self._sg_save_temp_data
 
@@ -4105,8 +4157,9 @@ class AFMConfocalLogic(GenericLogic):
         self.sigQAFMScanInitialized.emit()
 
         for line_num in range(coord1_num):
-
+            self._scan_line = line_num
             for index in range(coord0_num):
+                self._scan_index = index
 
                 #Work around to ensure that the QAFM image is adjusted for the new scan parameters
                 if index == 1 and line_num == 0:
@@ -4168,6 +4221,13 @@ class AFMConfocalLogic(GenericLogic):
 
                 # emit a signal at every point, so that update can happen in real time.
                 self.sigQAFMLineScanFinished.emit()
+
+                time_now = time.monotonic()
+                self.total_time = round((time_now - time_prev)/(line_num * coord0_num + index + 1) * (coord0_num*coord1_num)/60/60,3)
+                self.time_rem = round(self.total_time - (time_now - time_prev)/60/60,3)
+                fut = datetime.datetime.now() + datetime.timedelta(hours=self.time_rem)
+                self.fut_str = fut.strftime('%c')
+
                 # remove possibility to stop during line scan.
                 if self._stop_request:
                     break
@@ -4178,12 +4238,7 @@ class AFMConfocalLogic(GenericLogic):
                 else:
                     self.sigSaveTempData.emit(False)
             
-            time_now = time.monotonic()
-            total_time = round((time_now - time_prev)/(line_num * coord0_num + index + 1) * (coord0_num*coord1_num)/60/60,3)
-            time_rem = round(total_time - (time_now - time_prev)/60/60,3)
-            fut = datetime.datetime.now() + datetime.timedelta(hours=time_rem)
-            fut_str = fut.strftime('%c')
-            self.log.info(f'Line number {line_num} completed. \nTime remaining: {time_rem}/{total_time}hrs \nEstimated finish: {fut_str}')
+            self.log.info(f'Line number {line_num} completed. \nTime remaining: {self.time_rem}/{self.total_time}hrs \nEstimated finish: {self.fut_str}')
 
             # store the current line number
             self._spm_line_num = line_num
@@ -4370,6 +4425,8 @@ class AFMConfocalLogic(GenericLogic):
             integration_time = self._sg_int_time_obj_scan
 
         self.module_state.lock()
+
+        self.scan_type = 'Confocal scan'
 
         coord0, coord1 = (0.0, 0.0)
 
@@ -4592,6 +4649,8 @@ class AFMConfocalLogic(GenericLogic):
 
         opti_name = 'opti_xy'
 
+        self.scan_type = 'Confocal scan optimization'
+
         start_time_opti = datetime.datetime.now()
         self._opti_meas_duration = 0
 
@@ -4729,6 +4788,8 @@ class AFMConfocalLogic(GenericLogic):
         plane = 'Z2X2'
 
         opti_name = 'opti_z'
+
+        self.scan_type = 'Confocal scan optimization'
 
         self._start = time.time()
 
@@ -4900,6 +4961,8 @@ class AFMConfocalLogic(GenericLogic):
         # locked, else we need to take care not to unlock it after finalizing
         # the process.
         optimizer_standalone_call = False
+
+        self.scan_type = 'Confocal scan optimization'
         
         if self.module_state() == 'idle':
             self.module_state.lock()
@@ -7485,8 +7548,23 @@ class AFMConfocalLogic(GenericLogic):
 
         self._AWG.pulser_on()
 
-    def send_telegram_message(self):
-        pass
-        # chats = [1532705674, 6340115163]
-        # for id in chats:
-        #     self.bot.send_message(id, f"Scan complete!")
+    def scan_request(self, chat_id):
+        if self.check_thread_active():
+            if self.scan_type == 'Confocal scan optimization' or self.scan_type == 'Confocal scan':
+                msg = f"Scan Status:\
+                    \nCurrent scan: {self.scan_type}"
+                
+            else:
+                line_max = self._qafm_scan_array['Height(Dac)_fw']['data'].shape[0]
+                index_max = self._qafm_scan_array['Height(Dac)_fw']['data'].shape[1]
+                msg = f"Scan Status:\
+                        \nCurrent scan: {self.scan_type}\
+                        \nScan line: {self._scan_line}/{line_max}\
+                        \nScan point: {self._scan_index}/{index_max}\
+                        \nTime remaining: {self.time_rem}/{self.total_time}hrs\
+                        \nEstimated finish: {self.fut_str}"
+            
+        else:
+            msg = f"Scan Status:\
+                    \n No scan is running."
+        self._telebotlogic.send_message(msg, [chat_id])
