@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>445</width>
+    <width>466</width>
     <height>380</height>
    </rect>
   </property>
@@ -26,7 +26,7 @@
       <enum>QTabWidget::Rounded</enum>
      </property>
      <property name="currentIndex">
-      <number>0</number>
+      <number>1</number>
      </property>
      <widget class="QWidget" name="tab">
       <attribute name="title">
@@ -242,7 +242,45 @@
        <string>Save</string>
       </attribute>
       <layout class="QGridLayout" name="gridLayout_3">
-       <item row="1" column="2">
+       <item row="5" column="3">
+        <widget class="QCheckBox" name="save_raw_timetraces_CheckBox">
+         <property name="text">
+          <string/>
+         </property>
+        </widget>
+       </item>
+       <item row="6" column="3">
+        <widget class="QCheckBox" name="save_temp_data_CheckBox">
+         <property name="text">
+          <string/>
+         </property>
+        </widget>
+       </item>
+       <item row="4" column="3">
+        <widget class="QCheckBox" name="save_to_gwyddion_CheckBox">
+         <property name="text">
+          <string/>
+         </property>
+        </widget>
+       </item>
+       <item row="6" column="1">
+        <widget class="QLabel" name="label_3">
+         <property name="text">
+          <string>Save temporary data after every line</string>
+         </property>
+        </widget>
+       </item>
+       <item row="3" column="1">
+        <widget class="QLabel" name="label_14">
+         <property name="toolTip">
+          <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;To distinguish the data from the manual save, an additonal tag '_autosave' will be added to the name.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+         </property>
+         <property name="text">
+          <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Save Quantitative measurement&lt;br/&gt;automatically after scan has&lt;br/&gt;finished or stopped.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+         </property>
+        </widget>
+       </item>
+       <item row="1" column="3">
         <widget class="QCheckBox" name="create_summary_pic_CheckBox">
          <property name="toolTip">
           <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Save in addition to the usual data a summary picture of the sample scan, where all the measured signals are displayed corresponding to one scanning direction.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
@@ -255,34 +293,14 @@
          </property>
         </widget>
        </item>
-       <item row="3" column="0">
-        <widget class="QLabel" name="label_14">
-         <property name="toolTip">
-          <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;To distinguish the data from the manual save, an additonal tag '_autosave' will be added to the name.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-         </property>
+       <item row="0" column="1" colspan="2">
+        <widget class="QLabel" name="label_4">
          <property name="text">
-          <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Save Quantitative measurement&lt;br/&gt;automatically after scan has&lt;br/&gt;finished or stopped.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+          <string>Root folder name for measurements</string>
          </property>
         </widget>
        </item>
-       <item row="0" column="2">
-        <widget class="QLineEdit" name="rootfolder_name_LineEdit">
-         <property name="toolTip">
-          <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Set the name for the root folder, where all data are created. This helps to group measurements to a certain event.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-         </property>
-        </widget>
-       </item>
-       <item row="2" column="2">
-        <widget class="QCheckBox" name="auto_save_qafm_CheckBox">
-         <property name="toolTip">
-          <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;To distinguish the data from the manual save, an additonal tag '_autosave' will be added to the name.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-         </property>
-         <property name="text">
-          <string/>
-         </property>
-        </widget>
-       </item>
-       <item row="2" column="0">
+       <item row="2" column="1">
         <widget class="QLabel" name="label_13">
          <property name="toolTip">
           <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;To distinguish the data from the manual save, an additonal tag '_autosave' will be added to the name.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
@@ -292,7 +310,7 @@
          </property>
         </widget>
        </item>
-       <item row="3" column="2">
+       <item row="3" column="3">
         <widget class="QCheckBox" name="auto_save_quanti_CheckBox">
          <property name="toolTip">
           <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;To distinguish the data from the manual save, an additonal tag '_autosave' will be added to the name.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
@@ -302,59 +320,55 @@
          </property>
         </widget>
        </item>
-       <item row="0" column="0" colspan="2">
-        <widget class="QLabel" name="label_4">
+       <item row="2" column="3">
+        <widget class="QCheckBox" name="auto_save_qafm_CheckBox">
+         <property name="toolTip">
+          <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;To distinguish the data from the manual save, an additonal tag '_autosave' will be added to the name.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+         </property>
          <property name="text">
-          <string>Root folder name for measurements</string>
+          <string/>
          </property>
         </widget>
        </item>
-       <item row="1" column="0">
-        <widget class="QLabel" name="label_5">
-         <property name="text">
-          <string>Create summary picture</string>
-         </property>
-        </widget>
-       </item>
-       <item row="4" column="0">
+       <item row="4" column="1">
         <widget class="QLabel" name="label_15">
          <property name="text">
           <string>Save to Gwyddion format</string>
          </property>
         </widget>
        </item>
-       <item row="5" column="0">
+       <item row="1" column="1">
+        <widget class="QLabel" name="label_5">
+         <property name="text">
+          <string>Create summary picture</string>
+         </property>
+        </widget>
+       </item>
+       <item row="5" column="1">
         <widget class="QLabel" name="label">
          <property name="text">
           <string>Save raw time traces</string>
          </property>
         </widget>
        </item>
-       <item row="6" column="0">
-        <widget class="QLabel" name="label_3">
-         <property name="text">
-          <string>Save temporary data after every line</string>
+       <item row="0" column="3">
+        <widget class="QLineEdit" name="rootfolder_name_LineEdit">
+         <property name="toolTip">
+          <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Set the name for the root folder, where all data are created. This helps to group measurements to a certain event.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
          </property>
         </widget>
        </item>
-       <item row="4" column="2">
-        <widget class="QCheckBox" name="save_to_gwyddion_CheckBox">
+       <item row="7" column="3">
+        <widget class="QCheckBox" name="telegram_message_checkBox">
          <property name="text">
           <string/>
          </property>
         </widget>
        </item>
-       <item row="5" column="2">
-        <widget class="QCheckBox" name="save_raw_timetraces_CheckBox">
+       <item row="7" column="1">
+        <widget class="QLabel" name="label_16">
          <property name="text">
-          <string/>
-         </property>
-        </widget>
-       </item>
-       <item row="6" column="2">
-        <widget class="QCheckBox" name="save_temp_data_CheckBox">
-         <property name="text">
-          <string/>
+          <string>Send message after scan finished via Telegram Bot</string>
          </property>
         </widget>
        </item>
@@ -665,6 +679,7 @@
   <tabstop>save_to_gwyddion_CheckBox</tabstop>
   <tabstop>save_raw_timetraces_CheckBox</tabstop>
   <tabstop>save_temp_data_CheckBox</tabstop>
+  <tabstop>telegram_message_checkBox</tabstop>
   <tabstop>optimizer_x_range_DoubleSpinBox</tabstop>
   <tabstop>optimizer_x_res_SpinBox</tabstop>
   <tabstop>optimizer_y_range_DoubleSpinBox</tabstop>

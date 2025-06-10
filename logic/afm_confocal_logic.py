@@ -467,6 +467,8 @@ class AFMConfocalLogic(GenericLogic):
     _sg_save_raw_time_traces = StatusVar(default = False)
     _sg_save_temp_data = StatusVar(default = False)
 
+    _telegram_message = StatusVar(default = False)
+
     # Save scan automatically after it has finished
     _sg_auto_save_quanti = StatusVar(default=False)
     _sg_auto_save_qafm = StatusVar(default=False)
@@ -570,6 +572,8 @@ class AFMConfocalLogic(GenericLogic):
     
         self.sigSaveDataGwyddion.connect(self._save_to_gwyddion)
         self.sigSaveDataGwyddionFinished.connect(self.decrease_save_counter)
+
+        self.sigQuantiScanFinished.connect(self.scan_finish_request)
 
         #Telegram bot connectors and important parameters
         self._telebotlogic.sigScanRequest.connect(self.scan_request)
@@ -910,6 +914,9 @@ class AFMConfocalLogic(GenericLogic):
         sd['save_to_gwyddion'] = self._sg_save_to_gwyddion
         sd['save_raw_time_traces'] = self._sg_save_raw_time_traces
         sd['save_temp_data'] = self._sg_save_temp_data
+
+        sd['telegram_message'] = self._telegram_message
+
         # Optimizer Settings
         sd['optimizer_x_range'] = self._sg_optimizer_x_range
         sd['optimizer_x_res'] = self._sg_optimizer_x_res
@@ -7568,3 +7575,8 @@ class AFMConfocalLogic(GenericLogic):
             msg = f"Scan Status:\
                     \n No scan is running."
         self._telebotlogic.send_message(msg, [chat_id])
+
+    def scan_finish_request(self):
+        if not self._stop_request and self._telegram_message:
+            msg = f"Scan {self.scan_type} finished after {int(self._afm_meas_duration)}s!"
+            self._telebotlogic.send_message(msg)

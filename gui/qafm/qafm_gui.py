@@ -987,6 +987,8 @@ class ProteusQGUI(GUIBase):
         sd['save_raw_time_traces'] = self._sd.save_raw_timetraces_CheckBox.isChecked()
         sd['save_temp_data'] = self._sd.save_temp_data_CheckBox.isChecked()
 
+        sd['telegram_message'] = self._sd.telegram_message_checkBox.isChecked()
+
         # optimizer settings
         sd['optimizer_x_range'] = self._sd.optimizer_x_range_DoubleSpinBox.value()
         sd['optimizer_x_res'] = self._sd.optimizer_x_res_SpinBox.value()
@@ -1060,6 +1062,9 @@ class ProteusQGUI(GUIBase):
         self._sd.save_to_gwyddion_CheckBox.setChecked(sd['save_to_gwyddion'])
         self._sd.save_raw_timetraces_CheckBox.setChecked(sd['save_raw_time_traces'])
         self._sd.save_temp_data_CheckBox.setChecked(sd['save_temp_data'])
+
+        self._sd.telegram_message_checkBox.setChecked(sd['telegram_message'])
+
         # optimizer settings
         self._sd.optimizer_x_range_DoubleSpinBox.setValue(sd['optimizer_x_range'])
         self._sd.optimizer_x_res_SpinBox.setValue(sd['optimizer_x_res'])
