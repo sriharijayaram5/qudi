@@ -155,6 +155,8 @@ class PulsedMeasurementLogic(GenericLogic):
         return
 
     def on_activate(self):
+
+        #print('AAAA')
         """ Initialisation performed during activation of the module.
         """
         # Create an instance of PulseExtractor
@@ -211,6 +213,9 @@ class PulsedMeasurementLogic(GenericLogic):
         # Connect internal signals
         self.sigStartTimer.connect(self.__analysis_timer.start, QtCore.Qt.QueuedConnection)
         self.sigStopTimer.connect(self.__analysis_timer.stop, QtCore.Qt.QueuedConnection)
+
+        #print('AAAA')
+
         return
 
     def on_deactivate(self):

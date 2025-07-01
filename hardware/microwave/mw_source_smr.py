@@ -489,7 +489,6 @@ class MicrowaveSMR(Base, MicrowaveInterface):
                                'to the generated List from the SMR20.')
 
         actual_freq = self.get_frequency()
-        print(actual_freq)
         actual_power_list = self.get_power() # in list mode we get a power list!
         # THIS AMBIGUITY IN THE RETURN VALUE TYPE IS NOT GOOD AT ALL!!!
         # FIXME: Ahh this is so shitty with the return value!!!

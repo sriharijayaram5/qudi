@@ -155,9 +155,15 @@ class SPM_ASC500(Base, ScannerInterface):
         self.pos_interp_x = interp1d( np.array([0, s_range['X']]), np.array([-23000, 23000]), kind='linear', fill_value="extrapolate")
         self.pos_interp_y = interp1d( np.array([0, s_range['Y']]), np.array([-23000, 23000]), kind='linear', fill_value="extrapolate")
 
-        self.pos_read_interp_x = interp1d(np.array([-48827443, 48827443]), np.array([0, s_range['X']]), kind='linear', fill_value="extrapolate")
-        self.pos_read_interp_y = interp1d(np.array([-48827443, 48827443]), np.array([0, s_range['Y']]), kind='linear', fill_value="extrapolate")
-
+        if np.isclose(s_range['X'], self._sample_scan_range['LT']['X'], rtol=100e-09, atol=100e-09, equal_nan=False):
+            self.pos_read_interp_x = interp1d(np.array([-49151535, 48830935]), np.array([0, s_range['X']]), kind='linear', fill_value="extrapolate")
+            self.pos_read_interp_y = interp1d(np.array([-49151535, 48830935]), np.array([0, s_range['Y']]), kind='linear', fill_value="extrapolate")
+            #self.pos_read_interp_x = interp1d(np.array([-48827443, 48827443]), np.array([0, s_range['X']]), kind='linear', fill_value="extrapolate")
+            #self.pos_read_interp_y = interp1d(np.array([-48827443, 48827443]), np.array([0, s_range['Y']]), kind='linear', fill_value="extrapolate")
+        else:
+            self.pos_read_interp_x = interp1d(np.array([-19658353, 19530977]), np.array([0, s_range['X']]), kind='linear', fill_value="extrapolate")
+            self.pos_read_interp_y = interp1d(np.array([-19658353, 19530977]), np.array([0, s_range['Y']]), kind='linear', fill_value="extrapolate")
+        
         self._create_scanner_contraints()
         self._create_scanner_measurements()
         self._trig = False
@@ -520,70 +526,70 @@ class SPM_ASC500(Base, ScannerInterface):
     
 
     ########################################################################################################################
-    # def _configurePathDataBuffering(self, sampTime):
-    #     # The channel configuration and GUI element showing the input for the Specs have little do with each other. Multiple channels can be triggered by a spec. If the GUI channel is the same 
-    #     # as the channel chosen for the custom spec then the GUI elements also update. Things will always work and data is buffered, but the nice spec GUI may not update if the channel is not the same there.
-    #     # this is simply by order in which in it is added (stupid people attocube outsourced to).
+    def _configurePathDataBuffering(self, sampTime):
+        # The channel configuration and GUI element showing the input for the Specs have little do with each other. Multiple channels can be triggered by a spec. If the GUI channel is the same 
+        # as the channel chosen for the custom spec then the GUI elements also update. Things will always work and data is buffered, but the nice spec GUI may not update if the channel is not the same there.
+        # this is simply by order in which in it is added (stupid people attocube outsourced to).
 
-    #     if self._spm_curr_mode == ScannerMode.PROBE_CONTACT:
-    #         self.spec_engine_dummy = 1
-    #         self.spec_count = 469 # this value works because it is not changed after spec engine starts - necessary for correct buffer size
+        if self._spm_curr_mode == ScannerMode.PROBE_CONTACT:
+            self.spec_engine_dummy = 1
+            self.spec_count = 469 # this value works because it is not changed after spec engine starts - necessary for correct buffer size
             
-    #         if not self._has_been_set[0]:
-    #             self._dev.base.configureChannel(self._chn_no, # any Number between 0 and 13.
-    #                                     self._dev.base.getConst(f'CHANCONN_SPEC_{self.spec_engine_dummy}'), # How you want to the data to be triggered - CHANCONN_PERMANENT is time triggered data
-    #                                     self._dev.base.getConst('CHANADC_ZOUTINV'), # The ADC channel you want to get the data from
-    #                                     1, # 0/1 -  if you want to switch on averaging
-    #                                     sampTime) # Scanner sample time [s]
-    #         self._has_been_set[0] = True    
+            if not self._has_been_set[0]:
+                self._dev.base.configureChannel(self._chn_no, # any Number between 0 and 13.
+                                        self._dev.base.getConst(f'CHANCONN_SPEC_{self.spec_engine_dummy}'), # How you want to the data to be triggered - CHANCONN_PERMANENT is time triggered data
+                                        self._dev.base.getConst('CHANADC_ZOUTINV'), # The ADC channel you want to get the data from
+                                        1, # 0/1 -  if you want to switch on averaging
+                                        sampTime) # Scanner sample time [s]
+            self._has_been_set[0] = True    
             
-    #         self._dev.base.setParameter(self._dev.base.getConst('ID_SPEC_DAC_NO'), 3, self.spec_engine_dummy) # index 1 is spec engine 2. Spec engine 0 is Z-Spec. 4 is the 4th DAC which is not used for objective scanning
-    #         self._dev.base.setParameter(self._dev.base.getConst('ID_SPEC_START_DISP'), 0, self.spec_engine_dummy)
-    #         self._dev.base.setParameter(self._dev.base.getConst('ID_SPEC_END_DISP'), 1000, self.spec_engine_dummy)
-    #         self._dev.base.setParameter(self._dev.base.getConst('ID_SPEC_COUNT'), self.spec_count, self.spec_engine_dummy)
+            self._dev.base.setParameter(self._dev.base.getConst('ID_SPEC_DAC_NO'), 3, self.spec_engine_dummy) # index 1 is spec engine 2. Spec engine 0 is Z-Spec. 4 is the 4th DAC which is not used for objective scanning
+            self._dev.base.setParameter(self._dev.base.getConst('ID_SPEC_START_DISP'), 0, self.spec_engine_dummy)
+            self._dev.base.setParameter(self._dev.base.getConst('ID_SPEC_END_DISP'), 1000, self.spec_engine_dummy)
+            self._dev.base.setParameter(self._dev.base.getConst('ID_SPEC_COUNT'), self.spec_count, self.spec_engine_dummy)
 
-    #         self.spec_count = self._dev.base.getParameter(self._dev.base.getConst('ID_SPEC_COUNT'), self.spec_engine_dummy)
-    #         self._dev.base.setParameter(self._dev.base.getConst('ID_SPEC_MSPOINTS'), int((sampTime/2.5e-6)/self.spec_count), self.spec_engine_dummy)
-    #         self._dev.base.configureDataBuffering(self._chn_no, self.spec_count) # chNo = same as above; bufSize = Buffersize.
-    #     else:
-    #         self.spec_engine_dummy = 2
-    #         self.spec_count = self._line_points
-    #         self._dev.base.setParameter(self._dev.base.getConst('ID_CNT_EXP_TIME'),int(sampTime/2.5e-6), 0)
+            self.spec_count = self._dev.base.getParameter(self._dev.base.getConst('ID_SPEC_COUNT'), self.spec_engine_dummy)
+            self._dev.base.setParameter(self._dev.base.getConst('ID_SPEC_MSPOINTS'), int((sampTime/2.5e-6)/self.spec_count), self.spec_engine_dummy)
+            self._dev.base.configureDataBuffering(self._chn_no, self.spec_count) # chNo = same as above; bufSize = Buffersize.
+        else:
+            self.spec_engine_dummy = 2
+            self.spec_count = self._line_points
+            self._dev.base.setParameter(self._dev.base.getConst('ID_CNT_EXP_TIME'),int(sampTime/2.5e-6), 0)
             
-    #         if not self._has_been_set[1]:
-    #             self._dev.base.configureChannel(self._chn_no, # any Number between 0 and 13.
-    #                                 self._dev.base.getConst(f'CHANCONN_SPEC_{self.spec_engine_dummy}'), # How you want to the data to be triggered - CHANCONN_PERMANENT is time triggered data
-    #                                 self._dev.base.getConst('CHANADC_COUNTER'), # The counter  ADC channel
-    #                                 1, # 0/1 -  if you want to switch on averaging
-    #                                 sampTime) # Scanner sample time [s]
-    #             self._has_been_set[1] = True
+            if not self._has_been_set[1]:
+                self._dev.base.configureChannel(self._chn_no, # any Number between 0 and 13.
+                                    self._dev.base.getConst(f'CHANCONN_SPEC_{self.spec_engine_dummy}'), # How you want to the data to be triggered - CHANCONN_PERMANENT is time triggered data
+                                    self._dev.base.getConst('CHANADC_COUNTER'), # The counter  ADC channel
+                                    1, # 0/1 -  if you want to switch on averaging
+                                    sampTime) # Scanner sample time [s]
+                self._has_been_set[1] = True
             
-    #         start_cart = self.objective_scan_line[{0:'X2', 1:'Y2', 2:'Z2'}[self.fast_axis]][0]
-    #         stop_cart = self.objective_scan_line[{0:'X2', 1:'Y2', 2:'Z2'}[self.fast_axis]][-1]
-    #         start = self._objective_volt_for_pos(start_cart, True if not self.fast_axis==2 else False)
-    #         stop = self._objective_volt_for_pos(stop_cart, True if not self.fast_axis==2 else False)
-    #         self._dev.base.setParameter(self._dev.base.getConst('ID_SPEC_DAC_NO'), self.fast_axis, self.spec_engine_dummy) # index 1 is spec engine 1. Spec engine 0 is Z-Spec. 4 is the 4th DAC which is not used for objective scanning
-    #         self._dev.base.setParameter(self._dev.base.getConst('ID_SPEC_START_DISP'), start*1e3, self.spec_engine_dummy)
-    #         self._dev.base.setParameter(self._dev.base.getConst('ID_SPEC_END_DISP'), stop*1e3, self.spec_engine_dummy)
-    #         self._dev.base.setParameter(self._dev.base.getConst('ID_SPEC_COUNT'), self.spec_count, self.spec_engine_dummy)
+            start_cart = self.objective_scan_line[{0:'X2', 1:'Y2', 2:'Z2'}[self.fast_axis]][0]
+            stop_cart = self.objective_scan_line[{0:'X2', 1:'Y2', 2:'Z2'}[self.fast_axis]][-1]
+            start = self._objective_volt_for_pos(start_cart, True if not self.fast_axis==2 else False)
+            stop = self._objective_volt_for_pos(stop_cart, True if not self.fast_axis==2 else False)
+            self._dev.base.setParameter(self._dev.base.getConst('ID_SPEC_DAC_NO'), self.fast_axis, self.spec_engine_dummy) # index 1 is spec engine 1. Spec engine 0 is Z-Spec. 4 is the 4th DAC which is not used for objective scanning
+            self._dev.base.setParameter(self._dev.base.getConst('ID_SPEC_START_DISP'), start*1e3, self.spec_engine_dummy)
+            self._dev.base.setParameter(self._dev.base.getConst('ID_SPEC_END_DISP'), stop*1e3, self.spec_engine_dummy)
+            self._dev.base.setParameter(self._dev.base.getConst('ID_SPEC_COUNT'), self.spec_count, self.spec_engine_dummy)
 
-    #         self._dev.base.setParameter(self._dev.base.getConst('ID_SPEC_MSPOINTS'), int(sampTime/2.5e-6), self.spec_engine_dummy)
-    #         self._dev.base.configureDataBuffering(self._chn_no, self.spec_count) # chNo = same as above; bufSize = Buffersize.
+            self._dev.base.setParameter(self._dev.base.getConst('ID_SPEC_MSPOINTS'), int(sampTime/2.5e-6), self.spec_engine_dummy)
+            self._dev.base.configureDataBuffering(self._chn_no, self.spec_count) # chNo = same as above; bufSize = Buffersize.
 
-    # def _poll_path_data(self):
-    #     '''
-    #     Polls the buffer after the spec engine is triggered at each point. _grabASCData is a blocking statement that only passes after buffer is full.
-    #     To implement Dual Pass the Z position will be set at every point inside the for loop
-    #     '''
-    #     n = self._line_points if self._spm_curr_mode == ScannerMode.PROBE_CONTACT else 1
+    def _poll_path_data(self):
+        '''
+        Polls the buffer after the spec engine is triggered at each point. _grabASCData is a blocking statement that only passes after buffer is full.
+        To implement Dual Pass the Z position will be set at every point inside the for loop
+        '''
+        n = self._line_points if self._spm_curr_mode == ScannerMode.PROBE_CONTACT else 1
         
-    #     for i in range(n):
-    #         self.spec_count = self._dev.base.getParameter(self._dev.base.getConst('ID_SPEC_COUNT'), self.spec_engine_dummy)
-    #         data = self._grabASCData(self.spec_count)
-    #         if self._spm_curr_mode == ScannerMode.PROBE_CONTACT:
-    #             self._polled_data[i] = np.mean(data)
-    #         else:
-    #             self._polled_data = data*1e8
+        for i in range(n):
+            self.spec_count = self._dev.base.getParameter(self._dev.base.getConst('ID_SPEC_COUNT'), self.spec_engine_dummy)
+            data = self._grabASCData(self.spec_count)
+            if self._spm_curr_mode == ScannerMode.PROBE_CONTACT:
+                self._polled_data[i] = np.mean(data)
+            else:
+                self._polled_data = data*1e8
 
     # def _poll_point_data(self):
     #     '''
@@ -718,6 +724,7 @@ class SPM_ASC500(Base, ScannerInterface):
             self._dev.base.setParameter(self._dev.base.getConst('ID_SCAN_PSPEED'), afm_scan_speed*1e9, 0)
             self._configureSampleAreaPath_new(scan_arr, liftoff_mode, liftoff_height)
             #self.setup_height_measurement(afm_int_time=afm_int_time)
+            self.afm_int_time = afm_int_time
 
             if self._spm_curr_sstyle==ScanStyle.POINT:
                 while self.sample_is_moving():
@@ -911,8 +918,10 @@ class SPM_ASC500(Base, ScannerInterface):
                 self.set_sample_pos_abs(axis_dict)
                 if self.liftoff_mode:
                     height = self.do_liftoff(self.liftoff_height)
-                else:
+                elif self.afm_int_time != 0:
                     height = self.measure_z_extension()
+                else:
+                    height = 0
                     
                 return height
         return 0
@@ -1374,6 +1383,15 @@ class SPM_ASC500(Base, ScannerInterface):
 
     def initialise_sample_coordinates(self):
         s_range = self.get_sample_scan_range()
+
+        if np.isclose(s_range['X'], self._sample_scan_range['LT']['X'], rtol=100e-09, atol=100e-09, equal_nan=False):
+            print('This is LT')
+            self.pos_read_interp_x = interp1d(np.array([-49151535, 48830935]), np.array([0, s_range['X']]), kind='linear', fill_value="extrapolate")
+            self.pos_read_interp_y = interp1d(np.array([-49151535, 48830935]), np.array([0, s_range['Y']]), kind='linear', fill_value="extrapolate")
+        else:
+            print('This is RT')
+            self.pos_read_interp_x = interp1d(np.array([-19658353, 19530977]), np.array([0, s_range['X']]), kind='linear', fill_value="extrapolate")
+            self.pos_read_interp_y = interp1d(np.array([-19658353, 19530977]), np.array([0, s_range['Y']]), kind='linear', fill_value="extrapolate")
         self._set_scan_area_daisy(area_corr0_start=0, area_corr0_stop=s_range["X"], area_corr1_start=0, area_corr1_stop=s_range["Y"])
 
     def rounder(self, x):
@@ -1456,7 +1474,7 @@ class SPM_ASC500(Base, ScannerInterface):
         pos = self.get_sample_pos()
         a = np.array([pos["X"], pos["Y"]])
         b = np.array([target["X"], target["Y"]])
-        return np.all(np.isclose(a, b, rtol=1e-09, atol=1e-09, equal_nan=False))
+        return np.all(np.isclose(a, b, rtol=100e-09, atol=100e-09, equal_nan=False))
     
     def sample_at_liftoff(self, liftoff):
         pos = self.get_sample_pos()['Z']

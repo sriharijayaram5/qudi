@@ -155,6 +155,8 @@ class SequenceGeneratorLogic(GenericLogic):
     def on_activate(self):
         """ Initialisation performed during activation of the module.
         """
+
+        # print('BBBB')
         if not os.path.exists(self._assets_storage_dir):
             os.makedirs(self._assets_storage_dir)
 
@@ -222,7 +224,7 @@ class SequenceGeneratorLogic(GenericLogic):
         self.__sequence_generation_in_progress = False
 
         self.print_log_info = True
-
+        # print('BBBB')
         return
 
     def on_deactivate(self):
