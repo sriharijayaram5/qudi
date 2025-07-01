@@ -1389,7 +1389,7 @@ class SPM_ASC500(Base, ScannerInterface):
             self.pos_read_interp_x = interp1d(np.array([-49151535, 48830935]), np.array([0, s_range['X']]), kind='linear', fill_value="extrapolate")
             self.pos_read_interp_y = interp1d(np.array([-49151535, 48830935]), np.array([0, s_range['Y']]), kind='linear', fill_value="extrapolate")
         else:
-            print('This is RT')
+            print('This is now RT')
             self.pos_read_interp_x = interp1d(np.array([-19658353, 19530977]), np.array([0, s_range['X']]), kind='linear', fill_value="extrapolate")
             self.pos_read_interp_y = interp1d(np.array([-19658353, 19530977]), np.array([0, s_range['Y']]), kind='linear', fill_value="extrapolate")
         self._set_scan_area_daisy(area_corr0_start=0, area_corr0_stop=s_range["X"], area_corr1_start=0, area_corr1_stop=s_range["Y"])
