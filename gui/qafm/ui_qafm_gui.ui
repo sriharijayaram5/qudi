@@ -58,7 +58,6 @@
      <string>Measurements</string>
     </property>
     <addaction name="action_Quantitative_Measure"/>
-    <addaction name="action_arbitrary_pulse_measurement_viewer"/>
     <addaction name="action_open_optimizer_request"/>
     <addaction name="separator"/>
     <addaction name="action_Immediate_Stop"/>
@@ -1699,6 +1698,9 @@
    </property>
   </action>
   <action name="action_arbitrary_pulse_measurement_viewer">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
    <property name="text">
     <string>Open arbitrary pulse measurement viewer</string>
    </property>

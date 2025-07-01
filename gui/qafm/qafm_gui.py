@@ -2549,7 +2549,6 @@ class ProteusQGUI(GUIBase):
         # i.e. changing this object, will change the initial data!
         data_obj['display_range'] = [ c * scale_fac for c in cb_range]
 
-
     @QtCore.Slot(str)
     def _update_obj_data(self, obj_name=None):
 

@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1341</width>
+    <width>1023</width>
     <height>703</height>
    </rect>
   </property>
@@ -813,7 +813,7 @@
   <customwidget>
    <class>ScienDSpinBox</class>
    <extends>QDoubleSpinBox</extends>
-   <header>qtwidgets.scientific_spinbox.h</header>
+   <header location="global">qtwidgets.scientific_spinbox.h</header>
   </customwidget>
   <customwidget>
    <class>ScienSpinBox</class>
