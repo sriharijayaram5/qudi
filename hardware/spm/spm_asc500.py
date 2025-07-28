@@ -1389,7 +1389,7 @@ class SPM_ASC500(Base, ScannerInterface):
             self.pos_read_interp_x = interp1d(np.array([-49151535, 48830935]), np.array([0, s_range['X']]), kind='linear', fill_value="extrapolate")
             self.pos_read_interp_y = interp1d(np.array([-49151535, 48830935]), np.array([0, s_range['Y']]), kind='linear', fill_value="extrapolate")
         else:
-            print('This is now RT')
+            print('This is RT')
             self.pos_read_interp_x = interp1d(np.array([-19658353, 19530977]), np.array([0, s_range['X']]), kind='linear', fill_value="extrapolate")
             self.pos_read_interp_y = interp1d(np.array([-19658353, 19530977]), np.array([0, s_range['Y']]), kind='linear', fill_value="extrapolate")
         self._set_scan_area_daisy(area_corr0_start=0, area_corr0_stop=s_range["X"], area_corr1_start=0, area_corr1_stop=s_range["Y"])
@@ -1424,6 +1424,8 @@ class SPM_ASC500(Base, ScannerInterface):
         
         # self._dev.base.setParameter(self._dev.base.getConst('ID_POSI_GOTO'), 1, 0)  
         while not self.sample_at_target(axis_dict):
+            # print(self.get_sample_pos())
+            # print(axis_dict)
             pass
         return self.get_sample_pos(list(axis_dict.keys()))
     
@@ -1474,7 +1476,8 @@ class SPM_ASC500(Base, ScannerInterface):
         pos = self.get_sample_pos()
         a = np.array([pos["X"], pos["Y"]])
         b = np.array([target["X"], target["Y"]])
-        return np.all(np.isclose(a, b, rtol=100e-09, atol=100e-09, equal_nan=False))
+        # return np.all(np.isclose(a, b, rtol=100e-09, atol=100e-09, equal_nan=False))
+        return np.all(np.isclose(a, b, rtol=100e-09, atol=150e-09, equal_nan=False)) # xuankai: I extend to 150nm error range
     
     def sample_at_liftoff(self, liftoff):
         pos = self.get_sample_pos()['Z']
