@@ -6,53 +6,23 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>899</width>
-    <height>600</height>
+    <width>828</width>
+    <height>607</height>
    </rect>
   </property>
   <property name="contextMenuPolicy">
    <enum>Qt::DefaultContextMenu</enum>
   </property>
   <property name="windowTitle">
-   <string>qudi: ODMR</string>
+   <string>qudi: Transport</string>
   </property>
-  <widget class="QWidget" name="centralwidget">
-   <widget class="QLabel" name="measured_parameters_label">
-    <property name="geometry">
-     <rect>
-      <x>210</x>
-      <y>330</y>
-      <width>111</width>
-      <height>16</height>
-     </rect>
-    </property>
-    <property name="text">
-     <string>Measured Parameters</string>
-    </property>
-   </widget>
-   <widget class="PlotWidget" name="transport_PlotWidget">
-    <property name="geometry">
-     <rect>
-      <x>180</x>
-      <y>90</y>
-      <width>256</width>
-      <height>192</height>
-     </rect>
-    </property>
-    <property name="sizePolicy">
-     <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
-      <horstretch>1</horstretch>
-      <verstretch>1</verstretch>
-     </sizepolicy>
-    </property>
-   </widget>
-  </widget>
+  <widget class="QWidget" name="centralwidget"/>
   <widget class="QMenuBar" name="menubar">
    <property name="geometry">
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>899</width>
+     <width>828</width>
      <height>21</height>
     </rect>
    </property>
@@ -67,14 +37,16 @@
     <property name="title">
      <string>O&amp;ptions</string>
     </property>
-    <addaction name="action_Settings"/>
+    <addaction name="action_open_settings"/>
     <addaction name="action_FitSettings"/>
    </widget>
    <widget class="QMenu" name="menu_View">
     <property name="title">
      <string>&amp;View</string>
     </property>
-    <addaction name="action_RestoreDefault"/>
+    <addaction name="actionDefault_Display"/>
+    <addaction name="actionSave_Display"/>
+    <addaction name="actionLoad_Display"/>
    </widget>
    <addaction name="menu_File"/>
    <addaction name="menu_View"/>
@@ -90,8 +62,8 @@
    <attribute name="toolBarBreak">
     <bool>false</bool>
    </attribute>
-   <addaction name="action_run_stop"/>
-   <addaction name="action_resume"/>
+   <addaction name="action_run"/>
+   <addaction name="action_stop"/>
   </widget>
   <widget class="QDockWidget" name="constant_output_DockWidget">
    <property name="enabled">
@@ -102,6 +74,12 @@
      <horstretch>1</horstretch>
      <verstretch>0</verstretch>
     </sizepolicy>
+   </property>
+   <property name="minimumSize">
+    <size>
+     <width>203</width>
+     <height>112</height>
+    </size>
    </property>
    <property name="baseSize">
     <size>
@@ -127,7 +105,7 @@
     </property>
     <layout class="QGridLayout" name="gridLayout">
      <item row="0" column="0">
-      <widget class="QCheckBox" name="sample_current_checkBox">
+      <widget class="QCheckBox" name="constant_sample_current_checkBox">
        <property name="text">
         <string>Sample current:</string>
        </property>
@@ -185,7 +163,7 @@
       </widget>
      </item>
      <item row="2" column="0">
-      <widget class="QCheckBox" name="checkBox">
+      <widget class="QCheckBox" name="constant_backgate_voltage_checkBox">
        <property name="text">
         <string>Backgate voltage:</string>
        </property>
@@ -250,7 +228,7 @@
    <property name="minimumSize">
     <size>
      <width>200</width>
-     <height>301</height>
+     <height>354</height>
     </size>
    </property>
    <property name="windowTitle">
@@ -260,351 +238,272 @@
     <number>1</number>
    </attribute>
    <widget class="QWidget" name="dockWidgetContents">
-    <widget class="QWidget" name="layoutWidget">
-     <property name="geometry">
-      <rect>
-       <x>9</x>
-       <y>272</y>
-       <width>127</width>
-       <height>100</height>
-      </rect>
-     </property>
-     <layout class="QGridLayout" name="y_axis_gridLayout">
-      <item row="0" column="1">
-       <widget class="QComboBox" name="y_axis_sweep_parameter_comboBox">
-        <item>
+    <layout class="QVBoxLayout" name="verticalLayout">
+     <item>
+      <layout class="QGridLayout" name="dimension_gridLayout">
+       <item row="0" column="0">
+        <widget class="QLabel" name="dimension_label">
          <property name="text">
-          <string>V_G</string>
+          <string>Dimension:</string>
          </property>
-        </item>
-        <item>
+        </widget>
+       </item>
+       <item row="0" column="1">
+        <widget class="QComboBox" name="dimension_comboBox">
+         <item>
+          <property name="text">
+           <string>1D</string>
+          </property>
+         </item>
+         <item>
+          <property name="text">
+           <string>2D</string>
+          </property>
+         </item>
+         <item>
+          <property name="text">
+           <string>Timetrace</string>
+          </property>
+         </item>
+        </widget>
+       </item>
+      </layout>
+     </item>
+     <item>
+      <widget class="Line" name="line_2">
+       <property name="orientation">
+        <enum>Qt::Horizontal</enum>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <layout class="QGridLayout" name="x_axis_gridLayout">
+       <item row="0" column="0">
+        <widget class="QLabel" name="x_axis_label">
          <property name="text">
-          <string>V_S</string>
+          <string>X axis:</string>
          </property>
-        </item>
-        <item>
+        </widget>
+       </item>
+       <item row="0" column="1">
+        <widget class="QComboBox" name="x_axis_sweep_parameter_comboBox"/>
+       </item>
+       <item row="1" column="0">
+        <widget class="QLabel" name="x_start_label">
          <property name="text">
-          <string>I_S</string>
+          <string>X Start:</string>
          </property>
-        </item>
-        <item>
+        </widget>
+       </item>
+       <item row="1" column="1">
+        <widget class="ScienDSpinBox" name="x_axis_start_DoubleSpinBox">
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
+         </property>
+         <property name="suffix">
+          <string>V</string>
+         </property>
+         <property name="decimals">
+          <number>2</number>
+         </property>
+         <property name="minimum">
+          <double>-200.000000000000000</double>
+         </property>
+         <property name="maximum">
+          <double>200.000000000000000</double>
+         </property>
+        </widget>
+       </item>
+       <item row="2" column="0">
+        <widget class="QLabel" name="x_stop_label">
          <property name="text">
-          <string>T</string>
+          <string>X Stop:</string>
          </property>
-        </item>
-        <item>
+        </widget>
+       </item>
+       <item row="2" column="1">
+        <widget class="ScienDSpinBox" name="x_axis_stop_DoubleSpinBox">
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
+         </property>
+         <property name="suffix">
+          <string>V</string>
+         </property>
+         <property name="decimals">
+          <number>2</number>
+         </property>
+         <property name="minimum">
+          <double>-200.000000000000000</double>
+         </property>
+         <property name="maximum">
+          <double>200.000000000000000</double>
+         </property>
+        </widget>
+       </item>
+       <item row="3" column="0">
+        <widget class="QLabel" name="x_axis_points_label">
          <property name="text">
-          <string>B</string>
+          <string>X Points:</string>
          </property>
-        </item>
-       </widget>
-      </item>
-      <item row="1" column="0">
-       <widget class="QLabel" name="y_start_label">
-        <property name="text">
-         <string>Y Start:</string>
-        </property>
-       </widget>
-      </item>
-      <item row="2" column="0">
-       <widget class="QLabel" name="y_stop_label">
-        <property name="text">
-         <string>Y Stop:</string>
-        </property>
-       </widget>
-      </item>
-      <item row="1" column="1">
-       <widget class="ScienDSpinBox" name="y_axis_start_DoubleSpinBox">
-        <property name="sizePolicy">
-         <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
-          <horstretch>0</horstretch>
-          <verstretch>0</verstretch>
-         </sizepolicy>
-        </property>
-        <property name="suffix">
-         <string>V</string>
-        </property>
-        <property name="decimals">
-         <number>2</number>
-        </property>
-        <property name="minimum">
-         <double>-200.000000000000000</double>
-        </property>
-        <property name="maximum">
-         <double>200.000000000000000</double>
-        </property>
-       </widget>
-      </item>
-      <item row="3" column="0">
-       <widget class="QLabel" name="y_axis_points_label">
-        <property name="text">
-         <string>Y Points:</string>
-        </property>
-       </widget>
-      </item>
-      <item row="3" column="1">
-       <widget class="ScienDSpinBox" name="y_axis_points_DoubleSpinBox">
-        <property name="sizePolicy">
-         <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
-          <horstretch>0</horstretch>
-          <verstretch>0</verstretch>
-         </sizepolicy>
-        </property>
-        <property name="suffix">
-         <string>0</string>
-        </property>
-        <property name="decimals">
-         <number>1</number>
-        </property>
-        <property name="minimum">
-         <double>1.000000000000000</double>
-        </property>
-        <property name="maximum">
-         <double>100000.000000000000000</double>
-        </property>
-       </widget>
-      </item>
-      <item row="2" column="1">
-       <widget class="ScienDSpinBox" name="y_axis_stop_DoubleSpinBox">
-        <property name="sizePolicy">
-         <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
-          <horstretch>0</horstretch>
-          <verstretch>0</verstretch>
-         </sizepolicy>
-        </property>
-        <property name="suffix">
-         <string>V</string>
-        </property>
-        <property name="decimals">
-         <number>2</number>
-        </property>
-        <property name="minimum">
-         <double>-200.000000000000000</double>
-        </property>
-        <property name="maximum">
-         <double>200.000000000000000</double>
-        </property>
-       </widget>
-      </item>
-      <item row="0" column="0">
-       <widget class="QLabel" name="y_axis_label">
-        <property name="text">
-         <string>Y axis:</string>
-        </property>
-       </widget>
-      </item>
-     </layout>
-    </widget>
-    <widget class="Line" name="line">
-     <property name="geometry">
-      <rect>
-       <x>10</x>
-       <y>240</y>
-       <width>182</width>
-       <height>16</height>
-      </rect>
-     </property>
-     <property name="orientation">
-      <enum>Qt::Horizontal</enum>
-     </property>
-    </widget>
-    <widget class="Line" name="line_2">
-     <property name="geometry">
-      <rect>
-       <x>10</x>
-       <y>70</y>
-       <width>182</width>
-       <height>16</height>
-      </rect>
-     </property>
-     <property name="orientation">
-      <enum>Qt::Horizontal</enum>
-     </property>
-    </widget>
-    <widget class="Line" name="line_3">
-     <property name="geometry">
-      <rect>
-       <x>10</x>
-       <y>370</y>
-       <width>182</width>
-       <height>16</height>
-      </rect>
-     </property>
-     <property name="orientation">
-      <enum>Qt::Horizontal</enum>
-     </property>
-    </widget>
-    <widget class="QWidget" name="">
-     <property name="geometry">
-      <rect>
-       <x>9</x>
-       <y>9</y>
-       <width>99</width>
-       <height>22</height>
-      </rect>
-     </property>
-     <layout class="QGridLayout" name="dimension_gridLayout">
-      <item row="0" column="0">
-       <widget class="QLabel" name="dimension_label">
-        <property name="text">
-         <string>Dimension:</string>
-        </property>
-       </widget>
-      </item>
-      <item row="0" column="1">
-       <widget class="QComboBox" name="dimension_comboBox">
-        <item>
+        </widget>
+       </item>
+       <item row="3" column="1">
+        <widget class="ScienSpinBox" name="x_axis_points_DoubleSpinBox">
+         <property name="minimumSize">
+          <size>
+           <width>50</width>
+           <height>0</height>
+          </size>
+         </property>
+         <property name="minimum">
+          <number>1</number>
+         </property>
+         <property name="maximum">
+          <number>1000</number>
+         </property>
+         <property name="value">
+          <number>20</number>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </item>
+     <item>
+      <widget class="Line" name="line">
+       <property name="orientation">
+        <enum>Qt::Horizontal</enum>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <layout class="QGridLayout" name="y_axis_gridLayout">
+       <item row="0" column="1">
+        <widget class="QComboBox" name="y_axis_sweep_parameter_comboBox"/>
+       </item>
+       <item row="1" column="0">
+        <widget class="QLabel" name="y_start_label">
          <property name="text">
-          <string>1D</string>
+          <string>Y Start:</string>
          </property>
-        </item>
-        <item>
+        </widget>
+       </item>
+       <item row="2" column="0">
+        <widget class="QLabel" name="y_stop_label">
          <property name="text">
-          <string>2D</string>
+          <string>Y Stop:</string>
          </property>
-        </item>
-       </widget>
-      </item>
-     </layout>
-    </widget>
-    <widget class="QWidget" name="">
-     <property name="geometry">
-      <rect>
-       <x>9</x>
-       <y>141</y>
-       <width>127</width>
-       <height>100</height>
-      </rect>
-     </property>
-     <layout class="QGridLayout" name="x_axis_gridLayout">
-      <item row="0" column="0">
-       <widget class="QLabel" name="x_axis_label">
-        <property name="text">
-         <string>X axis:</string>
-        </property>
-       </widget>
-      </item>
-      <item row="0" column="1">
-       <widget class="QComboBox" name="x_axis_sweep_parameter_comboBox">
-        <item>
+        </widget>
+       </item>
+       <item row="1" column="1">
+        <widget class="ScienDSpinBox" name="y_axis_start_DoubleSpinBox">
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
+         </property>
+         <property name="suffix">
+          <string>V</string>
+         </property>
+         <property name="decimals">
+          <number>2</number>
+         </property>
+         <property name="minimum">
+          <double>-200.000000000000000</double>
+         </property>
+         <property name="maximum">
+          <double>200.000000000000000</double>
+         </property>
+        </widget>
+       </item>
+       <item row="3" column="0">
+        <widget class="QLabel" name="y_axis_points_label">
          <property name="text">
-          <string>V_G</string>
+          <string>Y Points:</string>
          </property>
-        </item>
-        <item>
+        </widget>
+       </item>
+       <item row="2" column="1">
+        <widget class="ScienDSpinBox" name="y_axis_stop_DoubleSpinBox">
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
+         </property>
+         <property name="suffix">
+          <string>V</string>
+         </property>
+         <property name="decimals">
+          <number>2</number>
+         </property>
+         <property name="minimum">
+          <double>-200.000000000000000</double>
+         </property>
+         <property name="maximum">
+          <double>200.000000000000000</double>
+         </property>
+        </widget>
+       </item>
+       <item row="0" column="0">
+        <widget class="QLabel" name="y_axis_label">
          <property name="text">
-          <string>V_S</string>
+          <string>Y axis:</string>
          </property>
-        </item>
-        <item>
+        </widget>
+       </item>
+       <item row="3" column="1">
+        <widget class="ScienSpinBox" name="y_axis_points_DoubleSpinBox">
+         <property name="minimumSize">
+          <size>
+           <width>50</width>
+           <height>0</height>
+          </size>
+         </property>
+         <property name="minimum">
+          <number>1</number>
+         </property>
+         <property name="maximum">
+          <number>1000</number>
+         </property>
+         <property name="value">
+          <number>20</number>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </item>
+     <item>
+      <widget class="Line" name="line_3">
+       <property name="orientation">
+        <enum>Qt::Horizontal</enum>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <layout class="QGridLayout" name="gridLayout_2">
+       <item row="0" column="0">
+        <widget class="QLabel" name="label">
          <property name="text">
-          <string>I_S</string>
+          <string>Sensing function:</string>
          </property>
-        </item>
-        <item>
-         <property name="text">
-          <string>T</string>
-         </property>
-        </item>
-        <item>
-         <property name="text">
-          <string>B</string>
-         </property>
-        </item>
-       </widget>
-      </item>
-      <item row="1" column="0">
-       <widget class="QLabel" name="x_start_label">
-        <property name="text">
-         <string>X Start:</string>
-        </property>
-       </widget>
-      </item>
-      <item row="1" column="1">
-       <widget class="ScienDSpinBox" name="x_axis_start_DoubleSpinBox">
-        <property name="sizePolicy">
-         <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
-          <horstretch>0</horstretch>
-          <verstretch>0</verstretch>
-         </sizepolicy>
-        </property>
-        <property name="suffix">
-         <string>V</string>
-        </property>
-        <property name="decimals">
-         <number>2</number>
-        </property>
-        <property name="minimum">
-         <double>-200.000000000000000</double>
-        </property>
-        <property name="maximum">
-         <double>200.000000000000000</double>
-        </property>
-       </widget>
-      </item>
-      <item row="2" column="0">
-       <widget class="QLabel" name="x_stop_label">
-        <property name="text">
-         <string>X Stop:</string>
-        </property>
-       </widget>
-      </item>
-      <item row="2" column="1">
-       <widget class="ScienDSpinBox" name="x_axis_stop_DoubleSpinBox">
-        <property name="sizePolicy">
-         <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
-          <horstretch>0</horstretch>
-          <verstretch>0</verstretch>
-         </sizepolicy>
-        </property>
-        <property name="suffix">
-         <string>V</string>
-        </property>
-        <property name="decimals">
-         <number>2</number>
-        </property>
-        <property name="minimum">
-         <double>-200.000000000000000</double>
-        </property>
-        <property name="maximum">
-         <double>200.000000000000000</double>
-        </property>
-       </widget>
-      </item>
-      <item row="3" column="0">
-       <widget class="QLabel" name="x_axis_points_label">
-        <property name="text">
-         <string>X Points:</string>
-        </property>
-       </widget>
-      </item>
-      <item row="3" column="1">
-       <widget class="ScienDSpinBox" name="x_axis_points_DoubleSpinBox">
-        <property name="sizePolicy">
-         <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
-          <horstretch>0</horstretch>
-          <verstretch>0</verstretch>
-         </sizepolicy>
-        </property>
-        <property name="suffix">
-         <string>0</string>
-        </property>
-        <property name="decimals">
-         <number>1</number>
-        </property>
-        <property name="minimum">
-         <double>1.000000000000000</double>
-        </property>
-        <property name="maximum">
-         <double>100000.000000000000000</double>
-        </property>
-       </widget>
-      </item>
-     </layout>
-    </widget>
+        </widget>
+       </item>
+       <item row="0" column="1">
+        <widget class="QComboBox" name="sensing_function_comboBox"/>
+       </item>
+      </layout>
+     </item>
+    </layout>
    </widget>
   </widget>
-  <action name="action_Settings">
+  <action name="action_open_settings">
    <property name="icon">
     <iconset>
      <normaloff>../../artwork/icons/oxygen/22x22/configure.png</normaloff>../../artwork/icons/oxygen/22x22/configure.png</iconset>
@@ -634,20 +533,21 @@
     <string>&amp;Close</string>
    </property>
   </action>
-  <action name="action_run_stop">
+  <action name="action_run">
    <property name="checkable">
     <bool>true</bool>
    </property>
    <property name="icon">
     <iconset>
      <normaloff>../../artwork/icons/qudiTheme/22x22/start-counter.png</normaloff>
-     <activeon>../../artwork/icons/qudiTheme/22x22/stop-counter.png</activeon>../../artwork/icons/qudiTheme/22x22/start-counter.png</iconset>
+     <normalon>../../artwork/icons/qudiTheme/22x22/start-counter.png</normalon>
+     <activeon>../../artwork/icons/qudiTheme/22x22/start-counter.png</activeon>../../artwork/icons/qudiTheme/22x22/start-counter.png</iconset>
    </property>
    <property name="text">
     <string>run_stop</string>
    </property>
   </action>
-  <action name="action_resume">
+  <action name="action_stop">
    <property name="checkable">
     <bool>true</bool>
    </property>
@@ -656,8 +556,7 @@
    </property>
    <property name="icon">
     <iconset>
-     <normaloff>../../artwork/icons/qudiTheme/22x22/restart-counter.png</normaloff>
-     <activeon>../../artwork/icons/qudiTheme/22x22/stop-counter.png</activeon>../../artwork/icons/qudiTheme/22x22/restart-counter.png</iconset>
+     <normaloff>../../artwork/icons/qudiTheme/22x22/stop-counter.png</normaloff>../../artwork/icons/qudiTheme/22x22/stop-counter.png</iconset>
    </property>
    <property name="text">
     <string>resume_odmr</string>
@@ -666,9 +565,9 @@
     <string>resume odmr measurement</string>
    </property>
   </action>
-  <action name="action_RestoreDefault">
+  <action name="actionDefault_Display">
    <property name="text">
-    <string>Restore &amp;default</string>
+    <string>Default Display</string>
    </property>
   </action>
   <action name="action_FitSettings">
@@ -693,6 +592,16 @@
     <string>toggle microwave CW output</string>
    </property>
   </action>
+  <action name="actionSave_Display">
+   <property name="text">
+    <string>Save Display</string>
+   </property>
+  </action>
+  <action name="actionLoad_Display">
+   <property name="text">
+    <string>Load Display</string>
+   </property>
+  </action>
  </widget>
  <customwidgets>
   <customwidget>
@@ -701,13 +610,28 @@
    <header location="global">qtwidgets.scientific_spinbox.h</header>
   </customwidget>
   <customwidget>
-   <class>PlotWidget</class>
-   <extends>QGraphicsView</extends>
-   <header>pyqtgraph</header>
+   <class>ScienSpinBox</class>
+   <extends>QSpinBox</extends>
+   <header>qtwidgets.scientific_spinbox.h</header>
   </customwidget>
  </customwidgets>
  <tabstops>
-  <tabstop>transport_PlotWidget</tabstop>
+  <tabstop>constant_sample_current_checkBox</tabstop>
+  <tabstop>constant_sample_current_DoubleSpinBox</tabstop>
+  <tabstop>constant_sample_voltage_checkBox</tabstop>
+  <tabstop>constant_sample_voltage_DoubleSpinBox</tabstop>
+  <tabstop>constant_backgate_voltage_checkBox</tabstop>
+  <tabstop>constant_backgate_voltage_DoubleSpinBox</tabstop>
+  <tabstop>dimension_comboBox</tabstop>
+  <tabstop>x_axis_sweep_parameter_comboBox</tabstop>
+  <tabstop>x_axis_start_DoubleSpinBox</tabstop>
+  <tabstop>x_axis_stop_DoubleSpinBox</tabstop>
+  <tabstop>x_axis_points_DoubleSpinBox</tabstop>
+  <tabstop>y_axis_sweep_parameter_comboBox</tabstop>
+  <tabstop>y_axis_start_DoubleSpinBox</tabstop>
+  <tabstop>y_axis_stop_DoubleSpinBox</tabstop>
+  <tabstop>y_axis_points_DoubleSpinBox</tabstop>
+  <tabstop>sensing_function_comboBox</tabstop>
  </tabstops>
  <resources/>
  <connections>

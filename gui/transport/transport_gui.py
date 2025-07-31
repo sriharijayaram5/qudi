@@ -46,16 +46,6 @@ class SettingsDialog(QtWidgets.QDialog):
         super(SettingsDialog, self).__init__()
         uic.loadUi(ui_file, self)
 
-        buttons = self.buttonBox.buttons()
-        self._ok_button = buttons[0]
-        self._cancel_button = buttons[1]
-        self._apply_button = buttons[2]
-
-    def accept(self):
-        """ Reimplement the accept method to get rid of closing upon enter press."""
-        if self._ok_button.hasFocus():
-            super(SettingsDialog, self).accept()
-
 class TransportMainWindow(QtWidgets.QMainWindow):
     """ Create the Main Window based on the *.ui file. """
 
@@ -75,13 +65,11 @@ class TransportGUI(GUIBase):
     ## declare connectors
     transportlogic = Connector(interface='TransportLogic') 
 
-    sigGotoObjpos = QtCore.Signal(dict)
-    sigGotoAFMpos = QtCore.Signal(dict)
+    sigConstantOn = QtCore.Signal()
+    sigConstantOff = QtCore.Signal()
+
     sigColorBarChanged = QtCore.Signal(str)  # emit a dockwidget object.
 
-    image_x_padding = ConfigOption('image_x_padding', 0.02)
-    image_y_padding = ConfigOption('image_y_padding', 0.02)
-    image_z_padding = ConfigOption('image_z_padding', 0.02)
     saved_default_view = ConfigOption('saved_default_view', b'\x00\x00\x00\xff\x00\x00\x00\x00\xfd\x00\x00\x00\x02\x00\x00\x00\x00\x00\x00\x01\x04\x00\x00\x03\xa1\xfc\x02\x00\x00\x00\x03\xfb\x00\x00\x00(\x00d\x00o\x00c\x00k\x00W\x00i\x00d\x00g\x00e\x00t\x00_\x00o\x00b\x00j\x00e\x00c\x00t\x00i\x00v\x00e\x01\x00\x00\x00D\x00\x00\x01\xd3\x00\x00\x01\xd3\x00\x07\xff\xff\xfb\x00\x00\x00$\x00d\x00o\x00c\x00k\x00W\x00i\x00d\x00g\x00e\x00t\x00_\x00o\x00p\x00t\x00i\x00_\x00x\x00y\x01\x00\x00\x02\x17\x00\x00\x01\x10\x00\x00\x01\x10\x00\xff\xff\xff\xfb\x00\x00\x00\x0c\x00o\x00p\x00t\x00i\x00_\x00z\x01\x00\x00\x03+\x00\x00\x00\xba\x00\x00\x00f\x00\xff\xff\xff\x00\x00\x00\x01\x00\x00\x06x\x00\x00\x03\xa1\xfc\x02\x00\x00\x00\x02\xfb\x00\x00\x00\x1e\x00d\x00o\x00c\x00k\x00W\x00i\x00d\x00g\x00e\x00t\x00_\x00i\x00s\x00o\x00b\x00\x00\x00\x00D\x00\x00\x00\xa7\x00\x00\x00y\x00\xff\xff\xff\xfc\x00\x00\x00D\x00\x00\x03\xa1\x00\x00\x02\xc8\x00\xff\xff\xff\xfc\x01\x00\x00\x00\x03\xfc\x00\x00\x01\x08\x00\x00\x02\xb5\x00\x00\x00\xa4\x00\xff\xff\xff\xfa\x00\x00\x00\x00\x01\x00\x00\x00\x0e\xfb\x00\x00\x00(\x00d\x00o\x00c\x00k\x00W\x00i\x00d\x00g\x00e\x00t\x00_\x00c\x00o\x00u\x00n\x00t\x00s\x00_\x00f\x00w\x01\x00\x00\x00\x00\xff\xff\xff\xff\x00\x00\x00\xa4\x00\xff\xff\xff\xfb\x00\x00\x00*\x00d\x00o\x00c\x00k\x00W\x00i\x00d\x00g\x00e\x00t\x00_\x00b\x00_\x00f\x00i\x00e\x00l\x00d\x00_\x00f\x00w\x01\x00\x00\x00\x00\xff\xff\xff\xff\x00\x00\x00\xa4\x00\xff\xff\xff\xfb\x00\x00\x002\x00d\x00o\x00c\x00k\x00W\x00i\x00d\x00g\x00e\x00t\x00_\x00H\x00e\x00i\x00g\x00h\x00t\x00(\x00D\x00a\x00c\x00)\x00_\x00f\x00w\x00\x00\x00\x00\x00\xff\xff\xff\xff\x00\x00\x00\xa4\x00\xff\xff\xff\xfb\x00\x00\x002\x00d\x00o\x00c\x00k\x00W\x00i\x00d\x00g\x00e\x00t\x00_\x00H\x00e\x00i\x00g\x00h\x00t\x00(\x00S\x00e\x00n\x00)\x00_\x00f\x00w\x00\x00\x00\x00\x00\xff\xff\xff\xff\x00\x00\x00\xa4\x00\xff\xff\xff\xfb\x00\x00\x00(\x00d\x00o\x00c\x00k\x00W\x00i\x00d\x00g\x00e\x00t\x00_\x00I\x00p\x00r\x00o\x00b\x00e\x00_\x00f\x00w\x00\x00\x00\x00\x00\xff\xff\xff\xff\x00\x00\x00\xa4\x00\xff\xff\xff\xfb\x00\x00\x00"\x00d\x00o\x00c\x00k\x00W\x00i\x00d\x00g\x00e\x00t\x00_\x00M\x00a\x00g\x00_\x00f\x00w\x00\x00\x00\x00\x00\xff\xff\xff\xff\x00\x00\x00\xa4\x00\xff\xff\xff\xfb\x00\x00\x00&\x00d\x00o\x00c\x00k\x00W\x00i\x00d\x00g\x00e\x00t\x00_\x00P\x00h\x00a\x00s\x00e\x00_\x00f\x00w\x00\x00\x00\x00\x00\xff\xff\xff\xff\x00\x00\x00\xa4\x00\xff\xff\xff\xfb\x00\x00\x00$\x00d\x00o\x00c\x00k\x00W\x00i\x00d\x00g\x00e\x00t\x00_\x00F\x00r\x00e\x00q\x00_\x00f\x00w\x00\x00\x00\x00\x00\xff\xff\xff\xff\x00\x00\x00\xa4\x00\xff\xff\xff\xfb\x00\x00\x00 \x00d\x00o\x00c\x00k\x00W\x00i\x00d\x00g\x00e\x00t\x00_\x00N\x00f\x00_\x00f\x00w\x00\x00\x00\x00\x00\xff\xff\xff\xff\x00\x00\x00\xa4\x00\xff\xff\xff\xfb\x00\x00\x00 \x00d\x00o\x00c\x00k\x00W\x00i\x00d\x00g\x00e\x00t\x00_\x00L\x00f\x00_\x00f\x00w\x00\x00\x00\x00\x00\xff\xff\xff\xff\x00\x00\x00\xa4\x00\xff\xff\xff\xfb\x00\x00\x00"\x00d\x00o\x00c\x00k\x00W\x00i\x00d\x00g\x00e\x00t\x00_\x00E\x00x\x001\x00_\x00f\x00w\x00\x00\x00\x00\x00\xff\xff\xff\xff\x00\x00\x00\xa4\x00\xff\xff\xff\xfb\x00\x00\x00"\x00d\x00o\x00c\x00k\x00W\x00i\x00d\x00g\x00e\x00t\x00_\x00o\x00b\x00j\x00_\x00x\x00y\x01\x00\x00\x00\x00\xff\xff\xff\xff\x00\x00\x00\xa4\x00\xff\xff\xff\xfb\x00\x00\x00"\x00d\x00o\x00c\x00k\x00W\x00i\x00d\x00g\x00e\x00t\x00_\x00o\x00b\x00j\x00_\x00x\x00z\x01\x00\x00\x00\x00\xff\xff\xff\xff\x00\x00\x00\xa4\x00\xff\xff\xff\xfb\x00\x00\x00"\x00d\x00o\x00c\x00k\x00W\x00i\x00d\x00g\x00e\x00t\x00_\x00o\x00b\x00j\x00_\x00y\x00z\x01\x00\x00\x00\x00\xff\xff\xff\xff\x00\x00\x00\xa4\x00\xff\xff\xff\xfc\x00\x00\x03\xc1\x00\x00\x02\xbf\x00\x00\x00\xa4\x00\xff\xff\xff\xfa\x00\x00\x00\x00\x01\x00\x00\x00\x0b\xfb\x00\x00\x00(\x00d\x00o\x00c\x00k\x00W\x00i\x00d\x00g\x00e\x00t\x00_\x00c\x00o\x00u\x00n\x00t\x00s\x00_\x00b\x00w\x01\x00\x00\x00\x00\xff\xff\xff\xff\x00\x00\x00\xa4\x00\xff\xff\xff\xfb\x00\x00\x00*\x00d\x00o\x00c\x00k\x00W\x00i\x00d\x00g\x00e\x00t\x00_\x00b\x00_\x00f\x00i\x00e\x00l\x00d\x00_\x00b\x00w\x01\x00\x00\x00\x00\xff\xff\xff\xff\x00\x00\x00\xa4\x00\xff\xff\xff\xfb\x00\x00\x002\x00d\x00o\x00c\x00k\x00W\x00i\x00d\x00g\x00e\x00t\x00_\x00H\x00e\x00i\x00g\x00h\x00t\x00(\x00D\x00a\x00c\x00)\x00_\x00b\x00w\x00\x00\x00\x00\x00\xff\xff\xff\xff\x00\x00\x00\xa4\x00\xff\xff\xff\xfb\x00\x00\x002\x00d\x00o\x00c\x00k\x00W\x00i\x00d\x00g\x00e\x00t\x00_\x00H\x00e\x00i\x00g\x00h\x00t\x00(\x00S\x00e\x00n\x00)\x00_\x00b\x00w\x00\x00\x00\x00\x00\xff\xff\xff\xff\x00\x00\x00\xa4\x00\xff\xff\xff\xfb\x00\x00\x00(\x00d\x00o\x00c\x00k\x00W\x00i\x00d\x00g\x00e\x00t\x00_\x00I\x00p\x00r\x00o\x00b\x00e\x00_\x00b\x00w\x00\x00\x00\x00\x00\xff\xff\xff\xff\x00\x00\x00\xa4\x00\xff\xff\xff\xfb\x00\x00\x00"\x00d\x00o\x00c\x00k\x00W\x00i\x00d\x00g\x00e\x00t\x00_\x00M\x00a\x00g\x00_\x00b\x00w\x00\x00\x00\x00\x00\xff\xff\xff\xff\x00\x00\x00\xa4\x00\xff\xff\xff\xfb\x00\x00\x00&\x00d\x00o\x00c\x00k\x00W\x00i\x00d\x00g\x00e\x00t\x00_\x00P\x00h\x00a\x00s\x00e\x00_\x00b\x00w\x00\x00\x00\x00\x00\xff\xff\xff\xff\x00\x00\x00\xa4\x00\xff\xff\xff\xfb\x00\x00\x00$\x00d\x00o\x00c\x00k\x00W\x00i\x00d\x00g\x00e\x00t\x00_\x00F\x00r\x00e\x00q\x00_\x00b\x00w\x00\x00\x00\x00\x00\xff\xff\xff\xff\x00\x00\x00\xa4\x00\xff\xff\xff\xfb\x00\x00\x00 \x00d\x00o\x00c\x00k\x00W\x00i\x00d\x00g\x00e\x00t\x00_\x00N\x00f\x00_\x00b\x00w\x00\x00\x00\x00\x00\xff\xff\xff\xff\x00\x00\x00\xa4\x00\xff\xff\xff\xfb\x00\x00\x00 \x00d\x00o\x00c\x00k\x00W\x00i\x00d\x00g\x00e\x00t\x00_\x00L\x00f\x00_\x00b\x00w\x00\x00\x00\x00\x00\xff\xff\xff\xff\x00\x00\x00\xa4\x00\xff\xff\xff\xfb\x00\x00\x00"\x00d\x00o\x00c\x00k\x00W\x00i\x00d\x00g\x00e\x00t\x00_\x00E\x00x\x001\x00_\x00b\x00w\x00\x00\x00\x00\x00\xff\xff\xff\xff\x00\x00\x00\xa4\x00\xff\xff\xff\xfb\x00\x00\x00\x1c\x00d\x00o\x00c\x00k\x00W\x00i\x00d\x00g\x00e\x00t\x00_\x00a\x00f\x00m\x01\x00\x00\x06\x84\x00\x00\x00\xfc\x00\x00\x00\xfc\x00\xff\xff\xff\x00\x00\x00\x00\x00\x00\x03\xa1\x00\x00\x00\x04\x00\x00\x00\x04\x00\x00\x00\x08\x00\x00\x00\x08\xfc\x00\x00\x00\x01\x00\x00\x00\x02\x00\x00\x00\x04\x00\x00\x00"\x00T\x00o\x00o\x00l\x00B\x00a\x00r\x00_\x00o\x00p\x00t\x00i\x00m\x00i\x00z\x00e\x00r\x01\x00\x00\x00\x00\xff\xff\xff\xff\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x002\x00T\x00o\x00o\x00l\x00B\x00a\x00r\x00_\x00o\x00b\x00j\x00e\x00c\x00t\x00i\x00v\x00e\x00_\x00s\x00c\x00a\x00n\x00n\x00e\x00r\x01\x00\x00\x00h\xff\xff\xff\xff\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x18\x00T\x00o\x00o\x00l\x00B\x00a\x00r\x00_\x00s\x00t\x00o\x00p\x01\x00\x00\x01G\xff\xff\xff\xff\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00,\x00T\x00o\x00o\x00l\x00B\x00a\x00r\x00_\x00s\x00a\x00m\x00p\x00l\x00e\x00_\x00s\x00c\x00a\x00n\x00n\x00e\x00r\x01\x00\x00\x01\x82\xff\xff\xff\xff\x00\x00\x00\x00\x00\x00\x00\x00')
     _config_color_map = ConfigOption('color_map')  # user specification in config file
 
@@ -117,7 +105,35 @@ class TransportGUI(GUIBase):
     y_axis_stop = StatusVar('y_axis_stop', default=1)
     y_axis_points = StatusVar('y_axis_points', default=1)
 
-    measurement_type_index = StatusVar('measurement_type_index', default=0)
+    # status variables for setting dialog
+    sd_gate_voltage_ramp_speed = StatusVar('sd_gate_voltage_ramp_speed', default = 0.1)
+    sd_gate_voltage_upper_limit = StatusVar('sd_gate_voltage_upper_limit', default= 1)
+    sd_gate_voltage_lower_limit = StatusVar('sd_gate_voltage_lower_limit', default= -1)
+    sd_gate_voltage_autorange = StatusVar('sd_gate_voltage_autorange', default =False)
+
+    sd_sample_voltage_ramp_speed = StatusVar('sd_sample_voltage_ramp_speed', default = 0.1)
+    sd_sample_voltage_upper_limit = StatusVar('sd_sample_voltage_upper_limit', default= 1)
+    sd_sample_voltage_lower_limit = StatusVar('sd_sample_voltage_lower_limit', default= -1)
+
+    sd_sample_current_ramp_speed = StatusVar('sd_sample_current_ramp_speed', default= 0.01)
+    sd_sample_current_upper_limit = StatusVar('sd_sample_current_upper_limit', default= 0.1)
+    sd_sample_current_lower_limit = StatusVar('sd_sample_current_lower_limit', default= -0.1)
+
+    sd_sample_transport_autorange = StatusVar('sd_sample_transport_autorange', default= False)
+
+    sensing_function_index = StatusVar('sensing_function_index', default=0)
+    sd_sensing_autorange = StatusVar('sd_sensing_autorange', default=False)
+    sd_sensing_autozero = StatusVar('sd_sensing_autozero', default= False)
+    sd_sensing_four_port = StatusVar('sd_sensing_four_port', default=False)
+    sd_sensing_achange = StatusVar('sd_sensing_achange', default= False)
+
+    sd_transport_integration_time = StatusVar('sd_transport_integration_time', default= 0.1)
+
+    sd_timetrace_timestep = StatusVar('sd_timetrace_timestep', default = 1)
+    sd_timetrace_measure_temperature = StatusVar('sd_timetrace_measure_temperature', default= True)
+
+    sd_auto_save = StatusVar('sd_auto_save', default= True)
+    sd_2D_gwyddion_save = StatusVar('sd_2D_gwyddion_save', default= True)
 
     def __init__(self, config, **kwargs):
         super().__init__(config=config, **kwargs)
@@ -131,210 +147,54 @@ class TransportGUI(GUIBase):
             self._color_map = self._config_color_map
 
         self._current_cs = ColorScaleGen(self._color_map)
-        self._qafm_logic.set_color_map(self._color_map)
-
-        self.initMainUI()      # initialize the main GUI
-        #self.default_view()
-
-        self._qafm_logic.sigQAFMScanInitialized.connect(self.adjust_qafm_image)
-        self._qafm_logic.sigQAFMScanInitialized.connect(self.adjust_qafm_crosshair)
-        self._qafm_logic.sigQAFMLineScanFinished.connect(self._update_transport_data)
-        self._qafm_logic.sigQAFMScanStarted.connect(self.periodic_optimzer_autorun_start)
-        self._qafm_logic.sigQAFMScanFinished.connect(self.enable_scan_actions)
-        self._qafm_logic.sigQAFMScanFinished.connect(self.autosave_qafm_measurement)
-        self._qafm_logic.sigQAFMScanFinished.connect(self.periodic_optimzer_autorun_stop)
-        self._qafm_logic.sigNewAFMPos.connect(self.update_afm_pos)
-
-        self._qafm_logic.sigDisplayDockwidgets.connect(self.show_dockwidgets)
-
-        self._qafm_logic.sigQuantiScanStarted.connect(self.periodic_optimzer_autorun_start)
-        self._qafm_logic.sigQuantiScanFinished.connect(self.periodic_optimzer_autorun_stop)
-
-        self._qafm_logic.sigObjScanInitialized.connect(self.adjust_obj_image)
-        self._qafm_logic.sigObjLineScanFinished.connect(self._update_obj_data)
-        self._qafm_logic.sigObjScanFinished.connect(self.enable_scan_actions)
-        self._qafm_logic.sigNewObjPos.connect(self.update_obj_pos)
-        
-        self._mw.actionLock_Obj.toggled.connect(self.lock_obj_toggled)
-
-        self._mw.actionStart_QAFM_Scan.triggered.connect(self.start_qafm_scan_clicked)
-        self._mw.actionStop_Scan.triggered.connect(self.stop_any_scanning)
-        self._mw.actionStart_Obj_XY_scan.triggered.connect(self.start_obj_scan_xy_scan_clicked )
-        self._mw.actionStart_Obj_XZ_scan.triggered.connect(self.start_obj_scan_xz_scan_clicked )
-        self._mw.actionStart_Obj_YZ_scan.triggered.connect(self.start_obj_scan_yz_scan_clicked )
-
-
-        self._qafm_logic.sigOptimizeScanInitialized.connect(self.adjust_optimizer_image)
-        self._qafm_logic.sigOptimizeLineScanFinished.connect(self._update_opti_data)
-        self._qafm_logic.sigOptimizeScanFinished.connect(self.enable_optimizer_action)
-        self._qafm_logic.sigOptimizeScanFinished.connect(self.update_target_pos)
-        self._qafm_logic.sigOptimizeScanFinished.connect(self.update_opti_crosshair)
-
-        self._mw.actionTemperatureUpdate.triggered.connect(self.update_temperature)
-        self._mw.actionEnableZoom.toggled.connect(self.zoom_clicked)
-        
-        self._mw.actionOptimize_Pos.triggered.connect(self.start_optimize_clicked)
-        self.shortcut_opti = QShortcut(QKeySequence(('Alt+R')), self._mw)
-        self.shortcut_opti.activated.connect(self.start_optimize_shortcut_press)
-        
-        self._qafm_logic.sigObjTargetReached.connect(self.enable_scan_actions)
-        self._qafm_logic.sigAFMTargetReached.connect(self.enable_scan_actions)
-
-        self._mw.actionCombine_Display.triggered.connect(self.combine_view)
-        self._mw.actionDefault_Display.triggered.connect(self.default_view)
-        self._mw.actionSave_Display.triggered.connect(self.save_view)
-        self._mw.actionLoad_Display.triggered.connect(self.load_view)
-
-        self._mw.actionGo_To_AFM_pos.triggered.connect(self.goto_afm_pos_clicked)
-        self._mw.actionGo_To_Obj_pos.triggered.connect(self.goto_obj_pos_clicked)    
-
-        self.sigGotoObjpos.connect(self._qafm_logic.set_obj_pos)
-        self.sigGotoAFMpos.connect(self._qafm_logic.set_afm_pos)
-        self.sigColorBarChanged.connect(self._update_data_from_dockwidget)
-
-        self._qafm_logic.sigQAFMDataSaved.connect(self.enable_qafm_save_button)
-        self._mw.actionSaveDataQAFM.triggered.connect(self.save_qafm_data_clicked)
-
-        self._qafm_logic.sigObjDataSaved.connect(self.enable_obj_save_button)
-        self._mw.actionSaveObjData.triggered.connect(self.save_obj_data_clicked)
-
-        self._qafm_logic.sigOptiDataSaved.connect(self.enable_opti_save_button)
-        self._mw.actionSaveOptiData.triggered.connect(self.save_opti_data_clicked)
-
-        self._mw.afm_x_range_DSpinBox.valueChanged.connect(self.calc_x_pixel_size)
-        self._mw.afm_x_num_SpinBox.valueChanged.connect(self.calc_x_pixel_size)
-        self._mw.afm_x_pixel_size_DSpinBox.editingFinished.connect(self.calc_x_num)
-
-        self._mw.afm_y_range_DSpinBox.valueChanged.connect(self.calc_y_pixel_size)
-        self._mw.afm_y_num_SpinBox.valueChanged.connect(self.calc_y_pixel_size)
-        self._mw.afm_y_pixel_size_DSpinBox.editingFinished.connect(self.calc_y_num)
-
-        self._mw.copy_from_daisy_PushButton.clicked.connect(self.copy_from_daisy_clicked)
-
-        self._mw.load_from_pickel_PushButton.clicked.connect(self.load_from_pickel_clicked)
-
-        self._mw.qafm_feature_groupBox.clicked.connect(lambda state: self.qafm_feature_groupBox_clicked(state))
-
-        self._mw.x_range_qafm_feature_DSpinBox.editingFinished.connect(self.qafm_feature_x_range_changed)
-        self._mw.y_range_qafm_feature_DSpinBox.editingFinished.connect(self.qafm_feature_y_range_changed)
-        self._mw.x_pos_rotation_frame_DSpinBox.editingFinished.connect(self.qafm_rotation_frame_pos_changed)
-        self._mw.y_pos_rotation_frame_DSpinBox.editingFinished.connect(self.qafm_rotation_frame_pos_changed)
-        self._mw.x_pos_real_frame_DSpinBox.editingFinished.connect(self.qafm_real_frame_pos_changed)
-        self._mw.y_pos_real_frame_DSpinBox.editingFinished.connect(self.qafm_real_frame_pos_changed)
-
-        self._mw.update_afm_params_PushButton.clicked.connect(self.update_afm_params_clicked)
-
-        # update the display:
-        self.update_obj_pos(self._qafm_logic.get_obj_pos())
-        self.update_afm_pos(self._qafm_logic.get_afm_pos())
-
-        if 'obj_xy' in self._image_container:
-            self._image_container['obj_xy'].sigMouseClicked.connect(self.update_targetpos_xy)
-
-        self._mw.action_curr_pos_to_target.triggered.connect(self.set_current_pos_to_target)
-        self._mw.action_center_pos_to_target.triggered.connect(self.set_center_pos_to_target)
-
-        # intialize quantitative measurement GUI
-        self.initQuantiUI()
-        self._mw.action_Quantitative_Measure.triggered.connect(self.openQuantiMeas)
-        self._mw.action_Quantitative_Measure.setChecked(False)
-        self._qm.sigQuantiMeasClose.connect(self.onCloseQuantiMeas)
-    
-        # connect Quantitative signals 
-        self._qm.Start_QM_PushButton.clicked.connect(self.start_quantitative_measure_clicked)
-        self._qm.Stop_QM_PushButton.clicked.connect(self.stop_quantitative_measure_clicked)
-
-        self._qm.Start_QM_PushButton.clicked.connect(self.disable_scan_actions_quanti)
-
-        self._qm.Start_Pulsed_PushButton.clicked.connect(self.start_pulsed_measure_clicked)
-        self._qm.Stop_Pulsed_PushButton.clicked.connect(self.stop_pulsed_measure_clicked)
-
-        self._qm.Start_Pulsed_PushButton.clicked.connect(self.disable_scan_actions_quanti)
-
-        self._qm.Start_Gradiometry_PushButton.clicked.connect(self.start_gradiometry_measure_clicked)
-        self._qm.Stop_Gradiometry_PushButton.clicked.connect(self.stop_gradiometry_measure_clicked)
-
-        self._qm.Start_Gradiometry_PushButton.clicked.connect(self.disable_scan_actions_quanti)
-
-        self._qafm_logic.sigQuantiScanFinished.connect(self.enable_scan_actions_quanti)
-        self._qafm_logic.sigQuantiScanFinished.connect(self.autosave_quantitative_measurement)
-
-        # Pulsed signals
-        self._qafm_logic.pulsed_master_AWG().sigLoadedAssetUpdated.connect(self._update_pulsed_asset)
-        self._qafm_logic.pulsed_master_AWG().sigUpdateLoadedAssetLabel.connect(self._update_pulsed_asset)
-        self._update_pulsed_asset(*self._qafm_logic.pulsed_master_AWG().loaded_asset)
-
-        # set MW and other device limits
-        mw_limits = (self._qafm_logic._mw.get_limits().min_power, self._qafm_logic._mw.get_limits().max_power)
-        self._qm.esr_mw_power_DoubleSpinBox.setMinimum(mw_limits[0])
-        self._qm.esr_mw_power_DoubleSpinBox.setMaximum(mw_limits[1])
-
-        self._qm.pulsed_mw_power_DoubleSpinBox.setMinimum(mw_limits[0])
-        self._qm.pulsed_mw_power_DoubleSpinBox.setMaximum(mw_limits[1])
-
-        self._qm.gradiometry_mw_power_DoubleSpinBox.setMinimum(mw_limits[0])
-        self._qm.gradiometry_mw_power_DoubleSpinBox.setMaximum(mw_limits[1])  
-
-        # Initialize iso b parameter
-        self._mw.use_single_isob_RadioButton.toggled.connect(self._set_iso_b_single_mode)
-        self._mw.use_dual_isob_RadioButton.toggled.connect(self._enable_dual_iso_b_plots)
-        self._mw.freq1_isob_freq_DSpinBox.valueChanged.connect(self._set_freq1_iso_b_freq)
-        self._mw.freq2_isob_freq_DSpinBox.valueChanged.connect(self._set_freq2_iso_b_freq)
-        self._mw.isob_power_DSpinBox.valueChanged.connect(self._set_iso_b_power)
-        self._mw.fwhm_isob_freq_DSpinBox.valueChanged.connect(self._set_fwhm_iso_b_freq)
-
-        self._mw.freq1_isob_freq_DSpinBox.setMinimalStep = 10e3
-        self._mw.freq2_isob_freq_DSpinBox.setMinimalStep = 10e3
-        self._mw.isob_power_DSpinBox.setMinimalStep = 0.01
-
-        self._qafm_logic.sigIsoBParamsUpdated.connect(self.update_iso_b_param)
-        self.update_iso_b_param()
-
-        # Create dialog box for interactive requests
-        self.initImmediateStopDialog()
-        self._mw.action_Immediate_Stop.triggered.connect(self.show_immediate_stop_warning)
-
-        # Set everything up for the optimizer request 
-        self.initOptimizerRequestUI()
-
-        # Set up Combobox to chose Gradiometry pulsed scheme
-        self.gradiometry_pulse_schemes = ['Hahn Echo','CPMG']
-        self.initGradiometryComboBox()
-
-        self.initAboutUI()     # provide version number and hardware status
-        self.load_view()
-        self.retrieve_status_var()
-        self.update_temperature()
-        # self.set_current_pos_to_target()
-        # self.goto_obj_pos_clicked()
-
+        self._transport_logic.set_color_map(self._color_map)
 
         # initialize the settings stuff
-        self.initSettingsUI()
+        self.initMainUI()      # initialize the main GUI
+        self.initSettingsUI()    
+        #self.default_view()
 
-        self._qm.mw_tracking_mode_RadioButton.clicked.connect(lambda state, x=0: self.radioButton_behaviour_forGroupBox(state,x))
-        self._qafm_logic._podmr.sigVisSlopeChanged.connect(self.update_vis_slope)
-        self._qm.mw_list_mode_RadioButton.clicked.connect(lambda state, x=1: self.radioButton_behaviour_forGroupBox(state,x))
-        self._qm.loaded_sequence_mode_RadioButton.clicked.connect(lambda state, x=2: self.radioButton_behaviour_forGroupBox(state,x))
-        self._qm.loaded_seq_track_freq_two_point_Checkbox.clicked.connect(lambda state: self.loaded_seq_track_freq_two_point_Checkbox_isClicked(state))
-        self._qm.loaded_seq_track_freq_PODMR_Checkbox.clicked.connect(lambda state: self.loaded_seq_track_freq_PODMR_Checkbox_isClicked(state))
+        self._mw.save_tag_LineEdit = QtWidgets.QLineEdit(self._mw)
+        self._mw.save_tag_LineEdit.setMaximumWidth(500)
+        self._mw.save_tag_LineEdit.setMinimumWidth(200)
+        self._mw.save_tag_LineEdit.setToolTip('Enter a nametag which will be\n'
+                                              'added to the filename.')
+        self._mw.save_ToolBar.addWidget(self._mw.save_tag_LineEdit)
 
-        self._qm.tip_osc_gradiometry_RadioButton.clicked.connect(lambda state, x=0: self.radioButton_behaviour_forGroupBox_gradiometry(state,x))
-        self._qm.artificial_signal_lock_in_RadioButton.clicked.connect(lambda state, x=1: self.radioButton_behaviour_forGroupBox_gradiometry(state,x))
-        self._qm.pulsed_scheme_comboBox.currentTextChanged.connect(lambda text: self.gradiometry_behaviour_comboBox(text))
-        self.gradiometry_behaviour_comboBox(self._qm.pulsed_scheme_comboBox.currentText())
-        
+        self._transport_logic.sigScanFinished.connect(self.enable_scan_actions)
+        self._transport_logic.sig1DScanStarted.connect(self.enable_stop_action)
+        self._transport_logic.sig1DScanStarted.connect(self.adjust_1D_transport_image)
+        self._transport_logic.sig2DScanStarted.connect(self.enable_stop_action)
+        self._transport_logic.sig2DScanStarted.connect(self.adjust_2D_transport_image)
+        self._transport_logic.sig2DScanStarted.connect(self.enable_stop_action)
+        self._transport_logic.sig2DScanStarted.connect(self.adjust_2D_transport_image)
+        self._transport_logic.sigTimetraceStarted.connect(self.enable_stop_action)
+        self._transport_logic.sigTimetraceStarted.connect(self.adjust_timetrace_transport_image)
+        self._transport_logic.sig1DScanPointFinished.connect(self._update_1D_transport_data)
+        self._transport_logic.sig2DScanPointFinished.connect(self._update_2D_transport_data)
+        self._transport_logic.sigTimetracePointFinished.connect(self._update_timetrace_transport_data)
+
+        self._transport_logic.sigScanAutoSave.connect(self.autosave_transport_data)
+        self._transport_logic.sigDataSaved.connect(self.enable_save_actions)
+
+        self.sigColorBarChanged.connect(self._update_data_from_dockwidget)
+
+        self.scan_type = ''
+
+        self.load_view()
+        self.retrieve_status_var()
+        self.fix_constant_output_parameters()
+
+         
 
     def on_deactivate(self):
         """ Deactivate the module properly.
         """
         self.store_status_var()
+        self.store_settings_status_var()
         self.saveWindowGeometry(self._mw)
         self._mw.close()
-        self._qm.close()
         self._sd.close()
-        self._ab.close()
-        self._is.close()
 
 
     def show(self):
@@ -342,28 +202,6 @@ class TransportGUI(GUIBase):
         QtWidgets.QMainWindow.show(self._mw)
         self._mw.activateWindow()
         self._mw.raise_()
-
-
-    def initQuantiUI(self):
-        self._qm = QuantitativeMeasurementWindow()
-
-
-    def openQuantiMeas(self):
-        self._mw.action_Quantitative_Measure.setChecked(True)
-        self._qm.show()
-        self._qm.raise_()
-
-    def onCloseQuantiMeas(self):
-        self._mw.action_Quantitative_Measure.setChecked(False)
-
-    def initImmediateStopDialog(self):
-        self._is = InitiateImmediateStopDialog()
-        self._is.setIcon(QMessageBox.Warning)
-        self._is.setWindowTitle("Initiate Immediate Stop")
-        self._is.setInformativeText("Stop on-going measurement?\n")
-        self._is.setStandardButtons(QMessageBox.Ok | QMessageBox.Cancel)
-        self._is.buttonClicked.connect(self.enact_immediate_stop)
-
     
     def initMainUI(self):
         """ Definition, configuration and initialisation of the confocal GUI.
@@ -375,6 +213,29 @@ class TransportGUI(GUIBase):
         self._mw = TransportMainWindow()
         self.restoreWindowPos(self._mw)
 
+        self.setup_mw_elements()
+
+        self._mw.actionDefault_Display.triggered.connect(self.default_view)
+        self._mw.actionSave_Display.triggered.connect(self.save_view)
+        self._mw.actionLoad_Display.triggered.connect(self.load_view)
+
+        self._mw.action_run.triggered.connect(self.run_transport_measurement)
+        self._mw.action_stop.triggered.connect(self.stop_transport_measurement)
+        self._mw.action_Save.triggered.connect(self.save_transport_data_clicked)
+        self._mw.action_toggle_constant_output.triggered.connect(self.toggle_constant_output)
+
+        self._mw.constant_sample_current_checkBox.clicked.connect(self.constant_sample_current_checkBox_isClicked)
+        self._mw.constant_sample_voltage_checkBox.clicked.connect(self.constant_sample_voltage_checkBox_isClicked)
+        self._mw.constant_backgate_voltage_checkBox.clicked.connect(self.constant_backgate_voltage_checkBox_isClicked)
+
+        self._mw.dimension_comboBox.currentIndexChanged.connect(self.dimension_comboBox_indexChanged)
+
+        self.setup_axis_sweep_parameter_comboBox()
+        self._mw.x_axis_sweep_parameter_comboBox.currentTextChanged.connect(self.x_axis_sweep_parameter_comboBox_textChanged)
+        self._mw.y_axis_sweep_parameter_comboBox.currentTextChanged.connect(self.y_axis_sweep_parameter_comboBox_textChanged)
+
+        self.setup_sensing_function_comboBox()
+
         ###################################################################
         #               Configuring the dock widgets                      #
         ###################################################################
@@ -383,528 +244,303 @@ class TransportGUI(GUIBase):
         self._mw.setDockNestingEnabled(True)
         self._create_dockwidgets()
         self._update_1D_transport_data()
-        self.adjust_2D_transport_image()
+        self._update_2D_transport_data()
         self._set_aspect_ratio_images()
 
-        self._initialize_inputs()
+    def setup_mw_elements(self):
+        self._mw.constant_sample_current_DoubleSpinBox.setEnabled(False)
+        self._mw.constant_sample_voltage_DoubleSpinBox.setEnabled(False)
+        self._mw.constant_backgate_voltage_DoubleSpinBox.setEnabled(False)
+        self._mw.y_axis_label.setEnabled(False)
+        self._mw.y_axis_sweep_parameter_comboBox.setEnabled(False)
+        self._mw.y_start_label.setEnabled(False)
+        self._mw.y_axis_start_DoubleSpinBox.setEnabled(False)
+        self._mw.y_stop_label.setEnabled(False)
+        self._mw.y_axis_stop_DoubleSpinBox.setEnabled(False)
+        self._mw.y_axis_points_label.setEnabled(False)
+        self._mw.y_axis_points_DoubleSpinBox.setEnabled(False)
 
+    def fix_constant_output_parameters(self):
+        self._mw.constant_sample_current_DoubleSpinBox.setEnabled(self._mw.constant_sample_current_checkBox.isChecked())
+        self._mw.constant_sample_voltage_DoubleSpinBox.setEnabled(self._mw.constant_sample_voltage_checkBox.isChecked())
+        self._mw.constant_backgate_voltage_DoubleSpinBox.setEnabled(self._mw.constant_backgate_voltage_checkBox.isChecked())
+
+    def run_transport_measurement(self, is_checked):
+        self.disable_scan_actions()
+        if self._mw.dimension_comboBox.currentIndex() == 1: #2D scan
+            self.start_2D_transport_scan()
+        elif self._mw.dimension_comboBox.currentIndex() == 2: #Timetrace
+            self.start_transport_timetrace()
+        else:
+            self.start_1D_transport_scan()
+
+    def stop_transport_measurement(self, is_checked):
+        self._transport_logic._stop_request = True
+
+    def toggle_constant_output(self, is_checked):
+        """ Starts or stops constant output if no measurement is running. """
+        self._mw.action_toggle_constant_output.blockSignals(True)
+        self._mw.action_toggle_constant_output.setEnabled(False)
+        error = False
+        if is_checked:
+            self._mw.action_run.setEnabled(False)
+            self._mw.constant_sample_current_checkBox.setEnabled(False)
+            self._mw.constant_sample_current_DoubleSpinBox.setEnabled(False)
+            self._mw.constant_sample_voltage_checkBox.setEnabled(False)
+            self._mw.constant_sample_voltage_DoubleSpinBox.setEnabled(False)
+            self._mw.constant_backgate_voltage_checkBox.setEnabled(False)
+            self._mw.constant_backgate_voltage_DoubleSpinBox.setEnabled(False)
+
+            self._sd.gate_voltage_ramp_speed_DoubleSpinBox.setEnabled(False)
+            self._sd.gate_voltage_upper_limit_DoubleSpinBox.setEnabled(False)
+            self._sd.gate_voltage_lower_limit_DoubleSpinBox.setEnabled(False)
+            self._sd.gate_voltage_autorange_checkBox.setEnabled(False)
+            self._sd.sample_voltage_ramp_speed_DoubleSpinBox.setEnabled(False)
+            self._sd.sample_voltage_upper_limit_DoubleSpinBox.setEnabled(False)
+            self._sd.sample_voltage_lower_limit_DoubleSpinBox.setEnabled(False)
+            self._sd.sample_current_ramp_speed_DoubleSpinBox.setEnabled(False)
+            self._sd.sample_current_upper_limit_DoubleSpinBox.setEnabled(False)
+            self._sd.sample_current_lower_limit_DoubleSpinBox.setEnabled(False)
+            self._sd.sample_transport_autorange_checkBox.setEnabled(False)
+
+            if self._mw.constant_sample_current_checkBox.isChecked():
+                is_setted = self._transport_logic.set_sample_DC_current(self._mw.constant_sample_current_DoubleSpinBox.value())
+                if not is_setted:
+                    error = True
+            if self._mw.constant_sample_voltage_checkBox.isChecked():
+                is_setted =self._transport_logic.set_sample_DC_voltage(self._mw.constant_sample_voltage_DoubleSpinBox.value())
+                if not is_setted:
+                    error = True
+            if self._mw.constant_backgate_voltage_checkBox.isChecked():
+                is_setted = self._transport_logic.set_backgate_DC_voltage(self._mw.constant_backgate_voltage_DoubleSpinBox.value())
+                if not is_setted:
+                    error = True
+            if error:
+                self._transport_logic.reset_outputs()
+                self._mw.action_run.setEnabled(True)
+                self._mw.constant_sample_current_checkBox.setEnabled(True)
+                self._mw.constant_sample_current_DoubleSpinBox.setEnabled(self._mw.constant_sample_current_checkBox.isChecked())
+                self._mw.constant_sample_voltage_checkBox.setEnabled(True)
+                self._mw.constant_sample_voltage_DoubleSpinBox.setEnabled(self._mw.constant_sample_voltage_checkBox.isChecked())
+                self._mw.constant_backgate_voltage_checkBox.setEnabled(True)
+                self._mw.constant_backgate_voltage_DoubleSpinBox.setEnabled(self._mw.constant_backgate_voltage_checkBox.isChecked())
+
+                self._sd.gate_voltage_ramp_speed_DoubleSpinBox.setEnabled(True)
+                self._sd.gate_voltage_upper_limit_DoubleSpinBox.setEnabled(True)
+                self._sd.gate_voltage_lower_limit_DoubleSpinBox.setEnabled(True)
+                self._sd.gate_voltage_autorange_checkBox.setEnabled(True)
+                self._sd.sample_voltage_ramp_speed_DoubleSpinBox.setEnabled(True)
+                self._sd.sample_voltage_upper_limit_DoubleSpinBox.setEnabled(True)
+                self._sd.sample_voltage_lower_limit_DoubleSpinBox.setEnabled(True)
+                self._sd.sample_current_ramp_speed_DoubleSpinBox.setEnabled(True)
+                self._sd.sample_current_upper_limit_DoubleSpinBox.setEnabled(True)
+                self._sd.sample_current_lower_limit_DoubleSpinBox.setEnabled(True)
+                self._sd.sample_transport_autorange_checkBox.setEnabled(True)
+
+                self._mw.action_toggle_constant_output.setChecked(False)
+            else:
+                self._transport_logic.outputs_on()
+
+        else:
+            self._transport_logic.reset_outputs()
+            self._mw.action_run.setEnabled(True)
+            self._mw.constant_sample_current_checkBox.setEnabled(True)
+            self._mw.constant_sample_current_DoubleSpinBox.setEnabled(self._mw.constant_sample_current_checkBox.isChecked())
+            self._mw.constant_sample_voltage_checkBox.setEnabled(True)
+            self._mw.constant_sample_voltage_DoubleSpinBox.setEnabled(self._mw.constant_sample_voltage_checkBox.isChecked())
+            self._mw.constant_backgate_voltage_checkBox.setEnabled(True)
+            self._mw.constant_backgate_voltage_DoubleSpinBox.setEnabled(self._mw.constant_backgate_voltage_checkBox.isChecked())
+
+            self._sd.gate_voltage_ramp_speed_DoubleSpinBox.setEnabled(True)
+            self._sd.gate_voltage_upper_limit_DoubleSpinBox.setEnabled(True)
+            self._sd.gate_voltage_lower_limit_DoubleSpinBox.setEnabled(True)
+            self._sd.gate_voltage_autorange_checkBox.setEnabled(True)
+            self._sd.sample_voltage_ramp_speed_DoubleSpinBox.setEnabled(True)
+            self._sd.sample_voltage_upper_limit_DoubleSpinBox.setEnabled(True)
+            self._sd.sample_voltage_lower_limit_DoubleSpinBox.setEnabled(True)
+            self._sd.sample_current_ramp_speed_DoubleSpinBox.setEnabled(True)
+            self._sd.sample_current_upper_limit_DoubleSpinBox.setEnabled(True)
+            self._sd.sample_current_lower_limit_DoubleSpinBox.setEnabled(True)
+            self._sd.sample_transport_autorange_checkBox.setEnabled(True)
+
+        self._mw.action_toggle_constant_output.blockSignals(False)
+        self._mw.action_toggle_constant_output.setEnabled(True)
+        return
+
+    def constant_sample_current_checkBox_isClicked(self, state):
+        if state:
+            self._mw.constant_sample_current_DoubleSpinBox.setEnabled(True)
+            self._mw.constant_sample_voltage_DoubleSpinBox.setEnabled(False)
+            self._mw.constant_sample_voltage_checkBox.setChecked(False)
+        else:
+            self._mw.constant_sample_current_DoubleSpinBox.setEnabled(False)
+
+    def constant_sample_voltage_checkBox_isClicked(self, state):
+        if state:
+            self._mw.constant_sample_voltage_DoubleSpinBox.setEnabled(True)
+            self._mw.constant_sample_current_DoubleSpinBox.setEnabled(False)
+            self._mw.constant_sample_current_checkBox.setChecked(False)
+        else:
+            self._mw.constant_sample_voltage_DoubleSpinBox.setEnabled(False)
+    
+    def constant_backgate_voltage_checkBox_isClicked(self, state):
+        if state:
+            self._mw.constant_backgate_voltage_DoubleSpinBox.setEnabled(True)
+        else:
+            self._mw.constant_backgate_voltage_DoubleSpinBox.setEnabled(False)
+
+    def dimension_comboBox_indexChanged(self, index):
+        if index == 0: #Dimension is 1D
+            self._mw.x_axis_label.setEnabled(True)
+            self._mw.x_axis_sweep_parameter_comboBox.setEnabled(True)
+            self._mw.x_start_label.setEnabled(True)
+            self._mw.x_axis_start_DoubleSpinBox.setEnabled(True)
+            self._mw.x_stop_label.setEnabled(True)
+            self._mw.x_axis_stop_DoubleSpinBox.setEnabled(True)
+            self._mw.x_axis_points_label.setEnabled(True)
+            self._mw.x_axis_points_DoubleSpinBox.setEnabled(True)
+            self._mw.y_axis_label.setEnabled(False)
+            self._mw.y_axis_sweep_parameter_comboBox.setEnabled(False)
+            self._mw.y_start_label.setEnabled(False)
+            self._mw.y_axis_start_DoubleSpinBox.setEnabled(False)
+            self._mw.y_stop_label.setEnabled(False)
+            self._mw.y_axis_stop_DoubleSpinBox.setEnabled(False)
+            self._mw.y_axis_points_label.setEnabled(False)
+            self._mw.y_axis_points_DoubleSpinBox.setEnabled(False)
+
+        elif index == 1: #Dimension is 2D
+            self._mw.x_axis_label.setEnabled(True)
+            self._mw.x_axis_sweep_parameter_comboBox.setEnabled(True)
+            self._mw.x_start_label.setEnabled(True)
+            self._mw.x_axis_start_DoubleSpinBox.setEnabled(True)
+            self._mw.x_stop_label.setEnabled(True)
+            self._mw.x_axis_stop_DoubleSpinBox.setEnabled(True)
+            self._mw.x_axis_points_label.setEnabled(True)
+            self._mw.x_axis_points_DoubleSpinBox.setEnabled(True)
+            self._mw.y_axis_label.setEnabled(True)
+            self._mw.y_axis_sweep_parameter_comboBox.setEnabled(True)
+            self._mw.y_start_label.setEnabled(True)
+            self._mw.y_axis_start_DoubleSpinBox.setEnabled(True)
+            self._mw.y_stop_label.setEnabled(True)
+            self._mw.y_axis_stop_DoubleSpinBox.setEnabled(True)
+            self._mw.y_axis_points_label.setEnabled(True)
+            self._mw.y_axis_points_DoubleSpinBox.setEnabled(True)
+
+        elif index == 2: #Timetrace
+            self._mw.x_axis_label.setEnabled(False)
+            self._mw.x_axis_sweep_parameter_comboBox.setEnabled(False)
+            self._mw.x_start_label.setEnabled(False)
+            self._mw.x_axis_start_DoubleSpinBox.setEnabled(False)
+            self._mw.x_stop_label.setEnabled(False)
+            self._mw.x_axis_stop_DoubleSpinBox.setEnabled(False)
+            self._mw.x_axis_points_label.setEnabled(False)
+            self._mw.x_axis_points_DoubleSpinBox.setEnabled(False)
+            self._mw.y_axis_label.setEnabled(False)
+            self._mw.y_axis_sweep_parameter_comboBox.setEnabled(False)
+            self._mw.y_start_label.setEnabled(False)
+            self._mw.y_axis_start_DoubleSpinBox.setEnabled(False)
+            self._mw.y_stop_label.setEnabled(False)
+            self._mw.y_axis_stop_DoubleSpinBox.setEnabled(False)
+            self._mw.y_axis_points_label.setEnabled(False)
+            self._mw.y_axis_points_DoubleSpinBox.setEnabled(False)
+
+    def setup_axis_sweep_parameter_comboBox(self):
+        axis_units = self._transport_logic.axis_units
+        axis_units_keys = list(axis_units.keys())
+        for axis_unit in axis_units_keys:
+            self._mw.x_axis_sweep_parameter_comboBox.addItem(axis_unit)
+            self._mw.y_axis_sweep_parameter_comboBox.addItem(axis_unit)
+
+    def x_axis_sweep_parameter_comboBox_textChanged(self, text):
+        self._mw.x_axis_start_DoubleSpinBox.setSuffix(self._transport_logic.axis_units[text]['si_units'])
+        self._mw.x_axis_stop_DoubleSpinBox.setSuffix(self._transport_logic.axis_units[text]['si_units'])
+        self._mw.x_axis_start_DoubleSpinBox.setRange(self._transport_logic.axis_units[text]['lower_limit'],self._transport_logic.axis_units[text]['upper_limit'])
+        self._mw.x_axis_stop_DoubleSpinBox.setRange(self._transport_logic.axis_units[text]['lower_limit'],self._transport_logic.axis_units[text]['upper_limit'])
+
+    def y_axis_sweep_parameter_comboBox_textChanged(self, text):
+        self._mw.y_axis_start_DoubleSpinBox.setSuffix(self._transport_logic.axis_units[text]['si_units'])
+        self._mw.y_axis_stop_DoubleSpinBox.setSuffix(self._transport_logic.axis_units[text]['si_units'])
+        self._mw.y_axis_start_DoubleSpinBox.setRange(self._transport_logic.axis_units[text]['lower_limit'],self._transport_logic.axis_units[text]['upper_limit'])
+        self._mw.y_axis_stop_DoubleSpinBox.setRange(self._transport_logic.axis_units[text]['lower_limit'],self._transport_logic.axis_units[text]['upper_limit'])
 
     def initSettingsUI(self):
         """ Initialize and set up the Settings Dialog. """
 
         self._sd = SettingsDialog()
 
+        sample_source_limits = self._transport_logic.get_sample_source_limits()
+        gate_source_limits = self._transport_logic.get_gate_source_limits()
+
+        self._sd.gate_voltage_upper_limit_DoubleSpinBox.editingFinished.connect(self.set_gate_voltage_limits)
+        self._sd.gate_voltage_upper_limit_DoubleSpinBox.setRange(0, gate_source_limits.max_voltage)
+        self._sd.gate_voltage_lower_limit_DoubleSpinBox.editingFinished.connect(self.set_gate_voltage_limits)
+        self._sd.gate_voltage_lower_limit_DoubleSpinBox.setRange(gate_source_limits.min_voltage, 0)
+
+        self._sd.sample_voltage_upper_limit_DoubleSpinBox.editingFinished.connect(self.set_sample_voltage_limits)
+        self._sd.sample_voltage_upper_limit_DoubleSpinBox.setRange(0, sample_source_limits.max_voltage)
+        self._sd.sample_voltage_lower_limit_DoubleSpinBox.editingFinished.connect(self.set_sample_voltage_limits)
+        self._sd.sample_voltage_lower_limit_DoubleSpinBox.setRange(sample_source_limits.min_voltage, 0)
+
+        self._sd.sample_current_upper_limit_DoubleSpinBox.editingFinished.connect(self.set_sample_current_limits)
+        self._sd.sample_current_upper_limit_DoubleSpinBox.setRange(0, sample_source_limits.max_current)
+        self._sd.sample_current_lower_limit_DoubleSpinBox.editingFinished.connect(self.set_sample_current_limits)
+        self._sd.sample_current_lower_limit_DoubleSpinBox.setRange(sample_source_limits.min_current, 0)
+
+        self._sd.sensing_delay_DoubleSpinBox.setRange(sample_source_limits.min_sens_delay, sample_source_limits.max_sens_delay)
+
+        self.retrieve_settings_status_var()
+
+        self.set_gate_voltage_limits()
+        self.set_sample_voltage_limits()
+        self.set_sample_current_limits()
+
         self._mw.action_open_settings.triggered.connect(self.show_settings_window)
 
-        self._sd.accepted.connect(self.update_qafm_settings)
-        self._sd.rejected.connect(self.keep_former_qafm_settings)
-        self._sd.optimizer_z_res_SpinBox.setMinimum(10)
-        self._sd.optimizer_x_res_SpinBox.setMinimum(10)
-        self._sd.buttonBox.button(QtWidgets.QDialogButtonBox.Apply).clicked.connect(self.update_qafm_settings)
-
-        self._sd.iso_b_operation_CheckBox.stateChanged.connect(self._mw.dockWidget_isob.setVisible)
-        self._sd.iso_b_operation_CheckBox.stateChanged.connect(self._mw.dockWidget_isob.setEnabled)
-        self._sd.iso_b_operation_CheckBox.stateChanged.connect(self._sd.iso_b_autocalibrate_CheckBox.setEnabled)
-        self._sd.iso_b_operation_CheckBox.stateChanged.connect(self._sd.n_iso_b_pulse_margin_Label.setEnabled)
-        self._sd.iso_b_operation_CheckBox.stateChanged.connect(self._sd.n_iso_b_pulse_margin_DoubleSpinBox.setEnabled)
-        self._sd.iso_b_operation_CheckBox.stateChanged.connect(self._sd.n_iso_b_n_freq_splits_Label.setEnabled)
-        self._sd.iso_b_operation_CheckBox.stateChanged.connect(self._sd.n_iso_b_n_freq_splits_SpinBox.setEnabled)
-
-        self._sd.iso_b_autocalibrate_CheckBox.stateChanged.connect(lambda x: self._sd.n_iso_b_pulse_margin_Label.setEnabled(not x))
-        self._sd.iso_b_autocalibrate_CheckBox.stateChanged.connect(lambda x: self._sd.n_iso_b_pulse_margin_DoubleSpinBox.setEnabled(not x))
-
-        # trigger update of dual iso-b plot visibility 
-        self._sd.iso_b_operation_CheckBox.stateChanged.connect(self._enable_dual_iso_b_plots) 
-
-        self._sd.int_time_obj_scan_DoubleSpinBox.setMaximum(100e-3)
-        self._sd.int_time_obj_scan_DoubleSpinBox.setMinimum(1e-3)
-
-        self._sd.optimizer_int_time_DoubleSpinBox.setMaximum(100e-3)
-        self._sd.optimizer_int_time_DoubleSpinBox.setMinimum(1e-3)
-
-        # write the configuration to the settings window of the GUI.
-        self.keep_former_qafm_settings()
-
-        # toggle twice to initiate a state change and come back to the initial one.
-        self._sd.iso_b_operation_CheckBox.toggle()   # toggle main iso-b
-
-        self._sd.iso_b_autocalibrate_CheckBox.toggle()  # toggle autocalibrate (otherwise it's not active)
-        self._sd.iso_b_autocalibrate_CheckBox.toggle()
-
-        self._sd.iso_b_operation_CheckBox.toggle()
-
-        #Hide note used Settings
-        self._sd.iso_b_autocalibrate_CheckBox.setVisible(False)
-        self._sd.n_iso_b_pulse_margin_Label.setVisible(False)
-        self._sd.n_iso_b_pulse_margin_DoubleSpinBox.setVisible(False)
-        self._sd.n_iso_b_n_freq_splits_Label.setVisible(False)
-        self._sd.n_iso_b_n_freq_splits_SpinBox.setVisible(False)
-        
-
-        # react on setting changes by the logic
-        self._qafm_logic.sigSettingsUpdated.connect(self.keep_former_qafm_settings)
-
-    def initGradiometryComboBox(self):
-        all_items = []
-        for i in range(self._qm.pulsed_scheme_comboBox.count()):
-            all_items.append(self._qm.pulsed_scheme_comboBox.itemText(i))
-        for f in self.gradiometry_pulse_schemes:
-            if f in all_items:
-                continue
-            self._qm.pulsed_scheme_comboBox.addItem(f)
-
-    # ==========================================================================
-    #               Start Methods for the AboutDialog 
-
-    def initAboutUI(self):
-        """ Initialize the LabQ About dialog box """
-        self._ab = AboutDialog()
-
-        self._mw.actionAbout.triggered.connect(self.show_about_tab)
-        self._mw.actionVersion.triggered.connect(self.show_version_tab)
-        self._mw.actionHardwareStatus.triggered.connect(self.show_hardware_status_tab)
-
-
-    def update_about_messages(self):
-        """ update messages to be displayed in AboutDialog
-            - this updates the 'AboutDialog' messages based upon
-              the Markdown files found in the main ProteusQ directory
-        """
-
-        # If no Markdown file is found, the default .ui definition is used
-        # Main 'About' text. 
-        doc_path = self._ab._refDocuments.get('about')
-        if doc_path is not None:
-            with open(doc_path,'r') as f:
-                message = markdown.markdown(f.read()) # renders to HTML
-            self._ab.about_Label.setText(message)
-
-        # 'Version' text
-        doc_path = self._ab._refDocuments.get('version')
-        if doc_path is not None:
-            with open(doc_path,'r') as f:
-                message = markdown.markdown(f.read()) # renders to HTML
-            self._ab.version_Label.setText(message)
-
-        # 'Release Notes' text
-        doc_path = self._ab._refDocuments.get('release_notes')
-        if doc_path is not None:
-            with open(doc_path,'r') as f:
-                message = markdown.markdown(f.read()) # renders to HTML
-            self._ab.release_notes_Label.setText(message)
-    
-        # 'Version string' text
-        doc_path = self._ab._refDocuments.get('version_string')
-        if doc_path is not None:
-            with open(doc_path,'r') as f:
-                message = f.read() 
-            self._LabQversion = '.'.join(message.split('.')[:-1])
-
-        self._ab.software_version_Label.setText(f"LabQ version {self._LabQversion}")
-
-    def show_about_tab(self):
-        """ display 'About LabQ', emphasis on about tab"""
-
-        i = self._ab._tabIndexLookup.get("about", None)
-        if i is not None:
-            self._ab.tabWidget.setCurrentIndex(i)
-
-        self.show_about_window()
-
-
-    def show_version_tab(self):
-        """ display 'About LabQ', emphasis on version tab"""
-
-        i = self._ab._tabIndexLookup.get("version", None)
-        if i is not None:
-            self._ab.tabWidget.setCurrentIndex(i)
-
-        self.show_about_window()
-
-    def show_hardware_status_tab(self):
-        """ display 'About LabQ', emphasis on hardware status tab"""
-
-        i = self._ab._tabIndexLookup.get("hardware status", None)
-        if i is not None:
-            self._ab.tabWidget.setCurrentIndex(i)
-
-        self.show_about_window()
-    
-    
-    def show_about_window(self):
-        """ display 'About LabQ' dialog box """
-        # Load the 'About text'
-        self.update_about_messages()
-
-        self._ab.show()
-        self._ab.raise_()
-
-    # ==========================================================================
-    #               Start Methods for the Immediate Stop Request 
-    
-    def show_immediate_stop_warning(self):
-        """ display message box to initiate immediate stop"""
-        self._is.show()
-        self._is.raise_()
-
-    def enact_immediate_stop(self, inp):
-        if inp.text() == 'OK':
-            self.log.debug(f"Immediate stop request initiated")
-            self.stop_any_scanning()
-            self._qafm_logic.stop_immediate()
-        else:
-            self.log.debug(f"Immediate stop request aborted")
-
-    # ==========================================================================
-    #               Start Methods for the Optimizer Request
-
-    def initOptimizerRequestUI(self):
-        """ Initiate the Optimizer request Dialog."""
-        self._mw.action_open_optimizer_request.triggered.connect(self.show_optimizer_request_groupBox)
-
-        self._mw.optimizer_request_period_SpinBox.valueChanged.connect(self.update_max_optimizer_request)
-        self._mw.optimizer_request_autorun_CheckBox.stateChanged.connect(self.update_optimizer_request_autorun)
-        self._mw.optimizer_request_Toggle.stateChanged.connect(self.periodic_optimize_request_pressed)
-
-        self._request_timer = QtCore.QTimer()
-        self._request_timer.timeout.connect(self.update_progress_bar)
-        self._request_timer.setSingleShot(False)
-        self._request_timer_interval = 1 # in s, will essentially fire every second
-
-        self.set_optimizer_period(self._periodic_opti_time)
-        self._mw.optimizer_request_autorun_CheckBox.setChecked(self._periodic_opti_autorun)
-
-        # optimizer request is initially not shown
-        self.enable_optimizer_request(False)   
-        
-
-    def show_optimizer_request_groupBox(self):
-        """ Hide or show the Periodic optimizer group box. """
-        # was active, so hide
-        if self._mw.groupBox_periodic_optimizer.isVisible():
-            self.enable_optimizer_request(False)
-
-        # was inactive, so now show
-        else:
-            self.enable_optimizer_request(True)
-    
-
-    def enable_optimizer_request(self, state=True):
-            self._mw.groupBox_periodic_optimizer.setEnabled(state)
-            self._mw.groupBox_periodic_optimizer.setVisible(state)
-            self._mw.action_open_optimizer_request.setChecked(state)
-
-    def set_optimizer_period(self, period):
-        self._periodic_opti_time = period 
-        self._mw.optimizer_request_period_SpinBox.setValue(period)
-
-    def get_optimizer_period(self):
-        return self._periodic_opti_time
-
-    def update_max_optimizer_request(self, val):
-        """ Update the  Progress bar. 
-        
-        @params float val: Maximal value of progress Bar in seconds. Make sure
-                           not to pass zero or a negative number. 
-        """
-
-        self._mw.optimizer_request_progress_Bar.setMaximum(val)
-        self._mw.optimizer_request_progress_Bar.setValue(val)
-        self.set_optimizer_period(val)
-
-    def update_optimizer_request_autorun(self,val):
-        self._periodic_opti_autorun = bool(val) 
-
-    def start_timer(self):
-        """ Start the timer, if timer is running, it will be restarted. """
-        self._request_timer.start(self._request_timer_interval * 1000) # in ms
-
-    def stop_timer(self):
-        """ Stop the timer. """
-        self._request_timer.stop()
-
-    def update_progress_bar(self):
-        """ This function will be called periodically. """
-        
-        curr_val = self._mw.optimizer_request_progress_Bar.value()
-
-        # make it just a bit larger than 0, assume _request_timer_interval will 
-        # never be smaller than this value.
-        if curr_val - self._request_timer_interval < 0.1:
-
-            self.perform_period_action()
-            self._mw.optimizer_request_progress_Bar.setValue(
-                self._mw.optimizer_request_progress_Bar.maximum())
-        else:
-            self._mw.optimizer_request_progress_Bar.setValue(curr_val - self._request_timer_interval)
-
-    def periodic_optimzer_autorun_start(self):
-        """autostart optimizer request, to be called by a signal """
-        if self._mw.groupBox_periodic_optimizer.isEnabled() and \
-           self._periodic_opti_autorun and not self._mw.optimizer_request_Toggle.isChecked():
-            self._mw.optimizer_request_Toggle.setCheckState(QtCore.Qt.Checked)
-
-    def periodic_optimzer_autorun_stop(self):
-        """autostop optimizer request, to be called by a signal """
-        if self._mw.groupBox_periodic_optimizer.isEnabled() and self._periodic_opti_autorun:
-            self._mw.optimizer_request_Toggle.setCheckState(QtCore.Qt.Unchecked)
-
-    def periodic_optimize_request_pressed(self, state):
-        """ Periodic optimizer toggle switch state changed"""
-        self._mw.optimizer_request_progress_Bar.setValue(
-            self._mw.optimizer_request_progress_Bar.maximum())
-
-        # was off, now turned on: event when toggle is moved to 'on' position
-        # state = 2; engaged
-        if state:
-            #self.perform_period_action()
-            self._mw.optimizer_request_period_SpinBox.setEnabled(False)
-            self._mw.optimizer_request_period_Label.setEnabled(False)
-            self._mw.optimizer_request_autorun_CheckBox.setEnabled(False)
-            self.start_timer()
-
-        # was on, now turned off: event when toggle is moved to 'off' position
-        else:
-            self.stop_timer()
-            self._mw.optimizer_request_period_SpinBox.setEnabled(True)
-            self._mw.optimizer_request_period_Label.setEnabled(True)
-            self._mw.optimizer_request_autorun_CheckBox.setEnabled(True)
-
-
-    def perform_period_action(self):
-        """ Just a wrapper method which is called to perform periodic action."""
-        self.start_optimize_clicked()
-        #self.log.info('Boom!')
-
-    #               End Methods for the Optimizer Request
-    # ==========================================================================
-
-    def _set_iso_b_single_mode(self, single_mode):
-        #print('val changed:', single_mode)
-        self._qafm_logic.set_iso_b_params(single_mode=single_mode)
-
-    def _set_freq1_iso_b_freq(self, freq1):
-        #print('freq1 changed:', freq1)
-        self._qafm_logic.set_iso_b_params(freq1=freq1)
-
-    def _set_freq2_iso_b_freq(self, freq2):
-        #print('freq2 changed:', freq2)
-        self._qafm_logic.set_iso_b_params(freq2=freq2)
-
-    def _set_iso_b_power(self, power):
-        #print('val changed:', power)
-        self._qafm_logic.set_iso_b_params(power=power)  
-    def _set_fwhm_iso_b_freq(self, fwhm):
-        #print('fwhm changed', fwhm)
-        self._qafm_logic.set_iso_b_params(fwhm=fwhm)
-
-    def _enable_dual_iso_b_plots(self, enable):
-        enable = enable and not self._qafm_logic.get_iso_b_mode() # iso_b_mode=single
-        
-        for obj_name in ['counts2', 'counts_diff']:
-            for direc in ['bw', 'fw']:
-                    ob = getattr(self._mw,f'dockWidget_{obj_name}_{direc}')
-                    ob.setVisible(enable)
-
-
-    def update_iso_b_param(self):
-        """ Update single iso b parameter from the logic """
-
-        self._mw.use_single_isob_RadioButton.blockSignals(True) 
-        self._mw.use_dual_isob_RadioButton.blockSignals(True) 
-        self._mw.freq1_isob_freq_DSpinBox.blockSignals(True)
-        self._mw.freq2_isob_freq_DSpinBox.blockSignals(True)
-        self._mw.isob_power_DSpinBox.blockSignals(True)
-        self._mw.fwhm_isob_freq_DSpinBox.blockSignals(True)
-        self._mw.calibrate_dual_isob_PushButton.blockSignals(True)
-
-        iso_b_operation, single_mode, freq1, freq2, fwhm, power = \
-            self._qafm_logic.get_iso_b_params()
-
-        if single_mode is not None:
-            if single_mode == True:
-                # inputs
-                self._mw.use_single_isob_RadioButton.setChecked(True)
-                self._mw.freq2_isob_freq_DSpinBox.setEnabled(False)
-                self._mw.fwhm_isob_freq_DSpinBox.setEnabled(False)
-                self._mw.calibrate_dual_isob_PushButton.setEnabled(False)
-
-                # labels
-                self._mw.mw_freq2_Label.setEnabled(False)
-                self._mw.odmr_fwhm_Label.setEnabled(False)
-
-                # changes to remove magnetic field calcuation
-                self._mw.fwhm_isob_freq_DSpinBox.setVisible(False) # for now  hidden
-                self._mw.calibrate_dual_isob_PushButton.setVisible(False)  
-                self._mw.odmr_fwhm_Label.setVisible(False)  # for now hidden
-
-            else:
-                # inputs
-                self._mw.use_dual_isob_RadioButton.setChecked(True)
-                self._mw.freq2_isob_freq_DSpinBox.setEnabled(True)
-                #self._mw.fwhm_isob_freq_DSpinBox.setEnabled(True) # for now disabled
-                #self._mw.fwhm_isob_freq_DSpinBox.setVisible(True)  # for now hidden
-                #self._mw.calibrate_dual_isob_PushButton.setEnabled(True) # for now disabled till next release
-
-                # labels
-                self._mw.mw_freq2_Label.setEnabled(True)
-                self._mw.odmr_fwhm_Label.setEnabled(True)
-
-                # changes to remove magnetic field calcuation, for now canceled
-                self._mw.fwhm_isob_freq_DSpinBox.setEnabled(False) # for now disabled
-                self._mw.fwhm_isob_freq_DSpinBox.setVisible(False)  # for now hidden
-                self._mw.calibrate_dual_isob_PushButton.setEnabled(False)  
-                self._mw.calibrate_dual_isob_PushButton.setVisible(False)  
-                self._mw.odmr_fwhm_Label.setVisible(False)  # for now hidden
-
-        if freq1 is not None:
-            self._mw.freq1_isob_freq_DSpinBox.setValue(freq1)
-
-        if freq2 is not None:
-            self._mw.freq2_isob_freq_DSpinBox.setValue(freq2)
-
-        if power is not None:
-            self._mw.isob_power_DSpinBox.setValue(power)
-        if fwhm is not None:
-            self._mw.fwhm_isob_freq_DSpinBox.setValue(fwhm)
-        
-        self._enable_dual_iso_b_plots(iso_b_operation)
-
-        self._mw.use_single_isob_RadioButton.blockSignals(False) 
-        self._mw.use_dual_isob_RadioButton.blockSignals(False) 
-        self._mw.freq1_isob_freq_DSpinBox.blockSignals(False)
-        self._mw.freq2_isob_freq_DSpinBox.blockSignals(False)
-        self._mw.isob_power_DSpinBox.blockSignals(False)
-        self._mw.fwhm_isob_freq_DSpinBox.blockSignals(False)
-        self._mw.calibrate_dual_isob_PushButton.blockSignals(False)
-
-
-    def update_qafm_settings(self):
-        
-        # create a settings dict
-        sd = {}
-
-        # general settings
-        # sd['idle_move_target_sample'] = self._sd.idle_move_target_sample_DoubleSpinBox.value()
-        # sd['idle_move_target_obj'] = self._sd.idle_move_target_obj_DoubleSpinBox.value()
-        # scanning settings
-        sd['idle_move_scan_sample'] = self._sd.idle_move_scan_sample_DoubleSpinBox.value()
-        # sd['idle_move_scan_obj'] = self._sd.idle_move_scan_obj_DoubleSpinBox.value()
-        sd['int_time_sample_scan'] = self._sd.int_time_sample_scan_DoubleSpinBox.value()
-        sd['int_time_counts_sample_scan'] = self._sd.int_time_counts_sample_scan_DoubleSpinBox.value()
-        sd['int_time_obj_scan'] = self._sd.int_time_obj_scan_DoubleSpinBox.value()
-        sd['iso_b_autocalibrate_margin'] = self._sd.iso_b_autocalibrate_CheckBox.isChecked()
-        sd['n_iso_b_pulse_margin'] = self._sd.n_iso_b_pulse_margin_DoubleSpinBox.value()
-        sd['n_iso_b_n_freq_splits'] = self._sd.n_iso_b_n_freq_splits_SpinBox.value()
-
-        # save settings
-        sd['root_folder_name'] = self._sd.rootfolder_name_LineEdit.text()
-        sd['create_summary_pic'] = self._sd.create_summary_pic_CheckBox.isChecked()
-        sd['auto_save_quanti'] = self._sd.auto_save_quanti_CheckBox.isChecked()
-        sd['auto_save_qafm'] = self._sd.auto_save_qafm_CheckBox.isChecked()
-        sd['save_to_gwyddion'] = self._sd.save_to_gwyddion_CheckBox.isChecked()
-
-        # optimizer settings
-        sd['optimizer_x_range'] = self._sd.optimizer_x_range_DoubleSpinBox.value()
-        sd['optimizer_x_res'] = self._sd.optimizer_x_res_SpinBox.value()
-        sd['optimizer_y_range'] = self._sd.optimizer_y_range_DoubleSpinBox.value()
-        sd['optimizer_y_res'] = self._sd.optimizer_y_res_SpinBox.value()
-        sd['optimizer_z_range'] = self._sd.optimizer_z_range_DoubleSpinBox.value()
-        sd['optimizer_z_res'] = self._sd.optimizer_z_res_SpinBox.value()
-        sd['optimizer_int_time'] = self._sd.optimizer_int_time_DoubleSpinBox.value()
-        sd['optimizer_period'] = self._sd.optimizer_period_DoubleSpinBox.value()
-        sd['iso_b_operation'] = self._sd.iso_b_operation_CheckBox.isChecked()
-
-        ret_val = True
-        x_target = self._mw.obj_target_x_DSpinBox.value()
-        start = x_target-sd['optimizer_x_range']/2
-        stop = x_target+sd['optimizer_x_range']/2
-        if start<0:
-            self.log.warning('X position too low for optimize range')
-            ret_val = False
-
-        x_range = self._qafm_logic._spm.get_objective_scan_range(['X2'])['X2']
-        if stop>x_range:
-            self.log.warning('X position too high for optimize range')
-            ret_val = False
-        
-        if ret_val:
-            sd['optimizer_x_res'] = self._qafm_logic._spm._find_spec_count(start, stop, sd['optimizer_x_res'])
-            self._sd.optimizer_x_res_SpinBox.setValue(sd['optimizer_x_res'])
-
-        z_target = self._mw.obj_target_z_DSpinBox.value()
-        start = z_target-sd['optimizer_z_range']/2
-        stop = z_target+sd['optimizer_z_range']/2
-        if start<0:
-            self.log.warning('Z position too low for optimize range')
-            ret_val = False
-
-        z_range = self._qafm_logic._spm.get_objective_scan_range(['Z2'])['Z2']
-        if stop>z_range:
-            self.log.warning('Z position too high for optimize range')
-            ret_val = False
-        
-        if ret_val:
-            sd['optimizer_z_res'] = self._qafm_logic._spm._find_spec_count(start, stop, sd['optimizer_z_res'], False)
-            self._sd.optimizer_z_res_SpinBox.setValue(sd['optimizer_z_res'])
-
-        self._qafm_logic.set_qafm_settings(sd)
-        return ret_val
-
-
-    def keep_former_qafm_settings(self):
-        """ Keep the old settings and restores them in the gui from logic. """
-        
-        sd = self._qafm_logic.get_qafm_settings()
-
-        # general settings
-        # self._sd.idle_move_target_sample_DoubleSpinBox.setValue(sd['idle_move_target_sample'])
-        # self._sd.idle_move_target_obj_DoubleSpinBox.setValue(sd['idle_move_target_obj'])
-        # scanning settings
-        self._sd.idle_move_scan_sample_DoubleSpinBox.setValue(sd['idle_move_scan_sample'])
-        # self._sd.idle_move_scan_obj_DoubleSpinBox.setValue(sd['idle_move_scan_obj'])
-        self._sd.int_time_sample_scan_DoubleSpinBox.setValue(sd['int_time_sample_scan'])
-        self._sd.int_time_counts_sample_scan_DoubleSpinBox.setValue(sd['int_time_counts_sample_scan'])
-        self._sd.int_time_obj_scan_DoubleSpinBox.setValue(sd['int_time_obj_scan'])
-        # save settings
-        self._sd.rootfolder_name_LineEdit.setText(sd['root_folder_name'])
-        self._sd.create_summary_pic_CheckBox.setChecked(sd['create_summary_pic'])
-        self._sd.auto_save_quanti_CheckBox.setChecked(sd['auto_save_quanti'])
-        self._sd.auto_save_qafm_CheckBox.setChecked(sd['auto_save_qafm'])
-        self._sd.save_to_gwyddion_CheckBox.setChecked(sd['save_to_gwyddion'])
-        # optimizer settings
-        self._sd.optimizer_x_range_DoubleSpinBox.setValue(sd['optimizer_x_range'])
-        self._sd.optimizer_x_res_SpinBox.setValue(sd['optimizer_x_res'])
-        self._sd.optimizer_y_range_DoubleSpinBox.setValue(sd['optimizer_y_range'])
-        self._sd.optimizer_y_res_SpinBox.setValue(sd['optimizer_y_res'])
-        self._sd.optimizer_z_range_DoubleSpinBox.setValue(sd['optimizer_z_range'])
-        self._sd.optimizer_z_res_SpinBox.setValue(sd['optimizer_z_res'])
-        self._sd.optimizer_int_time_DoubleSpinBox.setValue(sd['optimizer_int_time'])
-        self._sd.optimizer_period_DoubleSpinBox.setValue(sd['optimizer_period'])    
-
-        self._sd.iso_b_operation_CheckBox.setChecked(sd['iso_b_operation'])
-        self._sd.iso_b_autocalibrate_CheckBox.setChecked(sd['iso_b_autocalibrate_margin'])
-        self._sd.n_iso_b_pulse_margin_DoubleSpinBox.setValue(sd['n_iso_b_pulse_margin'])
-        self._sd.n_iso_b_n_freq_splits_SpinBox.setValue(sd['n_iso_b_n_freq_splits'])
-
+    def set_gate_voltage_limits(self):
+        gate_voltage_upper_limit = self._sd.gate_voltage_upper_limit_DoubleSpinBox.value()
+        gate_voltage_lower_limit = self._sd.gate_voltage_lower_limit_DoubleSpinBox.value()
+        self._transport_logic.set_gate_voltage_limits(gate_voltage_lower_limit, gate_voltage_upper_limit)
+        self._mw.constant_backgate_voltage_DoubleSpinBox.setRange(gate_voltage_lower_limit, gate_voltage_upper_limit)
+        self.x_axis_sweep_parameter_comboBox_textChanged(self._mw.x_axis_sweep_parameter_comboBox.currentText())
+        self.y_axis_sweep_parameter_comboBox_textChanged(self._mw.y_axis_sweep_parameter_comboBox.currentText())
+
+    def set_sample_voltage_limits(self):
+        sample_voltage_upper_limit = self._sd.sample_voltage_upper_limit_DoubleSpinBox.value()
+        sample_voltage_lower_limit = self._sd.sample_voltage_lower_limit_DoubleSpinBox.value()
+        self._transport_logic.set_sample_voltage_limits(sample_voltage_lower_limit, sample_voltage_upper_limit)
+        self._mw.constant_sample_voltage_DoubleSpinBox.setRange(sample_voltage_lower_limit, sample_voltage_upper_limit)
+        self.x_axis_sweep_parameter_comboBox_textChanged(self._mw.x_axis_sweep_parameter_comboBox.currentText())
+        self.y_axis_sweep_parameter_comboBox_textChanged(self._mw.y_axis_sweep_parameter_comboBox.currentText())
+
+    def set_sample_current_limits(self):
+        sample_current_upper_limit = self._sd.sample_current_upper_limit_DoubleSpinBox.value()
+        sample_current_lower_limit = self._sd.sample_current_lower_limit_DoubleSpinBox.value()
+        self._transport_logic.set_sample_current_limits(sample_current_lower_limit, sample_current_upper_limit)
+        self._mw.constant_sample_current_DoubleSpinBox.setRange(sample_current_lower_limit, sample_current_upper_limit)
+        self.x_axis_sweep_parameter_comboBox_textChanged(self._mw.x_axis_sweep_parameter_comboBox.currentText())
+        self.y_axis_sweep_parameter_comboBox_textChanged(self._mw.y_axis_sweep_parameter_comboBox.currentText())
+
+    def setup_sensing_function_comboBox(self):
+        self.meas_params_units = self._transport_logic.meas_params_units
+        meas_params_units_keys = list(self.meas_params_units.keys())
+        for meas_param_unit in meas_params_units_keys:
+            self._mw.sensing_function_comboBox.addItem(meas_param_unit)
 
     def show_settings_window(self):
         """ Show and open the settings window. """
-        self.keep_former_qafm_settings()
         self._sd.show()
         self._sd.raise_()
-
 
     def retrieve_status_var(self):
         """ Obtain variables from file. """
 
-        self._mw.sample_current_checkBox.setChecked(self.use_sample_current)
+        self._mw.constant_sample_current_checkBox.setChecked(self.use_sample_current)
         self._mw.constant_sample_current_DoubleSpinBox.setValue(self.dc_sample_current)
 
         self._mw.constant_sample_voltage_checkBox.setChecked(self.use_sample_voltage)
         self._mw.constant_sample_voltage_DoubleSpinBox.setValue(self.dc_sample_voltage)
 
-        self._mw.backgate_voltage_checkBox.setChecked(self.use_backgate_voltage)
+        self._mw.constant_backgate_voltage_checkBox.setChecked(self.use_backgate_voltage)
         self._mw.constant_backgate_voltage_DoubleSpinBox.setValue(self.dc_sample_voltage)
 
         self._mw.dimension_comboBox.setCurrentIndex(self.dimension_index)
@@ -919,18 +555,18 @@ class TransportGUI(GUIBase):
         self._mw.y_axis_stop_DoubleSpinBox.setValue(self.y_axis_stop)
         self._mw.y_axis_points_DoubleSpinBox.setValue(self.y_axis_points)
 
-        self._mw.measurement_type_comboBox.setCurrentIndex(self.measurement_type_index)
+        self._mw.sensing_function_comboBox.setCurrentIndex(self.sensing_function_index)
 
     def store_status_var(self):
         """ Store all those variables to file. """
 
-        self.use_sample_current = self._mw.sample_current_checkBox.isChecked()
+        self.use_sample_current = self._mw.constant_sample_current_checkBox.isChecked()
         self.dc_sample_current = self._mw.constant_sample_current_DoubleSpinBox.value()
 
         self.use_sample_voltage = self._mw.constant_sample_voltage_checkBox.isChecked()
         self.dc_sample_voltage = self._mw.constant_sample_voltage_DoubleSpinBox.value()
 
-        self.use_backgate_voltage = self._mw.backgate_voltage_checkBox.isChecked()
+        self.use_backgate_voltage = self._mw.constant_backgate_voltage_checkBox.isChecked()
         self.dc_sample_voltage = self._mw.constant_backgate_voltage_DoubleSpinBox.value()
 
         self.dimension_index = self._mw.dimension_comboBox.currentIndex()
@@ -945,21 +581,76 @@ class TransportGUI(GUIBase):
         self.y_axis_stop = self._mw.y_axis_stop_DoubleSpinBox.value()
         self.y_axis_points = self._mw.y_axis_points_DoubleSpinBox.value()
 
-        self.measurement_type_index = self._mw.measurement_type_comboBox.currentIndex()
+        self.sensing_function_index = self._mw.sensing_function_comboBox.currentIndex()
 
+    def retrieve_settings_status_var(self):
+        """ Obtain variables from file. """
+
+        self._sd.gate_voltage_ramp_speed_DoubleSpinBox.setValue(self.sd_gate_voltage_ramp_speed)
+        self._sd.gate_voltage_upper_limit_DoubleSpinBox.setValue(self.sd_gate_voltage_upper_limit)
+        self._sd.gate_voltage_lower_limit_DoubleSpinBox.setValue(self.sd_gate_voltage_lower_limit)
+        self._sd.gate_voltage_autorange_checkBox.setChecked(self.sd_gate_voltage_autorange)
+
+        self._sd.sample_voltage_ramp_speed_DoubleSpinBox.setValue(self.sd_sample_voltage_ramp_speed)
+        self._sd.sample_voltage_upper_limit_DoubleSpinBox.setValue(self.sd_sample_voltage_upper_limit)
+        self._sd.sample_voltage_lower_limit_DoubleSpinBox.setValue(self.sd_sample_voltage_lower_limit)
+
+        self._sd.sample_current_ramp_speed_DoubleSpinBox.setValue(self.sd_sample_current_ramp_speed)
+        self._sd.sample_current_upper_limit_DoubleSpinBox.setValue(self.sd_sample_current_upper_limit)
+        self._sd.sample_current_lower_limit_DoubleSpinBox.setValue(self.sd_sample_current_lower_limit)
+
+        self._sd.sample_transport_autorange_checkBox.setChecked(self.sd_sample_transport_autorange)
+
+        self._sd.sensing_autorange_checkBox.setChecked(self.sd_sensing_autorange)
+        self._sd.sensing_autozero_checkBox.setChecked(self.sd_sensing_autozero)
+        self._sd.sensing_four_port_checkBox.setChecked(self.sd_sensing_four_port)
+        self._sd.sensing_achange_checkBox.setChecked(self.sd_sensing_achange)
+
+        self._sd.int_time_transport_DoubleSpinBox.setValue(self.sd_transport_integration_time)
+
+        self._sd.timetrace_timestep_DoubleSpinBox.setValue(self.sd_timetrace_timestep)
+        self._sd.timetrace_measure_temperature_checkBox.setChecked(self.sd_timetrace_measure_temperature)
+
+        self._sd.auto_save_qafm_CheckBox.setChecked(self.sd_auto_save)
+        self._sd.save_to_gwyddion_CheckBox.setChecked(self.sd_2D_gwyddion_save)
+
+    def store_settings_status_var(self):
+        """ Store all those variables to file. """
+
+        self.sd_gate_voltage_ramp_speed = self._sd.gate_voltage_ramp_speed_DoubleSpinBox.value()
+        self.sd_gate_voltage_upper_limit = self._sd.gate_voltage_upper_limit_DoubleSpinBox.value()
+        self.sd_gate_voltage_lower_limit = self._sd.gate_voltage_lower_limit_DoubleSpinBox.value()
+        self.sd_gate_voltage_autorange = self._sd.gate_voltage_autorange_checkBox.isChecked()
+
+        self.sd_sample_voltage_ramp_speed = self._sd.sample_voltage_ramp_speed_DoubleSpinBox.value()
+        self.sd_sample_voltage_upper_limit = self._sd.sample_voltage_upper_limit_DoubleSpinBox.value()
+        self.sd_sample_voltage_lower_limit = self._sd.sample_voltage_lower_limit_DoubleSpinBox.value()
+
+        self.sd_sample_current_ramp_speed = self._sd.sample_current_ramp_speed_DoubleSpinBox.value()
+        self.sd_sample_current_upper_limit = self._sd.sample_current_upper_limit_DoubleSpinBox.value()
+        self.sd_sample_current_lower_limit = self._sd.sample_current_lower_limit_DoubleSpinBox.value()
+
+        self.sd_sample_transport_autorange = self._sd.sample_transport_autorange_checkBox.isChecked()
+
+        self.sd_sensing_autorange = self._sd.sensing_autorange_checkBox.isChecked()
+        self.sd_sensing_autozero = self._sd.sensing_autozero_checkBox.isChecked()
+        self.sd_sensing_four_port = self._sd.sensing_four_port_checkBox.isChecked()
+        self.sd_sensing_achange = self._sd.sensing_achange_checkBox.isChecked()
+        self.sd_sensing_delay_time = self._sd.sensing_delay_DoubleSpinBox.value()
+        self.sd_transport_integration_time = self._sd.int_time_transport_DoubleSpinBox.value()
+
+        self.sd_timetrace_timestep = self._sd.timetrace_timestep_DoubleSpinBox.value()
+        self.sd_timetrace_measure_temperature = self._sd.timetrace_measure_temperature_checkBox.isChecked()
+
+        self.sd_auto_save = self._sd.auto_save_qafm_CheckBox.isChecked()
+        self.sd_2D_gwyddion_save = self._sd.save_to_gwyddion_CheckBox.isChecked()
 
     def get_all_data_matrices(self):
         """ more of a helper method to get all the data matrices. """
 
         data_dict = {}
-        # self._qafm_logic.initialize_qafm_scan_array(0, 100e-6, 10, 
-        #                                                         0, 100e-6, 10,
-        #                                                         0, None, ['bw','fw'])
-        data_dict.update(self._qafm_logic.get_qafm_data())
-        data_dict.update(self._qafm_logic.get_obj_data())
-        data_dict.update(self._qafm_logic.get_opti_data())
-        data_dict.update(self._qafm_logic.get_esr_data())
-        data_dict.update(self._qafm_logic.get_pulsed_data())
+        data_dict.update(self._transport_logic.get_1D_data())
+        data_dict.update(self._transport_logic.get_2D_data())
 
         return data_dict
     
@@ -970,14 +661,13 @@ class TransportGUI(GUIBase):
         transport_1D_array = self._transport_logic.initialize_transport_1D_array(-10, 10, 11, None, None)
 
         transport_2D_array = self._transport_logic.initialize_transport_2D_array(-10, 10, 11, -10, 10, 11, None, None, None)
+
+        transport_timetrace_array = self._transport_logic.initialize_transport_timetrace_array(None)
         data_dict.update(transport_1D_array)
         data_dict.update(transport_2D_array)
+        data_dict.update(transport_timetrace_array)
 
         return data_dict
-    
-    def _update_pulsed_asset(self, asset_name, asset_type):
-        self._qm.loaded_sequence_label.setTextFormat(0)
-        self._qm.loaded_sequence_label.setText(asset_name)
 
     def _create_colorbar(self, name, colorscale):
         """ Helper method to create Colorbar. 
@@ -1090,367 +780,62 @@ class TransportGUI(GUIBase):
                                                      width=_width
                                                     )
         return self._plot_container[name]
+    
+    def create_linked_timetrace_plot(self, dockwidget, data_dict, obj_name):
 
+        plot_item = self._create_timetrace_plot_item(obj_name, 
+                        data_dict[obj_name]['x_axis'], 
+                        data_dict[obj_name]['data'])
+        plot_item_temperature = self._create_linked_timetrace_plot_item(obj_name+'_temperature', 
+                        data_dict[obj_name]['x_axis'], 
+                        data_dict[obj_name]['temperature_data'])
+
+        dockwidget.graphicsView.addItem(plot_item)
+        data_name = data_dict[obj_name]['data_info']['nice_name']
+        meas_units = data_dict[obj_name]['data_info']['si_units']
+        temperature_data_name = data_dict[obj_name]['temperature_info']['nice_name']
+        temperature_units = data_dict[obj_name]['temperature_info']['si_units']
+        x_axis_name = data_dict[obj_name]['x_axis_info']['nice_name']
+        x_axis_units = data_dict[obj_name]['x_axis_info']['si_units']
+        dockwidget.graphicsView.setLabel('bottom', x_axis_name, units=x_axis_units)
+        dockwidget.graphicsView.setLabel('left', data_name, units=meas_units, color = palette.c1.name())
+        dockwidget.graphicsView.showAxis('right')
+        dockwidget.graphicsView.getAxis('right').setLabel(temperature_data_name, units=temperature_units, color = palette.c2.name())
+        linked_plot = pg.ViewBox()
+        dockwidget.graphicsView.scene().addItem(linked_plot)
+        dockwidget.graphicsView.getAxis('right').linkToView(linked_plot)
+        linked_plot.setXLink(dockwidget.graphicsView)
+        linked_plot.addItem(plot_item_temperature)
+        def updateViews():
+            linked_plot.setGeometry(dockwidget.graphicsView.getViewBox().sceneBoundingRect())
+            linked_plot.linkedViewChanged(dockwidget.graphicsView.getViewBox(), linked_plot.XAxis)
+        dockwidget.updateViews = updateViews
+        updateViews()
+        dockwidget.graphicsView.getViewBox().sigResized.connect(updateViews)
+    
+    def _create_timetrace_plot_item(self, name, x_axis, y_axis):
+        _pen = pg.mkPen(palette.c1,style=QtCore.Qt.SolidLine)
+        _width = 4
+        self._plot_container[name] = pg.PlotDataItem(x=x_axis, y=y_axis,
+                                                     pen=_pen,
+                                                     symbol=None,
+                                                     width=_width
+                                                    )
+        return self._plot_container[name]
+    
+    def _create_linked_timetrace_plot_item(self, name, x_axis, y_axis):
+        _pen = pg.mkPen(palette.c2,style=QtCore.Qt.SolidLine)
+        _width = 4
+        self._plot_container[name] = pg.PlotDataItem(x=x_axis, y=y_axis,
+                                                     pen=_pen,
+                                                     symbol=None,
+                                                     width=_width
+                                                    )
+        return self._plot_container[name]
 
     def _set_aspect_ratio_images(self):
         for entry in self._image_container:
             self._image_container[entry].getViewBox().setAspectLocked(lock=True, ratio=1.0)
-
-    def _initialize_inputs(self):
-
-        # set constraints
-        self._mw.obj_x_min_DSpinBox.setRange(0.0e-6, 37e-6)
-        self._mw.obj_x_min_DSpinBox.setSuffix('m')
-        self._mw.obj_x_min_DSpinBox.setMinimalStep(0.1e-6)
-
-        self._mw.obj_x_max_DSpinBox.setRange(0.0e-6, 37e-6)
-        self._mw.obj_x_max_DSpinBox.setSuffix('m')
-        self._mw.obj_x_max_DSpinBox.setMinimalStep(0.1e-6)
-
-        self._mw.obj_x_num_SpinBox.setRange(2, 10000)
-
-        self._mw.obj_y_min_DSpinBox.setRange(0.0e-6, 37e-6)
-        self._mw.obj_y_min_DSpinBox.setSuffix('m')
-        self._mw.obj_y_min_DSpinBox.setMinimalStep(0.1e-6)
-
-        self._mw.obj_y_max_DSpinBox.setRange(0.0e-6, 37e-6)
-        self._mw.obj_y_max_DSpinBox.setSuffix('m')
-        self._mw.obj_y_max_DSpinBox.setMinimalStep(0.1e-6)
-
-        self._mw.obj_y_num_SpinBox.setRange(2, 10000)
-
-        self._mw.obj_z_min_DSpinBox.setRange(0.0e-6, 3.5e-6)
-        self._mw.obj_z_min_DSpinBox.setSuffix('m')
-        self._mw.obj_z_min_DSpinBox.setMinimalStep(0.1e-6)
-
-        self._mw.obj_z_max_DSpinBox.setRange(0.0e-6, 3.5e-6)
-        self._mw.obj_z_max_DSpinBox.setSuffix('m')
-        self._mw.obj_z_max_DSpinBox.setMinimalStep(0.1e-6)
-
-        self._mw.obj_z_num_SpinBox.setRange(2, 10000)
-
-        self._mw.obj_target_x_DSpinBox.setRange(0.0e-6, 37e-6)
-        self._mw.obj_target_x_DSpinBox.setSuffix('m')
-        self._mw.obj_target_x_DSpinBox.setMinimalStep(0.1e-6)
-        self._mw.obj_target_x_DSpinBox.setValue(0)
-
-        self._mw.obj_target_y_DSpinBox.setRange(0.0e-6, 37e-6)
-        self._mw.obj_target_y_DSpinBox.setSuffix('m')
-        self._mw.obj_target_y_DSpinBox.setMinimalStep(0.1e-6)
-        self._mw.obj_target_y_DSpinBox.setValue(0)
-
-        self._mw.obj_target_z_DSpinBox.setRange(0.0e-6, 3.5e-6)
-        self._mw.obj_target_z_DSpinBox.setSuffix('m')
-        self._mw.obj_target_z_DSpinBox.setMinimalStep(0.1e-6)
-        self._mw.obj_target_z_DSpinBox.setValue(0)
-
-        self._mw.afm_x_origin_DSpinBox.setRange(0.001e-6, 37e-6)
-        self._mw.afm_x_origin_DSpinBox.setSuffix('m')
-        self._mw.afm_x_origin_DSpinBox.setMinimalStep(0.1e-6)
-
-        self._mw.afm_x_range_DSpinBox.setRange(0.001e-6, 37e-6)
-        self._mw.afm_x_range_DSpinBox.setSuffix('m')
-        self._mw.afm_x_range_DSpinBox.setMinimalStep(0.1e-6)
-
-        self._mw.afm_x_num_SpinBox.setRange(1, 10000)
-
-        self._mw.afm_x_pixel_size_DSpinBox.setSuffix('m')
-        self._mw.afm_x_pixel_size_DSpinBox.setRange(0.001e-9, 37e-6)
-
-        self._mw.afm_y_origin_DSpinBox.setRange(0.001e-6, 37e-6)
-        self._mw.afm_y_origin_DSpinBox.setSuffix('m')
-        self._mw.afm_y_origin_DSpinBox.setMinimalStep(0.1e-6)
-
-        self._mw.afm_y_range_DSpinBox.setRange(0.001e-6, 37e-6)
-        self._mw.afm_y_range_DSpinBox.setSuffix('m')
-        self._mw.afm_y_range_DSpinBox.setMinimalStep(0.1e-6)
-
-        self._mw.afm_y_num_SpinBox.setRange(1, 10000)
-
-        self._mw.afm_y_pixel_size_DSpinBox.setSuffix('m')
-        self._mw.afm_y_pixel_size_DSpinBox.setRange(0.001e-9, 37e-6)
-
-        self._mw.afm_rotation_DSpinBox.setRange(0, 360)
-        self._mw.afm_rotation_DSpinBox.setSuffix('°')
-        self._mw.afm_rotation_DSpinBox.setMinimalStep(0.1)
-
-        self._mw.x_range_qafm_feature_DSpinBox.setRange(0.001e-6, 37e-6)
-        self._mw.x_range_qafm_feature_DSpinBox.setSuffix('m')
-        self._mw.x_range_qafm_feature_DSpinBox.setMinimalStep(10e-9)
-
-        self._mw.y_range_qafm_feature_DSpinBox.setRange(0.001e-6, 37e-6)
-        self._mw.y_range_qafm_feature_DSpinBox.setSuffix('m')
-        self._mw.y_range_qafm_feature_DSpinBox.setMinimalStep(10e-9)
-
-        self._mw.x_pos_real_frame_DSpinBox.setRange(0.001e-6, 37e-6)
-        self._mw.x_pos_real_frame_DSpinBox.setSuffix('m')
-        self._mw.x_pos_real_frame_DSpinBox.setMinimalStep(0.1e-6)
-
-        self._mw.y_pos_real_frame_DSpinBox.setRange(0.001e-6, 37e-6)
-        self._mw.y_pos_real_frame_DSpinBox.setSuffix('m')
-        self._mw.y_pos_real_frame_DSpinBox.setMinimalStep(0.1e-6)
-
-        self._mw.x_pos_rotation_frame_DSpinBox.setRange(0.001e-6, 37e-6)
-        self._mw.x_pos_rotation_frame_DSpinBox.setSuffix('m')
-        self._mw.x_pos_rotation_frame_DSpinBox.setMinimalStep(0.1e-6)
-
-        self._mw.y_pos_rotation_frame_DSpinBox.setRange(0.001e-6, 37e-6)
-        self._mw.y_pos_rotation_frame_DSpinBox.setSuffix('m')
-        self._mw.y_pos_rotation_frame_DSpinBox.setMinimalStep(0.1e-6)
-
-        self._mw.afm_target_x_DSpinBox.setRange(0.0e-6, 37e-6)
-        self._mw.afm_target_x_DSpinBox.setSuffix('m')
-        self._mw.afm_target_x_DSpinBox.setMinimalStep(0.1e-6)
-
-        self._mw.afm_target_y_DSpinBox.setRange(0.0e-6, 37e-6)
-        self._mw.afm_target_y_DSpinBox.setSuffix('m')
-        self._mw.afm_target_y_DSpinBox.setMinimalStep(0.1e-6)
-
-        self._mw.obj_cur_x_DSpinBox.setSuffix('m')
-        self._mw.obj_cur_x_DSpinBox.setRange(0.0e-6, 37e-6)
-        self._mw.obj_cur_y_DSpinBox.setSuffix('m')
-        self._mw.obj_cur_y_DSpinBox.setRange(0.0e-6, 37e-6)
-        self._mw.obj_cur_z_DSpinBox.setSuffix('m')
-        self._mw.obj_cur_z_DSpinBox.setRange(0.0e-6, 3.5e-6)
-
-        self._mw.afm_curr_x_DSpinBox.setSuffix('m')
-        self._mw.afm_curr_x_DSpinBox.setRange(0.0e-6, 37e-6)
-        self._mw.afm_curr_x_DSpinBox.setDecimals(3, dynamic_precision=False)
-        self._mw.afm_curr_y_DSpinBox.setSuffix('m')
-        self._mw.afm_curr_y_DSpinBox.setRange(0.0e-6, 37e-6)
-        self._mw.afm_curr_y_DSpinBox.setDecimals(3, dynamic_precision=False)
-
-        # set initial values:
-        self._mw.obj_x_min_DSpinBox.setValue(0.0e-6)
-        self._mw.obj_x_max_DSpinBox.setValue(37e-6)
-        self._mw.obj_y_min_DSpinBox.setValue(0.0e-6)
-        self._mw.obj_y_max_DSpinBox.setValue(37e-6)
-        self._mw.obj_z_min_DSpinBox.setValue(0.0e-6)
-        self._mw.obj_z_max_DSpinBox.setValue(3.5e-6)
-
-    def calc_x_pixel_size(self):
-        x_range = self._mw.afm_x_range_DSpinBox.value()
-        x_num = self._mw.afm_x_num_SpinBox.value()
-        x_pixel = x_range/x_num
-        self._mw.afm_x_pixel_size_DSpinBox.setValue(x_pixel)
-
-    def calc_y_pixel_size(self):
-        y_range = self._mw.afm_y_range_DSpinBox.value()
-        y_num = self._mw.afm_y_num_SpinBox.value()
-        y_pixel = y_range/y_num
-        self._mw.afm_y_pixel_size_DSpinBox.setValue(y_pixel)
-
-    def calc_x_num(self):
-        x_pixel_size = self._mw.afm_x_pixel_size_DSpinBox.value()
-        x_range = self._mw.afm_x_range_DSpinBox.value()
-        x_num = math.ceil(x_range/x_pixel_size)
-        x_range_new = x_num*x_pixel_size
-        self._mw.afm_x_num_SpinBox.setValue(x_num)
-        self._mw.afm_x_range_DSpinBox.setValue(x_range_new)
-
-    def calc_y_num(self):
-        y_pixel_size = self._mw.afm_y_pixel_size_DSpinBox.value()
-        y_range = self._mw.afm_y_range_DSpinBox.value()
-        y_num = math.ceil(y_range/y_pixel_size)
-        y_range_new = y_num*y_pixel_size
-        self._mw.afm_y_num_SpinBox.setValue(y_num)
-        self._mw.afm_y_range_DSpinBox.setValue(y_range_new)
-
-    def copy_from_daisy_clicked(self):
-        pixel_size = self._qafm_logic._spm._dev.base.getParameter(self._qafm_logic._spm._dev.base.getConst('ID_SCAN_PIXEL'), 0)*1e-11
-        x_num = self._qafm_logic._spm._dev.base.getParameter(self._qafm_logic._spm._dev.base.getConst('ID_SCAN_COLUMNS'), 0)
-        y_num = self._qafm_logic._spm._dev.base.getParameter(self._qafm_logic._spm._dev.base.getConst('ID_SCAN_LINES'), 0)
-        x_range = pixel_size*x_num
-        y_range = pixel_size*y_num
-        rotation = round(self._qafm_logic._spm._dev.base.getParameter(self._qafm_logic._spm._dev.base.getConst('ID_SCAN_ROTATION'), 0)*360/65536, 2)
-        self._mw.afm_x_origin_DSpinBox.setValue(self._qafm_logic._spm._dev.base.getParameter(self._qafm_logic._spm._dev.base.getConst('ID_SCAN_OFFSET_X'), 0)*1e-11)
-        self._mw.afm_x_range_DSpinBox.setValue(x_range)
-        self._mw.afm_x_num_SpinBox.setValue(x_num)
-        self._mw.afm_y_origin_DSpinBox.setValue(self._qafm_logic._spm._dev.base.getParameter(self._qafm_logic._spm._dev.base.getConst('ID_SCAN_OFFSET_Y'), 0)*1e-11)
-        self._mw.afm_y_range_DSpinBox.setValue(y_range)
-        self._mw.afm_y_num_SpinBox.setValue(y_num)
-        self._mw.afm_rotation_DSpinBox.setValue(rotation)
-
-    def load_from_pickel_clicked(self):
-        """ Ask the user for a file where the configuration should be loaded
-            from
-        """
-        pickelfilepath = 'G:\\Data\\Qudi_Data'
-        filename = QtWidgets.QFileDialog.getOpenFileName(
-            self._mw,
-            'Chose scan from pickle',
-            pickelfilepath,
-            'Pickle file (*_qafm_array_raw.pickle)')[0]
-        if filename != '':
-            self.log.info(f'Scan from file {filename} has been loaded into SPM modul.')
-            with open(filename, 'rb') as f:
-                qafm_data = pickle.load(f)
-            self._qafm_logic._qafm_scan_array = qafm_data
-            self.adjust_qafm_image()
-            self.show_dockwidgets(qafm_data.keys())
-
-            loaded_dict = qafm_data['Height(Dac)_fw']['params']
-            if 'coord0_origin (m)' not in loaded_dict.keys(): #update for older datasets befor the rotation update from 28.08.24
-                x_range = loaded_dict['coord0_stop (m)'] - loaded_dict['coord0_start (m)']
-                x_origin = x_range/2+loaded_dict['coord0_start (m)']
-                x_num = loaded_dict['coord0_num (#)']
-                y_range = loaded_dict['coord1_stop (m)'] - loaded_dict['coord1_start (m)']
-                y_origin = y_range/2+loaded_dict['coord1_start (m)']
-                y_num = loaded_dict['coord1_num (#)']
-                rotation = 0
-                liftoff = loaded_dict['Lift-off Mode']
-                liftoff_height = loaded_dict['Lift-off Height']
-
-            else:
-                x_range = loaded_dict['coord0_range (m)']
-                x_origin = loaded_dict['coord0_origin (m)']
-                x_num = loaded_dict['coord0_num (#)']
-                y_range = loaded_dict['coord1_range (m)']
-                y_origin = loaded_dict['coord1_origin (m)']
-                y_num = loaded_dict['coord1_num (#)']
-                rotation = loaded_dict['rotation (°)']
-                liftoff = loaded_dict['Lift-off Mode']
-                liftoff_height = loaded_dict['Lift-off Height']
-
-            if 'Tip oscillation off' not in loaded_dict.keys():
-                tip_osc_off = False
-                tip_osc_turn_off_time = 0
-                tip_osc_turn_on_time = 0
-                measure_tip_osc_on_and_off = False
-
-            else:
-                tip_osc_off = loaded_dict['Tip oscillation off']
-                tip_osc_turn_off_time = loaded_dict['Tip oscillation turn off time (s)']
-                tip_osc_turn_on_time = loaded_dict['Tip oscillation turn on time (s)']
-                measure_tip_osc_on_and_off = loaded_dict['Measure tip oscillation on and off']
-
-            self._current_origin = (x_origin, y_origin)
-            self._current_rotation = rotation
-            self._mw.afm_x_origin_DSpinBox.setValue(x_origin)
-            self._mw.afm_x_range_DSpinBox.setValue(x_range)
-            self._mw.afm_x_num_SpinBox.setValue(x_num)
-            self._mw.afm_y_origin_DSpinBox.setValue(y_origin)
-            self._mw.afm_y_range_DSpinBox.setValue(y_range)
-            self._mw.afm_y_num_SpinBox.setValue(y_num)
-            self._mw.afm_rotation_DSpinBox.setValue(rotation)
-            self._mw.liftOffMode_groupBox.setChecked(liftoff)
-            self._mw.liftOffHeight_doubleSpinBox.setValue(liftoff_height)
-            self._mw.tipOscOff_groupbox.setChecked(tip_osc_off)
-            self._mw.tipOscOffTime_doubleSpinBox.setValue(tip_osc_turn_off_time)
-            self._mw.tipOscOnTime_doubleSpinBox.setValue(tip_osc_turn_on_time)
-            self._mw.measureTipOscOnOff_checkBox.setChecked(measure_tip_osc_on_and_off)
-
-    def qafm_feature_groupBox_clicked(self, state):
-
-        qafm_data = self._qafm_logic.get_qafm_data()
-
-        for entry in self._image_container:
-                if entry in qafm_data:
-                    x_range = qafm_data[entry]['coord0_arr'][-1]-qafm_data[entry]['coord0_arr'][0]
-                    y_range = qafm_data[entry]['coord1_arr'][-1]-qafm_data[entry]['coord1_arr'][0]
-
-                    xpos = qafm_data[entry]['coord0_arr'][0] + x_range/2
-                    ypos = qafm_data[entry]['coord1_arr'][0] + y_range/2
-
-                    if x_range>y_range:
-                        x_range = y_range
-                    else:
-                        y_range = x_range
-
-        for key in self._dockwidget_container.keys():
-            if key is not 'obj_xy' and key is not 'obj_xz'  and key is not 'obj_yz' and key is not 'opti_xy' and key is not 'opti_z':
-                self._dockwidget_container[key].graphicsView_matrix.set_crosshair_pos((xpos,ypos))
-                self._dockwidget_container[key].graphicsView_matrix.set_crosshair_size((x_range,y_range))
-                self._dockwidget_container[key].graphicsView_matrix.toggle_crosshair(state)
-                self.update_from_crosshair_qafm_scan(key)
-        
-        self._mw.x_range_qafm_feature_DSpinBox.setValue(x_range)
-        self._mw.y_range_qafm_feature_DSpinBox.setValue(y_range)
-
-    def adjust_qafm_crosshair(self):
-
-        qafm_data = self._qafm_logic.get_qafm_data()
-
-        for entry in self._image_container:
-                if entry in qafm_data:
-                    xMin = qafm_data[entry]['coord0_arr'][0]
-                    yMin = qafm_data[entry]['coord1_arr'][0]
-
-        for key in self._dockwidget_container.keys():
-            if key is not 'obj_xy' and key is not 'obj_xz'  and key is not 'obj_yz' and key is not 'opti_xy' and key is not 'opti_z':
-                self._dockwidget_container[key].graphicsView_matrix.set_crosshair_pos((xMin,yMin))
-                self.update_from_crosshair_qafm_scan(key)
-
-    def qafm_feature_x_range_changed(self):
-        
-        x_range = self._mw.x_range_qafm_feature_DSpinBox.value()
-        y_range = x_range
-        self._mw.y_range_qafm_feature_DSpinBox.setValue(x_range)
-
-        for key in self._dockwidget_container.keys():
-            if key is not 'obj_xy' and key is not 'obj_xz'  and key is not 'obj_yz' and key is not 'opti_xy' and key is not 'opti_z':
-                self._dockwidget_container[key].graphicsView_matrix.set_crosshair_size((x_range,y_range))
-
-    def qafm_feature_y_range_changed(self):
-        
-        y_range = self._mw.y_range_qafm_feature_DSpinBox.value()
-        x_range = y_range
-        self._mw.x_range_qafm_feature_DSpinBox.setValue(y_range)
-
-        for key in self._dockwidget_container.keys():
-            if key is not 'obj_xy' and key is not 'obj_xz'  and key is not 'obj_yz' and key is not 'opti_xy' and key is not 'opti_z':
-                self._dockwidget_container[key].graphicsView_matrix.set_crosshair_size((x_range,y_range))
-
-
-
-    def qafm_rotation_frame_pos_changed(self):
-
-        x = self._mw.x_pos_rotation_frame_DSpinBox.value()
-        y = self._mw.y_pos_rotation_frame_DSpinBox.value()
-
-        new_origin = (x,y)
-        x_new_origin_rot, y_new_origin_rot = self._qafm_logic.rotate_around_point(new_origin, self._current_rotation, self._current_origin)
-
-        self._mw.x_pos_real_frame_DSpinBox.setValue(x_new_origin_rot)
-        self._mw.y_pos_real_frame_DSpinBox.setValue(y_new_origin_rot)
-
-        self.update_qafm_scan_pos(x,y)
-
-    def qafm_real_frame_pos_changed(self):
-
-        x = self._mw.x_pos_real_frame_DSpinBox.value()
-        y = self._mw.y_pos_real_frame_DSpinBox.value()
-
-        new_origin = (x,y)
-        x_new_origin_rot, y_new_origin_rot = self._qafm_logic.rotate_around_point(new_origin, 360-self._current_rotation, self._current_origin)
-
-        self._mw.x_pos_rotation_frame_DSpinBox.setValue(x_new_origin_rot)
-        self._mw.y_pos_rotation_frame_DSpinBox.setValue(y_new_origin_rot)
-
-        self.update_qafm_scan_pos(x_new_origin_rot,y_new_origin_rot)
-
-    def update_afm_params_clicked(self):
-        self._mw.afm_x_origin_DSpinBox.setValue(self._mw.x_pos_real_frame_DSpinBox.value())
-        self._mw.afm_y_origin_DSpinBox.setValue(self._mw.y_pos_real_frame_DSpinBox.value())
-        self._mw.afm_x_range_DSpinBox.setValue(self._mw.x_range_qafm_feature_DSpinBox.value())
-        self._mw.afm_y_range_DSpinBox.setValue(self._mw.y_range_qafm_feature_DSpinBox.value())
-        self.calc_x_pixel_size()
-        self.calc_y_pixel_size()
-
-    def load_bias_data(self):
-        """ Ask the user for a file where the bias ODMR data is stored
-        """
-        biasfilepath = 'G:\\Data\\Qudi_Data'
-        filename = QtWidgets.QFileDialog.getOpenFileName(
-            self._mw,
-            'Chose bias ODMR data',
-            biasfilepath,
-            'Bias data (*_data_ch0_range0.dat)')[0]
-        if filename != '':
-            self.log.info(f'Bias data from file {filename} has been loaded into SPM modul.')
-            return np.loadtxt(filename).T
-        else:
-            return None
         
     # ========================================================================== 
     #         BEGIN: Creation and Adaptation of Display Widget
@@ -1511,7 +896,7 @@ class TransportGUI(GUIBase):
             dockwidget.name = obj_name # store the original name. 
 
             # take a different creation style for line widgets
-            if '1D' in obj_name:
+            if '1D' in obj_name or 'Timetrace' in obj_name:
                 self._create_internal_line_widgets(dockwidget)
             else: 
                 self._create_internal_widgets(dockwidget)
@@ -1530,8 +915,6 @@ class TransportGUI(GUIBase):
             if is_first:
                 self._mw.addDockWidget(QtCore.Qt.DockWidgetArea(2), dockwidget)
                 # QtCore.Qt.Orientation(1): horizontal orientation
-                self._mw.splitDockWidget(dockwidget, self._mw.dockWidget_afm,
-                                         QtCore.Qt.Orientation(1))
                 is_first = False
             else:
                 self._mw.addDockWidget(QtCore.Qt.DockWidgetArea(4), dockwidget)
@@ -1543,13 +926,17 @@ class TransportGUI(GUIBase):
                 plot_item = self._create_plot_item(obj_name, 
                                data_dict[obj_name]['x_axis'], 
                                data_dict[obj_name]['data'])
+
                 dockwidget.graphicsView.addItem(plot_item)
                 data_name = data_dict[obj_name]['data_info']['nice_name']
-                meas_units = data_dict[obj_name]['data_info']['measured_units']
+                meas_units = data_dict[obj_name]['data_info']['si_units']
                 x_axis_name = data_dict[obj_name]['x_axis_info']['nice_name']
-                x_axis_units = data_dict[obj_name]['x_axis_info']['applied_units']
+                x_axis_units = data_dict[obj_name]['x_axis_info']['si_units']
                 dockwidget.graphicsView.setLabel('bottom', x_axis_name, units=x_axis_units)
                 dockwidget.graphicsView.setLabel('left', data_name, units=meas_units)
+
+            elif 'Timetrace' in obj_name:
+                self.create_linked_timetrace_plot(dockwidget, data_dict, obj_name)
 
             else:
                 image_item = self._create_image_item(obj_name, data_dict[obj_name]['data'])
@@ -1563,15 +950,15 @@ class TransportGUI(GUIBase):
                 dockwidget.graphicsView_cb.hideAxis('bottom')
 
                 data_name = data_dict[obj_name]['data_info']['nice_name']
-                meas_units = data_dict[obj_name]['data_info']['measured_units']
+                meas_units = data_dict[obj_name]['data_info']['si_units']
 
                 dockwidget.graphicsView_cb.setLabel('left', data_name, units=meas_units)
                 dockwidget.graphicsView_cb.setMouseEnabled(x=False, y=False)
 
                 x_axis_name = data_dict[obj_name]['x_axis_info']['nice_name']
-                x_axis_units = data_dict[obj_name]['x_axis_info']['applied_units']
+                x_axis_units = data_dict[obj_name]['x_axis_info']['si_units']
                 y_axis_name = data_dict[obj_name]['y_axis_info']['nice_name']
-                y_axis_units = data_dict[obj_name]['y_axis_info']['applied_units']
+                y_axis_units = data_dict[obj_name]['y_axis_info']['si_units']
                 dockwidget.graphicsView_matrix.setLabel('bottom', x_axis_name, units=x_axis_units)
                 dockwidget.graphicsView_matrix.setLabel('left', y_axis_name, units=y_axis_units)
 
@@ -1674,9 +1061,6 @@ class TransportGUI(GUIBase):
             radioButton_cb_man.setChecked(True)
             self.sigColorBarChanged.emit(parent_dock.name)
 
-        def tilt_corr_update(value):
-            self.sigColorBarChanged.emit(parent_dock.name)
-
         parent_dock.cb_per_update = cb_per_update
         doubleSpinBox_per_min.valueChanged.connect(cb_per_update)
         doubleSpinBox_per_max.valueChanged.connect(cb_per_update)
@@ -1723,16 +1107,6 @@ class TransportGUI(GUIBase):
         grid.addWidget(radioButton_cb_man,    5, 1, 1, 1) # start [5,1], span 1 rows down, 1 column wide
         grid.addWidget(radioButton_cb_per,    6, 1, 1, 1) # start [6,1], span 1 rows down, 1 column wide
 
-    def _update_afm_dockwidget_by_name(self, make_visible, name):
-        """ Helper method to call the correct dockwidget
-
-        @param bool make_visible: visible or not
-        @param str name: generic name of the dock widget
-        """
-        self.update_dockwidget_visibility(make_visible, f'{name}_fw')
-        self.update_dockwidget_visibility(make_visible, f'{name}_bw')
-
-
     # ========================================================================== 
     #          END: Creation and Adaptation of Display Widget
     # ========================================================================== 
@@ -1766,139 +1140,85 @@ class TransportGUI(GUIBase):
 
         self._dock_state == 'double'
 
-    def combine_view(self):
-        """ Combine all the dockwidget in the center under one. """
+    def adjust_1D_transport_image(self):
+        data_1D = self._transport_logic.get_1D_data()
+        self.show_dockwidgets(data_1D.keys())
 
-        if self._dock_state == 'single':
-            return
+        for param_name in data_1D:
+            dw = self.get_dockwidget(param_name)
+            data_name = data_1D[param_name]['data_info']['nice_name']
+            meas_units = data_1D[param_name]['data_info']['si_units']
+            x_axis_name = data_1D[param_name]['x_axis_info']['nice_name']
+            x_axis_units = data_1D[param_name]['x_axis_info']['si_units']
+            dw.graphicsView.setLabel('bottom', x_axis_name, units=x_axis_units)
+            dw.graphicsView.setLabel('left', data_name, units=meas_units)
+            self._plot_container[param_name].setData(x=data_1D[param_name]['x_axis'], 
+                                                   y=data_1D[param_name]['data'])
 
-        ref_last_dockwidget = None
-        
-        #FIXME: reversed can only be applied on dict from python 3.8, whenever
-        #       updated to 3.8, remove this list handling intermediate layer
-        for key, item in reversed(list(self._dockwidget_container.items())):
-            if 'fw' in key:
-                ref_last_dockwidget = item
-                break
-
-        for key, item in self._dockwidget_container.items():
-            if 'bw' in key:
-                self._mw.tabifyDockWidget(ref_last_dockwidget, item)
-
-            ref_last_dockwidget = item
-
-        self._dock_state = 'single'
+            self._plot_container[param_name].getViewBox().updateAutoRange()
 
     def adjust_2D_transport_image(self):
-        pass
+        data_2D = self._transport_logic.get_2D_data()
+        self.show_dockwidgets(data_2D.keys())
 
-    def adjust_qafm_image(self):
-        """ Fit the axis and range parameters to the currently started scan. """
+        for param_name in data_2D:
+            dw = self.get_dockwidget(param_name)
+            data = data_2D[param_name]['data'].copy()
+            
+            data_name = data_2D[param_name]['data_info']['nice_name']
+            meas_units = data_2D[param_name]['data_info']['si_units']
+            x_axis_name = data_2D[param_name]['x_axis_info']['nice_name']
+            x_axis_units = data_2D[param_name]['x_axis_info']['si_units']
+            y_axis_name = data_2D[param_name]['y_axis_info']['nice_name']
+            y_axis_units = data_2D[param_name]['y_axis_info']['si_units']
+            dw.graphicsView_cb.setLabel('left', data_name, units=meas_units)
+            dw.graphicsView_matrix.setLabel('bottom', x_axis_name, units=x_axis_units)
+            dw.graphicsView_matrix.setLabel('left', y_axis_name, units=y_axis_units)
+            
+            cb_range = self._get_scan_cb_range(param_name,data=data)
 
-        # It is extremely crucial that before adjusting the window view and
-        # limits and its extend, to make an update of the current image. 
-        # Otherwise the adjustment will just be made for the previous image and
-        # you will get completely wrong display.
-        self._update_qafm_data()
+            if data_2D[param_name]['display_range'] is not None:
+                data_2D[param_name]['display_range'] = cb_range 
 
-        qafm_data = self._qafm_logic.get_qafm_data()
+            self._image_container[param_name].setImage(image=data,
+                                                    levels=(cb_range[0], cb_range[1]))
+            self._refresh_scan_colorbar(param_name, data=data)
+            # self._image_container[obj_name].getViewBox().setAspectLocked(lock=True, ratio=1.0)
+            self._image_container[param_name].getViewBox().updateAutoRange()
 
-        for entry in self._image_container:
+    def adjust_timetrace_transport_image(self):
+        data_timetrace = self._transport_logic.get_timetrace_data()
+        self.show_dockwidgets(data_timetrace.keys())
 
-            if ('fw' in entry) or ('bw' in entry):
+        for param_name in data_timetrace:
+            dw = self.get_dockwidget(param_name)
+            data_name = data_timetrace[param_name]['data_info']['nice_name']
+            meas_units = data_timetrace[param_name]['data_info']['si_units']
+            dw.graphicsView.setLabel('left', data_name, units=meas_units)
+            self._plot_container[param_name].setData(x=data_timetrace[param_name]['x_axis'], 
+                                                   y=data_timetrace[param_name]['data'])
+            self._plot_container[param_name+'_temperature'].setData(x=data_timetrace[param_name]['x_axis'], 
+                                                   y=data_timetrace[param_name]['temperature_data'])
 
-                if entry in qafm_data:
+            self._plot_container[param_name].getViewBox().updateAutoRange()
 
-                    image = self._image_container[entry]
-                    xy_viewbox = image.getViewBox()
+    def show_dockwidgets(self, meas_params):
+        dockwidgets = self._dockwidget_container
+        for name in dockwidgets.keys():
+            self.update_dockwidget_visibility(name in meas_params, name)
 
-                    xMin = qafm_data[entry]['coord0_arr'][0]
-                    xMax = qafm_data[entry]['coord0_arr'][-1]
-                    yMin = qafm_data[entry]['coord1_arr'][0]
-                    yMax = qafm_data[entry]['coord1_arr'][-1]
+    def update_dockwidget_visibility(self, make_visible, name):
+        """ Hide or show a dockwidget. 
 
-                    res_x = len(qafm_data[entry]['coord0_arr'])
-                    res_y = len(qafm_data[entry]['coord1_arr'])
-
-                    px_size = ((xMax - xMin) / (res_x - 1), (yMax - yMin) / (res_y - 1))
-                    image.set_image_extent(((xMin - px_size[0] / 2, xMax + px_size[0] / 2),
-                                            (yMin - px_size[1] / 2, yMax + px_size[1] / 2)))
-                    xy_viewbox.updateAutoRange()
-                    xy_viewbox.updateViewRange()
-
-                    self._dockwidget_container[entry].graphicsView_matrix.set_crosshair_pos((xMin,yMin))
-
-
-    def adjust_all_obj_images(self):
-        obj_names = list(self._qafm_logic.get_obj_data())
-        for entry in obj_names:
-            self.adjust_obj_image(entry)
-
-
-    @QtCore.Slot(str)
-    def adjust_obj_image(self, obj_name):
-        """ Update the objective scan image with data from the logic.
-
-        @param str obj_name: either 'obj_xy', 'obj_xz' or 'obj_yz'
+        @param bool make_visible: whether it should be hidden or show up.
+        @param str name: name associated to the dockwidget. 
         """
-
-        # It is extremely crucial that before adjusting the window view and
-        # limits and its extend, to make an update of the current image. 
-        # Otherwise the adjustment will just be made for the previous image and
-        # you will get completely wrong display.
-        self._update_obj_data(obj_name)
-
-        obj_data = self._qafm_logic.get_obj_data()[obj_name]
-
-        image = self._image_container[obj_name]
-
-        viewbox = image.getViewBox()
-
-        Min0 = obj_data['coord0_arr'][0]
-        Max0 = obj_data['coord0_arr'][-1]
-        Min1 = obj_data['coord1_arr'][0]
-        Max1 = obj_data['coord1_arr'][-1]
-
-        res_0 = len(obj_data['coord0_arr'])
-        res_1 = len(obj_data['coord1_arr'])
-
-        px_size = ((Max0 - Min0) / (res_0 - 1), (Max1 - Min1) / (res_1 - 1))
-        image.set_image_extent(((Min0 - px_size[0] / 2, Max0 + px_size[0] / 2),
-                                (Min1 - px_size[1] / 2, Max1 + px_size[1] / 2)))
-        viewbox.updateAutoRange()
-        viewbox.updateViewRange()
-
-
-    @QtCore.Slot(str)
-    def adjust_optimizer_image(self, obj_name):
-        """ Update the view of the xy optimizer with data from the logic. """
-
-        if obj_name == 'opti_xy':
-
-            # It is extremely crucial that before adjusting the window view and
-            # limits and its extend, to make an update of the current image. 
-            # Otherwise the adjustment will just be made for the previous image and
-            # you will get completely wrong display.
-            self._update_opti_data(obj_name)
-
-            obj_data = self._qafm_logic.get_opti_data()[obj_name]
-            image = self._image_container[obj_name]
-
-            viewbox = image.getViewBox()
-
-            Min0 = obj_data['coord0_arr'][0]
-            Max0 = obj_data['coord0_arr'][-1]
-            Min1 = obj_data['coord1_arr'][0]
-            Max1 = obj_data['coord1_arr'][-1]
-
-            res_0 = len(obj_data['coord0_arr'])
-            res_1 = len(obj_data['coord1_arr'])
-
-            px_size = ((Max0 - Min0) / (res_0 - 1), (Max1 - Min1) / (res_1 - 1))
-            image.set_image_extent(((Min0 - px_size[0] / 2, Max0 + px_size[0] / 2),
-                                    (Min1 - px_size[1] / 2, Max1 + px_size[1] / 2)))
-            viewbox.updateAutoRange()
-            viewbox.updateViewRange()
+        dockwidget = self.get_dockwidget(name)
+        if dockwidget is not None:
+            if make_visible:
+                dockwidget.show()
+            else:
+                dockwidget.hide()
 
     def _update_1D_transport_data(self):
         """ Update all 1D displays of the transport measurement with data from the logic. """
@@ -1916,22 +1236,16 @@ class TransportGUI(GUIBase):
         data_2D = self._transport_logic.get_2D_data()
 
         for param_name in data_2D:
-            dockwidget = self.get_dockwidget(param_name)  # param_name = dockWidgetname
 
-            data = qafm_data[param_name]['data'].copy()
-            
-            #FIXME: Colorbar is not properly displayed for big numbers (>1e9) or small numbers (<1e-3)
-            # so scaling is applied
-            scale_fac = qafm_data[param_name]['scale_fac']
-            data = data / scale_fac
+            data = data_2D[param_name]['data'].copy()
             
             if not np.any(data):
                 continue
             
             cb_range = self._get_scan_cb_range(param_name,data=data)
 
-            if qafm_data[param_name]['display_range'] is not None:
-                qafm_data[param_name]['display_range'] = cb_range 
+            if data_2D[param_name]['display_range'] is not None:
+                data_2D[param_name]['display_range'] = cb_range 
 
             self._image_container[param_name].setImage(image=data,
                                                     levels=(cb_range[0], cb_range[1]))
@@ -1939,48 +1253,17 @@ class TransportGUI(GUIBase):
             # self._image_container[obj_name].getViewBox().setAspectLocked(lock=True, ratio=1.0)
             self._image_container[param_name].getViewBox().updateAutoRange()
 
-    def _update_qafm_data(self):
-        """ Update all displays of the qafm scan with data from the logic. """
+    def _update_timetrace_transport_data(self):
+        data_timetrace = self._transport_logic.get_timetrace_data()
 
-        qafm_data = self._qafm_logic.get_qafm_data()
+        for param_name in data_timetrace:
+            self._plot_container[param_name].setData(x=data_timetrace[param_name]['x_axis'], 
+                                                   y=data_timetrace[param_name]['data'])
+            self._plot_container[param_name+'_temperature'].setData(x=data_timetrace[param_name]['x_axis'], 
+                                                   y=data_timetrace[param_name]['temperature_data'])
 
-        # order them in forward scan and backward scan:
-        for direc in ('fw', 'bw'):
-            for param_name in qafm_data:
-                if direc in param_name:
-                    dockwidget = self.get_dockwidget(param_name)  # param_name = dockWidgetname
-
-                    if dockwidget.checkBox_tilt_corr.isVisible() and \
-                       dockwidget.checkBox_tilt_corr.isChecked():
-                        # correct data for tilting 
-                        data = self.tilt_correction(data= qafm_data[param_name]['data'],
-                                                    x_axis= qafm_data[param_name]['coord0_arr'],
-                                                    y_axis= qafm_data[param_name]['coord1_arr'],
-                                                    C= qafm_data[param_name]['corr_plane_coeff'])
-                        qafm_data[param_name]['image_correction'] = True
-                    else:
-                        data = qafm_data[param_name]['data'].copy()
-                        qafm_data[param_name]['image_correction'] = False
-                    
-                    #FIXME: Colorbar is not properly displayed for big numbers (>1e9) or small numbers (<1e-3)
-                    # so scaling is applied
-                    scale_fac = qafm_data[param_name]['scale_fac']
-                    data = data / scale_fac
-                    
-                    if not np.any(data):
-                        continue
-                    
-                    cb_range = self._get_scan_cb_range(param_name,data=data)
-
-                    if qafm_data[param_name]['display_range'] is not None:
-                       qafm_data[param_name]['display_range'] = cb_range 
-
-                    self._image_container[param_name].setImage(image=data,
-                                                           levels=(cb_range[0], cb_range[1]))
-                    self._refresh_scan_colorbar(param_name, data=data)
-                    # self._image_container[obj_name].getViewBox().setAspectLocked(lock=True, ratio=1.0)
-                    self._image_container[param_name].getViewBox().updateAutoRange()
-
+            # self._plot_container[param_name].getViewBox().updateAutoRange()
+            # self._plot_container[param_name+'_temperature'].getViewBox().updateAutoRange()
 
     def _update_data_from_dockwidget(self, dockwidget_name):
         """ Update all displays of the dockwidget with data from logic.
@@ -1988,26 +1271,8 @@ class TransportGUI(GUIBase):
         @param str dockwidget_name: name of the associated dockwidget.
         """
 
-        dockwidget = self.get_dockwidget(dockwidget_name)
         data_obj = self.get_all_data_matrices()[dockwidget_name]
-
-        if dockwidget.checkBox_tilt_corr.isVisible() and \
-           dockwidget.checkBox_tilt_corr.isChecked():
-           # correct data for tilting 
-            data = self.tilt_correction(data= data_obj['data'],
-                                        x_axis= data_obj['coord0_arr'],
-                                        y_axis= data_obj['coord1_arr'],
-                                        C= data_obj['corr_plane_coeff'])
-            data_obj['image_correction'] = True
-        else:
-            # no correction applied, since data was already transformed
-            data = data_obj['data'].copy()
-            data_obj['image_correction'] = False
-
-        #FIXME: Colorbar is not properly displayed for big numbers (>1e9) or small numbers (<1e-3)
-        # so scaling is applied
-        scale_fac = data_obj['scale_fac']
-        data = data / scale_fac
+        data = data_obj['data'].copy()
 
         cb_range = self._get_scan_cb_range(dockwidget_name,data=data)
 
@@ -2019,78 +1284,8 @@ class TransportGUI(GUIBase):
 
         # Be careful! I use here the feature that dicts are passed by reference,
         # i.e. changing this object, will change the initial data!
-        data_obj['display_range'] = [ c * scale_fac for c in cb_range]
-
-
-    @QtCore.Slot(str)
-    def _update_obj_data(self, obj_name=None):
-
-        obj_data = self._qafm_logic.get_obj_data()
-
-        # bascically: update all objective pictures
-        if obj_name is None:
-            update_name_list = list(obj_data)
-        else:
-            update_name_list = [obj_name]
-
-        for name in update_name_list:
-
-            cb_range = self._get_scan_cb_range(name)
-
-            if obj_data[name]['display_range'] is not None:
-                obj_data[name]['display_range'] = cb_range
-
-            self._image_container[name].setImage(image=obj_data[name]['data'], 
-                                                 levels=(cb_range[0], cb_range[1]))
-            self._refresh_scan_colorbar(name)
-            # self._image_container[obj_name].getViewBox().setAspectLocked(lock=True, ratio=1.0)
-            self._image_container[name].getViewBox().updateAutoRange()
-
-
-    def _update_opti_data(self, obj_name=None):
-
-        opti_data = self._qafm_logic.get_opti_data()
-
-        if obj_name == 'opti_xy':
-
-            cb_range = self._get_scan_cb_range(obj_name)
-
-            if opti_data[obj_name]['display_range'] is not None:
-                opti_data[obj_name]['display_range'] = cb_range
-
-            self._image_container[obj_name].setImage(image=opti_data[obj_name]['data'], 
-                                                 levels=(cb_range[0], cb_range[1]))
-            self._refresh_scan_colorbar(obj_name)
-            # self._image_container[obj_name].getViewBox().setAspectLocked(lock=True, ratio=1.0)
-            self._image_container[obj_name].getViewBox().updateAutoRange() 
-        
-        elif obj_name == 'opti_z':
-
-            self._plot_container[obj_name].setData(x=opti_data[obj_name]['coord0_arr'], 
-                                                   y=opti_data[obj_name]['data'])
-
-            self._plot_container[obj_name].getViewBox().updateAutoRange() 
-            self._plot_container[obj_name+'_fit'].setData(x=opti_data[obj_name]['coord0_arr'], 
-                                                   y=opti_data[obj_name]['data_fit'])
-
-            self._plot_container[obj_name+'_fit'].getViewBox().updateAutoRange() 
-
-
-    def update_target_pos(self):
-        """ Get new value from logic and update the display."""
-        x_max, y_max, c_max, z_max, c_max_z = self._qafm_logic._opt_val
-
-        self._mw.obj_target_x_DSpinBox.setValue(x_max)
-        self._mw.obj_target_y_DSpinBox.setValue(y_max)
-        self._mw.obj_target_z_DSpinBox.setValue(z_max)
-        self.update_to_crosshair()
+        data_obj['display_range'] = [ c for c in cb_range]
     
-    def update_opti_crosshair(self):
-        x_max, y_max, c_max, z_max, c_max_z = self._qafm_logic._opt_val
-        vb = self._dockwidget_container['opti_xy']
-        vb.graphicsView_matrix.toggle_crosshair(True)
-        vb.graphicsView_matrix.crosshair.setPos((x_max,y_max))
-
     def _get_scan_cb_range(self, dockwidget_name,data=None):
         """ Determines the cb_min and cb_max values for the xy scan image.
         @param str dockwidget_name: name associated to the dockwidget.
@@ -2148,1050 +1343,245 @@ class TransportGUI(GUIBase):
 
         return dw
 
-    def set_current_pos_to_target(self):
-        """ Set the current position to target position. """
-
-        x_target = self._mw.obj_cur_x_DSpinBox.value()
-        self._mw.obj_target_x_DSpinBox.setValue(x_target)
-        y_target = self._mw.obj_cur_y_DSpinBox.value()
-        self._mw.obj_target_y_DSpinBox.setValue(y_target)
-        z_target = self._mw.obj_cur_z_DSpinBox.value()
-        self._mw.obj_target_z_DSpinBox.setValue(z_target)
-
-    def set_center_pos_to_target(self):
-        """ Set the target position to the middle of all scan ranges. """
-
-        #FIXME: Make this nicer by obtaining the maximal traveling range and 
-        #       take half of it.
-        self._mw.obj_target_x_DSpinBox.setValue(15e-6)
-        self._mw.obj_target_y_DSpinBox.setValue(15e-6)
-        self._mw.obj_target_z_DSpinBox.setValue(5e-6)
-
-    def zoom_clicked(self, is_checked):
-        """
-        Activates the zoom mode in the xy and depth scan images.
-
-        @param bool is_checked: pass the state of the zoom button (checked or not).
-        """
-        for obj in ['obj_xy', 'obj_yz', 'obj_xz','Height(Dac)_bw','Height(Dac)_fw','counts_bw','counts_fw','fit_param_fw','fit_param_bw','b_field_fw','b_field_bw','phase_fw','phase_bw']:
-            dw = self._dockwidget_container[obj].graphicsView_matrix
-            dw.toggle_selection(is_checked)
-            dw.toggle_zoom_by_selection(is_checked)
-        return
-    
-    def zoom_scan(self, rect, obj_name):
-        """
-        @param QtCore.QRectF rect: Rectangular area of the new zoomed image in physical coordinates.
-        """
-        a_bounds = (rect.left(), rect.right())
-        b_bounds = (rect.bottom(), rect.top())
-
-        # set the values to the InputWidgets and update them
-        if 'xy' in obj_name:
-            self._mw.obj_x_min_DSpinBox.setValue(min(a_bounds))
-            self._mw.obj_x_max_DSpinBox.setValue(max(a_bounds))
-            self._mw.obj_y_min_DSpinBox.setValue(min(b_bounds))
-            self._mw.obj_y_max_DSpinBox.setValue(max(b_bounds))
-        elif 'xz' in obj_name:
-            self._mw.obj_x_min_DSpinBox.setValue(min(a_bounds))
-            self._mw.obj_x_max_DSpinBox.setValue(max(a_bounds))
-            self._mw.obj_z_min_DSpinBox.setValue(min(b_bounds))
-            self._mw.obj_z_max_DSpinBox.setValue(max(b_bounds))
-        elif 'yz' in obj_name:
-            self._mw.obj_y_min_DSpinBox.setValue(min(a_bounds))
-            self._mw.obj_y_max_DSpinBox.setValue(max(a_bounds))
-            self._mw.obj_z_min_DSpinBox.setValue(min(b_bounds))
-            self._mw.obj_z_max_DSpinBox.setValue(max(b_bounds))
-        elif ('Height(Dac)' in obj_name) or ('counts' in obj_name) or ('fit_param' in obj_name) or ('b_field' in obj_name) or ('phase' in obj_name):
-            rotation = self._mw.afm_rotation_DSpinBox.value()
-            x_range = max(a_bounds) - min(a_bounds)
-            y_range = max(b_bounds) - min(b_bounds)
-            new_origin = (x_range/2+min(a_bounds),y_range/2+min(b_bounds))
-            x_new_origin_rot, y_new_origin_rot = self._qafm_logic.rotate_around_point(new_origin, self._current_rotation, self._current_origin)
-            self._mw.afm_x_origin_DSpinBox.setValue(x_new_origin_rot)
-            self._mw.afm_x_range_DSpinBox.setValue(x_range)
-            self._mw.afm_y_origin_DSpinBox.setValue(y_new_origin_rot)
-            self._mw.afm_y_range_DSpinBox.setValue(y_range)
-
-        self._mw.actionEnableZoom.setChecked(False)
-        return
-
-    def start_qafm_scan_clicked(self):
-        """ Manages what happens if the xy qafm scan is started. """
-
-        self.disable_scan_actions_quanti()
-
-        x_origin = self._mw.afm_x_origin_DSpinBox.value()
-        x_range = self._mw.afm_x_range_DSpinBox.value()
-        y_origin = self._mw.afm_y_origin_DSpinBox.value()
-        y_range = self._mw.afm_y_range_DSpinBox.value()
-        res_x = self._mw.afm_x_num_SpinBox.value()
-        res_y = self._mw.afm_y_num_SpinBox.value()
-        rotation = self._mw.afm_rotation_DSpinBox.value()
-
-        self._current_origin = (x_origin, y_origin)
-        self._current_rotation = rotation
-
-        afm_int_time = self._sd.int_time_sample_scan_DoubleSpinBox.value()
-        afm_scan_speed = self._sd.idle_move_scan_sample_DoubleSpinBox.value()
-        counter_int_time = self._sd.int_time_counts_sample_scan_DoubleSpinBox.value()
-
-        #liftoff mode
-        liftoff_mode = self._mw.liftOffMode_groupBox.isChecked()
-        liftoff_height = self._mw.liftOffHeight_doubleSpinBox.value()
-
-        #tip oscillation off mode
-        tip_osc_off = self._mw.tipOscOff_groupbox.isChecked()
-        tip_osc_turn_off_time = self._mw.tipOscOffTime_doubleSpinBox.value()
-        tip_osc_turn_on_time = self._mw.tipOscOnTime_doubleSpinBox.value()
-
-        #Iso B parameters
-        use_iso_B_mode = self._sd.iso_b_operation_CheckBox.isChecked()
-        use_single_iso_B = self._mw.use_single_isob_RadioButton.isChecked()
-        iso_B_freq1 = self._mw.freq1_isob_freq_DSpinBox.value()
-        iso_B_freq2 = self._mw.freq2_isob_freq_DSpinBox.value()
-        iso_B_power = self._mw.isob_power_DSpinBox.value()
-
-        if use_iso_B_mode:
-            if use_single_iso_B:
-                self.scan_type = 'Iso_B_single'
-            else:
-                self.scan_type = 'Iso_B'
-        else:
-            self.scan_type = 'AFM'
-
-        self._qafm_logic.start_scan_true_area_qafm_fw_by_point(coord0_origin=x_origin,
-                                                            coord0_range=x_range,
-                                                            coord0_num=res_x,
-                                                            coord1_origin=y_origin,
-                                                            coord1_range=y_range,
-                                                            coord1_num=res_y,
-                                                            rotation = rotation,
-                                                            afm_int_time = afm_int_time,
-                                                            afm_scan_speed = afm_scan_speed,
-                                                            counter_int_time = counter_int_time, 
-                                                            use_iso_B_mode = use_iso_B_mode,
-                                                            use_single_iso_B = use_single_iso_B,
-                                                            iso_B_freq1 = iso_B_freq1,
-                                                            iso_B_freq2 = iso_B_freq2,
-                                                            iso_B_power = iso_B_power,
-                                                            liftoff_mode = liftoff_mode,
-                                                            liftoff_height = liftoff_height,
-                                                            tip_osc_off = tip_osc_off,
-                                                            tip_osc_turn_off_time = tip_osc_turn_off_time,
-                                                            tip_osc_turn_on_time = tip_osc_turn_on_time)
-
-    def start_obj_scan_xy_scan_clicked(self):
-        """ Manages what happens if the objective xy scan is started. """
-
-        self.disable_scan_actions()
-
-        x_start = self._mw.obj_x_min_DSpinBox.value()
-        x_stop = self._mw.obj_x_max_DSpinBox.value()
-        y_start = self._mw.obj_y_min_DSpinBox.value()
-        y_stop = self._mw.obj_y_max_DSpinBox.value()
-        res_x = self._mw.obj_x_num_SpinBox.value()
-        res_y = self._mw.obj_y_num_SpinBox.value()
-
-        self._mw.obj_target_x_DSpinBox.setValue(x_start)
-        self._mw.obj_target_y_DSpinBox.setValue(y_start)
-        # self._mw.obj_target_z_DSpinBox.setValue(z_max)
-        self.update_to_crosshair()
-
-        res_x = self._qafm_logic._spm._find_spec_count(x_start, x_stop, res_x)
-        self._mw.obj_x_num_SpinBox.setValue(res_x)
-
-        # vb = self._dockwidget_container['obj_xy']
-        # new_range = ((x_start, x_stop), (y_start, y_stop))
-        # vb.graphicsView_matrix.set_crosshair_range(new_range)
-
-        self._qafm_logic.start_scan_area_obj_by_line(coord0_start=x_start,
-                                                      coord0_stop=x_stop,
-                                                      coord0_num=res_x,
-                                                      coord1_start=y_start, 
-                                                      coord1_stop=y_stop,
-                                                      coord1_num=res_y,
-                                                      plane='X2Y2', 
-                                                      continue_meas=False)
-
-    def start_obj_scan_xz_scan_clicked(self):
-        """ Manages what happens if the objective xz scan is started. """
-
-        self.disable_scan_actions()
-
-        x_start = self._mw.obj_x_min_DSpinBox.value()
-        x_stop = self._mw.obj_x_max_DSpinBox.value()
-        z_start = self._mw.obj_z_min_DSpinBox.value()
-        z_stop = self._mw.obj_z_max_DSpinBox.value()
-        res_x = self._mw.obj_x_num_SpinBox.value()
-        res_z = self._mw.obj_z_num_SpinBox.value()
-
-        self._mw.obj_target_x_DSpinBox.setValue(x_start)
-        # self._mw.obj_target_y_DSpinBox.setValue(y_start)
-        self._mw.obj_target_z_DSpinBox.setValue(z_start)
-        self.update_to_crosshair()
-
-        res_x = self._qafm_logic._spm._find_spec_count(x_start, x_stop, res_x)
-        self._mw.obj_x_num_SpinBox.setValue(res_x)
-
-        # vb = self._dockwidget_container['obj_xz']
-        # new_range = ((x_start, x_stop), (z_start, z_stop))
-        # vb.graphicsView_matrix.set_crosshair_range(new_range)
-
-        self._qafm_logic.start_scan_area_obj_by_line(coord0_start=x_start,
-                                                      coord0_stop=x_stop,
-                                                      coord0_num=res_x,
-                                                      coord1_start=z_start, 
-                                                      coord1_stop=z_stop,
-                                                      coord1_num=res_z,
-                                                      plane='X2Z2', 
-                                                      continue_meas=False)
-
-
-    def start_obj_scan_yz_scan_clicked(self):
-        """ Manages what happens if the objective yz scan is started. """
-
-        self.disable_scan_actions()
-
-        y_start = self._mw.obj_y_min_DSpinBox.value()
-        y_stop = self._mw.obj_y_max_DSpinBox.value()
-        z_start = self._mw.obj_z_min_DSpinBox.value()
-        z_stop = self._mw.obj_z_max_DSpinBox.value()
-        res_y = self._mw.obj_y_num_SpinBox.value()
-        res_z = self._mw.obj_z_num_SpinBox.value()
-
-        # self._mw.obj_target_x_DSpinBox.setValue(x_start)
-        self._mw.obj_target_y_DSpinBox.setValue(y_start)
-        self._mw.obj_target_z_DSpinBox.setValue(z_start)
-        self.update_to_crosshair()
-
-        res_y = self._qafm_logic._spm._find_spec_count(y_start, y_stop, res_y)
-        self._mw.obj_y_num_SpinBox.setValue(res_y)
-
-        # vb = self._dockwidget_container['obj_yz']
-        # new_range = ((y_start, y_stop), (z_start, z_stop))
-        # vb.graphicsView_matrix.set_crosshair_range(new_range)
-
-        self._qafm_logic.start_scan_area_obj_by_line(coord0_start=y_start,
-                                                      coord0_stop=y_stop,
-                                                      coord0_num=res_y,
-                                                      coord1_start=z_start, 
-                                                      coord1_stop=z_stop,
-                                                      coord1_num=res_z,
-                                                      plane='Y2Z2', 
-                                                      continue_meas=False)
-    def start_optimize_shortcut_press(self):
-        """ Start optimizer scan if the shortcut is pressed and the system is idle."""
-        if self._qafm_logic.module_state() == 'idle':
-
-            self.start_optimize_clicked()
-
-    def start_optimize_clicked(self):
-        """ Start optimizer scan."""
-
-        self.disable_scan_actions()
-
-        ret_val = self.update_qafm_settings()
-
-        if ret_val:
-
-            x_target = self._mw.obj_target_x_DSpinBox.value()
-            y_target = self._mw.obj_target_y_DSpinBox.value()
-            z_target = self._mw.obj_target_z_DSpinBox.value()
-
-            # settings of optimizer can be set in its setting window
-
-            self._qafm_logic.set_optimizer_target(x_target=x_target, 
-                                                y_target=y_target, 
-                                                z_target=z_target)
-
-            ret_val = self._qafm_logic.set_optimize_request(True)
-            # if the request is valid, then True will be returned, if not False
-
-            self._mw.actionOptimize_Pos.setEnabled(not ret_val)  
-        else:
-            self._mw.actionOptimize_Pos.setEnabled(True)  
-            self.enable_scan_actions()
-
-    def stop_any_scanning(self):
-        """ Stop all scanning actions."""
-
-        ret_val = self._qafm_logic.stop_measure()
-
-        # some error happened, hence enable the scan buttons again.
-        if ret_val == -1:
-            self.enable_scan_actions()
-
     def disable_scan_actions(self):
         # for safety, store status variables
         self.store_status_var()
+        self.store_settings_status_var()
 
-        self._mw.actionStart_QAFM_Scan.setEnabled(False)
-        self._mw.actionStart_Obj_XY_scan.setEnabled(False)
-        self._mw.actionStart_Obj_XZ_scan.setEnabled(False)
-        self._mw.actionStart_Obj_YZ_scan.setEnabled(False)
-        self._mw.actionGo_To_AFM_pos.setEnabled(False)
-        self._mw.actionGo_To_Obj_pos.setEnabled(False)
-        self._mw.actionLock_Obj.setEnabled(False)
-        self._mw.actionTemperatureUpdate.setEnabled(False)
-        self._mw.actionOptimize_Pos.setEnabled(False)
-        self._mw.actionSaveDataQAFM.setEnabled(False)
-        self._mw.actionSaveObjData.setEnabled(False)
-        self._mw.actionSaveOptiData.setEnabled(False)
-        self._dockwidget_container[f'obj_xy'].graphicsView_matrix.toggle_crosshair(False)
-        self._dockwidget_container[f'obj_xz'].graphicsView_matrix.toggle_crosshair(False)
-        self._dockwidget_container[f'obj_yz'].graphicsView_matrix.toggle_crosshair(False)
+        self._mw.action_run.blockSignals(True)
+        self._mw.action_run.setEnabled(False)
 
-    def toggle_obj_actions(self, toggle):
-        self._mw.actionStart_Obj_XY_scan.setEnabled(toggle)
-        self._mw.actionStart_Obj_XZ_scan.setEnabled(toggle)
-        self._mw.actionStart_Obj_YZ_scan.setEnabled(toggle)
-        self._mw.actionGo_To_Obj_pos.setEnabled(toggle)
-        self._mw.actionOptimize_Pos.setEnabled(toggle)
-        self._dockwidget_container[f'obj_xy'].graphicsView_matrix.toggle_crosshair(toggle)
-        self._dockwidget_container[f'obj_xz'].graphicsView_matrix.toggle_crosshair(toggle)
-        self._dockwidget_container[f'obj_yz'].graphicsView_matrix.toggle_crosshair(toggle)
+        self._mw.action_toggle_constant_output.setEnabled(False)
+        self._mw.constant_sample_current_checkBox.setEnabled(False)
+        self._mw.constant_sample_current_DoubleSpinBox.setEnabled(False)
+        self._mw.constant_sample_voltage_checkBox.setEnabled(False)
+        self._mw.constant_sample_voltage_DoubleSpinBox.setEnabled(False)
+        self._mw.constant_backgate_voltage_checkBox.setEnabled(False)
+        self._mw.constant_backgate_voltage_DoubleSpinBox.setEnabled(False)
+        self._mw.dimension_comboBox.setEnabled(False)
+        self._mw.x_axis_sweep_parameter_comboBox.setEnabled(False)
+        self._mw.x_axis_start_DoubleSpinBox.setEnabled(False)
+        self._mw.x_axis_stop_DoubleSpinBox.setEnabled(False)
+        self._mw.x_axis_points_DoubleSpinBox.setEnabled(False)
+        self._mw.y_axis_sweep_parameter_comboBox.setEnabled(False)
+        self._mw.y_axis_start_DoubleSpinBox.setEnabled(False)
+        self._mw.y_axis_stop_DoubleSpinBox.setEnabled(False)
+        self._mw.y_axis_points_DoubleSpinBox.setEnabled(False)
+
+        self._sd.gate_voltage_ramp_speed_DoubleSpinBox.setEnabled(False)
+        self._sd.gate_voltage_upper_limit_DoubleSpinBox.setEnabled(False)
+        self._sd.gate_voltage_lower_limit_DoubleSpinBox.setEnabled(False)
+        self._sd.gate_voltage_autorange_checkBox.setEnabled(False)
+        self._sd.sample_voltage_ramp_speed_DoubleSpinBox.setEnabled(False)
+        self._sd.sample_voltage_upper_limit_DoubleSpinBox.setEnabled(False)
+        self._sd.sample_voltage_lower_limit_DoubleSpinBox.setEnabled(False)
+        self._sd.sample_current_ramp_speed_DoubleSpinBox.setEnabled(False)
+        self._sd.sample_current_upper_limit_DoubleSpinBox.setEnabled(False)
+        self._sd.sample_current_lower_limit_DoubleSpinBox.setEnabled(False)
+        self._sd.sample_transport_autorange_checkBox.setEnabled(False)
+
+        self._mw.sensing_function_comboBox.setEnabled(False)
+        self._sd.sensing_autorange_checkBox.setEnabled(False)
+        self._sd.sensing_autozero_checkBox.setEnabled(False)
+        self._sd.sensing_four_port_checkBox.setEnabled(False)
+        self._sd.sensing_achange_checkBox.setEnabled(False)
+        self._sd.sensing_delay_DoubleSpinBox.setEnabled(False)
+        self._sd.int_time_transport_DoubleSpinBox.setEnabled(False)
 
     def enable_scan_actions(self):
-        toggle = not self._mw.actionLock_Obj.isChecked()
-        self._mw.actionStart_QAFM_Scan.setEnabled(True)
-        self._mw.actionStart_Obj_XY_scan.setEnabled(toggle)
-        self._mw.actionStart_Obj_XZ_scan.setEnabled(toggle)
-        self._mw.actionStart_Obj_YZ_scan.setEnabled(toggle)
-        self._mw.actionGo_To_AFM_pos.setEnabled(True)
-        self._mw.actionGo_To_Obj_pos.setEnabled(toggle)
-        self._mw.actionLock_Obj.setEnabled(True)
-        self._mw.actionTemperatureUpdate.setEnabled(True)
-        self._mw.actionOptimize_Pos.setEnabled(toggle)
-        self._mw.actionSaveDataQAFM.setEnabled(True)
-        self._mw.actionSaveObjData.setEnabled(True)
-        self._mw.actionSaveOptiData.setEnabled(True)
-        self._dockwidget_container[f'obj_xy'].graphicsView_matrix.toggle_crosshair(toggle)
-        self._dockwidget_container[f'obj_xz'].graphicsView_matrix.toggle_crosshair(toggle)
-        self._dockwidget_container[f'obj_yz'].graphicsView_matrix.toggle_crosshair(toggle)
+        self._mw.action_stop.blockSignals(True)
+        self._mw.action_stop.setEnabled(False)
+        self._mw.action_run.blockSignals(False)
+        self._mw.action_run.setEnabled(True)
 
-    def enable_optimizer_action(self):
-        self._mw.actionOptimize_Pos.setEnabled(True)
+        self._mw.action_toggle_constant_output.setEnabled(True)
+        self._mw.constant_sample_current_checkBox.setEnabled(True)
+        self._mw.constant_sample_current_DoubleSpinBox.setEnabled(self._mw.constant_sample_current_checkBox.isChecked())
+        self._mw.constant_sample_voltage_checkBox.setEnabled(True)
+        self._mw.constant_sample_voltage_DoubleSpinBox.setEnabled(self._mw.constant_sample_voltage_checkBox.isChecked())
+        self._mw.constant_backgate_voltage_checkBox.setEnabled(True)
+        self._mw.constant_backgate_voltage_DoubleSpinBox.setEnabled(self._mw.constant_backgate_voltage_checkBox.isChecked())
+        self._mw.dimension_comboBox.setEnabled(True)
+        if self._mw.dimension_comboBox.currentIndex() != 2:
+            self._mw.x_axis_label.setEnabled(True)
+            self._mw.x_axis_sweep_parameter_comboBox.setEnabled(True)
+            self._mw.x_start_label.setEnabled(True)
+            self._mw.x_axis_start_DoubleSpinBox.setEnabled(True)
+            self._mw.x_stop_label.setEnabled(True)
+            self._mw.x_axis_stop_DoubleSpinBox.setEnabled(True)
+            self._mw.x_axis_points_label.setEnabled(True)
+            self._mw.x_axis_points_DoubleSpinBox.setEnabled(True)
 
-        # check the state of the logic and enable the buttons.
-        if self._qafm_logic.module_state() == 'idle':
-            self.enable_scan_actions()
+        if self._mw.dimension_comboBox.currentIndex() == 1:
+            self._mw.y_axis_label.setEnabled(True)
+            self._mw.y_axis_sweep_parameter_comboBox.setEnabled(True)
+            self._mw.y_start_label.setEnabled(True)
+            self._mw.y_axis_start_DoubleSpinBox.setEnabled(True)
+            self._mw.y_stop_label.setEnabled(True)
+            self._mw.y_axis_stop_DoubleSpinBox.setEnabled(True)
+            self._mw.y_axis_points_label.setEnabled(True)
+            self._mw.y_axis_points_DoubleSpinBox.setEnabled(True)
 
-    def show_dockwidgets(self, meas_params):
-        dockwidgets = self._dockwidget_container
-        obj_names = ['obj_xy', 'obj_xz', 'obj_yz', 'opti_xy', 'opti_z']
+        self._sd.gate_voltage_ramp_speed_DoubleSpinBox.setEnabled(True)
+        self._sd.gate_voltage_upper_limit_DoubleSpinBox.setEnabled(True)
+        self._sd.gate_voltage_lower_limit_DoubleSpinBox.setEnabled(True)
+        self._sd.gate_voltage_autorange_checkBox.setEnabled(True)
+        self._sd.sample_voltage_ramp_speed_DoubleSpinBox.setEnabled(True)
+        self._sd.sample_voltage_upper_limit_DoubleSpinBox.setEnabled(True)
+        self._sd.sample_voltage_lower_limit_DoubleSpinBox.setEnabled(True)
+        self._sd.sample_current_ramp_speed_DoubleSpinBox.setEnabled(True)
+        self._sd.sample_current_upper_limit_DoubleSpinBox.setEnabled(True)
+        self._sd.sample_current_lower_limit_DoubleSpinBox.setEnabled(True)
+        self._sd.sample_transport_autorange_checkBox.setEnabled(True)
 
-        for name in dockwidgets.keys():
-            if name in obj_names:
-                continue
-            else:
-                self.update_dockwidget_visibility(name in meas_params, name)
-                
+        self._mw.sensing_function_comboBox.setEnabled(True)
+        self._sd.sensing_autorange_checkBox.setEnabled(True)
+        self._sd.sensing_autozero_checkBox.setEnabled(True)
+        self._sd.sensing_four_port_checkBox.setEnabled(True)
+        self._sd.sensing_achange_checkBox.setEnabled(True)
+        self._sd.sensing_delay_DoubleSpinBox.setEnabled(True)
+        self._sd.int_time_transport_DoubleSpinBox.setEnabled(True)
+
+    def enable_stop_action(self):
+        self._mw.action_stop.blockSignals(False)
+        self._mw.action_stop.setEnabled(True)
+
+    def start_2D_transport_scan(self):
+        use_DC_sample_current = self._mw.constant_sample_current_checkBox.isChecked()
+        DC_sample_current = self._mw.constant_sample_current_DoubleSpinBox.value()
+        use_DC_sample_voltage = self._mw.constant_sample_voltage_checkBox.isChecked()
+        DC_sample_voltage = self._mw.constant_sample_voltage_DoubleSpinBox.value()
+        use_DC_backgate_voltage = self._mw.constant_backgate_voltage_checkBox.isChecked()
+        DC_backgate_voltage = self._mw.constant_backgate_voltage_DoubleSpinBox.value()
+
+        x_axis_sweep_parameter = self._mw.x_axis_sweep_parameter_comboBox.currentText()
+        x_axis_start = self._mw.x_axis_start_DoubleSpinBox.value()
+        x_axis_stop = self._mw.x_axis_stop_DoubleSpinBox.value()
+        x_axis_num = self._mw.x_axis_points_DoubleSpinBox.value()
+
+        y_axis_sweep_parameter = self._mw.y_axis_sweep_parameter_comboBox.currentText()
+        y_axis_start = self._mw.y_axis_start_DoubleSpinBox.value()
+        y_axis_stop = self._mw.y_axis_stop_DoubleSpinBox.value()
+        y_axis_num = self._mw.y_axis_points_DoubleSpinBox.value()
+
+        backgate_voltage_ramp_speed = self._sd.gate_voltage_ramp_speed_DoubleSpinBox.value()
+        backgate_voltage_autorange = self._sd.gate_voltage_autorange_checkBox.isChecked()
+        sample_voltage_ramp_speed = self._sd.sample_voltage_ramp_speed_DoubleSpinBox.value()
+        sample_current_ramp_speed = self._sd.sample_current_ramp_speed_DoubleSpinBox.value()
+        sample_transport_autorange = self._sd.sample_transport_autorange_checkBox.isChecked()
+
+        sens_fnc = self._mw.sensing_function_comboBox.currentText()
+        sens_autorange = self._sd.sensing_autorange_checkBox.isChecked()
+        sens_autozero = self._sd.sensing_autozero_checkBox.isChecked()
+        sens_four_port = self._sd.sensing_four_port_checkBox.isChecked()
+        sens_achange =  self._sd.sensing_achange_checkBox.isChecked()
+        sens_delay = self._sd.sensing_delay_DoubleSpinBox.value()
+        sens_int_time = self._sd.int_time_transport_DoubleSpinBox.value()
+
+        self.scan_type = f'X_{x_axis_sweep_parameter}_Y_{y_axis_sweep_parameter}_vs_{sens_fnc}'
+
+        self._transport_logic.start_scan_2D_DC_transport(
+            x_axis_sweep_parameter = x_axis_sweep_parameter, x_axis_start = x_axis_start, x_axis_stop = x_axis_stop, x_axis_num = x_axis_num,
+            y_axis_sweep_parameter = y_axis_sweep_parameter, y_axis_start = y_axis_start, y_axis_stop = y_axis_stop, y_axis_num = y_axis_num,
+            use_DC_sample_current = use_DC_sample_current, DC_sample_current = DC_sample_current,
+            use_DC_sample_voltage = use_DC_sample_voltage, DC_sample_voltage = DC_sample_voltage,
+            use_DC_backgate_voltage = use_DC_backgate_voltage, DC_backgate_voltage = DC_backgate_voltage,
+            backgate_voltage_ramp_speed = backgate_voltage_ramp_speed, backgate_voltage_autorange = backgate_voltage_autorange,
+            sample_voltage_ramp_speed = sample_voltage_ramp_speed, sample_current_ramp_speed = sample_current_ramp_speed, sample_transport_autorange = sample_transport_autorange,
+            sens_fnc =sens_fnc, sens_autorange = sens_autorange, sens_autozero = sens_autozero, sens_four_port = sens_four_port,
+            sens_achange = sens_achange, sens_delay = sens_delay, sens_int_time = sens_int_time)
     
-    def update_dockwidget_visibility(self, make_visible, name):
-        """ Hide or show a dockwidget. 
+    def start_1D_transport_scan(self):
+        use_DC_sample_current = self._mw.constant_sample_current_checkBox.isChecked()
+        DC_sample_current = self._mw.constant_sample_current_DoubleSpinBox.value()
+        use_DC_sample_voltage = self._mw.constant_sample_voltage_checkBox.isChecked()
+        DC_sample_voltage = self._mw.constant_sample_voltage_DoubleSpinBox.value()
+        use_DC_backgate_voltage = self._mw.constant_backgate_voltage_checkBox.isChecked()
+        DC_backgate_voltage = self._mw.constant_backgate_voltage_DoubleSpinBox.value()
 
-        @param bool make_visible: whether it should be hidden or show up.
-        @param str name: name associated to the dockwidget. 
-        """
-        dockwidget = self.get_dockwidget(name)
-        if dockwidget is not None:
-            if make_visible:
-                dockwidget.show()
-            else:
-                dockwidget.hide()
-    
-    def update_from_crosshair(self, obj_name):
-        coords = self._dockwidget_container[f'obj_{obj_name}'].graphicsView_matrix.crosshair_position
+        x_axis_sweep_parameter = self._mw.x_axis_sweep_parameter_comboBox.currentText()
+        x_axis_start = self._mw.x_axis_start_DoubleSpinBox.value()
+        x_axis_stop = self._mw.x_axis_stop_DoubleSpinBox.value()
+        x_axis_num = self._mw.x_axis_points_DoubleSpinBox.value()
 
-        if 'xy' in obj_name:
-            self._mw.obj_target_x_DSpinBox.setValue(coords[0])
-            self._mw.obj_target_y_DSpinBox.setValue(coords[1])
-        elif 'xz' in obj_name:
-            self._mw.obj_target_x_DSpinBox.setValue(coords[0])
-            self._mw.obj_target_z_DSpinBox.setValue(coords[1])
-        elif 'yz' in obj_name:
-            self._mw.obj_target_y_DSpinBox.setValue(coords[0])
-            self._mw.obj_target_z_DSpinBox.setValue(coords[1])
-        self.goto_obj_pos_clicked() 
-    
-    def update_to_crosshair(self):
-        x = self._mw.obj_target_x_DSpinBox.value()
-        y = self._mw.obj_target_y_DSpinBox.value()
-        z = self._mw.obj_target_z_DSpinBox.value()
-        self._dockwidget_container[f'obj_xy'].graphicsView_matrix.set_crosshair_pos((x,y))
-        self._dockwidget_container[f'obj_yz'].graphicsView_matrix.set_crosshair_pos((y,z))
-        self._dockwidget_container[f'obj_xz'].graphicsView_matrix.set_crosshair_pos((x,z))
+        backgate_voltage_ramp_speed = self._sd.gate_voltage_ramp_speed_DoubleSpinBox.value()
+        backgate_voltage_autorange = self._sd.gate_voltage_autorange_checkBox.isChecked()
+        sample_voltage_ramp_speed = self._sd.sample_voltage_ramp_speed_DoubleSpinBox.value()
+        sample_current_ramp_speed = self._sd.sample_current_ramp_speed_DoubleSpinBox.value()
+        sample_transport_autorange = self._sd.sample_transport_autorange_checkBox.isChecked()
 
-    def update_from_crosshair_qafm_scan(self, obj_name):
-        coords = self._dockwidget_container[obj_name].graphicsView_matrix.crosshair_position
+        sens_fnc = self._mw.sensing_function_comboBox.currentText()
+        sens_autorange = self._sd.sensing_autorange_checkBox.isChecked()
+        sens_autozero = self._sd.sensing_autozero_checkBox.isChecked()
+        sens_four_port = self._sd.sensing_four_port_checkBox.isChecked()
+        sens_achange =  self._sd.sensing_achange_checkBox.isChecked()
+        sens_delay = self._sd.sensing_delay_DoubleSpinBox.value()
+        sens_int_time = self._sd.int_time_transport_DoubleSpinBox.value()
 
-        self._mw.x_pos_rotation_frame_DSpinBox.setValue(coords[0])
-        self._mw.y_pos_rotation_frame_DSpinBox.setValue(coords[1])
+        self.scan_type = f'{x_axis_sweep_parameter}_vs_{sens_fnc}'
 
-        new_origin = (coords[0],coords[1])
-        x_new_origin_rot, y_new_origin_rot = self._qafm_logic.rotate_around_point(new_origin, self._current_rotation, self._current_origin)
-
-        self._mw.x_pos_real_frame_DSpinBox.setValue(x_new_origin_rot)
-        self._mw.y_pos_real_frame_DSpinBox.setValue(y_new_origin_rot)
-
-        self.update_qafm_scan_pos(coords[0],coords[1]) 
-
-    @QtCore.Slot(dict)
-    def update_obj_pos(self, pos_dict):
-
-        for entry in pos_dict:
-            spinbox = getattr(self._mw, f'obj_cur_{entry[0].lower()}_DSpinBox')
-            spinbox.setValue(pos_dict[entry])
-
-    def update_qafm_scan_pos(self, x, y):
-
-        for key in self._dockwidget_container.keys():
-            if key is not 'obj_xy' and key is not 'obj_xz'  and key is not 'obj_yz' and key is not 'opti_xy' and key is not 'opti_z':
-                self._dockwidget_container[key].graphicsView_matrix.set_crosshair_pos((x,y))
-
-    @QtCore.Slot(dict)
-    def update_afm_pos(self, pos_dict):
-
-        for entry in pos_dict:
-            if entry[0].lower() == 'z':
-                continue
-            spinbox = getattr(self._mw, f'afm_curr_{entry[0].lower()}_DSpinBox')
-            spinbox.setValue(pos_dict[entry])
-
-    def goto_afm_pos_clicked(self):
-
-        self.disable_scan_actions()
-
-        x = self._mw.afm_target_x_DSpinBox.value()
-        y = self._mw.afm_target_y_DSpinBox.value()
-        # connect via signal for non-blocking behaviour
-        self.sigGotoAFMpos.emit({'x': x, 'y': y})
-        #self._qafm_logic.start_set_afm_pos(x,y)
-
-    def goto_obj_pos_clicked(self):
-
-        # self.disable_scan_actions()
+        self._transport_logic.start_scan_1D_DC_transport(
+            x_axis_sweep_parameter = x_axis_sweep_parameter, x_axis_start = x_axis_start, x_axis_stop = x_axis_stop, x_axis_num = x_axis_num,
+            use_DC_sample_current = use_DC_sample_current, DC_sample_current = DC_sample_current,
+            use_DC_sample_voltage = use_DC_sample_voltage, DC_sample_voltage = DC_sample_voltage,
+            use_DC_backgate_voltage = use_DC_backgate_voltage, DC_backgate_voltage = DC_backgate_voltage,
+            backgate_voltage_ramp_speed = backgate_voltage_ramp_speed, backgate_voltage_autorange = backgate_voltage_autorange,
+            sample_voltage_ramp_speed = sample_voltage_ramp_speed, sample_current_ramp_speed = sample_current_ramp_speed, sample_transport_autorange = sample_transport_autorange,
+            sens_fnc =sens_fnc, sens_autorange = sens_autorange, sens_autozero = sens_autozero, sens_four_port = sens_four_port,
+            sens_achange = sens_achange, sens_delay = sens_delay, sens_int_time = sens_int_time)
         
-        x = self._mw.obj_target_x_DSpinBox.value()
-        y = self._mw.obj_target_y_DSpinBox.value()
-        z = self._mw.obj_target_z_DSpinBox.value()
+    def start_transport_timetrace(self):
+        use_DC_sample_current = self._mw.constant_sample_current_checkBox.isChecked()
+        DC_sample_current = self._mw.constant_sample_current_DoubleSpinBox.value()
+        use_DC_sample_voltage = self._mw.constant_sample_voltage_checkBox.isChecked()
+        DC_sample_voltage = self._mw.constant_sample_voltage_DoubleSpinBox.value()
+        use_DC_backgate_voltage = self._mw.constant_backgate_voltage_checkBox.isChecked()
+        DC_backgate_voltage = self._mw.constant_backgate_voltage_DoubleSpinBox.value()
 
-        # connect via signal for non-blocking behaviour
-        self.sigGotoObjpos.emit({'x': x, 'y': y, 'z': z})
-        self._dockwidget_container['obj_xy'].graphicsView_matrix.set_crosshair_pos((x,y))
-        self._dockwidget_container['obj_xz'].graphicsView_matrix.set_crosshair_pos((x,z))
-        self._dockwidget_container['obj_yz'].graphicsView_matrix.set_crosshair_pos((y,z))
-        #self._qafm_logic.start_set_obj_pos()
+        backgate_voltage_ramp_speed = self._sd.gate_voltage_ramp_speed_DoubleSpinBox.value()
+        backgate_voltage_autorange = self._sd.gate_voltage_autorange_checkBox.isChecked()
+        sample_voltage_ramp_speed = self._sd.sample_voltage_ramp_speed_DoubleSpinBox.value()
+        sample_current_ramp_speed = self._sd.sample_current_ramp_speed_DoubleSpinBox.value()
+        sample_transport_autorange = self._sd.sample_transport_autorange_checkBox.isChecked()
 
+        timestep = self._sd.timetrace_timestep_DoubleSpinBox.value()
+        measure_temperature = self._sd.timetrace_measure_temperature_checkBox.isChecked()
 
-    def lock_obj_toggled(self):
-        state = self._mw.actionLock_Obj.isChecked()
-        self._qafm_logic._spm.objective_lock = state
-        self.toggle_obj_actions(not state)
+        sens_fnc = self._mw.sensing_function_comboBox.currentText()
+        sens_autorange = self._sd.sensing_autorange_checkBox.isChecked()
+        sens_autozero = self._sd.sensing_autozero_checkBox.isChecked()
+        sens_four_port = self._sd.sensing_four_port_checkBox.isChecked()
+        sens_achange =  self._sd.sensing_achange_checkBox.isChecked()
+        sens_delay = self._sd.sensing_delay_DoubleSpinBox.value()
+        sens_int_time = self._sd.int_time_transport_DoubleSpinBox.value()
 
-    def update_vis_slope(self, vis_slope):
-        self._qm.slope_label.setText('{:.2e}'.format(vis_slope))
+        self.scan_type = f'time_vs_{sens_fnc}'
 
-    def radioButton_behaviour_forGroupBox(self, state, x):
-        if x == 0:
-            if state is True:
-                self._qm.mw_list_mode_RadioButton.setChecked(False)
-                self._qm.loaded_sequence_mode_RadioButton.setChecked(False)
-                self._qm.podmr_list_tracking_checkBox.setEnabled(False)
-                self._qm.label_10.setEnabled(False)
-                self._qm.pulsed_freq_start_DoubleSpinBox.setEnabled(False)
-                self._qm.label_11.setEnabled(False)
-                self._qm.pulsed_freq_stop_DoubleSpinBox.setEnabled(False)
-                self._qm.label_13.setEnabled(False)
-                self._qm.pulsed_freq_step_SpinBox.setEnabled(False)
-                self._qm.label_24.setEnabled(True)
-                self._qm.tracking_repetitions_doubleSpinBox.setEnabled(True)
-                self._qm.label_25.setEnabled(True)
-                self._qm.delta0_doubleSpinBox.setEnabled(True)
-                self._qm.label_26.setEnabled(True)
-                self._qm.f0_doubleSpinBox.setEnabled(True)
-                self._qm.slope_radioButton.setEnabled(True)
-                self._qm.slope2_doubleSpinBox.setEnabled(True)
-                self._qm.retrieve_radioButton.setEnabled(True)
-            else:
-                self._qm.mw_tracking_mode_RadioButton.setChecked(True)
-        if x == 1:
-            if state is True:
-                self._qm.mw_tracking_mode_RadioButton.setChecked(False)
-                self._qm.loaded_sequence_mode_RadioButton.setChecked(False)
-                self._qm.label_24.setEnabled(False)
-                self._qm.tracking_repetitions_doubleSpinBox.setEnabled(False)
-                self._qm.label_25.setEnabled(False)
-                self._qm.delta0_doubleSpinBox.setEnabled(False)
-                self._qm.label_26.setEnabled(False)
-                self._qm.f0_doubleSpinBox.setEnabled(False)
-                self._qm.slope_radioButton.setEnabled(False)
-                self._qm.slope2_doubleSpinBox.setEnabled(False)
-                self._qm.retrieve_radioButton.setEnabled(False)
-                self._qm.podmr_list_tracking_checkBox.setEnabled(True)
-                self._qm.label_10.setEnabled(True)
-                self._qm.pulsed_freq_start_DoubleSpinBox.setEnabled(True)
-                self._qm.label_11.setEnabled(True)
-                self._qm.pulsed_freq_stop_DoubleSpinBox.setEnabled(True)
-                self._qm.label_13.setEnabled(True)
-                self._qm.pulsed_freq_step_SpinBox.setEnabled(True)
-                
-            else:
-                self._qm.mw_list_mode_RadioButton.setChecked(True)
-        if x == 2:
-            if state is True:
-                self._qm.mw_list_mode_RadioButton.setChecked(False)
-                self._qm.mw_tracking_mode_RadioButton.setChecked(False)
-                self._qm.label_19.setEnabled(True)
-                self._qm.loaded_sequence_label.setEnabled(True)
-                if self._qm.loaded_seq_track_freq_PODMR_Checkbox.isChecked():
-                    self._qm.podmr_list_tracking_checkBox.setEnabled(True)
-                    self._qm.label_10.setEnabled(True)
-                    self._qm.pulsed_freq_start_DoubleSpinBox.setEnabled(True)
-                    self._qm.label_11.setEnabled(True)
-                    self._qm.pulsed_freq_stop_DoubleSpinBox.setEnabled(True)
-                    self._qm.label_13.setEnabled(True)
-                    self._qm.pulsed_freq_step_SpinBox.setEnabled(True)
-                if self._qm.loaded_seq_track_freq_two_point_Checkbox.isChecked():
-                    self._qm.label_24.setEnabled(True)
-                    self._qm.tracking_repetitions_doubleSpinBox.setEnabled(True)
-                    self._qm.label_25.setEnabled(True)
-                    self._qm.delta0_doubleSpinBox.setEnabled(True)
-                    self._qm.label_26.setEnabled(True)
-                    self._qm.f0_doubleSpinBox.setEnabled(True)
-                    self._qm.slope_radioButton.setEnabled(True)
-                    self._qm.slope2_doubleSpinBox.setEnabled(True)
-                    self._qm.retrieve_radioButton.setEnabled(True)
-            else:
-                self._qm.loaded_sequence_mode_RadioButton.setChecked(True)
-
-    def radioButton_behaviour_forGroupBox_gradiometry(self, state, x):
-        if x == 0:
-            if state is True:
-                self._qm.artificial_signal_lock_in_RadioButton.setChecked(False)
-                self._qm.label_2.setEnabled(False)
-                self._qm.trigger_delay_DoubleSpinBox.setEnabled(True)
-                self._qm.label_34.setEnabled(True)
-            else:
-                self._qm.tip_osc_gradiometry_RadioButton.setChecked(True)
-        if x == 1:
-            if state is True:
-                self._qm.tip_osc_gradiometry_RadioButton.setChecked(False)
-                self._qm.trigger_delay_DoubleSpinBox.setEnabled(False)
-                self._qm.label_34.setEnabled(False)
-                self._qm.label_2.setEnabled(True) 
-            else:
-                self._qm.artificial_signal_lock_in_RadioButton.setChecked(True)
+        self._transport_logic.start_timetrace_DC_transport(timestep, measure_temperature,
+            use_DC_sample_current = use_DC_sample_current, DC_sample_current = DC_sample_current,
+            use_DC_sample_voltage = use_DC_sample_voltage, DC_sample_voltage = DC_sample_voltage,
+            use_DC_backgate_voltage = use_DC_backgate_voltage, DC_backgate_voltage = DC_backgate_voltage,
+            backgate_voltage_ramp_speed = backgate_voltage_ramp_speed, backgate_voltage_autorange = backgate_voltage_autorange,
+            sample_voltage_ramp_speed = sample_voltage_ramp_speed, sample_current_ramp_speed = sample_current_ramp_speed, sample_transport_autorange = sample_transport_autorange,
+            sens_fnc =sens_fnc, sens_autorange = sens_autorange, sens_autozero = sens_autozero, sens_four_port = sens_four_port,
+            sens_achange = sens_achange, sens_delay = sens_delay, sens_int_time = sens_int_time)
         
-    def gradiometry_behaviour_comboBox(self, text):
-        if text == 'Hahn Echo':
-            self._qm.pulsed_scheme_repetitions_doubleSpinBox.setEnabled(False)
-            self._qm.pulsed_scheme_repetitions_label.setEnabled(False)
-        else:
-            self._qm.pulsed_scheme_repetitions_doubleSpinBox.setEnabled(True)
-            self._qm.pulsed_scheme_repetitions_label.setEnabled(True)
-
-    def loaded_seq_track_freq_two_point_Checkbox_isClicked(self, state):
-        if state:
-            self._qm.label_24.setEnabled(True)
-            self._qm.tracking_repetitions_doubleSpinBox.setEnabled(True)
-            self._qm.label_25.setEnabled(True)
-            self._qm.delta0_doubleSpinBox.setEnabled(True)
-            self._qm.label_26.setEnabled(True)
-            self._qm.f0_doubleSpinBox.setEnabled(True)
-            self._qm.slope_radioButton.setEnabled(True)
-            self._qm.slope2_doubleSpinBox.setEnabled(True)
-            self._qm.retrieve_radioButton.setEnabled(True)
-            self._qm.loaded_seq_track_freq_PODMR_Checkbox.setChecked(False)
-            self._qm.podmr_list_tracking_checkBox.setEnabled(False)
-            self._qm.label_10.setEnabled(False)
-            self._qm.pulsed_freq_start_DoubleSpinBox.setEnabled(False)
-            self._qm.label_11.setEnabled(False)
-            self._qm.pulsed_freq_stop_DoubleSpinBox.setEnabled(False)
-            self._qm.label_13.setEnabled(False)
-            self._qm.pulsed_freq_step_SpinBox.setEnabled(False)
-            self._qm.label_12.setEnabled(False)
-            self._qm.loaded_seq_res_freq_DoubleSpinBox.setEnabled(False)
-            self._qm.pulse_repetition_tracking_spinBox.setEnabled(True)
-        else:
-            self._qm.label_24.setEnabled(False)
-            self._qm.tracking_repetitions_doubleSpinBox.setEnabled(False)
-            self._qm.label_25.setEnabled(False)
-            self._qm.delta0_doubleSpinBox.setEnabled(False)
-            self._qm.label_26.setEnabled(False)
-            self._qm.f0_doubleSpinBox.setEnabled(False)
-            self._qm.slope_radioButton.setEnabled(False)
-            self._qm.slope2_doubleSpinBox.setEnabled(False)
-            self._qm.retrieve_radioButton.setEnabled(False)
-            self._qm.label_12.setEnabled(True)
-            self._qm.loaded_seq_res_freq_DoubleSpinBox.setEnabled(True)
-            self._qm.pulse_repetition_tracking_spinBox.setEnabled(False)
-
-    def loaded_seq_track_freq_PODMR_Checkbox_isClicked(self, state):
-        if state:
-            self._qm.podmr_list_tracking_checkBox.setEnabled(True)
-            self._qm.label_10.setEnabled(True)
-            self._qm.pulsed_freq_start_DoubleSpinBox.setEnabled(True)
-            self._qm.label_11.setEnabled(True)
-            self._qm.pulsed_freq_stop_DoubleSpinBox.setEnabled(True)
-            self._qm.label_13.setEnabled(True)
-            self._qm.pulsed_freq_step_SpinBox.setEnabled(True)
-            self._qm.loaded_seq_track_freq_two_point_Checkbox.setChecked(False)
-            self._qm.label_24.setEnabled(False)
-            self._qm.tracking_repetitions_doubleSpinBox.setEnabled(False)
-            self._qm.label_25.setEnabled(False)
-            self._qm.delta0_doubleSpinBox.setEnabled(False)
-            self._qm.label_26.setEnabled(False)
-            self._qm.f0_doubleSpinBox.setEnabled(False)
-            self._qm.slope_radioButton.setEnabled(False)
-            self._qm.slope2_doubleSpinBox.setEnabled(False)
-            self._qm.retrieve_radioButton.setEnabled(False)
-            self._qm.label_12.setEnabled(False)
-            self._qm.loaded_seq_res_freq_DoubleSpinBox.setEnabled(False)
-            self._qm.pulse_repetition_tracking_spinBox.setEnabled(True)
-        else:
-            self._qm.podmr_list_tracking_checkBox.setEnabled(False)
-            self._qm.label_10.setEnabled(False)
-            self._qm.pulsed_freq_start_DoubleSpinBox.setEnabled(False)
-            self._qm.label_11.setEnabled(False)
-            self._qm.pulsed_freq_stop_DoubleSpinBox.setEnabled(False)
-            self._qm.label_13.setEnabled(False)
-            self._qm.pulsed_freq_step_SpinBox.setEnabled(False)
-            self._qm.label_12.setEnabled(True)
-            self._qm.loaded_seq_res_freq_DoubleSpinBox.setEnabled(True)
-            self._qm.pulse_repetition_tracking_spinBox.setEnabled(False)
-            
-            
-
-
-    def update_targetpos_xy(self, event, xy_pos):
-
-        self._mw.obj_target_x_DSpinBox.setValue(xy_pos.x())
-        self._mw.obj_target_y_DSpinBox.setValue(xy_pos.y())
-
-
-    def save_obj_data_clicked(self):
-        """Method enabling the saving of the objective data.
+    def save_transport_data_clicked(self):
+        """Method enabling the saving of the transport data.
         """
-        self._mw.actionSaveObjData.setEnabled(False)
+        self._mw.action_Save.setEnabled(False)
 
-        obj_name_list = []
-        if self._mw.save_obj_xy_CheckBox.isChecked():
-            obj_name_list.append('obj_xy')
-        if self._mw.save_obj_xz_CheckBox.isChecked():
-            obj_name_list.append('obj_xz')
-        if self._mw.save_obj_yz_CheckBox.isChecked():
-            obj_name_list.append('obj_yz')
+        tag = self.scan_type + '_' + self._mw.save_tag_LineEdit.text()
+        save_to_gwyddion = self._sd.save_to_gwyddion_CheckBox.isChecked()
+        self._transport_logic.save_transport_data(tag, save_to_gwyddion)
 
-        tag = self._mw.obj_save_LineEdit.text()
-        probe_name = self._mw.probename_LineEdit.text()
-        sample_name = self._mw.samplename_LineEdit.text()
-
-        self._qafm_logic.save_obj_data(obj_name_list, tag, probe_name, sample_name,
-                                        use_qudi_savescheme=True,
-                                        daily_folder=True)
-
-    def enable_obj_save_button(self):
-        """Method making sure the save button is enabled after objective data is saved. 
-        """
-        self._mw.actionSaveObjData.setEnabled(True)
-
-
-    def save_qafm_data_clicked(self):
-        """Method enabling the saving of the qafm data.
-        """
-        self._mw.actionSaveDataQAFM.setEnabled(False)
-
-        tag = f'scan{self._mw.scan_id_spinBox.value()}_' + self.scan_type + '_' + self._mw.qafm_save_LineEdit.text() 
-        probe_name = self._mw.probename_LineEdit.text()
-        sample_name = self._mw.samplename_LineEdit.text()
-
-        self._qafm_logic.save_qafm_data(tag, probe_name, sample_name,
-                                        use_qudi_savescheme=True,
-                                        daily_folder=True)
-        self._mw.scan_id_spinBox.setValue(self._mw.scan_id_spinBox.value()+1)
-
-
-    def autosave_qafm_measurement(self):
-        """ Auto save method to react to signals for qafm measurements. """
+    def autosave_transport_data(self):
         if self._sd.auto_save_qafm_CheckBox.isChecked():
-            self.autosave_qafm_data()
+            self._mw.action_Save.setEnabled(False)
 
-    def autosave_quantitative_measurement(self):
-        """ Auto save method to react to signals for quantitative measurements. """
-        if self._sd.auto_save_quanti_CheckBox.isChecked():
-            self.autosave_qafm_data()
+            tag = 'autosave_'+ self.scan_type + '_' + self._mw.save_tag_LineEdit.text()
+            save_to_gwyddion = self._sd.save_to_gwyddion_CheckBox.isChecked()
+            self._transport_logic.save_transport_data(tag, save_to_gwyddion)
 
-    def autosave_qafm_data(self):
-        """ Save automatically after scan has finished the data. """
-
-        self._mw.actionSaveDataQAFM.setEnabled(False)
-
-        tag = 'autosave_'+ f'scan{self._mw.scan_id_spinBox.value()}_' + self.scan_type + '_' + self._mw.qafm_save_LineEdit.text()
-        probe_name = self._mw.probename_LineEdit.text()
-        sample_name = self._mw.samplename_LineEdit.text()
-
-        self._qafm_logic.save_qafm_data(tag, probe_name, sample_name,
-                                        use_qudi_savescheme=True,
-                                        daily_folder=True)        
-        self._mw.scan_id_spinBox.setValue(self._mw.scan_id_spinBox.value()+1)
-
-
-    def enable_qafm_save_button(self):
-        """Method making sure the save button is enabled after qafm data is saved. 
-        """
-        self._mw.actionSaveDataQAFM.setEnabled(True)
-
-    def save_opti_data_clicked(self):
-        """Method enabling the saving of the optimizer data.
-        """
-        self._mw.actionSaveOptiData.setEnabled(False)
-
-        tag = self._mw.obj_save_LineEdit.text()
-        probe_name = self._mw.probename_LineEdit.text()
-        sample_name = self._mw.samplename_LineEdit.text()
-
-        self._qafm_logic.save_optimizer_data(tag, probe_name, sample_name, 
-                                            use_qudi_savescheme=True, 
-                                            daily_folder=True)
-
-    def enable_opti_save_button(self):
-        """Method making sure the save button is enabled after opti data is saved. 
-        """
-        self._mw.actionSaveOptiData.setEnabled(True)
-
-
-    # Quantitative Measurement settings
-
-    def enable_scan_actions_quanti(self):
-        self.enable_scan_actions()
-        self._qm.Start_QM_PushButton.setEnabled(True)
-        self._qm.Start_Pulsed_PushButton.setEnabled(True)
-        self._qm.Start_Gradiometry_PushButton.setEnabled(True)
-
-    def disable_scan_actions_quanti(self):
-        self.disable_scan_actions()
-        self._qm.Start_QM_PushButton.setEnabled(False)
-        self._qm.Start_Pulsed_PushButton.setEnabled(False)
-        self._qm.Start_Gradiometry_PushButton.setEnabled(False)
-        
-
-    def start_quantitative_measure_clicked(self, continue_meas=False):
-        self.disable_scan_actions_quanti()
-
-        x_origin = self._mw.afm_x_origin_DSpinBox.value()
-        x_range = self._mw.afm_x_range_DSpinBox.value()
-        y_origin = self._mw.afm_y_origin_DSpinBox.value()
-        y_range = self._mw.afm_y_range_DSpinBox.value()
-        res_x = self._mw.afm_x_num_SpinBox.value()
-        res_y = self._mw.afm_y_num_SpinBox.value()
-        rotation = self._mw.afm_rotation_DSpinBox.value()
-
-        self._current_origin = (x_origin, y_origin)
-        self._current_rotation = rotation
-
-        afm_int_time = self._sd.int_time_sample_scan_DoubleSpinBox.value()
-        afm_scan_speed = self._sd.idle_move_scan_sample_DoubleSpinBox.value()
-        counter_int_time = self._sd.int_time_counts_sample_scan_DoubleSpinBox.value()
-
-        esr_freq_start = self._qm.esr_freq_start_DoubleSpinBox.value()
-        esr_freq_stop = self._qm.esr_freq_stop_DoubleSpinBox.value()
-        esr_freq_step = self._qm.esr_freq_step_SpinBox.value()
-        esr_count_freq = self._qm.esr_count_freq_DoubleSpinBox.value()
-        esr_mw_power = self._qm.esr_mw_power_DoubleSpinBox.value()
-        esr_runs = self._qm.esr_runs_SpinBox.value()
-        esr_tracking = self._qm.esr_tracking_checkBox.isChecked()
-        if self._qm.calculate_field_groupBox.isChecked():
-            if self._qm.esr_single_res_RadioButton.isChecked():
-                calc_magnetic_field = 'single'
-                bias_data = self.load_bias_data()
-            elif self._qm.esr_single_res_gslac_RadioButton.isChecked():
-                calc_magnetic_field = 'single_gslac'
-                bias_data = self.load_bias_data()
-        else:
-            calc_magnetic_field = None
-            bias_data = None
-
-        #Bayesian
-        contrast = self._qm.esr_contrast_SpinBox.value()
-        offset = self._qm.esr_offset_SpinBox.value()
-        amp_noise = self._qm.esr_noise_SpinBox.value() 
-        esr_fwhm = self._qm.esr_fwhm_SpinBox.value()
-        optbay = self._qm.optBay_groupBox.isChecked()
-        opt_reps = self._qm.esr_optReps_SpinBox.value()
-        err_margin_x0 = self._qm.esr_errorMarginCenter_SpinBox.value()
-        err_margin_offset = self._qm.esr_errorMarginOffset_SpinBox.value()
-        err_margin_contrast = self._qm.esr_errorMarginContrast_SpinBox.value()
-        n_samples = self._qm.esr_nSamples_SpinBox.value()
-        pickiness = self._qm.esr_OptBay_Pickiness_SpinBox.value()
-        param_estimation = (-(offset*contrast/100),offset,amp_noise,esr_fwhm,opt_reps,err_margin_x0,err_margin_offset,-(offset*err_margin_contrast/100), n_samples, pickiness)
-
-        #liftoff mode
-        liftoff_mode = self._mw.liftOffMode_groupBox.isChecked()
-        liftoff_height = self._mw.liftOffHeight_doubleSpinBox.value()
-
-        #tip oscillation off mode
-        tip_osc_off = self._mw.tipOscOff_groupbox.isChecked()
-        tip_osc_turn_off_time = self._mw.tipOscOffTime_doubleSpinBox.value()
-        tip_osc_turn_on_time = self._mw.tipOscOnTime_doubleSpinBox.value()
-
-        if optbay:
-            self.scan_type = 'CW_Bayesian'
-        else:
-            self.scan_type = 'CW_ODMR'
-
-        self._qafm_logic.start_scan_area_quanti_qafm_fw_by_point(
-            coord0_origin=x_origin, coord0_range=x_range, coord0_num=res_x, 
-            coord1_origin=y_origin, coord1_range=y_range, coord1_num=res_y, rotation = rotation,
-            afm_int_time=afm_int_time, afm_scan_speed=afm_scan_speed, counter_int_time=counter_int_time,
-            freq_start=esr_freq_start, freq_stop=esr_freq_stop, 
-            freq_step=esr_freq_step, esr_count_freq=esr_count_freq,
-            mw_power=esr_mw_power, num_esr_runs=esr_runs, esr_tracking=esr_tracking, param_estimation=param_estimation, optbay=optbay,
-            calc_magnetic_field=calc_magnetic_field, bias_data=bias_data,
-            liftoff_mode=liftoff_mode, liftoff_height=liftoff_height,
-            tip_osc_off = tip_osc_off, tip_osc_turn_off_time = tip_osc_turn_off_time, tip_osc_turn_on_time = tip_osc_turn_on_time)
-
-    def stop_quantitative_measure_clicked(self):
-        self.stop_any_scanning()
-    
-    def start_pulsed_measure_clicked(self, continue_meas=False):
-        self.disable_scan_actions_quanti()
-
-        x_origin = self._mw.afm_x_origin_DSpinBox.value()
-        x_range = self._mw.afm_x_range_DSpinBox.value()
-        y_origin = self._mw.afm_y_origin_DSpinBox.value()
-        y_range = self._mw.afm_y_range_DSpinBox.value()
-        res_x = self._mw.afm_x_num_SpinBox.value()
-        res_y = self._mw.afm_y_num_SpinBox.value()
-        rotation = self._mw.afm_rotation_DSpinBox.value()
-
-        self._current_origin = (x_origin, y_origin)
-        self._current_rotation = rotation
-
-        afm_int_time = self._sd.int_time_sample_scan_DoubleSpinBox.value()
-        afm_scan_speed = self._sd.idle_move_scan_sample_DoubleSpinBox.value()
-
-        esr_mw_power = self._qm.pulsed_mw_power_DoubleSpinBox.value()
-
-        mw_tracking_mode = self._qm.mw_tracking_mode_RadioButton.isChecked()
-        repetitions = self._qm.tracking_repetitions_doubleSpinBox.value()
-        delta_0 = self._qm.delta0_doubleSpinBox.value()
-        res_freq = self._qm.f0_doubleSpinBox.value()
-        slope2_podmr = self._qm.slope2_doubleSpinBox.value()
-        use_slope_track = self._qm.slope_radioButton.isChecked()
-        
-        mw_list_mode = self._qm.mw_list_mode_RadioButton.isChecked()
-        podmr_freq_start = self._qm.pulsed_freq_start_DoubleSpinBox.value()
-        podmr_freq_stop = self._qm.pulsed_freq_stop_DoubleSpinBox.value()
-        podmr_freq_step = self._qm.pulsed_freq_step_SpinBox.value()
-        podmr_list_mode_tracking = self._qm.podmr_list_tracking_checkBox.isChecked()
-
-        loaded_sequence_mode = self._qm.loaded_sequence_mode_RadioButton.isChecked()
-        loaded_sequence_res_freq = self._qm.loaded_seq_res_freq_DoubleSpinBox.value()
-        loaded_sequence_mode_tracking_two_point = self._qm.loaded_seq_track_freq_two_point_Checkbox.isChecked()
-        loaded_sequence_mode_tracking_podmr = self._qm.loaded_seq_track_freq_PODMR_Checkbox.isChecked()
-        pulse_repetition_tracking = self._qm.pulse_repetition_tracking_spinBox.value()
-
-        pulse_repetition = self._qm.pulse_repetition_spinBox.value()
-        pi_duration = self._qm.pi_duration_doubleSpinBox.value()
-
-        #liftoff mode
-        liftoff_mode = self._mw.liftOffMode_groupBox.isChecked()
-        liftoff_height = self._mw.liftOffHeight_doubleSpinBox.value()
-
-        #tip oscillation off mode
-        tip_osc_off = self._mw.tipOscOff_groupbox.isChecked()
-        tip_osc_turn_off_time = self._mw.tipOscOffTime_doubleSpinBox.value()
-        tip_osc_turn_on_time = self._mw.tipOscOnTime_doubleSpinBox.value()
-        measure_tip_osc_on_and_off = self._mw.measureTipOscOnOff_checkBox.isChecked()
-
-        if self._qm.calculate_field_groupBox.isChecked():
-            if self._qm.esr_single_res_RadioButton.isChecked():
-                calc_magnetic_field = 'single'
-                bias_data = self.load_bias_data()
-            elif self._qm.esr_single_res_gslac_RadioButton.isChecked():
-                calc_magnetic_field = 'single_gslac'
-                bias_data = self.load_bias_data()
-        else:
-            calc_magnetic_field = None
-            bias_data = None
-
-        if mw_tracking_mode:
-            self.scan_type = 'Two_point_tracking'
-        elif mw_list_mode:
-            self.scan_type = 'PODMR'
-        else:
-            arb_pulse_measurement = self._qm.loaded_sequence_label.text()
-            if arb_pulse_measurement == '':
-                arb_pulse_measurement = 'Arb_pulse_meas'
-            if loaded_sequence_mode_tracking_two_point:
-                self.scan_type = f'{arb_pulse_measurement}_with_two_point_tracking'
-            elif loaded_sequence_mode_tracking_podmr:
-                self.scan_type = f'{arb_pulse_measurement}_with_PODMR'
-            else:
-                self.scan_type = arb_pulse_measurement
-
-        self._qafm_logic.start_scan_area_pulsed_qafm_fw_by_point(
-            coord0_origin=x_origin, coord0_range=x_range, coord0_num=res_x, 
-            coord1_origin=y_origin, coord1_range=y_range, coord1_num=res_y, rotation = rotation,
-            afm_int_time=afm_int_time, afm_scan_speed=afm_scan_speed,
-            mw_power=esr_mw_power, pi_duration = pi_duration,num_runs=pulse_repetition,
-            mw_list_mode=mw_list_mode, freq_start=podmr_freq_start, freq_stop=podmr_freq_stop, 
-            freq_step=podmr_freq_step, podmr_list_mode_tracking = podmr_list_mode_tracking, 
-            mw_tracking_mode=mw_tracking_mode, repetitions=repetitions, delta_0=delta_0,
-            res_freq=res_freq, slope2_podmr=slope2_podmr, use_slope_track=use_slope_track,
-            loaded_sequence_mode = loaded_sequence_mode, loaded_sequence_mode_tracking_two_point = loaded_sequence_mode_tracking_two_point,
-            loaded_sequence_mode_tracking_podmr = loaded_sequence_mode_tracking_podmr, loaded_sequence_res_freq=loaded_sequence_res_freq, num_runs_tracking = pulse_repetition_tracking,
-            liftoff_mode=liftoff_mode, liftoff_height=liftoff_height,
-            tip_osc_off = tip_osc_off, tip_osc_turn_off_time = tip_osc_turn_off_time, tip_osc_turn_on_time = tip_osc_turn_on_time, measure_tip_osc_on_and_off = measure_tip_osc_on_and_off,
-            calc_magnetic_field=calc_magnetic_field, bias_data=bias_data)
-
-    def stop_pulsed_measure_clicked(self):
-        self.stop_any_scanning()
-
-    def start_gradiometry_measure_clicked(self, continue_meas=False):
-        x_origin = self._mw.afm_x_origin_DSpinBox.value()
-        x_range = self._mw.afm_x_range_DSpinBox.value()
-        y_origin = self._mw.afm_y_origin_DSpinBox.value()
-        y_range = self._mw.afm_y_range_DSpinBox.value()
-        res_x = self._mw.afm_x_num_SpinBox.value()
-        res_y = self._mw.afm_y_num_SpinBox.value()
-        rotation = self._mw.afm_rotation_DSpinBox.value()
-
-        self._current_origin = (x_origin, y_origin)
-        self._current_rotation = rotation
-
-        afm_int_time = self._sd.int_time_sample_scan_DoubleSpinBox.value()
-        afm_scan_speed = self._sd.idle_move_scan_sample_DoubleSpinBox.value()
-
-        tip_osc_mode = self._qm.tip_osc_gradiometry_RadioButton.isChecked()
-        trigger_delay_t_0 = self._qm.trigger_delay_DoubleSpinBox.value()
-        
-        artificial_sig_mode = self._qm.artificial_signal_lock_in_RadioButton.isChecked()
-
-        used_pulsed_scheme = self._qm.pulsed_scheme_comboBox.currentText()
-        pulsed_scheme_repetitions_N = self._qm.pulsed_scheme_repetitions_doubleSpinBox.value()
-        waiting_time_tau = self._qm.trigger_delay_DoubleSpinBox.value()
-        pi_duration = self._qm.pi_duration_gradiometry_doubleSpinBox.value()
-        res_freq = self._qm.res_freq_gradiometry_DoubleSpinBox.value()
-        mw_power = self._qm.gradiometry_mw_power_DoubleSpinBox.value()
-        measurement_repetitions = self._qm.pulse_repetitions_gradiometry_spinBox.value()
-        
-        #liftoff mode
-        liftoff_mode = self._mw.liftOffMode_groupBox.isChecked()
-        liftoff_height = self._mw.liftOffHeight_doubleSpinBox.value()
-
-        if tip_osc_mode and not liftoff_mode:
-            self.log.error('Scan is not started. Gradiometry measurement based on tip oscillation is started without Lift-off mode enabled. Enable the lift-off mode!')
-            return
-
-        #tip oscillation off mode
-        tip_osc_off = self._mw.tipOscOff_groupbox.isChecked()
-        tip_osc_turn_off_time = self._mw.tipOscOffTime_doubleSpinBox.value()
-        tip_osc_turn_on_time = self._mw.tipOscOnTime_doubleSpinBox.value()
-        measure_tip_osc_on_and_off = self._mw.measureTipOscOnOff_checkBox.isChecked()
-
-        if tip_osc_mode and tip_osc_off:
-            self.log.error('Scan is not started. Gradiometry measurement based on tip oscillation is started with tip oscillation off. Disable the tip oscillation off mode!')
-            return
-
-        # if self._qm.calculate_field_groupBox.isChecked():
-        #     if self._qm.esr_single_res_RadioButton.isChecked():
-        #         calc_magnetic_field = 'single'
-        #         bias_data = self.load_bias_data()
-        #     elif self._qm.esr_single_res_gslac_RadioButton.isChecked():
-        #         calc_magnetic_field = 'single_gslac'
-        #         bias_data = self.load_bias_data()
-        # else:
-        #     calc_magnetic_field = None
-        #     bias_data = None
-
-        self.disable_scan_actions_quanti()
-
-        if tip_osc_mode:
-            self.scan_type = 'Tip_osc_gradiometry'
-        elif artificial_sig_mode:
-            self.scan_type = 'Art_sig_lock_in'
-
-        self._qafm_logic.start_scan_area_gradiometry_qafm_fw_by_point(
-            coord0_origin=x_origin, coord0_range=x_range, coord0_num=res_x, 
-            coord1_origin=y_origin, coord1_range=y_range, coord1_num=res_y, rotation = rotation,
-            afm_int_time=afm_int_time, afm_scan_speed=afm_scan_speed,
-            tip_osc_mode=tip_osc_mode, trigger_delay_t_0=trigger_delay_t_0,
-            artificial_sig_mode=artificial_sig_mode,
-            used_pulsed_scheme = used_pulsed_scheme, pulsed_scheme_repetitions_N = pulsed_scheme_repetitions_N, waiting_time_tau = waiting_time_tau,
-            pi_duration = pi_duration, res_freq = res_freq, mw_power=mw_power, num_runs=measurement_repetitions,
-            liftoff_mode=liftoff_mode, liftoff_height=liftoff_height,
-            tip_osc_off = tip_osc_off, tip_osc_turn_off_time = tip_osc_turn_off_time, tip_osc_turn_on_time = tip_osc_turn_on_time, measure_tip_osc_on_and_off = measure_tip_osc_on_and_off)
-
-    def stop_gradiometry_measure_clicked(self):
-        self.stop_any_scanning()
-
-    @staticmethod
-    def tilt_correction(data, x_axis, y_axis, C):
-        """  Transforms the given measurement data by plane (tilt correction)
-             assumes all data, as passed, is in original form.  The completeness 
-             of the data matrix is determined on the spot
-
-        @param np.array([[], []]): data:  a 2-dimensional array of measurements. 
-                                          Incomplete measurements = 0.0.  
-        @param np.array([])      x_axis:  x-coordinates (= 'coord0_arr')
-        @param np.array([])      y_axis:  y-coordinates (= 'coord1_arr')
-        @param np.array([])           C:  plane coefficients (f(x,y) = C[0]*x + C[1]*y + C[2])
-
-        @return np.array([[],[]]) : data transformed by planar equation, 
-        """
-        # Note: operations are performed on copy of array..not the array itself
-
-        data_o = data.copy()
-        data_v = data_o[~np.all(data_o == 0.0, axis=1)]   # only the completed rows
-        n_row = data_v.shape[0]                           # last index achieved
-        xv, yv = np.meshgrid(x_axis, y_axis[:n_row])
-        data_o[:n_row] = data_v - (C[0]*xv + C[1]*yv + C[2])
-
-        return data_o
-
-    def update_temperature(self):
-        ranges = self._qafm_logic._spm.get_sample_scan_range()
-
-        self._obj_range_x_max = ranges['X']
-        self._obj_range_y_max = ranges['Y']
-        self._obj_range_z_max = ranges['Z']
-
-        self._afm_origin_x_max = ranges['X']
-        self._afm_origin_y_max = ranges['Y']
-
-        self._mw.obj_x_max_DSpinBox.setRange(0.0e-6, self._obj_range_x_max)
-        self._mw.obj_y_max_DSpinBox.setRange(0.0e-6, self._obj_range_y_max)
-        self._mw.obj_z_max_DSpinBox.setRange(0.0e-6, self._obj_range_z_max)
-
-        self._mw.afm_x_origin_DSpinBox.setRange(0.001e-6, self._afm_origin_x_max)
-        self._mw.afm_y_origin_DSpinBox.setRange(0.001e-6, self._afm_origin_y_max)
-        self._mw.afm_x_range_DSpinBox.setRange(0.001e-6, self._afm_origin_x_max)
-        self._mw.afm_y_range_DSpinBox.setRange(0.001e-6, self._afm_origin_y_max)
-        self._mw.afm_x_pixel_size_DSpinBox.setRange(0.001e-9, self._afm_origin_x_max)
-        self._mw.afm_y_pixel_size_DSpinBox.setRange(0.001e-9, self._afm_origin_y_max)
-
-        self._mw.x_range_qafm_feature_DSpinBox.setRange(0.001e-6, self._afm_origin_x_max)
-        self._mw.y_range_qafm_feature_DSpinBox.setRange(0.001e-6, self._afm_origin_y_max)
-        self._mw.x_pos_real_frame_DSpinBox.setRange(0.001e-6, self._afm_origin_x_max)
-        self._mw.y_pos_real_frame_DSpinBox.setRange(0.001e-6, self._afm_origin_y_max)
-        self._mw.x_pos_rotation_frame_DSpinBox.setRange(0.001e-6, self._afm_origin_x_max)
-        self._mw.y_pos_rotation_frame_DSpinBox.setRange(0.001e-6, self._afm_origin_y_max)
-
-        self._mw.afm_target_x_DSpinBox.setRange(0.0e-6, self._afm_origin_x_max)
-        self._mw.afm_target_y_DSpinBox.setRange(0.0e-6, self._afm_origin_y_max)
-
-        vb = self._dockwidget_container['obj_xy']
-        new_range = ((0, ranges['X']), (0, ranges['Y']))
-        vb.graphicsView_matrix.set_crosshair_range(new_range)
-
-        vb = self._dockwidget_container['obj_xz']
-        new_range = ((0, ranges['X']), (0, ranges['Z']))
-        vb.graphicsView_matrix.set_crosshair_range(new_range)
-
-        vb = self._dockwidget_container['obj_yz']
-        new_range = ((0, ranges['Y']), (0, ranges['Z']))
-        vb.graphicsView_matrix.set_crosshair_range(new_range)
-        self.log.info('Scan range updated')
+    def enable_save_actions(self):
+        self._mw.action_Save.setEnabled(True)
