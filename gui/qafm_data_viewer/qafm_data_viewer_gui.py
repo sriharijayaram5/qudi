@@ -126,7 +126,9 @@ class QAFMPulseDataViewerGUI(GUIBase):
         self._mw.actionSave_Display.triggered.connect(self.save_view)
         self._mw.actionLoad_Display.triggered.connect(self.load_view)
 
-        self._qafm_logic.sigQuantiScanStarted.connect(self.new_scan_started)
+        self._qafm_logic.sigQAFMLineScanFinished.connect(self._update_data_viewer_data)
+
+        self._qafm_logic.sigQAFMScanInitialized.connect(self.new_scan_started)
 
         self.load_view()
         
@@ -164,6 +166,8 @@ class QAFMPulseDataViewerGUI(GUIBase):
         return fit_dict
     
     def new_scan_started(self):
+        if self._mw.update_after_scan_point_checkBox.isChecked():
+            self.adjust_data_viewer_image()
         self.new_scan = True
 
     def initMainUI(self):
@@ -178,6 +182,7 @@ class QAFMPulseDataViewerGUI(GUIBase):
 
         self.setup_dataset_combobox_and_index()
         self.adjust_dataset_index_DoubleSpinBox()
+        self._mw.update_after_scan_point_checkBox.stateChanged.connect(self.update_after_scan_point_checkbox_changed)
         self._mw.centralwidget.hide()
         self._mw.setDockNestingEnabled(True)
         self._create_dockwidgets()
@@ -208,6 +213,13 @@ class QAFMPulseDataViewerGUI(GUIBase):
             for parameter in self._fsd.getParameters(current_fit):
                 self._mw.used_fit_parameter_comboBox.addItem(parameter)
         self._mw.used_fit_parameter_comboBox.setCurrentIndex(0)
+
+    def update_after_scan_point_checkbox_changed(self):
+        if self._mw.update_after_scan_point_checkBox.isChecked():
+            self._mw.view_data_pushButton.setEnabled(False)
+            self.adjust_data_viewer_image()
+        else:
+            self._mw.view_data_pushButton.setEnabled(True)
 
     
     def _create_colorbar(self, name, colorscale):
@@ -616,7 +628,7 @@ class QAFMPulseDataViewerGUI(GUIBase):
         
 
         name = 'Fit'
-        if self._mw.fit_checkBox.isChecked() and self._mw.fit_data_comboBox.currentText() != 'None' and self._mw.used_fit_comboBox.currentText() != 'No Fit' and self._mw.used_fit_parameter_comboBox.currentText() != 'None' and not self.fitting_busy:
+        if self._mw.fit_checkBox.isChecked() and self._mw.fit_data_comboBox.currentText() != 'None' and self._mw.used_fit_comboBox.currentText() != 'No Fit' and self._mw.used_fit_parameter_comboBox.currentText() != 'None' and not self.fitting_busy and not self._mw.update_after_scan_point_checkBox.isChecked():
             if self._qafm_logic.check_thread_active():
                 self.continue_code = False
                 self.perform_fit = False

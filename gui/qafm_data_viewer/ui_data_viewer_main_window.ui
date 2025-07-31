@@ -387,6 +387,13 @@
       </widget>
      </item>
      <item>
+      <widget class="QCheckBox" name="update_after_scan_point_checkBox">
+       <property name="text">
+        <string>Always update after scan point finished</string>
+       </property>
+      </widget>
+     </item>
+     <item>
       <spacer name="verticalSpacer">
        <property name="orientation">
         <enum>Qt::Vertical</enum>
