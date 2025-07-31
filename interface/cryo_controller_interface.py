@@ -38,6 +38,21 @@ class CryoControllerInterface(metaclass=InterfaceMetaclass):
     
     def get_sample_temp_control_status(self):
         pass
+
+    def get_sample_heater_power(self):
+        pass
+
+    def get_vti_temp_setpoint(self):
+        pass
+    
+    def get_vti_temp(self):
+        pass
+    
+    def get_vti_temp_control_status(self):
+        pass
+    
+    def get_vti_heater_power(self):
+        pass
     
     def get_reservoir_temp_setpoint(self):
         pass
@@ -46,5 +61,20 @@ class CryoControllerInterface(metaclass=InterfaceMetaclass):
         pass
     
     def get_reservoir_temp_control_status(self):
+        pass
+
+    def get_reservoir_heater_power(self):
+        pass
+
+    def get_magnet_temp(self):
+        pass
+    
+    def get_cryo_in_pressure(self):
+        pass
+    
+    def get_cryo_out_pressure(self):
+        pass
+    
+    def get_dump_pressure(self):
         pass
 

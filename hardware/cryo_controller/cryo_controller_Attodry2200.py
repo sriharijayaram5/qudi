@@ -73,6 +73,18 @@ class CryoControllerAttoDry2200(Base, CryoControllerInterface):
     def get_sample_heater_power(self):
         return self._connection.sample.getHeaterPower()
     
+    def set_sample_temp_setpoint(self, setpoint):
+        self._connection.sample.setSetPoint(setpoint)
+
+    def start_sample_temp_control(self):
+        try:
+            self._connection.sample.startTempControl()
+        except:
+            self.log.warning('Sample temperature sensor is not connected.')
+
+    def stop_sample_temp_control(self):
+        self._connection.sample.stopTempControl()
+    
     #Methods for vti temperature/heater subsystem
     def get_vti_temp_setpoint(self):
         return self._connection.vti.getSetPoint()
@@ -90,6 +102,18 @@ class CryoControllerAttoDry2200(Base, CryoControllerInterface):
     
     def get_vti_heater_power(self):
         return self._connection.vti.getHeaterPower()
+    
+    def set_vti_temp_setpoint(self, setpoint):
+        self._connection.vti.setSetPoint(setpoint)
+
+    def start_vti_temp_control(self):
+        try:
+            self._connection.vti.startTempControl()
+        except:
+            self.log.warning('VTI temperature sensor is not connected.')
+
+    def stop_vti_temp_control(self):
+        self._connection.vti.stopTempControl()
     
     #Methods for condenser/reservior subsystem
     def get_reservoir_temp_setpoint(self):
