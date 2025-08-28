@@ -211,6 +211,8 @@ class PulsedMeasurementLogic(GenericLogic):
         # Connect internal signals
         self.sigStartTimer.connect(self.__analysis_timer.start, QtCore.Qt.QueuedConnection)
         self.sigStopTimer.connect(self.__analysis_timer.stop, QtCore.Qt.QueuedConnection)
+
+        self.point_by_point_measurement = False
         return
 
     def on_deactivate(self):
@@ -818,10 +820,11 @@ class PulsedMeasurementLogic(GenericLogic):
         Stop the measurement
         """
         # Get raw data and analyze it a last time just before stopping the measurement.
-        try:
-            self._pulsed_analysis_loop()
-        except:
-            pass
+        if not self.point_by_point_measurement:
+            try:
+                self._pulsed_analysis_loop()
+            except:
+                pass
 
         with self._threadlock:
             if self.module_state() == 'locked':

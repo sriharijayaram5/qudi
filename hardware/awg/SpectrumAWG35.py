@@ -665,6 +665,12 @@ class Card():
             return 'First trigger has been detected.'
         else:
             return 'Unknown state'
+        
+    def is_ready(self):
+        if self.get32(SPC_M2STATUS) == 775: #775 is ready state of the card
+            return True
+        else:
+            return False
 
     def get_datatransfer_state(self):
         res = self.get32(SPC_M2STATUS)

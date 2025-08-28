@@ -63,6 +63,10 @@ class AWG663(Base, PulserInterface):
         self.loaded_assets = {}
         self._current_uploaded_ensembles = []
         self._current_uploaded_sequence_step_list = []
+        self._current_uploaded_segment_and_index = {}
+        self._current_uploaded_sequence_alternating = False
+        self._current_uploaded_sequence_freq_Sweep = False
+        self._current_uploaded_sequence_tau_array = np.zeros(1)
         self.CurrentUpload = os.path.join(os.getcwd(), 'hardware', 'awg', 'CurrentUpload.pkl')
         self.typeloaded = None
 
@@ -85,6 +89,10 @@ class AWG663(Base, PulserInterface):
         self.loaded_assets = dict.fromkeys(active_chan)
         self._current_uploaded_ensembles = []
         self._current_uploaded_sequence_step_list =  []
+        self._current_uploaded_segment_and_index = {}
+        self._current_uploaded_sequence_alternating = False
+        self._current_uploaded_sequence_freq_Sweep = False
+        self._current_uploaded_sequence_tau_array = np.zeros(1)
 
         self.print_log_info = True
 
@@ -305,6 +313,7 @@ class AWG663(Base, PulserInterface):
             self.typeloaded = 'waveform'
         self.log.info('Loaded waveform!')
         self._current_uploaded_ensembles = load_dict
+        self._current_uploaded_segment_and_index = {}
         self._current_uploaded_sequence_step_list = []
         return load_dict
 
@@ -378,6 +387,12 @@ class AWG663(Base, PulserInterface):
         status_dic = {-1: 'no communication with device', 0: 'device is active and ready'}
         self.status_dic = status_dic
         return num, status_dic
+    
+    def is_ready(self):
+        card1_ready = self.instance.cards[0].is_ready()
+        card2_ready = self.instance.cards[1].is_ready()
+
+        return card1_ready, card2_ready
 
     def get_sample_rate(self):
         """ Get the sample rate of the pulse generator hardware
@@ -1053,6 +1068,7 @@ class AWG663(Base, PulserInterface):
         if self.print_log_info:
             self.log.info('Upload to AWG complete')
         self._current_uploaded_ensembles = seqs
+        self._current_uploaded_segment_and_index = {}
         self._current_uploaded_sequence_step_list = []
         del seqs
 
@@ -1233,6 +1249,7 @@ class AWG663(Base, PulserInterface):
         for iseg, seg in enumerate(segments):
             self.load_sequence_segment(seqs=[seg], memsize_seq=None, segment_index=segment_and_index[seg])
         self._current_uploaded_ensembles = segments
+        self._current_uploaded_segment_and_index = segment_and_index
 
         for istep, step in enumerate(sequence_step_list):
             step_index = step['step_index']
