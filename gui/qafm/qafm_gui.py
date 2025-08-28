@@ -965,6 +965,8 @@ class ProteusQGUI(GUIBase):
 
         sd['retract_after_scan'] = self._sd.retract_after_scan_checkBox.isChecked()
         sd['keep_position_after_force_stop'] = self._sd.keep_position_after_forced_stop_checkBox.isChecked()
+        sd['compressed_sensing'] = self._sd.compressed_sensing_checkBox.isChecked()
+        sd['compressed_sensing_random_sampling_probability'] = self._sd.compressed_sensing_random_sampling_probability_DoubleSpinBox.value()
         # general settings
         # sd['idle_move_target_sample'] = self._sd.idle_move_target_sample_DoubleSpinBox.value()
         # sd['idle_move_target_obj'] = self._sd.idle_move_target_obj_DoubleSpinBox.value()
@@ -1044,6 +1046,9 @@ class ProteusQGUI(GUIBase):
 
         self._sd.retract_after_scan_checkBox.setChecked(sd['retract_after_scan'])
         self._sd.keep_position_after_forced_stop_checkBox.setChecked(sd['keep_position_after_force_stop'])
+
+        self._sd.compressed_sensing_checkBox.setChecked(sd['compressed_sensing'])
+        self._sd.compressed_sensing_random_sampling_probability_DoubleSpinBox.setValue(sd['compressed_sensing_random_sampling_probability'])
 
         # general settings
         # self._sd.idle_move_target_sample_DoubleSpinBox.setValue(sd['idle_move_target_sample'])
@@ -3546,6 +3551,10 @@ class ProteusQGUI(GUIBase):
         tip_osc_turn_on_time = self._mw.tipOscOnTime_doubleSpinBox.value()
         measure_tip_osc_on_and_off = self._mw.measureTipOscOnOff_checkBox.isChecked()
 
+        #compressed sensing with random sampling
+        random_sampling = self._sd.compressed_sensing_checkBox.isChecked()
+        random_sampling_probability = self._sd.compressed_sensing_random_sampling_probability_DoubleSpinBox.value()
+
         if self._qm.calculate_field_groupBox.isChecked():
             if self._qm.esr_single_res_RadioButton.isChecked():
                 calc_magnetic_field = 'single'
@@ -3587,7 +3596,8 @@ class ProteusQGUI(GUIBase):
             loaded_sequence_mode_tracking_podmr = loaded_sequence_mode_tracking_podmr, loaded_sequence_res_freq=loaded_sequence_res_freq, num_runs_tracking = pulse_repetition_tracking,
             liftoff_mode=liftoff_mode, liftoff_height=liftoff_height,
             tip_osc_off = tip_osc_off, tip_osc_turn_off_time = tip_osc_turn_off_time, tip_osc_turn_on_time = tip_osc_turn_on_time, measure_tip_osc_on_and_off = measure_tip_osc_on_and_off,
-            calc_magnetic_field=calc_magnetic_field, bias_data=bias_data)
+            calc_magnetic_field=calc_magnetic_field, bias_data=bias_data,
+            random_sampling = random_sampling, random_sampling_probability = random_sampling_probability)
 
     def stop_pulsed_measure_clicked(self):
         self.stop_any_scanning()

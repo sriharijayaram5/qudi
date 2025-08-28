@@ -26,160 +26,64 @@
       <enum>QTabWidget::Rounded</enum>
      </property>
      <property name="currentIndex">
-      <number>1</number>
+      <number>0</number>
      </property>
      <widget class="QWidget" name="tab">
       <attribute name="title">
        <string>Scanning</string>
       </attribute>
       <layout class="QGridLayout" name="gridLayout_2">
-       <item row="3" column="0">
-        <widget class="QLabel" name="label_12">
+       <item row="0" column="0">
+        <widget class="QCheckBox" name="retract_after_scan_checkBox">
          <property name="text">
-          <string>Int. time counts per pixel SAMPLE SCAN (s)</string>
+          <string>Retract after scan</string>
          </property>
         </widget>
        </item>
-       <item row="3" column="1">
-        <widget class="ScienDSpinBox" name="int_time_counts_sample_scan_DoubleSpinBox">
-         <property name="toolTip">
-          <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;The integration time per pixel for a sample scan. &lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-         </property>
-         <property name="suffix">
-          <string>s</string>
-         </property>
-         <property name="decimals">
-          <number>1</number>
-         </property>
-         <property name="maximum">
-          <double>20.000000000000000</double>
-         </property>
-         <property name="singleStep">
-          <double>0.100000000000000</double>
-         </property>
-         <property name="value">
-          <double>0.000000000000000</double>
-         </property>
-        </widget>
-       </item>
-       <item row="4" column="1">
-        <widget class="ScienDSpinBox" name="int_time_obj_scan_DoubleSpinBox">
-         <property name="toolTip">
-          <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;The integration time per pixel for an objective scan. Be aware to choose this number wisely, as it determines your scan speed.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-         </property>
-         <property name="suffix">
-          <string>s</string>
-         </property>
-         <property name="decimals">
-          <number>1</number>
-         </property>
-         <property name="maximum">
-          <double>20.000000000000000</double>
-         </property>
-         <property name="singleStep">
-          <double>0.100000000000000</double>
-         </property>
-         <property name="value">
-          <double>0.000000000000000</double>
-         </property>
-        </widget>
-       </item>
-       <item row="2" column="1">
-        <widget class="ScienDSpinBox" name="int_time_sample_scan_DoubleSpinBox">
-         <property name="toolTip">
-          <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;The integration time per pixel for a sample scan. &lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-         </property>
-         <property name="suffix">
-          <string>s</string>
-         </property>
-         <property name="decimals">
-          <number>1</number>
-         </property>
-         <property name="maximum">
-          <double>20.000000000000000</double>
-         </property>
-         <property name="singleStep">
-          <double>0.100000000000000</double>
-         </property>
-         <property name="value">
-          <double>0.000000000000000</double>
+       <item row="0" column="1">
+        <widget class="QCheckBox" name="keep_position_after_forced_stop_checkBox">
+         <property name="text">
+          <string>Keep XY position after forced stop</string>
          </property>
         </widget>
        </item>
        <item row="1" column="0">
+        <widget class="QCheckBox" name="compressed_sensing_checkBox">
+         <property name="text">
+          <string>Compressed sensing with random sampling probability:</string>
+         </property>
+        </widget>
+       </item>
+       <item row="1" column="1">
+        <widget class="ScienDSpinBox" name="compressed_sensing_random_sampling_probability_DoubleSpinBox">
+         <property name="toolTip">
+          <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;The integration time per pixel for a sample scan. &lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+         </property>
+         <property name="suffix">
+          <string/>
+         </property>
+         <property name="decimals">
+          <number>2</number>
+         </property>
+         <property name="maximum">
+          <double>1.000000000000000</double>
+         </property>
+         <property name="singleStep">
+          <double>0.100000000000000</double>
+         </property>
+         <property name="value">
+          <double>1.000000000000000</double>
+         </property>
+        </widget>
+       </item>
+       <item row="2" column="0">
         <widget class="QLabel" name="label_2">
          <property name="text">
           <string>Scan speed during SAMPLE SCAN (s)</string>
          </property>
         </widget>
        </item>
-       <item row="7" column="1">
-        <widget class="QSpinBox" name="n_iso_b_n_freq_splits_SpinBox">
-         <property name="toolTip">
-          <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;The number of frequency sub-splits used per pixel (1= no splitting).  This only applies to n-iso-B measurement types&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-         </property>
-         <property name="minimum">
-          <number>1</number>
-         </property>
-         <property name="maximum">
-          <number>100</number>
-         </property>
-        </widget>
-       </item>
-       <item row="4" column="0">
-        <widget class="QLabel" name="label_10">
-         <property name="text">
-          <string>Int. time per pixel OBJ SCAN (s)</string>
-         </property>
-        </widget>
-       </item>
-       <item row="6" column="1">
-        <widget class="QDoubleSpinBox" name="n_iso_b_pulse_margin_DoubleSpinBox">
-         <property name="toolTip">
-          <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;The fraction of the pixel scan integration time to remain as dead time before the next pixel clock pulse.  This only applies to n-iso-B measurement types&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-         </property>
-         <property name="decimals">
-          <number>3</number>
-         </property>
-         <property name="maximum">
-          <double>1.000000000000000</double>
-         </property>
-         <property name="singleStep">
-          <double>0.001000000000000</double>
-         </property>
-         <property name="value">
-          <double>0.005000000000000</double>
-         </property>
-        </widget>
-       </item>
-       <item row="5" column="1">
-        <widget class="QCheckBox" name="iso_b_autocalibrate_CheckBox">
-         <property name="toolTip">
-          <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Use autocalibrate option to directly obtain the pixel clock margin.&lt;br/&gt;Using this option, the pixel clock margin will be determined from the quench scan results. To utilize this option, perform a quench scan with the same integration time settings as the proposed dual iso-B scan.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-         </property>
-         <property name="layoutDirection">
-          <enum>Qt::LeftToRight</enum>
-         </property>
-         <property name="text">
-          <string>Automatically calibrate margin</string>
-         </property>
-        </widget>
-       </item>
-       <item row="7" column="0">
-        <widget class="QLabel" name="n_iso_b_n_freq_splits_Label">
-         <property name="text">
-          <string>Dual Iso-B frequency sub-splits</string>
-         </property>
-        </widget>
-       </item>
-       <item row="2" column="0">
-        <widget class="QLabel" name="label_11">
-         <property name="text">
-          <string>Int. time topography per pixel SAMPLE SCAN (s)</string>
-         </property>
-        </widget>
-       </item>
-       <item row="1" column="1">
+       <item row="2" column="1">
         <widget class="ScienDSpinBox" name="idle_move_scan_sample_DoubleSpinBox">
          <property name="toolTip">
           <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-size:10pt;&quot;&gt;The speed the sample scanner can take for an idle move, i.e. a move where no measurement is performed. Be careful with speeds greater than 1um/s.&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
@@ -201,7 +105,94 @@
          </property>
         </widget>
        </item>
+       <item row="3" column="0">
+        <widget class="QLabel" name="label_11">
+         <property name="text">
+          <string>Int. time topography per pixel SAMPLE SCAN (s)</string>
+         </property>
+        </widget>
+       </item>
+       <item row="3" column="1">
+        <widget class="ScienDSpinBox" name="int_time_sample_scan_DoubleSpinBox">
+         <property name="toolTip">
+          <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;The integration time per pixel for a sample scan. &lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+         </property>
+         <property name="suffix">
+          <string>s</string>
+         </property>
+         <property name="decimals">
+          <number>1</number>
+         </property>
+         <property name="maximum">
+          <double>20.000000000000000</double>
+         </property>
+         <property name="singleStep">
+          <double>0.100000000000000</double>
+         </property>
+         <property name="value">
+          <double>0.000000000000000</double>
+         </property>
+        </widget>
+       </item>
+       <item row="4" column="0">
+        <widget class="QLabel" name="label_12">
+         <property name="text">
+          <string>Int. time counts per pixel SAMPLE SCAN (s)</string>
+         </property>
+        </widget>
+       </item>
+       <item row="4" column="1">
+        <widget class="ScienDSpinBox" name="int_time_counts_sample_scan_DoubleSpinBox">
+         <property name="toolTip">
+          <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;The integration time per pixel for a sample scan. &lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+         </property>
+         <property name="suffix">
+          <string>s</string>
+         </property>
+         <property name="decimals">
+          <number>1</number>
+         </property>
+         <property name="maximum">
+          <double>20.000000000000000</double>
+         </property>
+         <property name="singleStep">
+          <double>0.100000000000000</double>
+         </property>
+         <property name="value">
+          <double>0.000000000000000</double>
+         </property>
+        </widget>
+       </item>
        <item row="5" column="0">
+        <widget class="QLabel" name="label_10">
+         <property name="text">
+          <string>Int. time per pixel OBJ SCAN (s)</string>
+         </property>
+        </widget>
+       </item>
+       <item row="5" column="1">
+        <widget class="ScienDSpinBox" name="int_time_obj_scan_DoubleSpinBox">
+         <property name="toolTip">
+          <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;The integration time per pixel for an objective scan. Be aware to choose this number wisely, as it determines your scan speed.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+         </property>
+         <property name="suffix">
+          <string>s</string>
+         </property>
+         <property name="decimals">
+          <number>1</number>
+         </property>
+         <property name="maximum">
+          <double>20.000000000000000</double>
+         </property>
+         <property name="singleStep">
+          <double>0.100000000000000</double>
+         </property>
+         <property name="value">
+          <double>0.000000000000000</double>
+         </property>
+        </widget>
+       </item>
+       <item row="6" column="0">
         <widget class="QCheckBox" name="iso_b_operation_CheckBox">
          <property name="toolTip">
           <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Enable 'Iso-B' mode, which will extend the QAFM scan.&lt;br/&gt;In this mode you will be able to set in the main window a MW frequency and the MW gain value to apply an MW signal during the QAFM scan. Ideally, you should have measured an ESR spectrum before, to obtain the proper parameters for MW frequency and MW gain. A suggested selection for the MW frequency is at the FWHM (full-width half-maximum) points of one of the ESR resonance peaks from the nitrogen vacancy (i.e. where the slope is maximal).&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
@@ -214,24 +205,62 @@
          </property>
         </widget>
        </item>
-       <item row="6" column="0">
+       <item row="6" column="1">
+        <widget class="QCheckBox" name="iso_b_autocalibrate_CheckBox">
+         <property name="toolTip">
+          <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Use autocalibrate option to directly obtain the pixel clock margin.&lt;br/&gt;Using this option, the pixel clock margin will be determined from the quench scan results. To utilize this option, perform a quench scan with the same integration time settings as the proposed dual iso-B scan.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+         </property>
+         <property name="layoutDirection">
+          <enum>Qt::LeftToRight</enum>
+         </property>
+         <property name="text">
+          <string>Automatically calibrate margin</string>
+         </property>
+        </widget>
+       </item>
+       <item row="7" column="0">
         <widget class="QLabel" name="n_iso_b_pulse_margin_Label">
          <property name="text">
           <string>Dual Iso-B pulse length margin</string>
          </property>
         </widget>
        </item>
-       <item row="0" column="0">
-        <widget class="QCheckBox" name="retract_after_scan_checkBox">
-         <property name="text">
-          <string>Retract after scan</string>
+       <item row="7" column="1">
+        <widget class="QDoubleSpinBox" name="n_iso_b_pulse_margin_DoubleSpinBox">
+         <property name="toolTip">
+          <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;The fraction of the pixel scan integration time to remain as dead time before the next pixel clock pulse.  This only applies to n-iso-B measurement types&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+         </property>
+         <property name="decimals">
+          <number>3</number>
+         </property>
+         <property name="maximum">
+          <double>1.000000000000000</double>
+         </property>
+         <property name="singleStep">
+          <double>0.001000000000000</double>
+         </property>
+         <property name="value">
+          <double>0.005000000000000</double>
          </property>
         </widget>
        </item>
-       <item row="0" column="1">
-        <widget class="QCheckBox" name="keep_position_after_forced_stop_checkBox">
+       <item row="8" column="0">
+        <widget class="QLabel" name="n_iso_b_n_freq_splits_Label">
          <property name="text">
-          <string>Keep XY position after forced stop</string>
+          <string>Dual Iso-B frequency sub-splits</string>
+         </property>
+        </widget>
+       </item>
+       <item row="8" column="1">
+        <widget class="QSpinBox" name="n_iso_b_n_freq_splits_SpinBox">
+         <property name="toolTip">
+          <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;The number of frequency sub-splits used per pixel (1= no splitting).  This only applies to n-iso-B measurement types&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+         </property>
+         <property name="minimum">
+          <number>1</number>
+         </property>
+         <property name="maximum">
+          <number>100</number>
          </property>
         </widget>
        </item>
@@ -664,6 +693,8 @@
   <tabstop>settings_tabWidget</tabstop>
   <tabstop>retract_after_scan_checkBox</tabstop>
   <tabstop>keep_position_after_forced_stop_checkBox</tabstop>
+  <tabstop>compressed_sensing_checkBox</tabstop>
+  <tabstop>compressed_sensing_random_sampling_probability_DoubleSpinBox</tabstop>
   <tabstop>idle_move_scan_sample_DoubleSpinBox</tabstop>
   <tabstop>int_time_sample_scan_DoubleSpinBox</tabstop>
   <tabstop>int_time_counts_sample_scan_DoubleSpinBox</tabstop>
