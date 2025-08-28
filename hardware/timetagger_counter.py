@@ -95,7 +95,8 @@ class TimeTaggerCounter(Base, SlowCounterInterface, RecorderInterface):
     _pixelclock_click_chn = ConfigOption('pixelclock_click_chn', 1, missing='error')
     _pixelclock_end_chn = ConfigOption('pixelclock_end_chn', 3, missing='error')
     _channel_detect = ConfigOption('timetagger_channel_detect', 2, missing='error')
-    _channel_next = ConfigOption('timetagger_channel_next', 3, missing='error')
+    _channel_next_0 = ConfigOption('timetagger_channel_next_0', 3, missing='error')
+    _channel_next_1 = ConfigOption('timetagger_channel_next_1', None, missing='warn')
     _spm_sync = ConfigOption('timetagger_spm_sync', 4, missing='error')
     _recorder_constraints = RecorderConstraints()
 
@@ -113,6 +114,12 @@ class TimeTaggerCounter(Base, SlowCounterInterface, RecorderInterface):
 
         if self._sum_channels and self._channel_apd_1 is None:
             self.log.error('Cannot sum channels when only one apd channel given')
+
+        if self._channel_next_1 is not None:
+            self._channel_next_combined = tt.Combiner(self._tagger, channels = [self._channel_next_0, self._channel_next_1])
+            self._channel_next = self._channel_next_combined.getChannel()
+        else:
+            self._channel_next = self._channel_next_0
 
         ## self._mode can take 3 values:
         # 0: single channel, no summing

@@ -45,7 +45,8 @@ class TimeTaggerFastCounter(Base, FastCounterInterface):
     _channel_apd_0 = ConfigOption('timetagger_channel_apd_0', missing='error')
     _channel_apd_1 = ConfigOption('timetagger_channel_apd_1', missing='info')
     _channel_detect = ConfigOption('timetagger_channel_detect', missing='error')
-    _channel_next = ConfigOption('timetagger_channel_next', missing='error')
+    _channel_next_0 = ConfigOption('timetagger_channel_next_0', missing='error')
+    _channel_next_1 = ConfigOption('timetagger_channel_next_1', None, missing='warn')
     _channel_sequence = ConfigOption('timetagger_channel_sequence', missing='error')
     _sum_channels = ConfigOption('timetagger_sum_channels', True, missing='warn')
 
@@ -64,6 +65,12 @@ class TimeTaggerFastCounter(Base, FastCounterInterface):
             self._channel_apd = self._channel_combined.getChannel()
         else:
             self._channel_apd = self._channel_apd_0
+
+        if self._channel_next_1 is not None:
+            self._channel_next_combined = tt.Combiner(self._tagger, channels = [self._channel_next_0, self._channel_next_1])
+            self._channel_next = self._channel_next_combined.getChannel()
+        else:
+            self._channel_next = self._channel_next_0
 
         self.log.info('TimeTagger (fast counter) configured to use  channel {0}'
                       .format(self._channel_apd))
