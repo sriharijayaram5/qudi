@@ -126,7 +126,7 @@ class QAFMPulseDataViewerGUI(GUIBase):
         self._mw.actionSave_Display.triggered.connect(self.save_view)
         self._mw.actionLoad_Display.triggered.connect(self.load_view)
 
-        self._qafm_logic.sigQAFMLineScanFinished.connect(self._update_data_viewer_data)
+        self._qafm_logic.sigQAFMLineScanFinished.connect(self.update_data_viewer_data_after_scanpoint)
 
         self._qafm_logic.sigQAFMScanInitialized.connect(self.new_scan_started)
 
@@ -555,6 +555,10 @@ class QAFMPulseDataViewerGUI(GUIBase):
         """
         self._mw.restoreState(self.saved_default_view)
 
+    def update_data_viewer_data_after_scanpoint(self):
+        if self._mw.update_after_scan_point_checkBox.isChecked():
+            self._update_data_viewer_data()
+    
     def adjust_data_viewer_image(self):
         """ Fit the axis and range parameters to the currently started scan. """
         self._mw.view_data_pushButton.setEnabled(False)
