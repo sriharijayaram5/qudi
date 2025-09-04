@@ -3276,17 +3276,40 @@ class AFMConfocalLogic(GenericLogic):
             self.scan_arr = self.create_scan_array(coord0_origin, coord0_range, coord0_num,
                                             coord1_origin, coord1_range,
                                             coord1_num, rotation)
+            
+            explicit_steps_list = []
+            loop_number_list = []
+            measurement_type = None
+            former_pulsed_measurement_info = {}
+            sequence_step_list = []
 
-            #Prepare the arb. sequence for qafm scan
-            uploaded_sequence_step_list = self.pulsed_jupyter_logic.AWG._current_uploaded_sequence_step_list
+            if self.pulsed_jupyter_logic.point_by_point_several_sequences_measurement:
+                point_by_point_sequence_step_list = self.pulsed_jupyter_logic.transformed_several_sequences_step_list.copy()
+                point_by_point_sequence_step_list_alt = self.pulsed_jupyter_logic.transformed_several_sequences_step_list_alt.copy()
+                loop_number_list = self.pulsed_jupyter_logic.loop_number_list.copy()
+                
+                explicit_steps_list = point_by_point_sequence_step_list.copy()
+                explicit_steps_list = explicit_steps_list + point_by_point_sequence_step_list_alt.copy()
+                measurement_type = 'point_by_point_several_sequences_measurement'
 
-            #Remove the tracking sequence step, if it excists. This allows to run the scan several times in a row without breaking it
-            for idx, sequence_step in enumerate(uploaded_sequence_step_list):
-                if podmr_tracking_name in sequence_step['step_segment'] or two_point_tracking_name in sequence_step['step_segment']:
-                    del uploaded_sequence_step_list[idx]
+                sequence_step_list.append(point_by_point_sequence_step_list)
+                sequence_step_list.append(point_by_point_sequence_step_list_alt)
+
+                former_pulsed_measurement_info['measurement_type'] = 'point_by_point_several_sequences_measurement'
+                former_pulsed_measurement_info['point_by_point_sequence_step_list'] = self.pulsed_jupyter_logic.transformed_several_sequences_step_list.copy()
+                former_pulsed_measurement_info['point_by_point_sequence_step_list_alt'] = self.pulsed_jupyter_logic.transformed_several_sequences_step_list_alt.copy()
+                
+            elif self.pulsed_jupyter_logic.point_by_point_large_sequence_measurement:
+                explicit_steps_list = self.pulsed_jupyter_logic.sequence_step_list.copy()
+                measurement_type = 'point_by_point_large_sequence_measurement'
+                former_pulsed_measurement_info['measurement_type'] = 'point_by_point_large_sequence_measurement'
+            else:
+                explicit_steps_list = self.pulsed_jupyter_logic.sequence_step_list.copy()
+                measurement_type = 'sweeping_measurement'
+                former_pulsed_measurement_info['measurement_type'] = 'sweeping_measurement'
 
             #Check, if there is something uplouded on the AWG
-            if len(uploaded_sequence_step_list) == 0:
+            if len(explicit_steps_list) == 0:
                 self.sigQuantiScanFinished.emit()
                 self._mw.off()
                 # self._counter.stop_measurement()
@@ -3295,38 +3318,23 @@ class AFMConfocalLogic(GenericLogic):
                 self.log.error('No sequence is uploaded on the AWG to be played in arb. sequence qafm scan.') 
                 
                 return {}
-            
-            #Prepare the sequence step list, if there is only one large segment uploaded on the AWG.
-            #In this case, the AWG can be stopped after the pulsed measurement with the step_end_cond = 'stop'
-            elif len(uploaded_sequence_step_list) == 1:
-                uploaded_sequence_step_list[0]['step_index'] = 0
-                uploaded_sequence_step_list[0]['step_loops'] = num_runs
-                uploaded_sequence_step_list[0]['next_step_index'] = 0
-                uploaded_sequence_step_list[0]['step_end_cond'] = 'always'
-                tracking_step = 1 #arb. sequence is step 0, tracking is step 1
 
-            #Prepare the sequence step list, if there are several segments uploaded on the AWG (e.g. for T1 measurements). 
-            #In this case, the AWG cannot be stopped after the pulsed measurement with the step_end_cond = 'stop', so one has to end it manually.
-            #The number of steps is limited to 4096 (awg_spectrum.instance.cards[0].get32(349901))
-            else:
-                for idx, step in enumerate(uploaded_sequence_step_list):
-                    step['step_index'] = idx
-                    step['step_loops'] = 1
-                    step['next_step_index'] = 0 if idx+1 == len(uploaded_sequence_step_list) else idx+1
-                    step['step_end_cond'] = 'always'
-                tracking_step = len(uploaded_sequence_step_list) #ar. sequence is step 0 to len(uploaded_sequence_step_list)-1, tracking is step len(uploaded_sequence_step_list)
-
-
-            explicit_steps_list = uploaded_sequence_step_list
             LO_freq = loaded_sequence_res_freq +100e6
 
             #Get Parameters for the arb. sequence
+            tracking_step = len(explicit_steps_list)
+            freq_sweep = self.pulsed_jupyter_logic.freq_sweep
             alternating = self._pulsed_master_AWG.measurement_settings['alternating']
             laser_pulses = self._pulsed_master_AWG.measurement_settings['number_of_lasers']
             var_list = self._pulsed_master_AWG.measurement_settings['controlled_variable']
             bin_width_s = self._pulsed_master_AWG.fast_counter_settings['bin_width']
             record_length_s = self._pulsed_master_AWG.fast_counter_settings['record_length'] #This already includes the extra time for the timetagger add_tt_read_out
             analysis_settings = self._pulsed_master_AWG.analysis_settings
+
+            former_pulsed_measurement_info['sequence_step_list'] = self.pulsed_jupyter_logic.sequence_step_list.copy()
+            former_pulsed_measurement_info['tau_arr'] = var_list
+            former_pulsed_measurement_info['alternating'] = alternating
+            former_pulsed_measurement_info['freq_sweep'] = freq_sweep
 
             #Set up the pulse measurement run at each point
             #Upload and pepare the AWG and pulsestreamer for the PODMR sequence for tracking the res. frequency.
@@ -3398,7 +3406,7 @@ class AFMConfocalLogic(GenericLogic):
             if not loaded_sequence_mode_tracking_two_point and not loaded_sequence_mode_tracking_podmr:
                 ret_val = self._counter.configure_recorder(
                 mode=HWRecorderMode.GENERAL_PULSED,
-                params={'laser_pulses': laser_pulses, #already includes alternating information
+                params={'laser_pulses': laser_pulses if measurement_type == 'sweeping_measurement' else 1, #already includes alternating information for sweeping type
                         'bin_width_s': bin_width_s,
                         'record_length_s': record_length_s, #This already includes the extra time for the timetagger add_tt_read_out
                         'max_counts': int(num_runs-1)})
@@ -3547,6 +3555,8 @@ class AFMConfocalLogic(GenericLogic):
                 self._qafm_scan_array[entry]['params']['pi Duration'] = pi_duration
                 self._qafm_scan_array[entry]['params']['MW power (dBm)'] = mw_power
                 self._qafm_scan_array[entry]['params']['Measurement runs (#)'] = num_runs
+
+                self._qafm_scan_array[entry]['params']['Arb. pulse measurement frequency sweep'] = freq_sweep
 
                 self._qafm_scan_array[entry]['params']['AFM integration time per pixel (s)'] = afm_int_time
                 self._qafm_scan_array[entry]['params']['AFM scanner speed (m/s)'] = afm_scan_speed
@@ -3732,42 +3742,23 @@ class AFMConfocalLogic(GenericLogic):
                         #setup the timetagger for arb. pulse sequence after res. freq tracking
                         self._counter.configure_recorder(
                                 mode=HWRecorderMode.GENERAL_PULSED,
-                                params={'laser_pulses': laser_pulses, #already includes alternating information
+                                params={'laser_pulses': laser_pulses if measurement_type == 'sweeping_measurement' else 1,
                                         'bin_width_s': bin_width_s,
                                         'record_length_s': record_length_s, #This already includes the extra time for the timetagger add_tt_read_out
                                         'max_counts': int(num_runs-1)})
                         
                         #set the sequence step to the position of the arb. pulse sequence
                         self.pulsed_jupyter_logic.AWG.instance.set_sequence_start_step(0)
-
-                    #arm recorder for arb. sequence
-                    self._counter.start_recorder(arm=True)
-
-                    #Start arb. pulsed sequence measurement
-                    self._pulsed_master_AWG.pulsedmeasurementlogic().pulsegenerator().pulser_on()
                     
                     # obtain pulsed measurement
-                    pulsed_meas = self._counter.get_measurements()[0] # this is the blocking statement
-
-                    #Stop the AWG if necessary
-                    self._pulsed_master_AWG.pulsedmeasurementlogic().pulsegenerator().pulser_off()
+                    pulsed_meas = self.run_arb_pulse_measurement(measurement_type, var_list, loop_number_list, sequence_step_list, alternating) # this is the blocking statement
             
                     pulsed_ret0, pulsed_ret1, ref_data, ref_time = self.analyse_pulsed_meas(analysis_settings, pulsed_meas, alternating, False, False)
 
                     if liftoff_mode and measure_tip_osc_on_and_off:
                         self._spm.turn_on_tip_osc() #Turn on tip oscillation and measure again
 
-                        #arm recorder for arb. sequence
-                        self._counter.start_recorder(arm=True)
-
-                        #Start arb. pulsed sequence measurement
-                        self._pulsed_master_AWG.pulsedmeasurementlogic().pulsegenerator().pulser_on()
-                        
-                        # obtain pulsed measurement
-                        pulsed_meas_tip_osc_on = self._counter.get_measurements()[0] # this is the blocking statement
-
-                        #Stop the AWG if necessary
-                        self._pulsed_master_AWG.pulsedmeasurementlogic().pulsegenerator().pulser_off()
+                        pulsed_meas_tip_osc_on = self.run_arb_pulse_measurement(measurement_type, var_list, loop_number_list, sequence_step_list, alternating) # this is the blocking statement
                 
                         pulsed_ret0_tip_osc_on, pulsed_ret1_tip_osc_on, ref_data_tip_osc_on, ref_time_tip_osc_on = self.analyse_pulsed_meas(analysis_settings, pulsed_meas_tip_osc_on, alternating, False, False)
 
@@ -3865,11 +3856,120 @@ class AFMConfocalLogic(GenericLogic):
             self._mw.off()
             self._counter.stop_measurement()
             self._pulsed_master_AWG.pulsedmeasurementlogic().pulsegenerator().pulser_off()
-            self._pulsed_master.pulsedmeasurementlogic().pulsegenerator().pulser_off()      
+            self._pulsed_master.pulsedmeasurementlogic().pulsegenerator().pulser_off()    
+            self.retrive_former_pulsed_measurement_info(former_pulsed_measurement_info) #Reacreate the pulse measurement information to pulsed jupyter logic. This allows to run the measurement immidiately again, without rerunning the pulse measurement
             # self.module_state.unlock()
             self.sigQuantiScanFinished.emit()
 
             return self._qafm_scan_array
+    
+    def run_arb_pulse_measurement(self, measurement_type = '', tau_arr = [], loop_number_list = [], sequence_step_list = [], alternating = False):
+        if measurement_type == 'point_by_point_several_sequences_measurement':
+            return self.run_point_by_point_several_sequences_measurement(loop_number_list, sequence_step_list, alternating)
+        elif measurement_type ==  'point_by_point_large_sequence_measurement':
+            return self.run_point_by_point_large_sequence_measurement(tau_arr, alternating)
+        else:
+            return self.run_sweeping_measurement()
+        
+    def run_point_by_point_several_sequences_measurement(self, loop_number_list, sequence_step_list, alternating):
+        n_var = len(loop_number_list)*2 if alternating else len(loop_number_list)
+        n_bins = self._counter._record_length
+        raw_data = np.zeros((n_var, n_bins), dtype='int64')
+        
+        uploaded_segment_and_index = self.pulsed_jupyter_logic.AWG._current_uploaded_segment_and_index.copy()
+        for loop_idx, loop_num in enumerate(loop_number_list):
+            self._counter.start_recorder(arm=True)
+            for istep, step in enumerate(sequence_step_list[0]):
+                step_index = step['step_index']
+                mem_segment_index = uploaded_segment_and_index[step['step_segment']]
+                if self.pulsed_jupyter_logic.sweeping_tag in step['step_segment']:
+                    loops = loop_num
+                else:
+                    loops = step['step_loops']
+                goto = step['next_step_index']
+                next_condition = step['step_end_cond']
+                self.pulsed_jupyter_logic.AWG.instance.write_sequence_step(step_index, mem_segment_index, loops, goto, next_condition)    
+
+            self.pulsed_jupyter_logic.AWG.pulser_on()
+            if alternating:
+                raw_data[loop_idx*2] = self._counter.get_measurements()[0]
+            else:
+                raw_data[loop_idx] = self._counter.get_measurements()[0]
+            self.pulsed_jupyter_logic.AWG.pulser_off()
+            
+            if alternating:
+                self._counter.start_recorder(arm=True)
+                for istep, step in enumerate(sequence_step_list[1]):
+                    step_index = step['step_index']
+                    mem_segment_index = uploaded_segment_and_index[step['step_segment']]
+                    if self.pulsed_jupyter_logic.sweeping_tag in step['step_segment']:
+                        loops = loop_num
+                    else:
+                        loops = step['step_loops']
+                    goto = step['next_step_index']
+                    next_condition = step['step_end_cond']
+                    self.pulsed_jupyter_logic.AWG.instance.write_sequence_step(step_index, mem_segment_index, loops, goto, next_condition)
+
+                self.pulsed_jupyter_logic.AWG.pulser_on()
+                raw_data[loop_idx*2+1] = self._counter.get_measurements()[0]
+                self.pulsed_jupyter_logic.AWG.pulser_off()
+        return raw_data
+
+    def run_point_by_point_large_sequence_measurement(self, tau_arr, alternating):
+        n_var = len(tau_arr)*2 if alternating else len(tau_arr)
+        n_bins = self._counter._record_length
+        raw_data = np.zeros((n_var, n_bins), dtype='int64')
+        
+        for idx, tau in enumerate(tau_arr):
+            if alternating:
+                    self.pulsed_jupyter_logic.AWG.instance.set_sequence_start_step(idx*2)
+            else:
+                self.pulsed_jupyter_logic.AWG.instance.set_sequence_start_step(idx)
+            self._counter.start_recorder(arm=True)  
+
+            self.pulsed_jupyter_logic.AWG.pulser_on()
+            if alternating:
+                raw_data[idx*2] = self._counter.get_measurements()[0]
+            else:
+                raw_data[idx] = self._counter.get_measurements()[0]
+            self.pulsed_jupyter_logic.AWG.pulser_off()
+            
+            if alternating:
+                self.pulsed_jupyter_logic.AWG.instance.set_sequence_start_step(idx*2+1)
+                self._counter.start_recorder(arm=True)
+                self.pulsed_jupyter_logic.AWG.pulser_on()
+                raw_data[idx*2+1] = self._counter.get_measurements()[0]
+                self.pulsed_jupyter_logic.AWG.pulser_off()
+        return raw_data
+
+    def run_sweeping_measurement(self):
+        #arm recorder for arb. sequence
+        self._counter.start_recorder(arm=True)
+
+        #Start arb. pulsed sequence measurement
+        self._pulsed_master_AWG.pulsedmeasurementlogic().pulsegenerator().pulser_on()
+        
+        # obtain pulsed measurement
+        pulsed_meas = self._counter.get_measurements()[0] # this is the blocking statement
+
+        #Stop the AWG if necessary
+        self._pulsed_master_AWG.pulsedmeasurementlogic().pulsegenerator().pulser_off()
+        return pulsed_meas
+    
+    def retrive_former_pulsed_measurement_info(self, former_pulsed_measurement_info):
+        if former_pulsed_measurement_info['measurement_type'] == 'point_by_point_several_sequences_measurement':
+            self.pulsed_jupyter_logic.point_by_point_several_sequences_measurement = True
+            self.pulsed_jupyter_logic.point_by_point_large_sequence_measurement = False
+            self.pulsed_jupyter_logic.transformed_several_sequences_step_list = former_pulsed_measurement_info['point_by_point_sequence_step_list'].copy()
+            self.pulsed_jupyter_logic.transformed_several_sequences_step_list_alt = former_pulsed_measurement_info['point_by_point_sequence_step_list_alt'].copy()
+        elif former_pulsed_measurement_info['measurement_type'] == 'point_by_point_large_sequence_measurement':
+            self.pulsed_jupyter_logic.point_by_point_several_sequences_measurement = False
+            self.pulsed_jupyter_logic.point_by_point_large_sequence_measurement = True
+            
+        self.pulsed_jupyter_logic.sequence_step_list = former_pulsed_measurement_info['sequence_step_list'].copy()
+        self.pulsed_jupyter_logic.tau_arr = former_pulsed_measurement_info['tau_arr'].copy()
+        self.pulsed_jupyter_logic.alternating = former_pulsed_measurement_info['alternating']
+        self.pulsed_jupyter_logic.freq_sweep = former_pulsed_measurement_info['freq_sweep']
     
     def analyse_pulsed_meas(self, analysis_settings, pulsed_meas, alternating=False, mw_list_mode=False, mw_tracking_mode=False):
         ref_data, ref_time = (0,0)
