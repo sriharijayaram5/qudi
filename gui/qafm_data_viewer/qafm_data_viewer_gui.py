@@ -75,10 +75,11 @@ class QAFMPulseDataViewerGUI(GUIBase):
     _config_color_map = ConfigOption('color_map')  # user specification in config file
 
     _image_container = {}
+    _plot_container = {}
     _cb_container = {}
     _dockwidget_container = {}
 
-    _data_view_tabs = ['d1', 'd2', 'd3', 'd4', 'Calculation', 'Fit']
+    _data_view_tabs = ['d1', 'd2', 'd3', 'd4', 'Calculation', 'Fit', 'Pulsed_Measurement']
     _dataset_container = ['d1', 'd2', 'd3', 'd4']
     _dataset_combobox_container = []
     _dataset_index_container = []
@@ -182,13 +183,21 @@ class QAFMPulseDataViewerGUI(GUIBase):
 
         self.setup_dataset_combobox_and_index()
         self.adjust_dataset_index_DoubleSpinBox()
+        self.adjust_coordinate_SpinBox()
         self._mw.update_after_scan_point_checkBox.stateChanged.connect(self.update_after_scan_point_checkbox_changed)
         self._mw.centralwidget.hide()
         self._mw.setDockNestingEnabled(True)
         self._create_dockwidgets()
         self._set_aspect_ratio_images()
         self._mw.view_data_pushButton.clicked.connect(self.adjust_data_viewer_image)
+        self._mw.view_pulsed_measurement_pushButton.clicked.connect(self.adjust_pulsed_measurement_image)
+        self._mw.update_from_crosshair_pushButton.clicked.connect(self.update_from_crosshair)
+        self._mw.update_from_crosshair_pushButton.setEnabled(False)
+        self._mw.x_coord_index_SpinBox.editingFinished.connect(self.update_crosshair_pos_from_spinbox)
+        self._mw.y_coord_index_SpinBox.editingFinished.connect(self.update_crosshair_pos_from_spinbox)
+        self._mw.show_crosshair_checkBox.stateChanged.connect(self.toggle_crosshair)
         self._qafm_logic.sigQAFMScanInitialized.connect(self.adjust_dataset_index_DoubleSpinBox)
+        self._qafm_logic.sigQAFMScanInitialized.connect(self.adjust_coordinate_SpinBox)
 
     def setup_dataset_combobox_and_index(self):
         self._dataset_combobox_container = [self._mw.dataset1_comboBox, self._mw.dataset2_comboBox, self._mw.dataset3_comboBox, self._mw.dataset4_comboBox]
@@ -204,6 +213,14 @@ class QAFMPulseDataViewerGUI(GUIBase):
         self._mw.dataset3_index_SpinBox.setMaximum(max_index)
         self._mw.dataset4_index_SpinBox.setMinimum(-1)
         self._mw.dataset4_index_SpinBox.setMaximum(max_index)
+
+    def adjust_coordinate_SpinBox(self):
+        x_coord_max = self._qafm_logic._pulsed_scan_array['pulsed_fw']['coord0_arr'].shape[0]-1
+        y_coord_max = self._qafm_logic._pulsed_scan_array['pulsed_fw']['coord1_arr'].shape[0]-1
+        self._mw.x_coord_index_SpinBox.setMinimum(-1)
+        self._mw.x_coord_index_SpinBox.setMaximum(x_coord_max)
+        self._mw.y_coord_index_SpinBox.setMinimum(-1)
+        self._mw.y_coord_index_SpinBox.setMaximum(y_coord_max)
 
     def update_used_fit_parameter_comboBox(self):
         current_fit = self._mw.used_fit_comboBox.currentText()
@@ -251,6 +268,36 @@ class QAFMPulseDataViewerGUI(GUIBase):
         self._image_container[name] = ScanImageItem(image=data_matrix, 
                                                     axisOrder='row-major')
         return self._image_container[name]
+    
+    def _create_plot_item(self, name, x_axis, y_axis):
+        """ Create a plot item to display 1D measurements.
+
+        @param str name: The name for the Plot Item
+        @param np.array x_axis: 1D array containing values for x axis (in SI)
+        @param np.array y_axis: 1D array containing values for y axis (in SI)
+
+        @return pyqtgraph.PlotDataItem: object holding the 1D measurement.
+        """
+        _pen = pg.mkPen(palette.c1,style=QtCore.Qt.DotLine)
+        _palette = palette.c1
+        _width = 4
+        _symbolSize = 7
+        _symbol = 'o'
+        if 'fit' in name:
+            _pen = pg.mkPen(palette.c2,style=QtCore.Qt.SolidLine)
+            _palette = palette.c2
+            _width = 2
+            _symbol = 'd'
+            _symbolSize = 3
+        self._plot_container[name] = pg.PlotDataItem(x=x_axis, y=y_axis,
+                                                     pen=_pen,
+                                                     symbol=_symbol,
+                                                     symbolPen=_palette,
+                                                     symbolBrush=_palette,
+                                                     symbolSize=_symbolSize,
+                                                     width=_width
+                                                    )
+        return self._plot_container[name]
 
     def setColorMap(self, cmap_name):
         """ Sets the current color map, and then color scale based on 
@@ -338,7 +385,7 @@ class QAFMPulseDataViewerGUI(GUIBase):
         ref_last_dockwidget = None
         is_first = True
 
-        pulse_data = self._qafm_logic._pulsed_scan_array['pulsed_fw']['data']
+        pulsed_data = self._qafm_logic.get_pulsed_data()
 
         for obj_name in self._data_view_tabs:
 
@@ -349,8 +396,14 @@ class QAFMPulseDataViewerGUI(GUIBase):
             setattr(self._mw,  f'dockWidget_{obj_name}', dockwidget)
             dockwidget.name = obj_name # store the original name. 
             skip_colorcontrol = False
+
+            # take a different creation style for line widgets
+            if 'Pulsed_Measurement' in obj_name:
+                self._create_internal_line_widgets(dockwidget)
+            else: 
+                self._create_internal_widgets(dockwidget, skip_colorcontrol)
             
-            self._create_internal_widgets(dockwidget, skip_colorcontrol)
+            
 
             dockwidget.setWindowTitle(obj_name)
             dockwidget.setObjectName(f'dockWidget_{obj_name}')
@@ -373,27 +426,43 @@ class QAFMPulseDataViewerGUI(GUIBase):
                 self._mw.addDockWidget(QtCore.Qt.DockWidgetArea(4), dockwidget)
                 self._mw.tabifyDockWidget(ref_last_dockwidget, dockwidget)
 
-            image_item = self._create_image_item(obj_name, pulse_data)
-            dockwidget.graphicsView_matrix.addItem(image_item)
-            c_scale = ColorScaleGen('bwr')
+            if 'Pulsed_Measurement' in obj_name:
+                plot_item = self._create_plot_item(obj_name, 
+                               pulsed_data['pulsed_fw']['coord2_arr'], 
+                               pulsed_data['pulsed_fw']['data'][0,0,:])
+
+                dockwidget.graphicsView.addItem(plot_item)
+                data_name = 'Signal'
+                meas_units = 'arb. u.'
+                x_axis_name = 'Tau'
+                x_axis_units = 's'
+                dockwidget.graphicsView.setLabel('bottom', x_axis_name, units=x_axis_units)
+                dockwidget.graphicsView.setLabel('left', data_name, units=meas_units)
+            
+            else:
+                image_item = self._create_image_item(obj_name, pulsed_data['pulsed_fw']['data'][:,:,0])
+                dockwidget.graphicsView_matrix.addItem(image_item)
+                c_scale = ColorScaleGen('bwr')
 
 
-            image_item.setLookupTable(c_scale.lut)
-            colorbar = self._create_colorbar(obj_name, c_scale)
-            dockwidget.graphicsView_cb.addItem(colorbar)
-            dockwidget.graphicsView_cb.hideAxis('bottom')
+                image_item.setLookupTable(c_scale.lut)
+                colorbar = self._create_colorbar(obj_name, c_scale)
+                dockwidget.graphicsView_cb.addItem(colorbar)
+                dockwidget.graphicsView_cb.hideAxis('bottom')
 
-            data_name = obj_name
-            #si_units = data_dict[obj_name]['si_units']
-            meas_units = 'a.u.'
+                data_name = obj_name
+                #si_units = data_dict[obj_name]['si_units']
+                meas_units = 'a.u.'
 
-            dockwidget.graphicsView_cb.setLabel('left', data_name, units=meas_units)
-            dockwidget.graphicsView_cb.setMouseEnabled(x=False, y=False)
+                dockwidget.graphicsView_cb.setLabel('left', data_name, units=meas_units)
+                dockwidget.graphicsView_cb.setMouseEnabled(x=False, y=False)
+                dockwidget.graphicsView_matrix.setLabel('bottom', 'X position', units='m')
+                dockwidget.graphicsView_matrix.setLabel('left', 'Y position', units='m')
+                dockwidget.graphicsView_matrix.sigCrosshairDraggedPosChanged.connect(functools.partial(self.update_all_crosshair, obj_name))
 
             ref_last_dockwidget = dockwidget
 
-            dockwidget.graphicsView_matrix.setLabel('bottom', 'X position', units='m')
-            dockwidget.graphicsView_matrix.setLabel('left', 'Y position', units='m')
+            
 
         self.adjust_data_viewer_image()
 
@@ -533,6 +602,78 @@ class QAFMPulseDataViewerGUI(GUIBase):
     #                       View related methods 
     # ========================================================================== 
 
+    def _create_internal_line_widgets(self, parent_dock):
+
+        parent = parent_dock 
+
+        # Create a Content Widget to which a layout can be attached.
+        # add the content widget to the dockwidget
+        content = QtWidgets.QWidget(parent)
+        parent.dockWidgetContent = content
+        parent.dockWidgetContent.setObjectName("dockWidgetContent")
+        parent.setWidget(content)
+
+        # create the only widget
+        parent_dock.graphicsView = graphicsView = PlotWidget(content)
+        graphicsView.setObjectName("graphicsView")
+
+        # create Size Policy for the widget.
+        sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Preferred, 
+                                           QtWidgets.QSizePolicy.Preferred)
+        sizePolicy.setHorizontalStretch(0)
+        sizePolicy.setVerticalStretch(0)
+        sizePolicy.setHeightForWidth(graphicsView.sizePolicy().hasHeightForWidth())
+        graphicsView.setSizePolicy(sizePolicy)
+
+        # create a grid layout
+        grid = QtWidgets.QGridLayout(content)
+        parent.gridLayout = grid
+        parent.gridLayout.setObjectName("gridLayout")
+
+        # arrange on grid
+        grid.addWidget(graphicsView, 0, 0, 1, 1)
+
+    def toggle_crosshair(self):
+        pulsed_data = self._qafm_logic.get_pulsed_data()
+        x_index = self._mw.x_coord_index_SpinBox.value()
+        y_index = self._mw.y_coord_index_SpinBox.value()
+        state = self._mw.show_crosshair_checkBox.isChecked()
+        for key in self._dockwidget_container.keys():
+            if key is not 'Pulsed_Measurement':
+                self._dockwidget_container[key].graphicsView_matrix.set_crosshair_pos((pulsed_data['pulsed_fw']['coord0_arr'][x_index], pulsed_data['pulsed_fw']['coord0_arr'][y_index]))
+                self._dockwidget_container[key].graphicsView_matrix.set_crosshair_size((0,0))
+                self._dockwidget_container[key].graphicsView_matrix.toggle_crosshair(state)
+        self._mw.update_from_crosshair_pushButton.setEnabled(state)
+
+    def update_from_crosshair(self):
+        coords = self._dockwidget_container['d1'].graphicsView_matrix.crosshair_position
+        pulsed_data = self._qafm_logic.get_pulsed_data()
+
+        x_index = np.argmin(np.abs(pulsed_data['pulsed_fw']['coord0_arr']-coords[0]))
+        y_index = np.argmin(np.abs(pulsed_data['pulsed_fw']['coord1_arr']-coords[1]))
+
+        self._mw.x_coord_index_SpinBox.setValue(x_index)
+        self._mw.y_coord_index_SpinBox.setValue(y_index)
+
+        self.update_crosshair_pos(pulsed_data['pulsed_fw']['coord0_arr'][x_index], pulsed_data['pulsed_fw']['coord1_arr'][y_index])
+
+    def update_crosshair_pos_from_spinbox(self):
+        x_index = self._mw.x_coord_index_SpinBox.value()
+        y_index = self._mw.y_coord_index_SpinBox.value()
+        pulsed_data = self._qafm_logic.get_pulsed_data()
+        self.update_crosshair_pos(pulsed_data['pulsed_fw']['coord0_arr'][x_index], pulsed_data['pulsed_fw']['coord1_arr'][y_index])
+
+    def update_crosshair_pos(self, x, y):
+        for key in self._dockwidget_container.keys():
+            if key is not 'Pulsed_Measurement':
+                self._dockwidget_container[key].graphicsView_matrix.set_crosshair_pos((x,y))
+
+    def update_all_crosshair(self, obj_name):
+        coords = self._dockwidget_container[obj_name].graphicsView_matrix.crosshair_position
+        for key in self._dockwidget_container.keys():
+            if key is not 'Pulsed_Measurement':
+                self._dockwidget_container[key].graphicsView_matrix.set_crosshair_pos((coords[0],coords[1]))
+    
     def save_view(self):
         """Saves the current GUI state as a QbyteArray.
            The .data() function will transform it to a bytearray, 
@@ -554,6 +695,113 @@ class QAFMPulseDataViewerGUI(GUIBase):
            unchecks any Scan parameter that was previously selected.
         """
         self._mw.restoreState(self.saved_default_view)
+
+    def adjust_pulsed_measurement_image(self):
+        self._mw.view_pulsed_measurement_pushButton.setEnabled(False)
+        pulsed_data = self._qafm_logic.get_pulsed_data()
+        esr_data = self._qafm_logic.get_esr_data()
+        qafm_data = self._qafm_logic.get_qafm_data()
+        param_name = 'Pulsed_Measurement'
+        dw = self.get_dockwidget(param_name)
+        x_pos = self._mw.x_coord_index_SpinBox.value()
+        y_pos = self._mw.y_coord_index_SpinBox.value()
+        displayed_pulsed_measurement_data = self._mw.pulsed_data_comboBox.currentText()
+        
+        pulsed_measurement = False
+        cw_odmr_measurement = False
+        if qafm_data['Height(Dac)_fw']['params']['Parameters for'] == 'QAFM Tracking measurement':
+            delta_0 = qafm_data['Height(Dac)_fw']['params']['delta_0']
+            x_axis = np.array((-delta_0, delta_0))
+            x_axis_name = 'Frequency'
+            x_axis_units = 'Hz'
+            pulsed_measurement = True
+
+        elif qafm_data['Height(Dac)_fw']['params']['Parameters for'] == 'QAFM PODMR measurement':
+            if qafm_data['Height(Dac)_fw']['params']['MW Tracking mode']:
+                x_axis = pulsed_data['pulsed_fw']['var_list'][y_pos][x_pos]
+            else:
+                x_axis = pulsed_data['pulsed_fw']['coord2_arr']
+            x_axis_name = 'Frequency'
+            x_axis_units = 'Hz'
+            pulsed_measurement = True
+
+        elif qafm_data['Height(Dac)_fw']['params']['Parameters for'] == 'QAFM CW ODMR measurement':
+            if qafm_data['Height(Dac)_fw']['params']['MW Tracking mode']:
+                x_axis = esr_data['esr_fw']['var_list'][y_pos][x_pos]
+            else:
+                x_axis = esr_data['esr_fw']['coord2_arr']
+            x_axis_name = 'Frequency'
+            x_axis_units = 'Hz'
+            cw_odmr_measurement = True
+
+        elif qafm_data['Height(Dac)_fw']['params']['Parameters for'] == 'QAFM arb. sequence measurement':
+            if qafm_data['Height(Dac)_fw']['params']['Arb. pulse measurement frequency sweep']:
+                x_axis_name = 'Frequency'
+                x_axis_units = 'Hz'
+            else:
+                x_axis_name = 'Tau'
+                x_axis_units = 's'
+            x_axis = pulsed_data['pulsed_fw']['coord2_arr']
+            pulsed_measurement = True
+
+        else:
+            self.log.warning('Current scan does not include displayable data.')
+            self._mw.view_pulsed_measurement_pushButton.setEnabled(True)
+            return
+        
+        if displayed_pulsed_measurement_data == 'Data':
+            if cw_odmr_measurement:
+                data = esr_data['esr_fw']['data'][y_pos][x_pos]
+            elif pulsed_measurement:
+                data = pulsed_data['pulsed_fw']['data'][y_pos][x_pos]
+            else:
+                self.log.warning('Current scan does not include displayable data.')
+                self._mw.view_pulsed_measurement_pushButton.setEnabled(True)
+                return
+                
+        elif displayed_pulsed_measurement_data == 'Data Alternating':
+            if pulsed_measurement:
+                data = pulsed_data['pulsed_fw']['data_alternating'][y_pos][x_pos]
+            else:
+                self.log.warning('Current scan does not include displayable alternating data.')
+                self._mw.view_pulsed_measurement_pushButton.setEnabled(True)
+                return
+            
+        elif displayed_pulsed_measurement_data == 'Data Delta':
+            if pulsed_measurement:
+                data = pulsed_data['pulsed_fw']['data_delta'][y_pos][x_pos]
+            else:
+                self.log.warning('Current scan does not include displayable delta data.')
+                self._mw.view_pulsed_measurement_pushButton.setEnabled(True)
+                return
+            
+        elif displayed_pulsed_measurement_data == 'Tracking':
+            if qafm_data['Height(Dac)_fw']['params']['Parameters for'] == 'QAFM arb. sequence measurement':
+                if qafm_data['Height(Dac)_fw']['params']['Tracking']:
+                    if qafm_data['Height(Dac)_fw']['params']['Tracking method'] == 'Two point':
+                        delta_0 = qafm_data['Height(Dac)_fw']['params']['delta_0']
+                        x_axis = np.array((-delta_0, delta_0))
+                    else:
+                        x_axis = pulsed_data['pulsed_fw']['var_list_tracking'][y_pos][x_pos]
+
+                    data = pulsed_data['pulsed_fw']['data_tracking'][y_pos][x_pos]
+                    x_axis_name = 'Frequency'
+                    x_axis_units = 'Hz'
+                else:
+                    self.log.warning('Current scan does not track resonance frequency.')
+                    self._mw.view_pulsed_measurement_pushButton.setEnabled(True)
+                    return
+            else:
+                self.log.warning('Current scan does not track resonance frequency.')
+                self._mw.view_pulsed_measurement_pushButton.setEnabled(True)
+                return
+
+        dw.graphicsView.setLabel('bottom', x_axis_name, units=x_axis_units)
+        self._plot_container[param_name].setData(x=x_axis, 
+                                                y=data)
+
+        self._plot_container[param_name].getViewBox().updateAutoRange()
+        self._mw.view_pulsed_measurement_pushButton.setEnabled(True)
 
     def update_data_viewer_data_after_scanpoint(self):
         if self._mw.update_after_scan_point_checkBox.isChecked():

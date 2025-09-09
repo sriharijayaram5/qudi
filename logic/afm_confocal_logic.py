@@ -704,6 +704,7 @@ class AFMConfocalLogic(GenericLogic):
                 meas_dict[name]['image_correction'] = False
                 meas_dict[name].update(meas_params_units[param])
                 meas_dict[name]['params'] = {'rotation': rotation}
+                meas_dict[name]['params']['Parameters for'] = 'Not defined'
                 meas_dict[name]['display_range'] = None
 
         self.sigQAFMScanInitialized.emit()
@@ -1778,7 +1779,7 @@ class AFMConfocalLogic(GenericLogic):
         #Save the measurement parameters
         start_time_afm_scan = datetime.datetime.now()
         for entry in self._qafm_scan_array:
-            self._qafm_scan_array[entry]['params']['Parameters for'] = 'QAFM measurement'
+            self._qafm_scan_array[entry]['params']['Parameters for'] = 'QAFM CW ODMR measurement'
             self._qafm_scan_array[entry]['params']['axis name for coord0'] = 'X'
             self._qafm_scan_array[entry]['params']['axis name for coord1'] = 'Y'
             self._qafm_scan_array[entry]['params']['measurement plane'] = 'XY'

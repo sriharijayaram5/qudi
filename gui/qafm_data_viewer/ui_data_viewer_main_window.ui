@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>511</width>
-    <height>443</height>
+    <width>487</width>
+    <height>560</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -19,7 +19,7 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>511</width>
+     <width>487</width>
      <height>21</height>
     </rect>
    </property>
@@ -43,13 +43,20 @@
   <widget class="QStatusBar" name="statusbar"/>
   <widget class="QDockWidget" name="data_analysis_settings_dockWidget">
    <property name="windowTitle">
-    <string>Data Analysis Settings</string>
+    <string>Data Viewer Settings</string>
    </property>
    <attribute name="dockWidgetArea">
     <number>1</number>
    </attribute>
    <widget class="QWidget" name="dockWidgetContents">
     <layout class="QVBoxLayout" name="verticalLayout">
+     <item>
+      <widget class="QLabel" name="label_14">
+       <property name="text">
+        <string>2D scan viewer settings:</string>
+       </property>
+      </widget>
+     </item>
      <item>
       <layout class="QGridLayout" name="gridLayout">
        <item row="0" column="1">
@@ -394,6 +401,133 @@
       </widget>
      </item>
      <item>
+      <widget class="Line" name="line">
+       <property name="orientation">
+        <enum>Qt::Horizontal</enum>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QLabel" name="label_15">
+       <property name="text">
+        <string>Pulsed measurement viewer settings:</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <layout class="QGridLayout" name="gridLayout_3">
+       <item row="1" column="0">
+        <widget class="QLabel" name="label_11">
+         <property name="text">
+          <string>X coordinate index:</string>
+         </property>
+        </widget>
+       </item>
+       <item row="3" column="0">
+        <widget class="QLabel" name="label_13">
+         <property name="text">
+          <string>Pulsed measurement:</string>
+         </property>
+        </widget>
+       </item>
+       <item row="2" column="0">
+        <widget class="QLabel" name="label_12">
+         <property name="text">
+          <string>Y coordinate index:</string>
+         </property>
+        </widget>
+       </item>
+       <item row="2" column="1">
+        <widget class="ScienSpinBox" name="y_coord_index_SpinBox">
+         <property name="minimumSize">
+          <size>
+           <width>50</width>
+           <height>0</height>
+          </size>
+         </property>
+         <property name="minimum">
+          <number>0</number>
+         </property>
+         <property name="maximum">
+          <number>100</number>
+         </property>
+         <property name="value">
+          <number>0</number>
+         </property>
+        </widget>
+       </item>
+       <item row="3" column="1">
+        <widget class="QComboBox" name="pulsed_data_comboBox">
+         <item>
+          <property name="text">
+           <string>None</string>
+          </property>
+         </item>
+         <item>
+          <property name="text">
+           <string>Data</string>
+          </property>
+         </item>
+         <item>
+          <property name="text">
+           <string>Data Alternating</string>
+          </property>
+         </item>
+         <item>
+          <property name="text">
+           <string>Data Delta</string>
+          </property>
+         </item>
+         <item>
+          <property name="text">
+           <string>Tracking</string>
+          </property>
+         </item>
+        </widget>
+       </item>
+       <item row="1" column="1">
+        <widget class="ScienSpinBox" name="x_coord_index_SpinBox">
+         <property name="minimumSize">
+          <size>
+           <width>50</width>
+           <height>0</height>
+          </size>
+         </property>
+         <property name="minimum">
+          <number>0</number>
+         </property>
+         <property name="maximum">
+          <number>100</number>
+         </property>
+         <property name="value">
+          <number>0</number>
+         </property>
+        </widget>
+       </item>
+       <item row="0" column="0">
+        <widget class="QCheckBox" name="show_crosshair_checkBox">
+         <property name="text">
+          <string>Show cross hair</string>
+         </property>
+        </widget>
+       </item>
+       <item row="0" column="1">
+        <widget class="QPushButton" name="update_from_crosshair_pushButton">
+         <property name="text">
+          <string>Update from crosshair</string>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </item>
+     <item>
+      <widget class="QPushButton" name="view_pulsed_measurement_pushButton">
+       <property name="text">
+        <string>View Pulsed Measurement</string>
+       </property>
+      </widget>
+     </item>
+     <item>
       <spacer name="verticalSpacer">
        <property name="orientation">
         <enum>Qt::Vertical</enum>
@@ -458,6 +592,13 @@
   <tabstop>used_fit_comboBox</tabstop>
   <tabstop>used_fit_parameter_comboBox</tabstop>
   <tabstop>view_data_pushButton</tabstop>
+  <tabstop>update_after_scan_point_checkBox</tabstop>
+  <tabstop>show_crosshair_checkBox</tabstop>
+  <tabstop>update_from_crosshair_pushButton</tabstop>
+  <tabstop>x_coord_index_SpinBox</tabstop>
+  <tabstop>y_coord_index_SpinBox</tabstop>
+  <tabstop>pulsed_data_comboBox</tabstop>
+  <tabstop>view_pulsed_measurement_pushButton</tabstop>
  </tabstops>
  <resources/>
  <connections/>
