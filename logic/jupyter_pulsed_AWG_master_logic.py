@@ -2135,10 +2135,10 @@ class PulsedJupyterLogic(GenericLogic):
         self.segments[waiting_name] = self.BlockAWG
 
         #Define Sequence with sequence_step_list
-        real_tau_arr = []
+        real_tau_arr = np.zeros_like(self.tau_arr)
         for idx, tau in enumerate(self.tau_arr):
             num_waiting_loops = int(np.rint(tau/waiting_time))
-            real_tau_arr.append(waiting_time*num_waiting_loops)
+            real_tau_arr[idx] = waiting_time*num_waiting_loops
 
             step = {"step_index" : 2*idx,
                         "step_segment" : 'Jupyter-ensemble-'+waiting_name,
@@ -2292,10 +2292,10 @@ class PulsedJupyterLogic(GenericLogic):
         self.segments[waiting_name] = self.BlockAWG
 
         #Define Sequence with sequence_step_list
-        real_tau_arr = []
+        real_tau_arr = np.zeros_like(self.tau_arr)
         for idx, tau in enumerate(self.tau_arr):
             num_waiting_loops = int(np.rint(tau/waiting_time))
-            real_tau_arr.append(waiting_time*num_waiting_loops)
+            real_tau_arr[idx] = waiting_time*num_waiting_loops
 
             step = {"step_index" : 6*idx,
                         "step_segment" : 'Jupyter-ensemble-'+replacement_name,
@@ -2409,10 +2409,10 @@ class PulsedJupyterLogic(GenericLogic):
         self.segments[waiting_name] = self.BlockAWG
 
         #Define Sequence with sequence_step_list
-        real_tau_arr = []
+        real_tau_arr = np.zeros_like(self.tau_arr)
         for idx, tau in enumerate(self.tau_arr):
             num_waiting_loops = int(np.rint(tau/waiting_time))
-            real_tau_arr.append(waiting_time*num_waiting_loops)
+            real_tau_arr[idx] = waiting_time*num_waiting_loops
 
             step = {"step_index" : 6*idx,
                         "step_segment" : 'Jupyter-ensemble-'+pi_pulse_init_name,
@@ -2698,10 +2698,10 @@ class PulsedJupyterLogic(GenericLogic):
         self.segments[waiting_name] = self.BlockAWG
 
         #Define Sequence with sequence_step_list
-        real_tau_arr = []
+        real_tau_arr = np.zeros_like(self.tau_arr)
         for idx, tau in enumerate(self.tau_arr):
             num_waiting_loops = int(np.rint(tau/waiting_time))
-            real_tau_arr.append(waiting_time*num_waiting_loops)
+            real_tau_arr[idx] = waiting_time*num_waiting_loops
 
             step = {"step_index" : 6*idx,
                         "step_segment" : 'Jupyter-ensemble-'+pi_pulse_peak0_init_name,
@@ -2814,10 +2814,10 @@ class PulsedJupyterLogic(GenericLogic):
         self.segments[waiting_name] = self.BlockAWG
 
         #Define Sequence with sequence_step_list
-        real_tau_arr = []
+        real_tau_arr = np.zeros_like(self.tau_arr)
         for idx, tau in enumerate(self.tau_arr):
             num_waiting_loops = int(np.rint(tau/waiting_time))
-            real_tau_arr.append(waiting_time*num_waiting_loops)
+            real_tau_arr[idx] = waiting_time*num_waiting_loops
 
             step = {"step_index" : 6*idx,
                         "step_segment" : 'Jupyter-ensemble-'+laser_waiting_name,
@@ -3431,10 +3431,10 @@ class PulsedJupyterLogic(GenericLogic):
         self.segments[waiting_name] = self.BlockAWG
 
         #Define Sequence with sequence_step_list
-        real_tau_arr = []
+        real_tau_arr = np.zeros_like(self.tau_arr)
         for idx, tau in enumerate(self.tau_arr):
             num_waiting_loops = int(np.rint(tau/waiting_time))
-            real_tau_arr.append(waiting_time*num_waiting_loops)
+            real_tau_arr[idx] = waiting_time*num_waiting_loops
 
             step = {"step_index" : 6*idx,
                         "step_segment" : 'Jupyter-ensemble-'+hecho_init_name,
