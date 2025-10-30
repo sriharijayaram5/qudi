@@ -102,6 +102,8 @@ class PulsedJupyterLogic(GenericLogic):
         self.ensemble_list = []
         self.sequence_step_list = []
 
+        self.pulsed_info_dict = {}
+
         self.several_sequences_measurement = False
         self.point_by_point_several_sequences_measurement = False
         self.point_by_point_large_sequence_measurement = False
@@ -124,7 +126,7 @@ class PulsedJupyterLogic(GenericLogic):
         if awg_sync_time is None:
             self.awg_sync_time = self.pulsed_settings.awg_sync_time #Has to be determined with sample clock
         else: 
-            self.awg_synca_time = awg_sync_time
+            self.awg_sync_time = awg_sync_time
 
         if laser_waiting_time is None:
             self.laser_waiting_time = self.pulsed_settings.laser_waiting_time
@@ -187,7 +189,41 @@ class PulsedJupyterLogic(GenericLogic):
         self.point_by_point_several_sequences_measurement = False
         self.point_by_point_large_sequence_measurement = False
 
+        self.param_dict = {}
+        self.param_dict['awg_sync_time'] = self.awg_sync_time
+        self.param_dict['laser_waiting_time'] = self.laser_waiting_time
+        self.param_dict['mw_waiting_time'] = self.mw_waiting_time
+        self.param_dict['read_out_time'] = self.read_out_time
+        self.param_dict['add_tt_read_out'] = self.add_tt_read_out
+        self.param_dict['bin_width'] = self.bin_width
+        self.param_dict['laser_volt'] = self.laser_volt
+        self.param_dict['LO_freq_0'] = self.LO_freq_0
+        self.param_dict['target_freq_0'] = self.target_freq_0
+        self.param_dict['power_0'] = self.power_0
+        self.param_dict['LO_freq_1'] = self.LO_freq_1
+        self.param_dict['target_freq_1'] = self.target_freq_1
+        self.param_dict['power_1'] = self.power_1
+        self.param_dict['trigger_type'] = self.trigger_type
+        self.param_dict['trigger_level0'] = self.trigger_level0
+        self.param_dict['trigger_level1'] = self.trigger_level1
+        self.param_dict['pi_pulse'] = self.pi_pulse
+        self.param_dict['pi_pulse_1'] = self.pi_pulse_1
+        self.param_dict['several_sequences_measurement'] = self.several_sequences_measurement
+        self.param_dict['point_by_point_several_sequences_measurement'] = self.point_by_point_several_sequences_measurement
+        self.param_dict['point_by_point_large_sequence_measurement'] = self.point_by_point_large_sequence_measurement
+
         return
+    
+    def create_pulse_measurement_pulsed_info_dictonary(self, name, params):
+        self.pulsed_info_dict = {}
+        self.pulsed_info_dict['measurement_name'] = name
+        self.pulsed_info_dict['params'] = params
+        self.pulsed_info_dict['pulse_block'] = {}
+        self.pulsed_info_dict['pulse_block_meaning'] = 'Length (s), Use MW_0 (boolean), Use MW_1 (boolean), Freqeuncy of MW_0 (Hz), Freqeuncy of MW_1 (Hz), Phase of MW_0 (°), Phase of MW_1 (°), Digital trigger channels (Dictonary of booleans)'
+        self.pulsed_info_dict['sequence_step_list'] = {}
+
+    def add_BlockAWG_to_pulsed_info_dictonary(self, name):
+        self.pulsed_info_dict['pulse_block'][name] = self.BlockAWG.copy()
     
     def ElementPS(self, channels={}, length=1e-9, laser_power=None):
         """PulseBlock element list maker for PulseStreamer upload. Also makes the phase duration list for the AWG,
@@ -205,7 +241,8 @@ class PulsedJupyterLogic(GenericLogic):
         
         self.BlockPS.append(po.PulseBlockElement(init_length_s=length, pulse_function=a_ch, digital_high=d_ch))
 
-    def ElementAWG(self, channels={}, length=1e-9, phase_0=0, phase_1=0, freq_0=None, freq_1=None):
+    def ElementAWG(self, channels={}, length=1e-9, phase_0=0, phase_1=0, freq_0=None, freq_1=None,
+                   chirp_0 = False, chirp_1 = False, chirp_start_0 = 0, chirp_stop_0 = 0, chirp_start_1 = 0, chirp_stop_1 = 0):
         """PulseBlock element list maker for PulseStreamer upload. Also makes the phase duration list for the AWG,
             which also includes the information about which MW frequency of the two LO is used.
         """
@@ -220,7 +257,8 @@ class PulsedJupyterLogic(GenericLogic):
             user_MW_1_true = channels['MW_1']
             del channels['MW_1']
 
-        self.BlockAWG.append((phase_0, phase_1, length, user_MW_0_true, user_MW_1_true, freq_0, freq_1, channels))
+        self.BlockAWG.append((length, user_MW_0_true, user_MW_1_true, freq_0, freq_1, phase_0, phase_1,
+                              chirp_0, chirp_1, chirp_start_0, chirp_stop_0, chirp_start_1, chirp_stop_1, channels))
 
     def find_unique_segments(self,sequence_step_list):
             """Convenience function to find unique segments in sequence step
@@ -431,6 +469,7 @@ class PulsedJupyterLogic(GenericLogic):
 
         created_BlockAWG = self.BlockAWG.copy()
         self.BlockAWG = []
+        self.pulsed_info_dict['pulse_block'].clear()
         
         tau_idx = 0
         alternating_run = False
@@ -444,6 +483,7 @@ class PulsedJupyterLogic(GenericLogic):
                         alternating_run = False
                         tau_idx = tau_idx+1
                         self.segments[segment_name] = self.BlockAWG
+                        self.add_BlockAWG_to_pulsed_info_dictonary(segment_name)
                         self.segment_name_list.append('Jupyter-ensemble-'+segment_name)
                         self.BlockAWG = []
                     else:
@@ -453,6 +493,7 @@ class PulsedJupyterLogic(GenericLogic):
                         else:
                             tau_idx = tau_idx+1
                         self.segments[segment_name] = self.BlockAWG
+                        self.add_BlockAWG_to_pulsed_info_dictonary(segment_name)
                         self.segment_name_list.append('Jupyter-ensemble-'+segment_name)
                         self.BlockAWG = []
         
@@ -469,6 +510,8 @@ class PulsedJupyterLogic(GenericLogic):
         
         self.ensemble_list, self.sequence_step_list = self.sample_load_ready_AWG_sequence(self.segments, self.sequence_step_list, self.tau_arr, self.alternating, self.freq_sweep, change_freq = True)
         self.point_by_point_large_sequence_measurement = True
+        self.pulsed_info_dict['params']['point_by_point_large_sequence_measurement'] = self.point_by_point_large_sequence_measurement
+        self.pulsed_info_dict['sequence_step_list'] = self.sequence_step_list
 
         return self.ensemble_list, self.sequence_step_list, name, self.tau_arr, self.alternating, self.freq_sweep
     
@@ -536,6 +579,7 @@ class PulsedJupyterLogic(GenericLogic):
         self.loop_number_list = loop_number_list
 
         self.point_by_point_several_sequences_measurement = True
+        self.pulsed_info_dict['params']['point_by_point_several_sequences_measurement'] = self.point_by_point_several_sequences_measurement
 
         self.ensemble_list, self.sequence_step_list = self.sample_load_ready_AWG_sequence(self.segments, self.sequence_step_list, self.tau_arr, self.alternating, self.freq_sweep, change_freq = True)
 
@@ -555,21 +599,26 @@ class PulsedJupyterLogic(GenericLogic):
 
         for Element in self.BlockAWG:
             if self.switch_MW:
-                phase_1, phase_0, duration, user_MW_1_true, user_MW_0_true, freq_1, freq_0, channels = Element
+                duration, user_MW_1_true, user_MW_0_true, freq_1, freq_0, phase_1, phase_0, use_chirp_1, use_chirp_0, chirp_start_1, chirp_stop_1, chirp_start_0, chirp_stop_0, channels = Element
             else:
-                phase_0, phase_1, duration, user_MW_0_true, user_MW_1_true, freq_0, freq_1, channels = Element
+                duration, user_MW_0_true, user_MW_1_true, freq_0, freq_1, phase_0, phase_1, use_chirp_0, use_chirp_1, chirp_start_0, chirp_stop_0, chirp_start_1, chirp_stop_1, channels = Element
             if user_MW_0_true:
                 use_MW_0 = True
             if user_MW_1_true:
                 use_MW_1 = True
             delta_0 = abs(self.LO_freq_0 - (self.target_freq_0 if freq_0 is None else freq_0))
             delta_1 = abs(self.LO_freq_1 - (self.target_freq_1 if freq_1 is None else freq_1))
+
+            delta_0_chirp_start = abs(self.LO_freq_0 - chirp_start_0)
+            delta_0_chirp_stop = abs(self.LO_freq_0 - chirp_stop_0)
+            delta_1_chirp_start = abs(self.LO_freq_0 - chirp_start_1)
+            delta_1_chirp_stop = abs(self.LO_freq_0 - chirp_stop_1)
             
             seq_part = {'channel_info' : [
-                {'name': 'a_ch0', 'amp': 0.5 if user_MW_0_true else 0.0, 'freq': delta_0, 'phase': 0+phase_0},
-                {'name': 'a_ch1', 'amp': 0.5 if user_MW_0_true else 0.0, 'freq': delta_0, 'phase': 100+phase_0},
-                {'name': 'a_ch2', 'amp': 0.5 if user_MW_1_true else 0.0, 'freq': delta_1, 'phase': 0+phase_1},
-                {'name': 'a_ch3', 'amp': 0.5 if user_MW_1_true else 0.0, 'freq': delta_1, 'phase': 100+phase_1}],
+                {'name': 'a_ch0', 'amp': 0.5 if user_MW_0_true else 0.0, 'freq': delta_0, 'phase': 0+phase_0, 'chirp': use_chirp_0, 'chirp_start': delta_0_chirp_start, 'chirp_stop': delta_0_chirp_stop},
+                {'name': 'a_ch1', 'amp': 0.5 if user_MW_0_true else 0.0, 'freq': delta_0, 'phase': 100+phase_0, 'chirp': use_chirp_0, 'chirp_start': delta_0_chirp_start, 'chirp_stop': delta_0_chirp_stop},
+                {'name': 'a_ch2', 'amp': 0.5 if user_MW_1_true else 0.0, 'freq': delta_1, 'phase': 0+phase_1, 'chirp': use_chirp_1, 'chirp_start': delta_1_chirp_start, 'chirp_stop': delta_1_chirp_stop},
+                {'name': 'a_ch3', 'amp': 0.5 if user_MW_1_true else 0.0, 'freq': delta_1, 'phase': 100+phase_1, 'chirp': use_chirp_1, 'chirp_start': delta_1_chirp_start, 'chirp_stop': delta_1_chirp_stop}],
                 'duration' : duration}
             for ch in channels:
                 seq_part['channel_info'].append({'name': self.channel_names_AWG[ch], 'high': channels[ch]})
@@ -666,21 +715,26 @@ class PulsedJupyterLogic(GenericLogic):
 
                 for Element in BlockAWG:
                     if self.switch_MW:
-                        phase_1, phase_0, duration, user_MW_1_true, user_MW_0_true, freq_1, freq_0, channels = Element
+                        duration, user_MW_1_true, user_MW_0_true, freq_1, freq_0, phase_1, phase_0, use_chirp_1, use_chirp_0, chirp_start_1, chirp_stop_1, chirp_start_0, chirp_stop_0, channels = Element
                     else:
-                        phase_0, phase_1, duration, user_MW_0_true, user_MW_1_true, freq_0, freq_1, channels = Element
+                        duration, user_MW_0_true, user_MW_1_true, freq_0, freq_1, phase_0, phase_1, use_chirp_0, use_chirp_1, chirp_start_0, chirp_stop_0, chirp_start_1, chirp_stop_1, channels = Element
                     if user_MW_0_true:
                         use_MW_0 = True
                     if user_MW_1_true:
                         use_MW_1 = True
                     delta_0 = abs(self.LO_freq_0 - (self.target_freq_0 if freq_0 is None else freq_0))
                     delta_1 = abs(self.LO_freq_1 - (self.target_freq_1 if freq_1 is None else freq_1))
+
+                    delta_0_chirp_start = abs(self.LO_freq_0 - chirp_start_0)
+                    delta_0_chirp_stop = abs(self.LO_freq_0 - chirp_stop_0)
+                    delta_1_chirp_start = abs(self.LO_freq_0 - chirp_start_1)
+                    delta_1_chirp_stop = abs(self.LO_freq_0 - chirp_stop_1)
                     
                     seq_part = {'channel_info' : [
-                        {'name': 'a_ch0', 'amp': 0.5 if user_MW_0_true else 0.0, 'freq': delta_0, 'phase': 0+phase_0},
-                        {'name': 'a_ch1', 'amp': 0.5 if user_MW_0_true else 0.0, 'freq': delta_0, 'phase': 100+phase_0},
-                        {'name': 'a_ch2', 'amp': 0.5 if user_MW_1_true else 0.0, 'freq': delta_1, 'phase': 0+phase_1},
-                        {'name': 'a_ch3', 'amp': 0.5 if user_MW_1_true else 0.0, 'freq': delta_1, 'phase': 100+phase_1}],
+                        {'name': 'a_ch0', 'amp': 0.5 if user_MW_0_true else 0.0, 'freq': delta_0, 'phase': 0+phase_0, 'chirp': use_chirp_0, 'chirp_start': delta_0_chirp_start, 'chirp_stop': delta_0_chirp_stop},
+                        {'name': 'a_ch1', 'amp': 0.5 if user_MW_0_true else 0.0, 'freq': delta_0, 'phase': 100+phase_0, 'chirp': use_chirp_0, 'chirp_start': delta_0_chirp_start, 'chirp_stop': delta_0_chirp_stop},
+                        {'name': 'a_ch2', 'amp': 0.5 if user_MW_1_true else 0.0, 'freq': delta_1, 'phase': 0+phase_1, 'chirp': use_chirp_1, 'chirp_start': delta_1_chirp_start, 'chirp_stop': delta_1_chirp_stop},
+                        {'name': 'a_ch3', 'amp': 0.5 if user_MW_1_true else 0.0, 'freq': delta_1, 'phase': 100+phase_1, 'chirp': use_chirp_1, 'chirp_start': delta_1_chirp_start, 'chirp_stop': delta_1_chirp_stop}],
                         'duration' : duration}
                     for ch in channels:
                         seq_part['channel_info'].append({'name': self.channel_names_AWG[ch], 'high': channels[ch]})
@@ -757,21 +811,26 @@ class PulsedJupyterLogic(GenericLogic):
 
                 for Element in BlockAWG:
                     if self.switch_MW:
-                        phase_1, phase_0, duration, user_MW_1_true, user_MW_0_true, freq_1, freq_0, channels = Element
+                        duration, user_MW_1_true, user_MW_0_true, freq_1, freq_0, phase_1, phase_0, use_chirp_1, use_chirp_0, chirp_start_1, chirp_stop_1, chirp_start_0, chirp_stop_0, channels = Element
                     else:
-                        phase_0, phase_1, duration, user_MW_0_true, user_MW_1_true, freq_0, freq_1, channels = Element
+                        duration, user_MW_0_true, user_MW_1_true, freq_0, freq_1, phase_0, phase_1, use_chirp_0, use_chirp_1, chirp_start_0, chirp_stop_0, chirp_start_1, chirp_stop_1, channels = Element
                     if user_MW_0_true:
                         use_MW_0 = True
                     if user_MW_1_true:
                         use_MW_1 = True
                     delta_0 = abs(self.LO_freq_0 - (self.target_freq_0 if freq_0 is None else freq_0))
                     delta_1 = abs(self.LO_freq_1 - (self.target_freq_1 if freq_1 is None else freq_1))
+
+                    delta_0_chirp_start = abs(self.LO_freq_0 - chirp_start_0)
+                    delta_0_chirp_stop = abs(self.LO_freq_0 - chirp_stop_0)
+                    delta_1_chirp_start = abs(self.LO_freq_0 - chirp_start_1)
+                    delta_1_chirp_stop = abs(self.LO_freq_0 - chirp_stop_1)
                     
                     seq_part = {'channel_info' : [
-                        {'name': 'a_ch0', 'amp': 0.5 if user_MW_0_true else 0.0, 'freq': delta_0, 'phase': 0+phase_0},
-                        {'name': 'a_ch1', 'amp': 0.5 if user_MW_0_true else 0.0, 'freq': delta_0, 'phase': 100+phase_0},
-                        {'name': 'a_ch2', 'amp': 0.5 if user_MW_1_true else 0.0, 'freq': delta_1, 'phase': 0+phase_1},
-                        {'name': 'a_ch3', 'amp': 0.5 if user_MW_1_true else 0.0, 'freq': delta_1, 'phase': 100+phase_1}],
+                        {'name': 'a_ch0', 'amp': 0.5 if user_MW_0_true else 0.0, 'freq': delta_0, 'phase': 0+phase_0, 'chirp': use_chirp_0, 'chirp_start': delta_0_chirp_start, 'chirp_stop': delta_0_chirp_stop},
+                        {'name': 'a_ch1', 'amp': 0.5 if user_MW_0_true else 0.0, 'freq': delta_0, 'phase': 100+phase_0, 'chirp': use_chirp_0, 'chirp_start': delta_0_chirp_start, 'chirp_stop': delta_0_chirp_stop},
+                        {'name': 'a_ch2', 'amp': 0.5 if user_MW_1_true else 0.0, 'freq': delta_1, 'phase': 0+phase_1, 'chirp': use_chirp_1, 'chirp_start': delta_1_chirp_start, 'chirp_stop': delta_1_chirp_stop},
+                        {'name': 'a_ch3', 'amp': 0.5 if user_MW_1_true else 0.0, 'freq': delta_1, 'phase': 100+phase_1, 'chirp': use_chirp_1, 'chirp_start': delta_1_chirp_start, 'chirp_stop': delta_1_chirp_stop}],
                         'duration' : duration}
                     for ch in channels:
                         seq_part['channel_info'].append({'name': self.channel_names_AWG[ch], 'high': channels[ch]})
@@ -834,7 +893,10 @@ class PulsedJupyterLogic(GenericLogic):
                     d_ch = {'d_ch0': False, 'd_ch1': False, 'd_ch2': False, 'd_ch4': False, 'd_ch3': False, 'd_ch5': False}
                     for ch in channels:
                         if 'a_' in ch['name']:
-                            a_ch[ch['name']] = SF.Sin(amplitude=ch['amp'], frequency=ch['freq'], phase=ch['phase'])
+                            if ch['chirp']:
+                                a_ch[ch['name']] = SF.Chirp(amplitude=ch['amp'], phase=ch['phase'], start_freq = ch['chirp_start'], stop_freq = ch['chirp_stop'])
+                            else:
+                                a_ch[ch['name']] = SF.Sin(amplitude=ch['amp'], frequency=ch['freq'], phase=ch['phase'])
                         else:
                             d_ch[ch['name']] = ch['high']
 
@@ -895,6 +957,8 @@ class PulsedJupyterLogic(GenericLogic):
         
         self.pulsed_master_AWG.sigUpdateSaveTag.emit(save_tag)
         self.pulsed_master_AWG.sigUpdateLoadedAssetLabel.emit('  '+measurement_type, '')
+
+        self.pulsed_measurement_logic_AWG.pulsed_info_dict = self.pulsed_info_dict.copy()
         
         if printing:
             self.log.info(save_tag)
@@ -1214,6 +1278,10 @@ class PulsedJupyterLogic(GenericLogic):
         freq_segment_time = 10e-6
         
         #Create pulse sequence for the AWG streamer
+        self.param_dict['alternating'] = self.alternating
+        self.param_dict['freq_sweep'] = self.freq_sweep
+        self.param_dict['tau_arr'] = self.tau_arr
+        self.create_pulse_measurement_pulsed_info_dictonary(name, self.param_dict)
         self.BlockAWG = []
 
         #Frequency on
@@ -1222,6 +1290,9 @@ class PulsedJupyterLogic(GenericLogic):
         self.sample_load_ready_pulsestreamer_cw_lasing()
         
         self.ensemble_list, self.sequence_step_list = self.sample_load_ready_AWG(name, self.tau_arr, self.alternating, self.freq_sweep, change_freq = True)
+
+        self.add_BlockAWG_to_pulsed_info_dictonary(name)
+        self.pulsed_info_dict['sequence_step_list'] = self.sequence_step_list
 
         return self.ensemble_list, self.sequence_step_list, name, self.tau_arr, self.alternating, self.freq_sweep
     
@@ -1238,6 +1309,10 @@ class PulsedJupyterLogic(GenericLogic):
         segment_time = 10e-6
         
         #Create pulse sequence for the AWG streamer
+        self.param_dict['alternating'] = self.alternating
+        self.param_dict['freq_sweep'] = self.freq_sweep
+        self.param_dict['tau_arr'] = self.tau_arr
+        self.create_pulse_measurement_pulsed_info_dictonary(name, self.param_dict)
         self.BlockAWG = []
 
         #Frequency on
@@ -1246,6 +1321,9 @@ class PulsedJupyterLogic(GenericLogic):
         self.sample_load_ready_pulsestreamer_awg_lasing()
         
         self.ensemble_list, self.sequence_step_list = self.sample_load_ready_AWG(name, self.tau_arr, self.alternating, self.freq_sweep, change_freq = False)
+
+        self.add_BlockAWG_to_pulsed_info_dictonary(name)
+        self.pulsed_info_dict['sequence_step_list'] = self.sequence_step_list
 
         return self.ensemble_list, self.sequence_step_list, name, self.tau_arr, self.alternating, self.freq_sweep
     
@@ -1273,6 +1351,12 @@ class PulsedJupyterLogic(GenericLogic):
         self.segments = {}
         self.sequence_step_list = []
 
+        self.param_dict['alternating'] = self.alternating
+        self.param_dict['freq_sweep'] = self.freq_sweep
+        self.param_dict['tau_arr'] = self.tau_arr
+        self.param_dict['several_sequences_measurement'] = self.several_sequences_measurement
+        self.create_pulse_measurement_pulsed_info_dictonary(name, self.param_dict)
+
         #Define the number of loops played for each frequency step
         meas_time = 1/clock_frequency
         freq_segment_time = 10e-6
@@ -1288,6 +1372,7 @@ class PulsedJupyterLogic(GenericLogic):
         self.BlockAWG = []
         self.ElementAWG(channels={'PS_Trig':True}, length=trig_dur) 
         self.segments[trig_name] = self.BlockAWG    
+        self.add_BlockAWG_to_pulsed_info_dictonary(trig_name)
 
         for idx, tau in enumerate(self.tau_arr):
             self.BlockAWG = []
@@ -1295,6 +1380,7 @@ class PulsedJupyterLogic(GenericLogic):
             #Playing current frequency
             self.ElementAWG(channels={'MW_0':True}, length=freq_segment_time, freq_0=tau)
             self.segments[freq_segment_name] = self.BlockAWG
+            self.add_BlockAWG_to_pulsed_info_dictonary(freq_segment_name)
 
             step = {"step_index" : 2*idx,
                         "step_segment" : 'Jupyter-ensemble-'+trig_name,
@@ -1315,6 +1401,8 @@ class PulsedJupyterLogic(GenericLogic):
         
         self.ensemble_list, self.sequence_step_list = self.sample_load_ready_AWG_sequence(self.segments, self.sequence_step_list, self.tau_arr, self.alternating, self.freq_sweep, change_freq = True)
 
+        self.pulsed_info_dict['sequence_step_list'] = self.sequence_step_list
+        
         return self.ensemble_list, self.sequence_step_list, name, self.tau_arr, self.alternating, self.freq_sweep
     
     def PODMR(self, mw_start, mw_stop, mw_step, name = None):
@@ -1335,6 +1423,10 @@ class PulsedJupyterLogic(GenericLogic):
         self.LO_freq_0 = end_freq + 100e6
 
         #Create pulse sequence for the AWG streamer
+        self.param_dict['alternating'] = self.alternating
+        self.param_dict['freq_sweep'] = self.freq_sweep
+        self.param_dict['tau_arr'] = self.tau_arr
+        self.create_pulse_measurement_pulsed_info_dictonary(name, self.param_dict)
         self.BlockAWG = []
 
         for tau in self.tau_arr:
@@ -1348,6 +1440,9 @@ class PulsedJupyterLogic(GenericLogic):
         self.sample_load_ready_pulsestreamer(name='read_out_jptr')
         
         self.ensemble_list, self.sequence_step_list = self.sample_load_ready_AWG(name, self.tau_arr, self.alternating, self.freq_sweep, change_freq = True)
+
+        self.add_BlockAWG_to_pulsed_info_dictonary(name)
+        self.pulsed_info_dict['sequence_step_list'] = self.sequence_step_list
 
         return self.ensemble_list, self.sequence_step_list, name, self.tau_arr, self.alternating, self.freq_sweep
 
@@ -1370,6 +1465,10 @@ class PulsedJupyterLogic(GenericLogic):
         self.LO_freq_0 = res_freq + 100e6
         
         #Create pulse sequence for the AWG streamer
+        self.param_dict['alternating'] = self.alternating
+        self.param_dict['freq_sweep'] = self.freq_sweep
+        self.param_dict['tau_arr'] = self.tau_arr
+        self.create_pulse_measurement_pulsed_info_dictonary(name, self.param_dict)
         self.BlockAWG = []
 
         for tau in self.tau_arr:
@@ -1383,6 +1482,9 @@ class PulsedJupyterLogic(GenericLogic):
         self.sample_load_ready_pulsestreamer(name='read_out_jptr')
         
         self.ensemble_list, self.sequence_step_list = self.sample_load_ready_AWG(name, self.tau_arr, self.alternating, self.freq_sweep, change_freq = True)
+
+        self.add_BlockAWG_to_pulsed_info_dictonary(name)
+        self.pulsed_info_dict['sequence_step_list'] = self.sequence_step_list
 
         return self.ensemble_list, self.sequence_step_list, name, self.tau_arr, self.alternating, self.freq_sweep
     
@@ -1400,6 +1502,10 @@ class PulsedJupyterLogic(GenericLogic):
         self.tau_arr = np.linspace(tau_start, tau_stop, num=tau_num)
         
         #Create pulse sequence for the AWG
+        self.param_dict['alternating'] = self.alternating
+        self.param_dict['freq_sweep'] = self.freq_sweep
+        self.param_dict['tau_arr'] = self.tau_arr
+        self.create_pulse_measurement_pulsed_info_dictonary(name, self.param_dict)
         self.BlockAWG = []
 
         for tau in self.tau_arr:
@@ -1421,6 +1527,9 @@ class PulsedJupyterLogic(GenericLogic):
         
         self.ensemble_list, self.sequence_step_list = self.sample_load_ready_AWG(name, self.tau_arr, self.alternating, self.freq_sweep, change_freq = True)
 
+        self.add_BlockAWG_to_pulsed_info_dictonary(name)
+        self.pulsed_info_dict['sequence_step_list'] = self.sequence_step_list
+
         return self.ensemble_list, self.sequence_step_list, name, self.tau_arr, self.alternating, self.freq_sweep
     
     def Charge_dynamic_alt(self, waiting_time = 1e-6, name = None):
@@ -1440,6 +1549,10 @@ class PulsedJupyterLogic(GenericLogic):
         self.tau_arr = [waiting_time]
 
         #Create pulse sequence for the AWG streamer
+        self.param_dict['alternating'] = self.alternating
+        self.param_dict['freq_sweep'] = self.freq_sweep
+        self.param_dict['tau_arr'] = self.tau_arr
+        self.create_pulse_measurement_pulsed_info_dictonary(name, self.param_dict)
         self.BlockAWG = []
 
         for tau in self.tau_arr:
@@ -1466,6 +1579,9 @@ class PulsedJupyterLogic(GenericLogic):
         
         self.ensemble_list, self.sequence_step_list = self.sample_load_ready_AWG(name, self.tau_arr, self.alternating, self.freq_sweep, change_freq = True)
 
+        self.add_BlockAWG_to_pulsed_info_dictonary(name)
+        self.pulsed_info_dict['sequence_step_list'] = self.sequence_step_list
+
         return self.ensemble_list, self.sequence_step_list, name, self.tau_arr, self.alternating, self.freq_sweep
     
     def Rabi(self, tau_start, tau_stop, tau_num, name = None):
@@ -1482,6 +1598,10 @@ class PulsedJupyterLogic(GenericLogic):
         self.tau_arr = np.linspace(tau_start, tau_stop, num=tau_num)
         
         #Create pulse sequence for the AWG
+        self.param_dict['alternating'] = self.alternating
+        self.param_dict['freq_sweep'] = self.freq_sweep
+        self.param_dict['tau_arr'] = self.tau_arr
+        self.create_pulse_measurement_pulsed_info_dictonary(name, self.param_dict)
         self.BlockAWG = []
 
         for tau in self.tau_arr:
@@ -1495,6 +1615,9 @@ class PulsedJupyterLogic(GenericLogic):
         self.sample_load_ready_pulsestreamer(name='read_out_jptr')
         
         self.ensemble_list, self.sequence_step_list = self.sample_load_ready_AWG(name, self.tau_arr, self.alternating, self.freq_sweep, change_freq = True)
+
+        self.add_BlockAWG_to_pulsed_info_dictonary(name)
+        self.pulsed_info_dict['sequence_step_list'] = self.sequence_step_list
 
         return self.ensemble_list, self.sequence_step_list, name, self.tau_arr, self.alternating, self.freq_sweep
     
@@ -1515,6 +1638,12 @@ class PulsedJupyterLogic(GenericLogic):
         self.segments = {}
         self.segment_name_list = []
         self.sequence_step_list = []
+
+        self.param_dict['alternating'] = self.alternating
+        self.param_dict['freq_sweep'] = self.freq_sweep
+        self.param_dict['tau_arr'] = self.tau_arr
+        self.param_dict['several_sequences_measurement'] = self.several_sequences_measurement
+        self.create_pulse_measurement_pulsed_info_dictonary(name, self.param_dict)
         
         #Create pulse sequence for the AWG
         for tau in self.tau_arr:
@@ -1529,12 +1658,14 @@ class PulsedJupyterLogic(GenericLogic):
             self.ElementAWG(channels={'PS_Trig':True}, length=self.mw_waiting_time + self.read_out_time)
 
             self.segments[segment_name] = self.BlockAWG
+            self.add_BlockAWG_to_pulsed_info_dictonary(segment_name)
             self.segment_name_list.append('Jupyter-ensemble-'+segment_name)
 
         self.BlockAWG = []
         tt_next_segment_name = 'tt-next-juptr'
         self.ElementAWG(channels={'TT_Next': True}, length = 300e-9)
         self.segments[tt_next_segment_name] = self.BlockAWG
+        self.add_BlockAWG_to_pulsed_info_dictonary(tt_next_segment_name)
 
         for idx, segment_name in enumerate(self.segment_name_list):
             #TT_next step
@@ -1559,6 +1690,8 @@ class PulsedJupyterLogic(GenericLogic):
         
         self.ensemble_list, self.sequence_step_list = self.sample_load_ready_AWG_sequence(self.segments, self.sequence_step_list, self.tau_arr, self.alternating, self.freq_sweep, change_freq = True)
 
+        self.pulsed_info_dict['sequence_step_list'] = self.sequence_step_list
+        
         return self.ensemble_list, self.sequence_step_list, name, self.tau_arr, self.alternating, self.freq_sweep
     
     
@@ -1580,6 +1713,10 @@ class PulsedJupyterLogic(GenericLogic):
             return
         
         #Create pulse sequence for the AWG
+        self.param_dict['alternating'] = self.alternating
+        self.param_dict['freq_sweep'] = self.freq_sweep
+        self.param_dict['tau_arr'] = self.tau_arr
+        self.create_pulse_measurement_pulsed_info_dictonary(name, self.param_dict)
         self.BlockAWG = []
 
         for tau in self.tau_arr:
@@ -1600,6 +1737,9 @@ class PulsedJupyterLogic(GenericLogic):
         self.sample_load_ready_pulsestreamer(name='read_out_jptr')
         
         self.ensemble_list, self.sequence_step_list = self.sample_load_ready_AWG(name, self.tau_arr, self.alternating, self.freq_sweep, change_freq = True)
+
+        self.add_BlockAWG_to_pulsed_info_dictonary(name)
+        self.pulsed_info_dict['sequence_step_list'] = self.sequence_step_list
 
         return self.ensemble_list, self.sequence_step_list, name, self.tau_arr, self.alternating, self.freq_sweep
     
@@ -1626,6 +1766,10 @@ class PulsedJupyterLogic(GenericLogic):
             return
         
         #Create pulse sequence for the AWG
+        self.param_dict['alternating'] = self.alternating
+        self.param_dict['freq_sweep'] = self.freq_sweep
+        self.param_dict['tau_arr'] = self.tau_arr
+        self.create_pulse_measurement_pulsed_info_dictonary(name, self.param_dict)
         self.BlockAWG = []
 
         for tau in self.tau_arr:
@@ -1648,6 +1792,9 @@ class PulsedJupyterLogic(GenericLogic):
         self.sample_load_ready_pulsestreamer(name='read_out_jptr')
         
         self.ensemble_list, self.sequence_step_list = self.sample_load_ready_AWG(name, self.tau_arr, self.alternating, self.freq_sweep, change_freq = True)
+
+        self.add_BlockAWG_to_pulsed_info_dictonary(name)
+        self.pulsed_info_dict['sequence_step_list'] = self.sequence_step_list
 
         return self.ensemble_list, self.sequence_step_list, name, self.tau_arr, self.alternating, self.freq_sweep
     
@@ -1674,6 +1821,10 @@ class PulsedJupyterLogic(GenericLogic):
             return
         
         #Create pulse sequence for the AWG
+        self.param_dict['alternating'] = self.alternating
+        self.param_dict['freq_sweep'] = self.freq_sweep
+        self.param_dict['tau_arr'] = self.tau_arr
+        self.create_pulse_measurement_pulsed_info_dictonary(name, self.param_dict)
         self.BlockAWG = []
 
         for tau in self.tau_arr:
@@ -1694,6 +1845,9 @@ class PulsedJupyterLogic(GenericLogic):
         self.sample_load_ready_pulsestreamer(name='read_out_jptr')
         
         self.ensemble_list, self.sequence_step_list = self.sample_load_ready_AWG(name, self.tau_arr, self.alternating, self.freq_sweep, change_freq = True)
+
+        self.add_BlockAWG_to_pulsed_info_dictonary(name)
+        self.pulsed_info_dict['sequence_step_list'] = self.sequence_step_list
 
         return self.ensemble_list, self.sequence_step_list, name, self.tau_arr, self.alternating, self.freq_sweep
     
@@ -1721,6 +1875,10 @@ class PulsedJupyterLogic(GenericLogic):
             self.LO_freq_0 = self.target_freq_0 + 100e6
         
         #Create pulse sequence for the AWG
+        self.param_dict['alternating'] = self.alternating
+        self.param_dict['freq_sweep'] = self.freq_sweep
+        self.param_dict['tau_arr'] = self.tau_arr
+        self.create_pulse_measurement_pulsed_info_dictonary(name, self.param_dict)
         self.BlockAWG = []
 
         for tau in self.tau_arr:
@@ -1760,6 +1918,9 @@ class PulsedJupyterLogic(GenericLogic):
         
         self.ensemble_list, self.sequence_step_list = self.sample_load_ready_AWG(name, self.tau_arr, self.alternating, self.freq_sweep, change_freq = True)
 
+        self.add_BlockAWG_to_pulsed_info_dictonary(name)
+        self.pulsed_info_dict['sequence_step_list'] = self.sequence_step_list
+
         return self.ensemble_list, self.sequence_step_list, name, self.tau_arr, self.alternating, self.freq_sweep
     
     def Rabi_offresonant_with_waiting_time_alt(self, tau_start, tau_stop, tau_num, off_resonant_freq, waiting_time, laser_on, name = None):
@@ -1797,6 +1958,10 @@ class PulsedJupyterLogic(GenericLogic):
             self.LO_freq_0 = self.target_freq_0 + 100e6
         
         #Create pulse sequence for the AWG
+        self.param_dict['alternating'] = self.alternating
+        self.param_dict['freq_sweep'] = self.freq_sweep
+        self.param_dict['tau_arr'] = self.tau_arr
+        self.create_pulse_measurement_pulsed_info_dictonary(name, self.param_dict)
         self.BlockAWG = []
 
         for tau in self.tau_arr:
@@ -1835,6 +2000,9 @@ class PulsedJupyterLogic(GenericLogic):
         self.sample_load_ready_pulsestreamer(name='read_out_jptr')
         
         self.ensemble_list, self.sequence_step_list = self.sample_load_ready_AWG(name, self.tau_arr, self.alternating, self.freq_sweep, change_freq = True)
+
+        self.add_BlockAWG_to_pulsed_info_dictonary(name)
+        self.pulsed_info_dict['sequence_step_list'] = self.sequence_step_list
 
         return self.ensemble_list, self.sequence_step_list, name, self.tau_arr, self.alternating, self.freq_sweep
     
@@ -1873,6 +2041,10 @@ class PulsedJupyterLogic(GenericLogic):
             self.LO_freq_0 = self.target_freq_0 + 100e6
         
         #Create pulse sequence for the AWG
+        self.param_dict['alternating'] = self.alternating
+        self.param_dict['freq_sweep'] = self.freq_sweep
+        self.param_dict['tau_arr'] = self.tau_arr
+        self.create_pulse_measurement_pulsed_info_dictonary(name, self.param_dict)
         self.BlockAWG = []
 
         for tau in self.tau_arr:
@@ -1912,6 +2084,9 @@ class PulsedJupyterLogic(GenericLogic):
         
         self.ensemble_list, self.sequence_step_list = self.sample_load_ready_AWG(name, self.tau_arr, self.alternating, self.freq_sweep, change_freq = True)
 
+        self.add_BlockAWG_to_pulsed_info_dictonary(name)
+        self.pulsed_info_dict['sequence_step_list'] = self.sequence_step_list
+
         return self.ensemble_list, self.sequence_step_list, name, self.tau_arr, self.alternating, self.freq_sweep
     
     def MW_with_readout_sweep_during_waiting_time(self, tau_start, tau_stop, tau_num, waiting_time_max, laser_on, name = None):
@@ -1936,6 +2111,10 @@ class PulsedJupyterLogic(GenericLogic):
             return
         
         #Create pulse sequence for the AWG
+        self.param_dict['alternating'] = self.alternating
+        self.param_dict['freq_sweep'] = self.freq_sweep
+        self.param_dict['tau_arr'] = self.tau_arr
+        self.create_pulse_measurement_pulsed_info_dictonary(name, self.param_dict)
         self.BlockAWG = []
 
         for tau in self.tau_arr:
@@ -1961,6 +2140,9 @@ class PulsedJupyterLogic(GenericLogic):
         
         self.ensemble_list, self.sequence_step_list = self.sample_load_ready_AWG(name, self.tau_arr, self.alternating, self.freq_sweep, change_freq = True)
 
+        self.add_BlockAWG_to_pulsed_info_dictonary(name)
+        self.pulsed_info_dict['sequence_step_list'] = self.sequence_step_list
+
         return self.ensemble_list, self.sequence_step_list, name, self.tau_arr, self.alternating, self.freq_sweep
     
     def SC_MW_init_lifetime(self, tau_start, tau_stop, tau_num, waiting_time, name = None):
@@ -1977,6 +2159,10 @@ class PulsedJupyterLogic(GenericLogic):
         self.tau_arr = np.linspace(tau_start, tau_stop, num=tau_num)
         
         #Create pulse sequence for the AWG
+        self.param_dict['alternating'] = self.alternating
+        self.param_dict['freq_sweep'] = self.freq_sweep
+        self.param_dict['tau_arr'] = self.tau_arr
+        self.create_pulse_measurement_pulsed_info_dictonary(name, self.param_dict)
         self.BlockAWG = []
 
         for tau in self.tau_arr:
@@ -1997,6 +2183,9 @@ class PulsedJupyterLogic(GenericLogic):
         
         self.ensemble_list, self.sequence_step_list = self.sample_load_ready_AWG(name, self.tau_arr, self.alternating, self.freq_sweep, change_freq = True)
 
+        self.add_BlockAWG_to_pulsed_info_dictonary(name)
+        self.pulsed_info_dict['sequence_step_list'] = self.sequence_step_list
+
         return self.ensemble_list, self.sequence_step_list, name, self.tau_arr, self.alternating, self.freq_sweep
     
     def Rabi_MW_init_alt(self, tau_start, tau_stop, tau_num, waiting_time, two_pi_pulse, name = None):
@@ -2013,6 +2202,10 @@ class PulsedJupyterLogic(GenericLogic):
         self.tau_arr = np.linspace(tau_start, tau_stop, num=tau_num)
         
         #Create pulse sequence for the AWG
+        self.param_dict['alternating'] = self.alternating
+        self.param_dict['freq_sweep'] = self.freq_sweep
+        self.param_dict['tau_arr'] = self.tau_arr
+        self.create_pulse_measurement_pulsed_info_dictonary(name, self.param_dict)
         self.BlockAWG = []
 
         for tau in self.tau_arr:
@@ -2042,6 +2235,9 @@ class PulsedJupyterLogic(GenericLogic):
         
         self.ensemble_list, self.sequence_step_list = self.sample_load_ready_AWG(name, self.tau_arr, self.alternating, self.freq_sweep, change_freq = True)
 
+        self.add_BlockAWG_to_pulsed_info_dictonary(name)
+        self.pulsed_info_dict['sequence_step_list'] = self.sequence_step_list
+
         return self.ensemble_list, self.sequence_step_list, name, self.tau_arr, self.alternating, self.freq_sweep
     
     def Beating_Rabi(self, pi_spacing, pi_pulse_num_stop, readout_on_second, waiting_time_after_readout, name = None):
@@ -2063,6 +2259,10 @@ class PulsedJupyterLogic(GenericLogic):
             self.tau_arr = np.arange(0,int(pi_pulse_num_stop)+1,1)
         
         #Create pulse sequence for the AWG
+        self.param_dict['alternating'] = self.alternating
+        self.param_dict['freq_sweep'] = self.freq_sweep
+        self.param_dict['tau_arr'] = self.tau_arr
+        self.create_pulse_measurement_pulsed_info_dictonary(name, self.param_dict)
         self.BlockAWG = []
 
         for tau in self.tau_arr:
@@ -2092,6 +2292,9 @@ class PulsedJupyterLogic(GenericLogic):
         
         self.ensemble_list, self.sequence_step_list = self.sample_load_ready_AWG(name, self.tau_arr, self.alternating, self.freq_sweep, change_freq = True)
 
+        self.add_BlockAWG_to_pulsed_info_dictonary(name)
+        self.pulsed_info_dict['sequence_step_list'] = self.sequence_step_list
+
         return self.ensemble_list, self.sequence_step_list, name, self.tau_arr, self.alternating, self.freq_sweep
     
     def T1_optical_exp(self, tau_start, tau_stop, tau_num, name = None):
@@ -2113,11 +2316,18 @@ class PulsedJupyterLogic(GenericLogic):
         self.sequence_step_list = []
 
         #Define read out segment
+        self.param_dict['alternating'] = self.alternating
+        self.param_dict['freq_sweep'] = self.freq_sweep
+        self.param_dict['tau_arr'] = self.tau_arr
+        self.param_dict['several_sequences_measurement'] = self.several_sequences_measurement
+        self.create_pulse_measurement_pulsed_info_dictonary(name, self.param_dict)
+
         self.BlockAWG = []
         read_out_name = name+'-read_out'
         self.ElementAWG(channels={'PS_Trig':True}, length=self.mw_waiting_time + self.read_out_time)
         self.ElementAWG(channels={}, length=self.laser_waiting_time)
         self.segments[read_out_name] = self.BlockAWG
+        self.add_BlockAWG_to_pulsed_info_dictonary(read_out_name)
 
         #Define waiting Segment
         self.BlockAWG = []
@@ -2133,6 +2343,7 @@ class PulsedJupyterLogic(GenericLogic):
             return
         self.ElementAWG(channels={}, length=waiting_time)
         self.segments[waiting_name] = self.BlockAWG
+        self.add_BlockAWG_to_pulsed_info_dictonary(waiting_name)
 
         #Define Sequence with sequence_step_list
         real_tau_arr = np.zeros_like(self.tau_arr)
@@ -2161,6 +2372,8 @@ class PulsedJupyterLogic(GenericLogic):
         
         self.ensemble_list, self.sequence_step_list = self.sample_load_ready_AWG_sequence(self.segments, self.sequence_step_list, self.tau_arr, self.alternating, self.freq_sweep, change_freq = True)
 
+        self.pulsed_info_dict['sequence_step_list'] = self.sequence_step_list
+        
         return self.ensemble_list, self.sequence_step_list, name, self.tau_arr, self.alternating, self.freq_sweep
     
     def T1_optical_lin(self, tau_start, tau_stop, tau_num, name = None):
@@ -2180,6 +2393,10 @@ class PulsedJupyterLogic(GenericLogic):
         self.tau_arr = np.linspace(tau_start, tau_stop, num=tau_num)-self.mw_waiting_time #Pi pulse duration is subtracted and thus total tau includes the Pi pulse
 
         #Create pulse sequence for the AWG streamer
+        self.param_dict['alternating'] = self.alternating
+        self.param_dict['freq_sweep'] = self.freq_sweep
+        self.param_dict['tau_arr'] = self.tau_arr
+        self.create_pulse_measurement_pulsed_info_dictonary(name, self.param_dict)
         self.BlockAWG = []
 
         for tau in self.tau_arr:
@@ -2192,6 +2409,9 @@ class PulsedJupyterLogic(GenericLogic):
         self.tau_arr = self.tau_arr+self.mw_waiting_time
         
         self.ensemble_list, self.sequence_step_list = self.sample_load_ready_AWG(name, self.tau_arr, self.alternating, self.freq_sweep, change_freq = True)
+
+        self.add_BlockAWG_to_pulsed_info_dictonary(name)
+        self.pulsed_info_dict['sequence_step_list'] = self.sequence_step_list
 
         return self.ensemble_list, self.sequence_step_list, name, self.tau_arr, self.alternating, self.freq_sweep #Pi pulse duration is subtracted and thus total tau includes the Pi pulse   
     
@@ -2212,6 +2432,10 @@ class PulsedJupyterLogic(GenericLogic):
         self.tau_arr = np.linspace(tau_start, tau_stop, num=tau_num)-(self.mw_waiting_time+self.pi_pulse+self.laser_waiting_time) #Pi pulse duration is subtracted and thus total tau includes the Pi pulse
 
         #Create pulse sequence for the AWG streamer
+        self.param_dict['alternating'] = self.alternating
+        self.param_dict['freq_sweep'] = self.freq_sweep
+        self.param_dict['tau_arr'] = self.tau_arr
+        self.create_pulse_measurement_pulsed_info_dictonary(name, self.param_dict)
         self.BlockAWG = []
 
         for tau in self.tau_arr:
@@ -2226,6 +2450,9 @@ class PulsedJupyterLogic(GenericLogic):
         self.tau_arr = self.tau_arr+(self.mw_waiting_time+self.pi_pulse+self.laser_waiting_time)
         
         self.ensemble_list, self.sequence_step_list = self.sample_load_ready_AWG(name, self.tau_arr, self.alternating, self.freq_sweep, change_freq = True)
+
+        self.add_BlockAWG_to_pulsed_info_dictonary(name)
+        self.pulsed_info_dict['sequence_step_list'] = self.sequence_step_list
 
         return self.ensemble_list, self.sequence_step_list, name, self.tau_arr, self.alternating, self.freq_sweep #Pi pulse duration is subtracted and thus total tau includes the Pi pulse   
         
@@ -2251,12 +2478,19 @@ class PulsedJupyterLogic(GenericLogic):
         self.sequence_step_list = []
 
         #Define Pi pulse segment
+        self.param_dict['alternating'] = self.alternating
+        self.param_dict['freq_sweep'] = self.freq_sweep
+        self.param_dict['tau_arr'] = self.tau_arr
+        self.param_dict['several_sequences_measurement'] = self.several_sequences_measurement
+        self.create_pulse_measurement_pulsed_info_dictonary(name, self.param_dict)
+
         self.BlockAWG = []
         pi_pulse_name = name+'-pi_pulse'
         #Adding the Laser waiting time to the segment to make sure that the segment will always be long enough independend on the pi pulse duration
         self.ElementAWG(channels={}, length=self.laser_waiting_time)
         self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse)
         self.segments[pi_pulse_name] = self.BlockAWG
+        self.add_BlockAWG_to_pulsed_info_dictonary(pi_pulse_name)
 
         #Define Pi pulse replacement segment for keeping the self.alternating measurement of the same duration
         self.BlockAWG = []
@@ -2264,12 +2498,14 @@ class PulsedJupyterLogic(GenericLogic):
         #Adding the Laser waiting time to the segment to make sure that the segment will always be long enough independend on the pi pulse duration
         self.ElementAWG(channels={}, length=self.laser_waiting_time+self.pi_pulse)
         self.segments[replacement_name] = self.BlockAWG
+        self.add_BlockAWG_to_pulsed_info_dictonary(replacement_name)
 
         #Define read out segment
         self.BlockAWG = []
         read_out_name = name+'-read_out'
         self.ElementAWG(channels={'PS_Trig':True}, length=self.mw_waiting_time + self.read_out_time)
         self.segments[read_out_name] = self.BlockAWG
+        self.add_BlockAWG_to_pulsed_info_dictonary(read_out_name)
 
         #Define waiting Segment
         self.BlockAWG = []
@@ -2290,6 +2526,7 @@ class PulsedJupyterLogic(GenericLogic):
                 return
         self.ElementAWG(channels={}, length=waiting_time)
         self.segments[waiting_name] = self.BlockAWG
+        self.add_BlockAWG_to_pulsed_info_dictonary(waiting_name)
 
         #Define Sequence with sequence_step_list
         real_tau_arr = np.zeros_like(self.tau_arr)
@@ -2341,11 +2578,14 @@ class PulsedJupyterLogic(GenericLogic):
             self.sequence_step_list.append(step)
 
         self.tau_arr = real_tau_arr
+        self.pulsed_info_dict['params']['tau_arr'] = self.tau_arr
  
         self.sample_load_ready_pulsestreamer(name='read_out_jptr')
         
         self.ensemble_list, self.sequence_step_list = self.sample_load_ready_AWG_sequence(self.segments, self.sequence_step_list, self.tau_arr, self.alternating, self.freq_sweep, change_freq = True)
 
+        self.pulsed_info_dict['sequence_step_list'] = self.sequence_step_list
+        
         return self.ensemble_list, self.sequence_step_list, name, self.tau_arr, self.alternating, self.freq_sweep
         
     def T1_dark_init_alt_exp(self, tau_start, tau_stop, tau_num, name = None):
@@ -2370,12 +2610,19 @@ class PulsedJupyterLogic(GenericLogic):
         self.sequence_step_list = []
 
         #Define Pi pulse intitialzation segment
+        self.param_dict['alternating'] = self.alternating
+        self.param_dict['freq_sweep'] = self.freq_sweep
+        self.param_dict['tau_arr'] = self.tau_arr
+        self.param_dict['several_sequences_measurement'] = self.several_sequences_measurement
+        self.create_pulse_measurement_pulsed_info_dictonary(name, self.param_dict)
+
         self.BlockAWG = []
         pi_pulse_init_name = name+'-pi_pulse_init'
         #Adding the Laser waiting time to the segment to make sure that the segment will always be long enough independend on the pi pulse duration
         self.ElementAWG(channels={}, length=self.laser_waiting_time)
         self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse)
         self.segments[pi_pulse_init_name] = self.BlockAWG
+        self.add_BlockAWG_to_pulsed_info_dictonary(pi_pulse_init_name)
 
         #Define Pi pulse + read out segment 
         self.BlockAWG = []
@@ -2384,6 +2631,7 @@ class PulsedJupyterLogic(GenericLogic):
         self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse)
         self.ElementAWG(channels={'PS_Trig':True}, length=self.mw_waiting_time + self.read_out_time)
         self.segments[pi_pulse_read_out_name] = self.BlockAWG
+        self.add_BlockAWG_to_pulsed_info_dictonary(pi_pulse_read_out_name)
 
         #Define Pi pulse replacement + read out segment 
         self.BlockAWG = []
@@ -2392,6 +2640,7 @@ class PulsedJupyterLogic(GenericLogic):
         self.ElementAWG(channels={}, length=self.pi_pulse)
         self.ElementAWG(channels={'PS_Trig':True}, length=self.mw_waiting_time + self.read_out_time)
         self.segments[pi_pulse_replacement_read_out_name] = self.BlockAWG
+        self.add_BlockAWG_to_pulsed_info_dictonary(pi_pulse_replacement_read_out_name)
 
         #Define waiting Segment
         self.BlockAWG = []
@@ -2407,6 +2656,7 @@ class PulsedJupyterLogic(GenericLogic):
             return
         self.ElementAWG(channels={}, length=waiting_time)
         self.segments[waiting_name] = self.BlockAWG
+        self.add_BlockAWG_to_pulsed_info_dictonary(waiting_name)
 
         #Define Sequence with sequence_step_list
         real_tau_arr = np.zeros_like(self.tau_arr)
@@ -2458,11 +2708,14 @@ class PulsedJupyterLogic(GenericLogic):
             self.sequence_step_list.append(step)
 
         self.tau_arr = real_tau_arr
+        self.pulsed_info_dict['params']['tau_arr'] = self.tau_arr
  
         self.sample_load_ready_pulsestreamer(name='read_out_jptr')
         
         self.ensemble_list, self.sequence_step_list = self.sample_load_ready_AWG_sequence(self.segments, self.sequence_step_list, self.tau_arr, self.alternating, self.freq_sweep, change_freq = True)
 
+        self.pulsed_info_dict['sequence_step_list'] = self.sequence_step_list
+        
         return self.ensemble_list, self.sequence_step_list, name, self.tau_arr, self.alternating, self.freq_sweep
     
     def T1_dark_init_alt_lin(self, tau_start, tau_stop, tau_num, name = None):
@@ -2485,6 +2738,10 @@ class PulsedJupyterLogic(GenericLogic):
         self.tau_arr = np.linspace(tau_start, tau_stop, num=tau_num)-(2*self.pi_pulse+self.laser_waiting_time+self.mw_waiting_time) #Pi pulse duration is subtracted and thus total tau includes the Pi pulse
 
         #Create pulse sequence for the AWG streamer
+        self.param_dict['alternating'] = self.alternating
+        self.param_dict['freq_sweep'] = self.freq_sweep
+        self.param_dict['tau_arr'] = self.tau_arr
+        self.create_pulse_measurement_pulsed_info_dictonary(name, self.param_dict)
         self.BlockAWG = []
 
         for tau in self.tau_arr:
@@ -2508,6 +2765,9 @@ class PulsedJupyterLogic(GenericLogic):
         
         self.ensemble_list, self.sequence_step_list = self.sample_load_ready_AWG(name, self.tau_arr, self.alternating, self.freq_sweep, change_freq = True)
 
+        self.add_BlockAWG_to_pulsed_info_dictonary(name)
+        self.pulsed_info_dict['sequence_step_list'] = self.sequence_step_list
+
         return self.ensemble_list, self.sequence_step_list, name, self.tau_arr, self.alternating, self.freq_sweep #Pi pulse duration is subtracted and thus total tau includes the Pi pulse   
     
     def T1_two_pi_init_alt_lin(self, tau_start, tau_stop, tau_num, two_pi_pulse, name = None):
@@ -2530,6 +2790,10 @@ class PulsedJupyterLogic(GenericLogic):
         self.tau_arr = np.linspace(tau_start, tau_stop, num=tau_num)-(two_pi_pulse+self.pi_pulse+self.laser_waiting_time+self.mw_waiting_time) #Pi pulse duration is subtracted and thus total tau includes the Pi pulse
 
         #Create pulse sequence for the AWG streamer
+        self.param_dict['alternating'] = self.alternating
+        self.param_dict['freq_sweep'] = self.freq_sweep
+        self.param_dict['tau_arr'] = self.tau_arr
+        self.create_pulse_measurement_pulsed_info_dictonary(name, self.param_dict)
         self.BlockAWG = []
 
         for tau in self.tau_arr:
@@ -2553,6 +2817,9 @@ class PulsedJupyterLogic(GenericLogic):
         
         self.ensemble_list, self.sequence_step_list = self.sample_load_ready_AWG(name, self.tau_arr, self.alternating, self.freq_sweep, change_freq = True)
 
+        self.add_BlockAWG_to_pulsed_info_dictonary(name)
+        self.pulsed_info_dict['sequence_step_list'] = self.sequence_step_list
+
         return self.ensemble_list, self.sequence_step_list, name, self.tau_arr, self.alternating, self.freq_sweep #Pi pulse duration is subtracted and thus total tau includes the Pi pulse
     
     def T1_two_pi_init_non_coherent_alt_lin(self, tau_start, tau_stop, tau_num, two_pi_pulse, name = None):
@@ -2575,6 +2842,10 @@ class PulsedJupyterLogic(GenericLogic):
         self.tau_arr = np.linspace(tau_start, tau_stop, num=tau_num)-(two_pi_pulse+self.pi_pulse+self.laser_waiting_time+self.mw_waiting_time) #Pi pulse duration is subtracted and thus total tau includes the Pi pulse
 
         #Create pulse sequence for the AWG streamer
+        self.param_dict['alternating'] = self.alternating
+        self.param_dict['freq_sweep'] = self.freq_sweep
+        self.param_dict['tau_arr'] = self.tau_arr
+        self.create_pulse_measurement_pulsed_info_dictonary(name, self.param_dict)
         self.BlockAWG = []
 
         for tau in self.tau_arr:
@@ -2600,6 +2871,9 @@ class PulsedJupyterLogic(GenericLogic):
         
         self.ensemble_list, self.sequence_step_list = self.sample_load_ready_AWG(name, self.tau_arr, self.alternating, self.freq_sweep, change_freq = True)
 
+        self.add_BlockAWG_to_pulsed_info_dictonary(name)
+        self.pulsed_info_dict['sequence_step_list'] = self.sequence_step_list
+
         return self.ensemble_list, self.sequence_step_list, name, self.tau_arr, self.alternating, self.freq_sweep #Pi pulse duration is subtracted and thus total tau includes the Pi pulse
     
     def T1_two_pi_init_only_alt_lin(self, tau_start, tau_stop, tau_num, two_pi_pulse, name = None):
@@ -2619,6 +2893,10 @@ class PulsedJupyterLogic(GenericLogic):
         self.tau_arr = np.linspace(tau_start, tau_stop, num=tau_num)-(two_pi_pulse+self.pi_pulse+self.laser_waiting_time+self.mw_waiting_time) #Pi pulse duration is subtracted and thus total tau includes the Pi pulse
 
         #Create pulse sequence for the AWG streamer
+        self.param_dict['alternating'] = self.alternating
+        self.param_dict['freq_sweep'] = self.freq_sweep
+        self.param_dict['tau_arr'] = self.tau_arr
+        self.create_pulse_measurement_pulsed_info_dictonary(name, self.param_dict)
         self.BlockAWG = []
 
         for tau in self.tau_arr:
@@ -2634,6 +2912,9 @@ class PulsedJupyterLogic(GenericLogic):
         self.tau_arr = self.tau_arr+(two_pi_pulse+self.pi_pulse+self.laser_waiting_time+self.mw_waiting_time)
         
         self.ensemble_list, self.sequence_step_list = self.sample_load_ready_AWG(name, self.tau_arr, self.alternating, self.freq_sweep, change_freq = True)
+
+        self.add_BlockAWG_to_pulsed_info_dictonary(name)
+        self.pulsed_info_dict['sequence_step_list'] = self.sequence_step_list
 
         return self.ensemble_list, self.sequence_step_list, name, self.tau_arr, self.alternating, self.freq_sweep #Pi pulse duration is subtracted and thus total tau includes the Pi pulse   
         
@@ -2658,6 +2939,12 @@ class PulsedJupyterLogic(GenericLogic):
         self.segments = {}
         self.sequence_step_list = []
 
+        self.param_dict['alternating'] = self.alternating
+        self.param_dict['freq_sweep'] = self.freq_sweep
+        self.param_dict['tau_arr'] = self.tau_arr
+        self.param_dict['several_sequences_measurement'] = self.several_sequences_measurement
+        self.create_pulse_measurement_pulsed_info_dictonary(name, self.param_dict)
+
         #Define Pi pulse peak 0 (MW0) intitialzation segment
         self.BlockAWG = []
         pi_pulse_peak0_init_name = name+'-pi_pulse_peak0_init'
@@ -2665,6 +2952,7 @@ class PulsedJupyterLogic(GenericLogic):
         self.ElementAWG(channels={}, length=self.laser_waiting_time)
         self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse)
         self.segments[pi_pulse_peak0_init_name] = self.BlockAWG
+        self.add_BlockAWG_to_pulsed_info_dictonary(pi_pulse_peak0_init_name)
 
         #Define Pi pulse peak 0 (MW0) + read out segment 
         self.BlockAWG = []
@@ -2673,6 +2961,7 @@ class PulsedJupyterLogic(GenericLogic):
         self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse)
         self.ElementAWG(channels={'PS_Trig':True}, length=self.mw_waiting_time + self.read_out_time)
         self.segments[pi_pulse_peak0_read_out_name] = self.BlockAWG
+        self.add_BlockAWG_to_pulsed_info_dictonary(pi_pulse_peak0_read_out_name)
 
         #Define Pi pulse peak 1 (MW1) + read out segment 
         self.BlockAWG = []
@@ -2681,6 +2970,7 @@ class PulsedJupyterLogic(GenericLogic):
         self.ElementAWG(channels={'MW_1':True}, length=self.pi_pulse)
         self.ElementAWG(channels={'PS_Trig':True}, length=self.mw_waiting_time + self.read_out_time)
         self.segments[pi_pulse_peak1_read_out_name] = self.BlockAWG
+        self.add_BlockAWG_to_pulsed_info_dictonary(pi_pulse_peak1_read_out_name)
 
         #Define waiting Segment
         self.BlockAWG = []
@@ -2696,6 +2986,7 @@ class PulsedJupyterLogic(GenericLogic):
             return
         self.ElementAWG(channels={}, length=waiting_time)
         self.segments[waiting_name] = self.BlockAWG
+        self.add_BlockAWG_to_pulsed_info_dictonary(waiting_name)
 
         #Define Sequence with sequence_step_list
         real_tau_arr = np.zeros_like(self.tau_arr)
@@ -2747,11 +3038,14 @@ class PulsedJupyterLogic(GenericLogic):
             self.sequence_step_list.append(step)
 
         self.tau_arr = real_tau_arr
+        self.pulsed_info_dict['params']['tau_arr'] = self.tau_arr
  
         self.sample_load_ready_pulsestreamer(name='read_out_jptr')
         
         self.ensemble_list, self.sequence_step_list = self.sample_load_ready_AWG_sequence(self.segments, self.sequence_step_list, self.tau_arr, self.alternating, self.freq_sweep, change_freq = True)
 
+        self.pulsed_info_dict['sequence_step_list'] = self.sequence_step_list
+        
         return self.ensemble_list, self.sequence_step_list, name, self.tau_arr, self.alternating, self.freq_sweep
         
     def T1_SQ_alt_exp(self, tau_start, tau_stop, tau_num, name = None):
@@ -2775,12 +3069,19 @@ class PulsedJupyterLogic(GenericLogic):
         self.segments = {}
         self.sequence_step_list = []
 
+        self.param_dict['alternating'] = self.alternating
+        self.param_dict['freq_sweep'] = self.freq_sweep
+        self.param_dict['tau_arr'] = self.tau_arr
+        self.param_dict['several_sequences_measurement'] = self.several_sequences_measurement
+        self.create_pulse_measurement_pulsed_info_dictonary(name, self.param_dict)
+
         #Define laser waiting segment segment
         self.BlockAWG = []
         laser_waiting_name = name+'-laser_waiting'
         #Adding the Laser waiting time to the segment to make sure that the segment will always be long enough independend on the pi pulse duration
         self.ElementAWG(channels={}, length=self.laser_waiting_time)
         self.segments[laser_waiting_name] = self.BlockAWG
+        self.add_BlockAWG_to_pulsed_info_dictonary(laser_waiting_name)
 
         #Define Pi pulse + read out segment 
         self.BlockAWG = []
@@ -2789,6 +3090,7 @@ class PulsedJupyterLogic(GenericLogic):
         self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse)
         self.ElementAWG(channels={'PS_Trig':True}, length=self.mw_waiting_time + self.read_out_time)
         self.segments[pi_pulse_read_out_name] = self.BlockAWG
+        self.add_BlockAWG_to_pulsed_info_dictonary(pi_pulse_read_out_name)
 
         #Define Pi pulse replacement + read out segment 
         self.BlockAWG = []
@@ -2797,6 +3099,7 @@ class PulsedJupyterLogic(GenericLogic):
         self.ElementAWG(channels={}, length=self.pi_pulse)
         self.ElementAWG(channels={'PS_Trig':True}, length=self.mw_waiting_time + self.read_out_time)
         self.segments[pi_pulse_replacement_read_out_name] = self.BlockAWG
+        self.add_BlockAWG_to_pulsed_info_dictonary(pi_pulse_replacement_read_out_name)
 
         #Define waiting Segment
         self.BlockAWG = []
@@ -2812,6 +3115,7 @@ class PulsedJupyterLogic(GenericLogic):
             return
         self.ElementAWG(channels={}, length=waiting_time)
         self.segments[waiting_name] = self.BlockAWG
+        self.add_BlockAWG_to_pulsed_info_dictonary(waiting_name)
 
         #Define Sequence with sequence_step_list
         real_tau_arr = np.zeros_like(self.tau_arr)
@@ -2863,11 +3167,14 @@ class PulsedJupyterLogic(GenericLogic):
             self.sequence_step_list.append(step)
 
         self.tau_arr = real_tau_arr
+        self.pulsed_info_dict['params']['tau_arr'] = self.tau_arr
  
         self.sample_load_ready_pulsestreamer(name='read_out_jptr')
         
         self.ensemble_list, self.sequence_step_list = self.sample_load_ready_AWG_sequence(self.segments, self.sequence_step_list, self.tau_arr, self.alternating, self.freq_sweep, change_freq = True)
 
+        self.pulsed_info_dict['sequence_step_list'] = self.sequence_step_list
+        
         return self.ensemble_list, self.sequence_step_list, name, self.tau_arr, self.alternating, self.freq_sweep
     
     def T1_SQ_alt_lin(self, tau_start, tau_stop, tau_num, name = None):
@@ -2890,6 +3197,10 @@ class PulsedJupyterLogic(GenericLogic):
         self.tau_arr = np.linspace(tau_start, tau_stop, num=tau_num)-(self.pi_pulse+self.laser_waiting_time+self.mw_waiting_time) #Pi pulse duration is subtracted and thus total tau includes the Pi pulse
 
         #Create pulse sequence for the AWG streamer
+        self.param_dict['alternating'] = self.alternating
+        self.param_dict['freq_sweep'] = self.freq_sweep
+        self.param_dict['tau_arr'] = self.tau_arr
+        self.create_pulse_measurement_pulsed_info_dictonary(name, self.param_dict)
         self.BlockAWG = []
 
         for tau in self.tau_arr:
@@ -2911,6 +3222,9 @@ class PulsedJupyterLogic(GenericLogic):
         
         self.ensemble_list, self.sequence_step_list = self.sample_load_ready_AWG(name, self.tau_arr, self.alternating, self.freq_sweep, change_freq = True)
 
+        self.add_BlockAWG_to_pulsed_info_dictonary(name)
+        self.pulsed_info_dict['sequence_step_list'] = self.sequence_step_list
+
         return self.ensemble_list, self.sequence_step_list, name, self.tau_arr, self.alternating, self.freq_sweep #Pi pulse duration is subtracted and thus total tau includes the Pi pulse   
     
     def Ramsey_alt_phased(self, tau_start, tau_stop, tau_num, name = None):
@@ -2930,6 +3244,10 @@ class PulsedJupyterLogic(GenericLogic):
         self.tau_arr = np.linspace(tau_start, tau_stop, num=tau_num)
 
         #Create pulse sequence for the AWG streamer
+        self.param_dict['alternating'] = self.alternating
+        self.param_dict['freq_sweep'] = self.freq_sweep
+        self.param_dict['tau_arr'] = self.tau_arr
+        self.create_pulse_measurement_pulsed_info_dictonary(name, self.param_dict)
         self.BlockAWG = []
         
         for tau in self.tau_arr:
@@ -2960,6 +3278,9 @@ class PulsedJupyterLogic(GenericLogic):
         
         self.ensemble_list, self.sequence_step_list = self.sample_load_ready_AWG(name, self.tau_arr, self.alternating, self.freq_sweep, change_freq = True)
 
+        self.add_BlockAWG_to_pulsed_info_dictonary(name)
+        self.pulsed_info_dict['sequence_step_list'] = self.sequence_step_list
+
         return self.ensemble_list, self.sequence_step_list, name, self.tau_arr, self.alternating, self.freq_sweep
     
     def Hecho_alt_phased(self, tau_start, tau_stop, tau_num, name = None):
@@ -2982,6 +3303,10 @@ class PulsedJupyterLogic(GenericLogic):
         self.tau_arr = np.linspace(tau_start, tau_stop, num=tau_num) - self.pi_pulse #Pi pulse duration is subtracted and thus total tau includes the Pi pulse
 
         #Create pulse sequence for the AWG streamer
+        self.param_dict['alternating'] = self.alternating
+        self.param_dict['freq_sweep'] = self.freq_sweep
+        self.param_dict['tau_arr'] = self.tau_arr
+        self.create_pulse_measurement_pulsed_info_dictonary(name, self.param_dict)
         self.BlockAWG = []
 
         for tau in self.tau_arr:
@@ -3021,6 +3346,9 @@ class PulsedJupyterLogic(GenericLogic):
         self.tau_arr = self.tau_arr + self.pi_pulse
         
         self.ensemble_list, self.sequence_step_list = self.sample_load_ready_AWG(name, self.tau_arr, self.alternating, self.freq_sweep, change_freq = True)
+
+        self.add_BlockAWG_to_pulsed_info_dictonary(name)
+        self.pulsed_info_dict['sequence_step_list'] = self.sequence_step_list
 
         return self.ensemble_list, self.sequence_step_list, name, self.tau_arr, self.alternating, self.freq_sweep #Pi pulse duration is subtracted and thus total tau includes the Pi pulse
     
@@ -3044,6 +3372,10 @@ class PulsedJupyterLogic(GenericLogic):
         self.tau_arr = np.linspace(tau_start, tau_stop, num=tau_num) - self.pi_pulse #Pi pulse duration is subtracted and thus total tau includes the Pi pulse
 
         #Create pulse sequence for the AWG streamer
+        self.param_dict['alternating'] = self.alternating
+        self.param_dict['freq_sweep'] = self.freq_sweep
+        self.param_dict['tau_arr'] = self.tau_arr
+        self.create_pulse_measurement_pulsed_info_dictonary(name, self.param_dict)
         self.BlockAWG = []
 
         for tau in self.tau_arr:
@@ -3088,6 +3420,9 @@ class PulsedJupyterLogic(GenericLogic):
         
         self.ensemble_list, self.sequence_step_list = self.sample_load_ready_AWG(name, self.tau_arr, self.alternating, self.freq_sweep, change_freq = True)
 
+        self.add_BlockAWG_to_pulsed_info_dictonary(name)
+        self.pulsed_info_dict['sequence_step_list'] = self.sequence_step_list
+
         return self.ensemble_list, self.sequence_step_list, name, self.tau_arr, self.alternating, self.freq_sweep #Pi pulse duration is subtracted and thus total tau includes the Pi pulse
     
     def Thermo_echo_alt_phased(self, tau_start, tau_stop, tau_num, name = None):
@@ -3110,6 +3445,10 @@ class PulsedJupyterLogic(GenericLogic):
         self.tau_arr = np.linspace(tau_start, tau_stop, num=tau_num) - self.pi_pulse*3+self.pi_pulse_1*3 #Pi pulse duration is subtracted and thus total tau includes the Pi pulse
 
         #Create pulse sequence for the AWG streamer
+        self.param_dict['alternating'] = self.alternating
+        self.param_dict['freq_sweep'] = self.freq_sweep
+        self.param_dict['tau_arr'] = self.tau_arr
+        self.create_pulse_measurement_pulsed_info_dictonary(name, self.param_dict)
         self.BlockAWG = []
 
         for tau in self.tau_arr:
@@ -3162,6 +3501,9 @@ class PulsedJupyterLogic(GenericLogic):
         
         self.ensemble_list, self.sequence_step_list = self.sample_load_ready_AWG(name, self.tau_arr, self.alternating, self.freq_sweep, change_freq = True)
 
+        self.add_BlockAWG_to_pulsed_info_dictonary(name)
+        self.pulsed_info_dict['sequence_step_list'] = self.sequence_step_list
+
         return self.ensemble_list, self.sequence_step_list, name, self.tau_arr, self.alternating, self.freq_sweep #Pi pulse duration is subtracted and thus total tau includes the Pi pulse
 
     def Hecho_correlation_alt_phased(self, hecho_waiting, tau_start, tau_stop, tau_num, name = None):
@@ -3186,6 +3528,10 @@ class PulsedJupyterLogic(GenericLogic):
         self.tau_arr = np.linspace(tau_start, tau_stop, num=tau_num)
 
         #Create pulse sequence for the AWG streamer
+        self.param_dict['alternating'] = self.alternating
+        self.param_dict['freq_sweep'] = self.freq_sweep
+        self.param_dict['tau_arr'] = self.tau_arr
+        self.create_pulse_measurement_pulsed_info_dictonary(name, self.param_dict)
         self.BlockAWG = []
 
         for tau in self.tau_arr:
@@ -3247,6 +3593,9 @@ class PulsedJupyterLogic(GenericLogic):
         self.sample_load_ready_pulsestreamer(name='read_out_jptr')
         
         self.ensemble_list, self.sequence_step_list = self.sample_load_ready_AWG(name, self.tau_arr, self.alternating, self.freq_sweep, change_freq = True)
+
+        self.add_BlockAWG_to_pulsed_info_dictonary(name)
+        self.pulsed_info_dict['sequence_step_list'] = self.sequence_step_list
 
         return self.ensemble_list, self.sequence_step_list, name, self.tau_arr, self.alternating, self.freq_sweep #Pi pulse duration is subtracted and thus total tau includes the Pi pulse
     
@@ -3272,6 +3621,10 @@ class PulsedJupyterLogic(GenericLogic):
         self.tau_arr = np.logspace(np.log10(tau_start), np.log10(tau_stop), num=tau_num)
 
         #Create pulse sequence for the AWG streamer
+        self.param_dict['alternating'] = self.alternating
+        self.param_dict['freq_sweep'] = self.freq_sweep
+        self.param_dict['tau_arr'] = self.tau_arr
+        self.create_pulse_measurement_pulsed_info_dictonary(name, self.param_dict)
         self.BlockAWG = []
 
         for tau in self.tau_arr:
@@ -3333,6 +3686,9 @@ class PulsedJupyterLogic(GenericLogic):
         self.sample_load_ready_pulsestreamer(name='read_out_jptr')
         
         self.ensemble_list, self.sequence_step_list = self.sample_load_ready_AWG(name, self.tau_arr, self.alternating, self.freq_sweep, change_freq = True)
+
+        self.add_BlockAWG_to_pulsed_info_dictonary(name)
+        self.pulsed_info_dict['sequence_step_list'] = self.sequence_step_list
 
         return self.ensemble_list, self.sequence_step_list, name, self.tau_arr, self.alternating, self.freq_sweep #Pi pulse duration is subtracted and thus total tau includes the Pi pulse
     
@@ -3364,6 +3720,12 @@ class PulsedJupyterLogic(GenericLogic):
         self.segments = {}
         self.sequence_step_list = []
 
+        self.param_dict['alternating'] = self.alternating
+        self.param_dict['freq_sweep'] = self.freq_sweep
+        self.param_dict['tau_arr'] = self.tau_arr
+        self.param_dict['several_sequences_measurement'] = self.several_sequences_measurement
+        self.create_pulse_measurement_pulsed_info_dictonary(name, self.param_dict)
+
         #Define initial Hahn echo segment
         self.BlockAWG = []
         hecho_init_name = name+'-hecho_init'
@@ -3380,6 +3742,7 @@ class PulsedJupyterLogic(GenericLogic):
         #Pi/2 pulse
         self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse/2, phase_0=90)
         self.segments[hecho_init_name] = self.BlockAWG
+        self.add_BlockAWG_to_pulsed_info_dictonary(hecho_init_name)
 
         #Define second Hahn echo with read out
         self.BlockAWG = []
@@ -3397,6 +3760,7 @@ class PulsedJupyterLogic(GenericLogic):
         #Waiting time + read-out
         self.ElementAWG(channels={'PS_Trig':True}, length=self.mw_waiting_time + self.read_out_time)
         self.segments[hecho_read_out_name] = self.BlockAWG
+        self.add_BlockAWG_to_pulsed_info_dictonary(hecho_read_out_name)
 
         #Define second Hahn echo with read out self.alternating
         self.BlockAWG = []
@@ -3414,6 +3778,7 @@ class PulsedJupyterLogic(GenericLogic):
         #Waiting time + read-out
         self.ElementAWG(channels={'PS_Trig':True}, length=self.mw_waiting_time + self.read_out_time)
         self.segments[hecho_read_out_alt_name] = self.BlockAWG
+        self.add_BlockAWG_to_pulsed_info_dictonary(hecho_read_out_alt_name)
 
         #Define waiting Segment
         self.BlockAWG = []
@@ -3429,6 +3794,7 @@ class PulsedJupyterLogic(GenericLogic):
             return
         self.ElementAWG(channels={}, length=waiting_time)
         self.segments[waiting_name] = self.BlockAWG
+        self.add_BlockAWG_to_pulsed_info_dictonary(waiting_name)
 
         #Define Sequence with sequence_step_list
         real_tau_arr = np.zeros_like(self.tau_arr)
@@ -3480,11 +3846,14 @@ class PulsedJupyterLogic(GenericLogic):
             self.sequence_step_list.append(step)
 
         self.tau_arr = real_tau_arr
+        self.pulsed_info_dict['params']['tau_arr'] = self.tau_arr
  
         self.sample_load_ready_pulsestreamer(name='read_out_jptr')
         
         self.ensemble_list, self.sequence_step_list = self.sample_load_ready_AWG_sequence(self.segments, self.sequence_step_list, self.tau_arr, self.alternating, self.freq_sweep, change_freq = True)
 
+        self.pulsed_info_dict['sequence_step_list'] = self.sequence_step_list
+        
         return self.ensemble_list, self.sequence_step_list, name, self.tau_arr, self.alternating, self.freq_sweep
     
     def Hecho_alt(self, tau_start, tau_stop, tau_num, name = None):
@@ -3508,6 +3877,10 @@ class PulsedJupyterLogic(GenericLogic):
         self.tau_arr = np.linspace(tau_start, tau_stop, num=tau_num) - self.pi_pulse
         
         #Create pulse sequence for the AWG streamer
+        self.param_dict['alternating'] = self.alternating
+        self.param_dict['freq_sweep'] = self.freq_sweep
+        self.param_dict['tau_arr'] = self.tau_arr
+        self.create_pulse_measurement_pulsed_info_dictonary(name, self.param_dict)
         self.BlockAWG = []
 
         for tau in self.tau_arr:
@@ -3548,6 +3921,9 @@ class PulsedJupyterLogic(GenericLogic):
         
         self.ensemble_list, self.sequence_step_list = self.sample_load_ready_AWG(name, self.tau_arr, self.alternating, self.freq_sweep, change_freq = True)
 
+        self.add_BlockAWG_to_pulsed_info_dictonary(name)
+        self.pulsed_info_dict['sequence_step_list'] = self.sequence_step_list
+
         return self.ensemble_list, self.sequence_step_list, name, self.tau_arr, self.alternating, self.freq_sweep
         
     def DEER_alt(self, tau_NV, pi_pulse_dark_spin, mw_start, mw_stop, mw_step, name = None):
@@ -3582,6 +3958,10 @@ class PulsedJupyterLogic(GenericLogic):
         self.LO_freq_1 = end_freq + 100e6
         
         #Create pulse sequence for the AWG streamer
+        self.param_dict['alternating'] = self.alternating
+        self.param_dict['freq_sweep'] = self.freq_sweep
+        self.param_dict['tau_arr'] = self.tau_arr
+        self.create_pulse_measurement_pulsed_info_dictonary(name, self.param_dict)
         self.BlockAWG = []
         
         for tau in self.tau_arr:
@@ -3622,6 +4002,9 @@ class PulsedJupyterLogic(GenericLogic):
         
         self.ensemble_list, self.sequence_step_list = self.sample_load_ready_AWG(name, self.tau_arr, self.alternating, self.freq_sweep, change_freq = True)
 
+        self.add_BlockAWG_to_pulsed_info_dictonary(name)
+        self.pulsed_info_dict['sequence_step_list'] = self.sequence_step_list
+
         return self.ensemble_list, self.sequence_step_list, name, self.tau_arr, self.alternating, self.freq_sweep
     
     def DEER_alt_phased(self, tau_NV, pi_pulse_dark_spin, mw_start, mw_stop, mw_step, name = None):
@@ -3656,6 +4039,10 @@ class PulsedJupyterLogic(GenericLogic):
         self.LO_freq_1 = end_freq + 100e6
         
         #Create pulse sequence for the AWG streamer
+        self.param_dict['alternating'] = self.alternating
+        self.param_dict['freq_sweep'] = self.freq_sweep
+        self.param_dict['tau_arr'] = self.tau_arr
+        self.create_pulse_measurement_pulsed_info_dictonary(name, self.param_dict)
         self.BlockAWG = []
         
         for tau in self.tau_arr:
@@ -3698,6 +4085,9 @@ class PulsedJupyterLogic(GenericLogic):
         
         self.ensemble_list, self.sequence_step_list = self.sample_load_ready_AWG(name, self.tau_arr, self.alternating, self.freq_sweep, change_freq = True)
 
+        self.add_BlockAWG_to_pulsed_info_dictonary(name)
+        self.pulsed_info_dict['sequence_step_list'] = self.sequence_step_list
+
         return self.ensemble_list, self.sequence_step_list, name, self.tau_arr, self.alternating, self.freq_sweep
 
     def DEER_rabi_alt_phased(self, tau_NV, freq_dark_spin, dark_spin_tau_start, dark_spin_tau_stop, dark_spin_tau_num, name = None):
@@ -3730,6 +4120,10 @@ class PulsedJupyterLogic(GenericLogic):
         self.LO_freq_1 = freq_dark_spin + 100e6
         
         #Create pulse sequence for the AWG streamer
+        self.param_dict['alternating'] = self.alternating
+        self.param_dict['freq_sweep'] = self.freq_sweep
+        self.param_dict['tau_arr'] = self.tau_arr
+        self.create_pulse_measurement_pulsed_info_dictonary(name, self.param_dict)
         self.BlockAWG = []
         
         for tau in self.tau_arr:
@@ -3772,6 +4166,9 @@ class PulsedJupyterLogic(GenericLogic):
         
         self.ensemble_list, self.sequence_step_list = self.sample_load_ready_AWG(name, self.tau_arr, self.alternating, self.freq_sweep, change_freq = True)
 
+        self.add_BlockAWG_to_pulsed_info_dictonary(name)
+        self.pulsed_info_dict['sequence_step_list'] = self.sequence_step_list
+
         return self.ensemble_list, self.sequence_step_list, name, self.tau_arr, self.alternating, self.freq_sweep
         
     def CPMG_alt_phased(self, tau_start, tau_stop, tau_num, N, name = None):
@@ -3796,6 +4193,10 @@ class PulsedJupyterLogic(GenericLogic):
         self.tau_arr = np.linspace(tau_start, tau_stop, num=tau_num) - 2*N*self.pi_pulse #compensating the pi_pulse run time
 
         #Create pulse sequence for the AWG streamer
+        self.param_dict['alternating'] = self.alternating
+        self.param_dict['freq_sweep'] = self.freq_sweep
+        self.param_dict['tau_arr'] = self.tau_arr
+        self.create_pulse_measurement_pulsed_info_dictonary(name, self.param_dict)
         self.BlockAWG = []
         
         for tau in self.tau_arr:
@@ -3850,6 +4251,9 @@ class PulsedJupyterLogic(GenericLogic):
         
         self.ensemble_list, self.sequence_step_list = self.sample_load_ready_AWG(name, self.tau_arr, self.alternating, self.freq_sweep, change_freq = True)
 
+        self.add_BlockAWG_to_pulsed_info_dictonary(name)
+        self.pulsed_info_dict['sequence_step_list'] = self.sequence_step_list
+
         return self.ensemble_list, self.sequence_step_list, name, self.tau_arr, self.alternating, self.freq_sweep
         
     def DEER_CPMG_alt_phased(self, tau_NV, pi_pulse_dark_spin, mw_start, mw_stop, mw_step, N, name = None):
@@ -3880,6 +4284,10 @@ class PulsedJupyterLogic(GenericLogic):
         tau_NV -= 2*N*self.pi_pulse
         
         #Create pulse sequence for the AWG streamer
+        self.param_dict['alternating'] = self.alternating
+        self.param_dict['freq_sweep'] = self.freq_sweep
+        self.param_dict['tau_arr'] = self.tau_arr
+        self.create_pulse_measurement_pulsed_info_dictonary(name, self.param_dict)
         self.BlockAWG = []
         
         for tau in self.tau_arr:
@@ -3936,6 +4344,9 @@ class PulsedJupyterLogic(GenericLogic):
         
         self.ensemble_list, self.sequence_step_list = self.sample_load_ready_AWG(name, self.tau_arr, self.alternating, self.freq_sweep, change_freq = True)
 
+        self.add_BlockAWG_to_pulsed_info_dictonary(name)
+        self.pulsed_info_dict['sequence_step_list'] = self.sequence_step_list
+
         return self.ensemble_list, self.sequence_step_list, name, self.tau_arr, self.alternating, self.freq_sweep
         
     def XY4_alt_phased(self, tau_start, tau_stop, tau_num, N, name = None):
@@ -3959,8 +4370,12 @@ class PulsedJupyterLogic(GenericLogic):
         self.freq_sweep=False
         self.tau_arr = np.linspace(tau_start, tau_stop, num=tau_num) - 4*N*self.pi_pulse #compensating the pi_pulse run time
         
-        #Trigger AWG to play its sequence, which includes one complete sweep of all waiting times        
-        self.ElementAWG(channels={'AWG_Trig':True}, length=self.awg_sync_time)
+        #Create pulse sequence for the AWG streamer
+        self.param_dict['alternating'] = self.alternating
+        self.param_dict['freq_sweep'] = self.freq_sweep
+        self.param_dict['tau_arr'] = self.tau_arr
+        self.create_pulse_measurement_pulsed_info_dictonary(name, self.param_dict)
+        self.BlockAWG = []
         
         for tau in self.tau_arr:
             #Break after Initalisation/read out
@@ -4012,6 +4427,9 @@ class PulsedJupyterLogic(GenericLogic):
         
         self.ensemble_list, self.sequence_step_list = self.sample_load_ready_AWG(name, self.tau_arr, self.alternating, self.freq_sweep, change_freq = True)
 
+        self.add_BlockAWG_to_pulsed_info_dictonary(name)
+        self.pulsed_info_dict['sequence_step_list'] = self.sequence_step_list
+
         return self.ensemble_list, self.sequence_step_list, name, self.tau_arr, self.alternating, self.freq_sweep
     
     def XY8_alt_phased(self, tau_start, tau_stop, tau_num, N, name = None):
@@ -4036,6 +4454,10 @@ class PulsedJupyterLogic(GenericLogic):
         self.tau_arr = np.linspace(tau_start, tau_stop, num=tau_num) - 8*N*self.pi_pulse #compensating the pi_pulse run time
         
         #Create pulse sequence for the AWG streamer
+        self.param_dict['alternating'] = self.alternating
+        self.param_dict['freq_sweep'] = self.freq_sweep
+        self.param_dict['tau_arr'] = self.tau_arr
+        self.create_pulse_measurement_pulsed_info_dictonary(name, self.param_dict)
         self.BlockAWG = []
         
         for tau in self.tau_arr:
@@ -4104,6 +4526,9 @@ class PulsedJupyterLogic(GenericLogic):
         
         self.ensemble_list, self.sequence_step_list = self.sample_load_ready_AWG(name, self.tau_arr, self.alternating, self.freq_sweep, change_freq = True)
 
+        self.add_BlockAWG_to_pulsed_info_dictonary(name)
+        self.pulsed_info_dict['sequence_step_list'] = self.sequence_step_list
+
         return self.ensemble_list, self.sequence_step_list, name, self.tau_arr, self.alternating, self.freq_sweep
         
     def XY16_alt_phased(self, tau_start, tau_stop, tau_num, N, name = None):
@@ -4128,6 +4553,10 @@ class PulsedJupyterLogic(GenericLogic):
         self.tau_arr = np.linspace(tau_start, tau_stop, num=tau_num) - 16*N*self.pi_pulse #compensating the pi_pulse run time
         
         #Create pulse sequence for the AWG streamer
+        self.param_dict['alternating'] = self.alternating
+        self.param_dict['freq_sweep'] = self.freq_sweep
+        self.param_dict['tau_arr'] = self.tau_arr
+        self.create_pulse_measurement_pulsed_info_dictonary(name, self.param_dict)
         self.BlockAWG = []
         
         for tau in self.tau_arr:
@@ -4228,6 +4657,9 @@ class PulsedJupyterLogic(GenericLogic):
         
         self.ensemble_list, self.sequence_step_list = self.sample_load_ready_AWG(name, self.tau_arr, self.alternating, self.freq_sweep, change_freq = True)
 
+        self.add_BlockAWG_to_pulsed_info_dictonary(name)
+        self.pulsed_info_dict['sequence_step_list'] = self.sequence_step_list
+
         return self.ensemble_list, self.sequence_step_list, name, self.tau_arr, self.alternating, self.freq_sweep
     
     def sample_load_ready_AWG_for_SPM_tracking(self, res_freq, delta_freq, repetitions):
@@ -4236,15 +4668,20 @@ class PulsedJupyterLogic(GenericLogic):
             large_seq = []
 
             for Element in self.BlockAWG:
-                phase_0, phase_1, duration, user_MW_0_true, user_MW_1_true, freq_0, freq_1, channels = Element
+                duration, user_MW_0_true, user_MW_1_true, freq_0, freq_1, phase_0, phase_1, use_chirp_0, use_chirp_1, chirp_start_0, chirp_stop_0, chirp_start_1, chirp_stop_1, channels = Element
                 delta_0 = abs(self.LO_freq_0 - (self.target_freq_0 if freq_0 is None else freq_0))
                 delta_1 = abs(self.LO_freq_1 - (self.target_freq_1 if freq_1 is None else freq_1))
                 
+                delta_0_chirp_start = abs(self.LO_freq_0 - chirp_start_0)
+                delta_0_chirp_stop = abs(self.LO_freq_0 - chirp_stop_0)
+                delta_1_chirp_start = abs(self.LO_freq_0 - chirp_start_1)
+                delta_1_chirp_stop = abs(self.LO_freq_0 - chirp_stop_1)
+                
                 seq_part = {'channel_info' : [
-                    {'name': 'a_ch0', 'amp': 0.5 if user_MW_0_true else 0.0, 'freq': delta_0, 'phase': 0+phase_0},
-                    {'name': 'a_ch1', 'amp': 0.5 if user_MW_0_true else 0.0, 'freq': delta_0, 'phase': 100+phase_0},
-                    {'name': 'a_ch2', 'amp': 0.5 if user_MW_1_true else 0.0, 'freq': delta_1, 'phase': 0+phase_1},
-                    {'name': 'a_ch3', 'amp': 0.5 if user_MW_1_true else 0.0, 'freq': delta_1, 'phase': 100+phase_1}],
+                    {'name': 'a_ch0', 'amp': 0.5 if user_MW_0_true else 0.0, 'freq': delta_0, 'phase': 0+phase_0, 'chirp': use_chirp_0, 'chirp_start': delta_0_chirp_start, 'chirp_stop': delta_0_chirp_stop},
+                    {'name': 'a_ch1', 'amp': 0.5 if user_MW_0_true else 0.0, 'freq': delta_0, 'phase': 100+phase_0, 'chirp': use_chirp_0, 'chirp_start': delta_0_chirp_start, 'chirp_stop': delta_0_chirp_stop},
+                    {'name': 'a_ch2', 'amp': 0.5 if user_MW_1_true else 0.0, 'freq': delta_1, 'phase': 0+phase_1, 'chirp': use_chirp_1, 'chirp_start': delta_1_chirp_start, 'chirp_stop': delta_1_chirp_stop},
+                    {'name': 'a_ch3', 'amp': 0.5 if user_MW_1_true else 0.0, 'freq': delta_1, 'phase': 100+phase_1, 'chirp': use_chirp_1, 'chirp_start': delta_1_chirp_start, 'chirp_stop': delta_1_chirp_stop}],
                     'duration' : duration}
                 for ch in channels:
                     seq_part['channel_info'].append({'name': self.channel_names_AWG[ch], 'high': channels[ch]})
@@ -4265,6 +4702,14 @@ class PulsedJupyterLogic(GenericLogic):
         right_freq = res_freq+delta_freq
         self.LO_freq_0 = res_freq + 100e6
         tau_arr = [left_freq, right_freq]
+        self.alternating = False
+        self.freq_sweep=True
+
+        self.param_dict['alternating'] = self.alternating
+        self.param_dict['freq_sweep'] = self.freq_sweep
+        self.param_dict['tau_arr'] = self.tau_arr
+        self.create_pulse_measurement_pulsed_info_dictonary(names[0], self.param_dict)
+
         for tau in tau_arr:
             #Break after Initalisation/read out
             self.ElementAWG(channels={}, length=self.laser_waiting_time) 
@@ -4283,9 +4728,13 @@ class PulsedJupyterLogic(GenericLogic):
 
         self.ensemble_list = self.sample_ensembles(large_seq=ensemble_list_raw, identifier=names)
         self.debug_ensemble_list = self.ensemble_list
-        sequence_step_list = explicit_steps_list
-        self.AWG.load_ready_sequence_mode(sequence_step_list)
-        return self.ensemble_list, sequence_step_list
+        self.sequence_step_list = explicit_steps_list
+        self.AWG.load_ready_sequence_mode(self.sequence_step_list)
+
+        self.add_BlockAWG_to_pulsed_info_dictonary(names[0])
+        self.pulsed_info_dict['sequence_step_list'] = self.sequence_step_list
+
+        return self.ensemble_list, self.sequence_step_list
     
 ####################################################################################################################
 ## Beginning of Measurement methods for gradiometry ##

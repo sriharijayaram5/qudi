@@ -27,6 +27,9 @@ import time
 import datetime
 import matplotlib.pyplot as plt
 
+import os
+import pickle
+
 from core.connector import Connector
 from core.configoption import ConfigOption
 from core.statusvariable import StatusVar
@@ -137,6 +140,7 @@ class PulsedMeasurementLogic(GenericLogic):
         self.measurement_error = np.empty((2, 0), dtype=float)
         self.laser_data = np.zeros((10, 20), dtype='int64')
         self.raw_data = np.zeros((10, 20), dtype='int64')
+        self.pulsed_info_dict = {}
 
         self._saved_raw_data = OrderedDict()  # temporary saved raw data
         self._recalled_raw_data_tag = None  # the currently recalled raw data dict key
@@ -1595,6 +1599,22 @@ class PulsedMeasurementLogic(GenericLogic):
                                    filepath=filepath, filelabel=filelabel,
                                    filetype=self._raw_data_save_type,
                                    delimiter='\t')
+        
+        #####################################################################
+        ####        Save pulse measurement information dictonary         ####
+        #####################################################################
+        if self.pulsed_info_dict:
+            if tag:
+                filelabel = tag + '_pulse_measurement_info_dictonary'
+            else:
+                filelabel = 'pulse_measurement_info_dictonary'
+
+            filename = timestamp.strftime('%Y%m%d-%H%M-%S' + '_' + filelabel + '.pickle')
+            pickle_fname = os.path.join(filepath,filename)
+
+            with open(pickle_fname, 'wb') as f:
+                pickle.dump(self.pulsed_info_dict, f, protocol=4)
+
         return filepath
 
     def _compute_alt_data(self):
