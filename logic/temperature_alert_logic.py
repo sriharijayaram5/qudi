@@ -57,7 +57,13 @@ class TemperatureAlertLogic(GenericLogic):
     check_period = StatusVar('check_period', 5)
 
     sigSampleTempSensorDisconnected = QtCore.Signal()  
+    sigVTITempSensorDisconnected = QtCore.Signal()  
     sigReservoirTempSensorDisconnected = QtCore.Signal() 
+
+    sigDeactivateAllWarning = QtCore.Signal()
+    sigActivateCompressorWarning = QtCore.Signal() 
+    sigActivateSampleWarning = QtCore.Signal() 
+    sigActivateVTIWarning = QtCore.Signal() 
 
     def __init__(self, config, **kwargs):
         super().__init__(config=config, **kwargs)
@@ -69,9 +75,14 @@ class TemperatureAlertLogic(GenericLogic):
         self._telebotlogic = self.telebotlogic()
 
         self.enabled = False
-        self.temp_cntrl_warning = False
+        self.sample_temp_cntrl_warning = False
+        self.vti_temp_cntrl_warning = False
         self.compressor_failure_warning = False
         self.old_sample_temp_setpoint = self._controller.get_sample_temp_setpoint()
+        self.old_vti_temp_setpoint = self._controller.get_vti_temp_setpoint()
+
+        self.temperature_log_file_name = None
+
         self.timer = QtCore.QTimer()
         self.timer.setSingleShot(True)
         self.timer.setInterval(self.check_period * 1000)  # in ms
@@ -81,7 +92,16 @@ class TemperatureAlertLogic(GenericLogic):
         self.sample_temp_setpoint_changed_timer.setInterval(self.T_setpoint_waiting_time * 1000)  # in ms
         self.sample_temp_setpoint_changed_timer.timeout.connect(self.sample_temp_setpoint_changed_finished)
 
+        self.vti_temp_setpoint_changed_timer = QtCore.QTimer()
+        self.vti_temp_setpoint_changed_timer.setSingleShot(True)
+        self.vti_temp_setpoint_changed_timer.setInterval(self.T_setpoint_waiting_time * 1000)  # in ms
+        self.vti_temp_setpoint_changed_timer.timeout.connect(self.vti_temp_setpoint_changed_finished)
+
         self._telebotlogic.sigStatusRequest.connect(self.status_request)
+        self._telebotlogic.sigDeactivateWarningRequest.connect(self.deactivate_warning_request)
+        self._telebotlogic.sigActivateCompressorRequest.connect(self.activate_compressor_warning_request)
+        self._telebotlogic.sigActivateSampleRequest.connect(self.activate_sample_warningt_request)
+        self._telebotlogic.sigActivateVTIRequest.connect(self.activate_vti_warning_request)
 
     def on_deactivate(self):
         """ Perform required deactivation. """
@@ -104,20 +124,23 @@ class TemperatureAlertLogic(GenericLogic):
         """
         self.enabled = False
 
-    def stopLoopSetpointChanged(self):
+    def stopLoopSampleSetpointChanged(self):
         self.sample_temp_setpoint_changed_timer.stop()
+
+    def stopLoopVTISetpointChanged(self):
+        self.vti_temp_setpoint_changed_timer.stop()
 
     def loop(self):
         """ Execute step in the data recording loop: save one of each control and process values
         """
-        if self.compressor_failure_warning and (self._controller.get_reservoir_temp_setpoint()<=10) and self._controller.get_reservoir_temp_control_status():
+        if self.compressor_failure_warning and (self._controller.get_reservoir_temp_setpoint()<=self.compressor_failure_temp_treshhold) and self._controller.get_reservoir_temp_control_status():
             reservoir_temp = self._controller.get_reservoir_temp()
             if reservoir_temp == -1:
                 self.sigReservoirTempSensorDisconnected.emit()
             elif reservoir_temp>self.compressor_failure_temp_treshhold:
                 self.send_compressor_failure_warning(reservoir_temp)
 
-        if self.temp_cntrl_warning and self._controller.get_sample_temp_control_status():
+        if self.sample_temp_cntrl_warning and self._controller.get_sample_temp_control_status():
             sample_temp = self._controller.get_sample_temp()
             if sample_temp == -1:
                 self.sigSampleTempSensorDisconnected.emit()
@@ -125,10 +148,23 @@ class TemperatureAlertLogic(GenericLogic):
                 sample_temp_setpoint = self._controller.get_sample_temp_setpoint()
                 if self.old_sample_temp_setpoint != sample_temp_setpoint:
                     self.old_sample_temp_setpoint = sample_temp_setpoint
-                    self.temp_cntrl_warning = False
+                    self.sample_temp_cntrl_warning = False
                     self.sample_temp_setpoint_changed_timer.start(self.T_setpoint_waiting_time * 1000)
                 elif abs(sample_temp_setpoint-sample_temp)>self.temp_cntrl_diff:
                     self.send_sample_temp_warning(sample_temp, sample_temp_setpoint)
+
+        if self.vti_temp_cntrl_warning and self._controller.get_vti_temp_control_status():
+            vti_temp = self._controller.get_vti_temp()
+            if vti_temp == -1:
+                self.sigVTITempSensorDisconnected.emit()
+            else:
+                vti_temp_setpoint = self._controller.get_vti_temp_setpoint()
+                if self.old_vti_temp_setpoint != vti_temp_setpoint:
+                    self.old_vti_temp_setpoint = vti_temp_setpoint
+                    self.vti_temp_cntrl_warning = False
+                    self.vti_temp_setpoint_changed_timer.start(self.T_setpoint_waiting_time * 1000)
+                elif abs(vti_temp_setpoint-vti_temp)>self.temp_cntrl_diff:
+                    self.send_vti_temp_warning(vti_temp, vti_temp_setpoint)
         
         if self.enabled:
             self.timer.start(self.check_period * 1000)  # in ms
@@ -138,13 +174,21 @@ class TemperatureAlertLogic(GenericLogic):
         self.log.error(msg)
         self._telebotlogic.send_message(msg)
 
+    def send_vti_temp_warning(self, vti_temp, vti_temp_setpoint):
+        msg = f'ALERT!\n VTI temperature control failure!\n VTI temperature is {vti_temp}K but Setpoint is {vti_temp_setpoint}K!'
+        self.log.error(msg)
+        self._telebotlogic.send_message(msg)
+
     def send_compressor_failure_warning(self, reservoir_temp):
         msg = f'ALERT!\n Compressor failure!\n Reservoir temperature is {reservoir_temp}K!'
         self.log.error(msg)
         self._telebotlogic.send_message(msg)
 
     def sample_temp_setpoint_changed_finished(self):
-        self.temp_cntrl_warning = True
+        self.sample_temp_cntrl_warning = True
+
+    def vti_temp_setpoint_changed_finished(self):
+        self.vti_temp_cntrl_warning = True
 
     def status_request(self, chat_id):
         sample_temp = self._controller.get_sample_temp()
@@ -157,6 +201,19 @@ class TemperatureAlertLogic(GenericLogic):
         sample_heater = self._controller.get_sample_heater_power()
         vti_heater = self._controller.get_vti_heater_power()
         reservoir_heater = self._controller.get_reservoir_heater_power()
+        if self.compressor_failure_warning and (self._controller.get_reservoir_temp_setpoint()<=self.compressor_failure_temp_treshhold) and self._controller.get_reservoir_temp_control_status():
+            compressor_warning_msg = 'ON'
+        else:
+            compressor_warning_msg = 'OFF'
+        if self.sample_temp_cntrl_warning and self._controller.get_sample_temp_control_status():
+            sample_warning_msg = 'ON'
+        else:
+            sample_warning_msg = 'OFF'
+        if self.vti_temp_cntrl_warning and self._controller.get_vti_temp_control_status():
+            vti_warning_msg = 'ON'
+        else:
+            vti_warning_msg = 'OFF'
+        
         msg = f"Cryostat Status: \
                 \nSample temp: {round(sample_temp, 2)}K \
                 \nVTI temp: {round(vti_temp, 2)}K \
@@ -167,6 +224,28 @@ class TemperatureAlertLogic(GenericLogic):
                 \nDump pressure: {round(dump_pressure, 2)}mBar \
                 \nSample heater: {round(sample_heater, 2)}W \
                 \nVTI heater: {round(vti_heater, 2)}W \
-                \nReservoir heater: {round(reservoir_heater, 2)}W"
+                \nReservoir heater: {round(reservoir_heater, 2)}W \
+                \nCompressor warning: {compressor_warning_msg} \
+                \nSample warning: {sample_warning_msg} \
+                \nVTI warning: {vti_warning_msg}"
         self._telebotlogic.send_message(msg, [chat_id])
 
+    def deactivate_warning_request(self, chat_id):
+        self.sigDeactivateAllWarning.emit()
+        msg = f'All warnings deactivated.'
+        self._telebotlogic.send_message(msg, [chat_id])
+
+    def activate_compressor_warning_request(self, chat_id):
+        self.sigActivateCompressorWarning.emit()
+        msg = f'Compressor warning activated.'
+        self._telebotlogic.send_message(msg, [chat_id])
+
+    def activate_sample_warningt_request(self, chat_id):
+        self.sigActivateSampleWarning.emit()
+        msg = f'Sample warning activated.'
+        self._telebotlogic.send_message(msg, [chat_id])
+
+    def activate_vti_warning_request(self, chat_id):
+        self.sigActivateVTIWarning.emit()
+        msg = f'VTI warning activated.'
+        self._telebotlogic.send_message(msg, [chat_id])

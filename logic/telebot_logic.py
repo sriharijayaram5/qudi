@@ -53,6 +53,10 @@ class TeleBotLogic(GenericLogic):
 
     sigStatusRequest = QtCore.Signal(object)
     sigScanRequest = QtCore.Signal(object)
+    sigDeactivateWarningRequest = QtCore.Signal(object)
+    sigActivateCompressorRequest = QtCore.Signal(object)
+    sigActivateSampleRequest = QtCore.Signal(object)
+    sigActivateVTIRequest = QtCore.Signal(object)
 
     def __init__(self, config, **kwargs):
         super().__init__(config=config, **kwargs)
@@ -98,13 +102,25 @@ class TeleBotLogic(GenericLogic):
                         self.sigStatusRequest.emit(chat_id)
                     elif 'Scan' in text:
                         self.sigScanRequest.emit(chat_id)
+                    elif 'Deactivate Warning' in text:
+                        self.sigDeactivateWarningRequest.emit(chat_id)
+                    elif 'Activate Compressor' in text:
+                        self.sigActivateCompressorRequest.emit(chat_id)
+                    elif 'Activate Sample' in text:
+                        self.sigActivateSampleRequest.emit(chat_id)
+                    elif 'Activate VTI' in text:
+                        self.sigActivateVTIRequest.emit(chat_id)
         except:
             pass
 
     def help_request(self, chat_id):
         msg = f'Following requests are supported: \
                 \nStatus: Status info of cryostat \
-                \nScan: Status of current QAFM scan'
+                \nScan: Status of current QAFM scan \
+                \nDeactivate Warning: Deactivates all temperature warnings \
+                \nActivate Compressor: Activates compressor warning \
+                \nActivate Sample: Activates sample warning \
+                \nActivate VTI: Activates VTI warning'
         self.send_message(msg, [chat_id])
 
 
