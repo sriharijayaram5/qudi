@@ -22,7 +22,7 @@ top-level directory of this distribution and at <https://github.com/Ulm-IQO/qudi
 from qtpy import QtCore
 from collections import OrderedDict
 import numpy as np
-import time
+import time, os
 import matplotlib.pyplot as plt
 
 from hardware.thirdparty.spectrum.pyspcm import *
@@ -190,14 +190,15 @@ class PulsedJupyterLogic(GenericLogic):
         user_MW_1_true = False
         
         #print(channels.keys())
-        if 'MW_0' in channels.keys():
-            user_MW_0_true = channels['MW_0']
-            del channels['MW_0']
-        if 'MW_1' in channels.keys():
-            user_MW_1_true = channels['MW_1']
-            del channels['MW_1']
+        channels_new = channels.copy()
+        if 'MW_0' in channels_new.keys():
+            user_MW_0_true = channels_new['MW_0']
+            del channels_new['MW_0']
+        if 'MW_1' in channels_new.keys():
+            user_MW_1_true = channels_new['MW_1']
+            del channels_new['MW_1']
 
-        self.BlockAWG.append((phase_0, phase_1, length, user_MW_0_true, user_MW_1_true, freq_0, freq_1, channels))
+        self.BlockAWG.append((phase_0, phase_1, length, user_MW_0_true, user_MW_1_true, freq_0, freq_1, channels_new))
 
     def find_unique_segments(self,sequence_step_list):
             """Convenience function to find unique segments in sequence step
@@ -789,7 +790,7 @@ class PulsedJupyterLogic(GenericLogic):
 
         return ensemble_list, sequence_step_list, name, self.tau_arr, alternating, freq_sweep
     
-    def PODMR(self, mw_start, mw_stop, mw_step, name = None):
+    def PODMR(self, mw_start, mw_stop, mw_step, name = None, use_mw1=False):
         '''
         Laser(532):       ▇▇▇▇▇▁▁▁▁▁▁▇▇▇▇▇
         MW:               ▁▁▁▁▁▁▁▁▇PI▇▁▁▁▁▁▁▁
@@ -813,7 +814,10 @@ class PulsedJupyterLogic(GenericLogic):
             #Break after Initalisation/read out
             self.ElementAWG(channels={}, length=self.laser_waiting_time) 
             #Pi pulse - reference
-            self.ElementAWG(channels={'MW_1':True, 'RF_Switch':True}, length=self.pi_pulse, freq_0=tau)
+            if use_mw1:
+                self.ElementAWG(channels={'MW_1':True}, length=self.pi_pulse_1, freq_1=tau)
+            else:
+                self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse, freq_0=tau)
             # self.ElementAWG(channels={'MW_1':True}, length=self.pi_pulse, freq_0=tau) 
             #Waiting time + read-out
             self.ElementAWG(channels={'PS_Trig':True}, length=self.mw_waiting_time + self.read_out_time)
@@ -1077,7 +1081,7 @@ class PulsedJupyterLogic(GenericLogic):
 
         return ensemble_list, sequence_step_list, name, self.tau_arr, alternating, freq_sweep
     
-    def double_res_rabi(self, tau_start, tau_stop, tau_num, name = None): #added by Andrew Wong 2025.09.01
+    def double_res_rabi(self, tau_start, tau_stop, tau_num, name = None, MW1_PI = False): #added by Andrew Wong 2025.09.01
         '''
         Laser(532):       ▇▇▇▇▇▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▇▇▇▇▇
         MW0:              ▁▁▁▁▁▁▁▁▁▇pi▇▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▇pi▇▁▁▁▁▁▁▁▁    pi pulse
@@ -1099,14 +1103,28 @@ class PulsedJupyterLogic(GenericLogic):
         #Create pulse sequence for the AWG
         self.BlockAWG = []
 
+       
+
+
         for tau in self.tau_arr:
+
+            # Andrew 2025-10-28: add an option to swap MW0 and MW1
+            if MW1_PI:
+                PI     = dict(channels={'MW_1':True, 'RF_Switch':True}, length=self.pi_pulse_1)
+                RABI   = dict(channels={'MW_0':True}, length=tau)
+                # PI2_    = dict(channels={'MW_1':True}, length=self.pi_pulse_1/2, phase_1=180)
+            else:
+                PI     = dict(channels={'MW_0':True}, length=self.pi_pulse)
+                RABI   = dict(channels={'MW_1':True, 'RF_Switch':True}, length=tau)
+
             #Break after Initalisation/read out
             self.ElementAWG(channels={}, length=self.laser_waiting_time) 
 
-            self.ElementAWG(channels={'MW_1':True, 'RF_Switch':True}, length=self.pi_pulse_1) #swap MW_0 and MW_1 for the Txy transition
-            self.ElementAWG(channels={'MW_0':True}, length=tau) 
-            #self.ElementAWG(channels={}, length=tau) 
-            self.ElementAWG(channels={'MW_1':True, 'RF_Switch':True}, length=self.pi_pulse_1)
+            self.ElementAWG(**PI) #swap MW_0 and MW_1 for the Txy transition
+            self.ElementAWG(**RABI)
+            #self.ElementAWG(channels={}, length=T - tau)
+            self.ElementAWG(channels={}, length=tau) 
+            self.ElementAWG(**PI)
 
             #Waiting time + read-out
             # self.ElementAWG(channels={'PS_Trig':True, 'TT_Next':True}, length=self.mw_waiting_time + self.read_out_time)
@@ -1116,9 +1134,10 @@ class PulsedJupyterLogic(GenericLogic):
             #Break after Initalisation/read out
             self.ElementAWG(channels={}, length=self.laser_waiting_time) 
 
-            self.ElementAWG(channels={'MW_1':True, 'RF_Switch':True}, length=self.pi_pulse_1)
-            self.ElementAWG(channels={}, length=tau) 
-            self.ElementAWG(channels={'MW_1':True, 'RF_Switch':True}, length=self.pi_pulse_1)
+            self.ElementAWG(**PI)
+            self.ElementAWG(channels={}, length=tau)
+            
+            self.ElementAWG(**PI)
 
             #Waiting time + read-out
             # self.ElementAWG(channels={'PS_Trig':True, 'TT_Next':True}, length=self.mw_waiting_time + self.read_out_time)
@@ -1798,7 +1817,7 @@ class PulsedJupyterLogic(GenericLogic):
 
         return ensemble_list, sequence_step_list, name, self.tau_arr, alternating, freq_sweep
     
-    def Ramsey_alt_phased(self, tau_start, tau_stop, tau_num, name = None):
+    def Ramsey_alt_phased(self, tau_start, tau_stop, tau_num, name = None, use_mw1=False):
         '''
         Laser(532):       ▇▇▇▇▇▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▇▇▇▇▇
         MW:               ▁▁▁▁▁▁▁▇pi/2▇▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▇pi/2▇▁▁▁▁▁▁▁
@@ -1817,15 +1836,23 @@ class PulsedJupyterLogic(GenericLogic):
         #Create pulse sequence for the AWG streamer
         self.BlockAWG = []
         
+        if use_mw1:
+            PI2     = dict(channels={'MW_1':True, 'RF_Switch':True}, length=self.pi_pulse_1/2)
+            PI2_    = dict(channels={'MW_1':True, 'RF_Switch':True}, length=self.pi_pulse_1*3/2)
+            # PI2_    = dict(channels={'MW_1':True}, length=self.pi_pulse_1/2, phase_1=180)
+        else:
+            PI2     = dict(channels={'MW_0':True}, length=self.pi_pulse/2)
+            PI2_    = dict(channels={'MW_0':True}, length=self.pi_pulse/2, phase_0=180)
+
         for tau in self.tau_arr:
             #Break after Initalisation/read out
             self.ElementAWG(channels={}, length=self.laser_waiting_time)
             #Pi/2 pulse
-            self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse/2)
+            self.ElementAWG(**PI2)
             #First waiting time - tau
             self.ElementAWG(channels={}, length=tau)
             #Pi/2 pulse
-            self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse/2)
+            self.ElementAWG(**PI2_)
             #Waiting time + read-out
             self.ElementAWG(channels={'PS_Trig':True}, length=self.mw_waiting_time + self.read_out_time)
             
@@ -1833,11 +1860,11 @@ class PulsedJupyterLogic(GenericLogic):
             #Break after Initalisation/read out
             self.ElementAWG(channels={}, length=self.laser_waiting_time)
             #Pi/2 pulse
-            self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse/2)
+            self.ElementAWG(**PI2)
             #Second waiting time + tau
             self.ElementAWG(channels={}, length=tau)
             #Pi/2 pulse Phase change cause -pi/2 pulse - done by AWG
-            self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse/2, phase_0=180)
+            self.ElementAWG(**PI2)
             #Waiting time + read-out
             self.ElementAWG(channels={'PS_Trig':True}, length=self.mw_waiting_time + self.read_out_time)
         
@@ -1847,6 +1874,60 @@ class PulsedJupyterLogic(GenericLogic):
 
         return ensemble_list, sequence_step_list, name, self.tau_arr, alternating, freq_sweep
     
+    def double_res_Ramsey_alt_phased(self, tau_start, tau_stop, tau_num, name = None):
+        '''
+        Laser(532):       ▇▇▇▇▇▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▇▇▇▇▇
+        MW:               ▁▁▁▁▁▁▁▇pi/2▇▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▇pi/2▇▁▁▁▁▁▁▁
+                                       X                t                 X
+        Laser(532):       ▇▇▇▇▇▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▇▇▇▇▇
+        MW:               ▁▁▁▁▁▁▁▇pi/2▇▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▇pi/2▇▁▁▁▁▁▁▁
+                                       X                t                -X
+        '''
+        if name is None:
+            name = 'double-res-ramsey-alt-phased-juptr'
+
+        alternating = True
+        freq_sweep=False
+        self.tau_arr = np.linspace(tau_start, tau_stop, num=tau_num)
+
+        #Create pulse sequence for the AWG streamer
+        self.BlockAWG = []
+        
+        for tau in self.tau_arr:
+            #Break after Initalisation/read out
+            self.ElementAWG(channels={}, length=self.laser_waiting_time)
+
+            self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse)
+            #Pi/2 pulse
+            self.ElementAWG(channels={'MW_1':True}, length=self.pi_pulse_1/2)
+            #First waiting time - tau
+            self.ElementAWG(channels={}, length=tau)
+            #Pi/2 pulse
+            self.ElementAWG(channels={'MW_1':True}, length=self.pi_pulse_1/2, phase_1=180)
+            self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse)
+            #Waiting time + read-out
+            self.ElementAWG(channels={'PS_Trig':True}, length=self.mw_waiting_time + self.read_out_time)
+            
+            #Alternating run
+            #Break after Initalisation/read out
+            self.ElementAWG(channels={}, length=self.laser_waiting_time)
+            self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse)
+            #Pi/2 pulse
+            self.ElementAWG(channels={'MW_1':True}, length=self.pi_pulse_1/2)
+            #Second waiting time + tau
+            self.ElementAWG(channels={}, length=tau)
+            #Pi/2 pulse Phase change cause -pi/2 pulse - done by AWG
+            self.ElementAWG(channels={'MW_1':True}, length=self.pi_pulse_1/2)
+            self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse)
+            #Waiting time + read-out
+            self.ElementAWG(channels={'PS_Trig':True}, length=self.mw_waiting_time + self.read_out_time)
+        
+        self.sample_load_ready_pulsestreamer(name='read_out_jptr')
+        
+        ensemble_list, sequence_step_list = self.sample_load_ready_AWG(name, self.tau_arr, alternating, freq_sweep, change_freq = True)
+
+        return ensemble_list, sequence_step_list, name, self.tau_arr, alternating, freq_sweep
+
     def Hecho_alt_phased(self, tau_start, tau_stop, tau_num, name = None):
         '''
         Laser(532):       ▇▇▇▇▇▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▇▇▇▇▇
@@ -3085,26 +3166,26 @@ class PulsedJupyterLogic(GenericLogic):
             self.ElementAWG(channels={}, length=self.laser_waiting_time)
             #Pi/2 pulse
 
-            self.ElementAWG(channels={'MW_1':True, 'RF_Switch':True}, length=self.pi_pulse_1)
+            self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse)
 
-            self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse/2)
+            self.ElementAWG(channels={'MW_1':True}, length=self.pi_pulse_1/2)
             
             for i in range(N):
                 #First waiting time + tau/2
                 self.ElementAWG(channels={}, length=tau/(4*N))
                 #Pi pulse
-                self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse, phase_0=90)
+                self.ElementAWG(channels={'MW_1':True}, length=self.pi_pulse_1, phase_1=90)
                 #Second waiting time + tau/2
                 self.ElementAWG(channels={}, length=tau/(2*N))
                 #Pi pulse
-                self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse, phase_0=90)
+                self.ElementAWG(channels={'MW_1':True}, length=self.pi_pulse_1, phase_1=90)
                 #Second waiting time + tau/2
                 self.ElementAWG(channels={}, length=tau/(4*N))
                                
             #Pi/2 pulse Phase change cause -pi/2 pulse - done by AWG
-            self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse/2, phase_0=180)
+            self.ElementAWG(channels={'MW_1':True}, length=self.pi_pulse_1/2, phase_1=180)
 
-            self.ElementAWG(channels={'MW_1':True, 'RF_Switch':True}, length=self.pi_pulse_1)
+            self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse)
 
             #Waiting time + read-out
             self.ElementAWG(channels={'PS_Trig':True}, length=self.mw_waiting_time + self.read_out_time)
@@ -3113,26 +3194,26 @@ class PulsedJupyterLogic(GenericLogic):
             #Break after Initalisation/read out
             self.ElementAWG(channels={}, length=self.laser_waiting_time)
 
-            self.ElementAWG(channels={'MW_1':True, 'RF_Switch':True}, length=self.pi_pulse_1)
+            self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse)
             #Pi/2 pulse
-            self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse/2)
+            self.ElementAWG(channels={'MW_1':True}, length=self.pi_pulse_1/2)
                                
             for i in range(N):
                 #First waiting time + tau/2
                 self.ElementAWG(channels={}, length=tau/(4*N))
                 #Pi pulse
-                self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse, phase_0=90)
+                self.ElementAWG(channels={'MW_1':True}, length=self.pi_pulse_1, phase_1=90)
                 #Second waiting time + tau/2
                 self.ElementAWG(channels={}, length=tau/(2*N))
                 #Pi pulse
-                self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse, phase_0=90)
+                self.ElementAWG(channels={'MW_1':True}, length=self.pi_pulse_1, phase_1=90)
                 #Second waiting time + tau/2
                 self.ElementAWG(channels={}, length=tau/(4*N))
                                
             #Pi/2 pulse
-            self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse/2)
+            self.ElementAWG(channels={'MW_1':True}, length=self.pi_pulse_1/2)
 
-            self.ElementAWG(channels={'MW_1':True, 'RF_Switch':True}, length=self.pi_pulse_1)
+            self.ElementAWG(channels={'MW_0':True}, length=self.pi_pulse)
             #Waiting time + read-out
             self.ElementAWG(channels={'PS_Trig':True}, length=self.mw_waiting_time + self.read_out_time)
 
@@ -3579,7 +3660,395 @@ class PulsedJupyterLogic(GenericLogic):
         self.debug_sequence_step_list = sequence_step_list
         self.AWG.load_ready_sequence_mode(sequence_step_list)
         return ensemble_list, sequence_step_list
+
+
+####################################################################################################################
+## Sweeping pulse repetitions N ##
+####################################################################################################################
     
+    def load_seq(self, fname):
+        seq = []
+        ntau = 0
+        # Check if file exists
+        if not os.path.exists(fname):
+            return seq # return empty list if file does not exist
+        
+        with open(fname) as f:
+            for line in f:
+                p = line.strip('\n')
+                if p == '_': ntau += 1
+                seq.append(line.strip('\n'))
+        return seq
+
+
+    def compile_waveform(self, path, tau, mw_id=0,):
+        # mw = 'MW_%d' % mw_id
+        mw = f'MW_{mw_id:d}'
+        pi_pulse = self.pi_pulse if mw_id == 0 else self.pi_pulse_1
+        WFM_MAP = {
+            '_'         :{'channels':{},        'length':tau                                },
+            '_2'        :{'channels':{},        'length':tau/2.                             },
+            'pi:_'      :{'channels':{},        'length':pi_pulse                           },
+            'pi:x'      :{'channels':{mw:True}, 'length':pi_pulse,      'phase_%d'%mw_id:0  },
+            'pi:-x'     :{'channels':{mw:True}, 'length':pi_pulse,      'phase_%d'%mw_id:180},
+            'pi:y'      :{'channels':{mw:True}, 'length':pi_pulse,      'phase_%d'%mw_id:90 },
+            'pi:-y'     :{'channels':{mw:True}, 'length':pi_pulse,      'phase_%d'%mw_id:270},
+            'pi2:_'     :{'channels':{},        'length':pi_pulse/2.                        },
+            'pi2:x'     :{'channels':{mw:True}, 'length':pi_pulse/2.,   'phase_%d'%mw_id:0  },
+            'pi2:-x'    :{'channels':{mw:True}, 'length':pi_pulse/2.,   'phase_%d'%mw_id:180},
+            'pi2:y'     :{'channels':{mw:True}, 'length':pi_pulse/2.,   'phase_%d'%mw_id:90 },
+            'pi2:-y'    :{'channels':{mw:True}, 'length':pi_pulse/2.,   'phase_%d'%mw_id:270},
+            'pi3:x'     :{'channels':{mw:True}, 'length':pi_pulse/3.,   'phase_%d'%mw_id:0  },
+            'pi3:-x'    :{'channels':{mw:True}, 'length':pi_pulse/3.,   'phase_%d'%mw_id:180},
+            'pi3:y'     :{'channels':{mw:True}, 'length':pi_pulse/3.,   'phase_%d'%mw_id:90 },
+            'pi3:-y'    :{'channels':{mw:True}, 'length':pi_pulse/3.,   'phase_%d'%mw_id:270},
+            'pi34:x'    :{'channels':{mw:True}, 'length':pi_pulse*3./4, 'phase_%d'%mw_id:0  },
+            'pi34:-x'   :{'channels':{mw:True}, 'length':pi_pulse*3./4, 'phase_%d'%mw_id:180},
+            'pi34:y'    :{'channels':{mw:True}, 'length':pi_pulse*3./4, 'phase_%d'%mw_id:90 },
+            'pi34:-y'   :{'channels':{mw:True}, 'length':pi_pulse*3./4, 'phase_%d'%mw_id:270},
+            'pi4:x'     :{'channels':{mw:True}, 'length':pi_pulse/4.,   'phase_%d'%mw_id:0  },
+            'pi4:-x'    :{'channels':{mw:True}, 'length':pi_pulse/4.,   'phase_%d'%mw_id:180},
+            'pi4:y'     :{'channels':{mw:True}, 'length':pi_pulse/4.,   'phase_%d'%mw_id:90 },
+            'pi4:-y'    :{'channels':{mw:True}, 'length':pi_pulse/4.,   'phase_%d'%mw_id:270},
+        }
+
+        def arbitrary_pulses(p):
+            duration, phase = p.split(':')
+            wfm_map = {
+                'x'     :dict(channels={'MW_0':True}, length=self.pi_pulse*float(duration), phase_0=0),
+                '-x'    :dict(channels={'MW_0':True}, length=self.pi_pulse*float(duration), phase_0=180),
+                'y'     :dict(channels={'MW_0':True}, length=self.pi_pulse*float(duration), phase_0=90),
+                '-y'    :dict(channels={'MW_0':True}, length=self.pi_pulse*float(duration), phase_0=270),
+            }
+            return wfm_map[phase]
+
+        waveform = self.load_seq(path)
+
+        waveform_compiled = []
+        waveform_length = 0.
+        for p in waveform:
+            segment = WFM_MAP[p] if p in WFM_MAP.keys() else arbitrary_pulses(p)
+            waveform_compiled.append(segment)
+            waveform_length += segment['length']
+        return waveform_compiled, waveform_length
+
+
+    def DDSequence_sweepN(self, seqName, N_start, dN, N_num, interval, prefix='C:\\Users\\yy3\\saved_pulsed_assets\\DDSequence', name=None, asym=False):
+        
+        seqName = seqName.lower()
+        if name is None:
+            name = '%s-sweepN-juptr' % seqName
+        
+        alternating = True
+        freq_sweep=False
+
+        #Create pulse sequence for the AWG streamer
+        self.BlockAWG = []
+
+        N_stop = N_start + dN*N_num
+        N_list = np.arange(N_start, N_stop, dN, dtype=np.int32)
+
+        path_seq = os.path.join(prefix, seqName, 'seq_asym.txt' if asym else 'seq.txt')
+
+        waveform, waveform_length = self.compile_waveform(path_seq, interval)
+        tau_arr = []
+
+        elements_laser      = dict(channels={}, length=self.laser_waiting_time)
+        elements_readout    = dict(channels={'PS_Trig':True}, length=self.mw_waiting_time + self.read_out_time)
+        elements_PI2        = dict(channels={'MW_0':True}, length=self.pi_pulse/2)
+        elements_PI2_180    = dict(channels={'MW_0':True}, length=self.pi_pulse/2, phase_0=180)
+        
+        for N in N_list:
+            path_cp = os.path.join(prefix, seqName, 'comp%03d.txt' % N)
+
+            # Compensation pulse for non-identity sequence
+            CP, CP_length = self.compile_waveform(path_cp, interval)
+            
+            tau_arr.append(waveform_length*N + CP_length)
+
+            self.ElementAWG(**elements_laser)
+            #Pi/2 pulse
+            self.ElementAWG(**elements_PI2)
+            for elements in waveform*N + CP:
+                self.ElementAWG(**elements)
+            #Pi/2 pulse Phase change cause -pi/2 pulse - done by AWG
+            self.ElementAWG(**elements_PI2_180)
+            self.ElementAWG(**elements_readout)
+        
+            #Alternating run
+            self.ElementAWG(**elements_laser)
+            #Pi/2 pulse
+            self.ElementAWG(**elements_PI2)
+            for elements in waveform*N + CP:
+                self.ElementAWG(**elements)
+            #Pi/2 pulse Phase change cause -pi/2 pulse - done by AWG
+            self.ElementAWG(**elements_PI2)
+            self.ElementAWG(**elements_readout)
+
+        self.tau_arr = np.array(tau_arr)
+        self.sample_load_ready_pulsestreamer(name='read_out_jptr')
+        ensemble_list, sequence_step_list = self.sample_load_ready_AWG(name, self.tau_arr, alternating, freq_sweep, change_freq = True)
+        return ensemble_list, sequence_step_list, name, self.tau_arr, alternating, freq_sweep
+    
+    def DDSequence_sweepTau(self, seqName, tau_start, tau_stop, tau_num, N, prefix='C:\\Users\\yy3\\saved_pulsed_assets\\DDSequence', name=None, asym=False):
+        
+        seqName = seqName.lower()
+        if name is None:
+            name = '%s-sweepTau-juptr' % seqName
+        
+        alternating = True
+        freq_sweep=False
+        interval_arr = np.linspace(tau_start, tau_stop, num=tau_num)
+        tau_arr = []
+        #Create pulse sequence for the AWG streamer
+        self.BlockAWG = []
+
+        path_seq = os.path.join(prefix, seqName, 'seq_asym.txt' if asym else 'seq.txt')
+
+
+        elements_laser      = dict(channels={}, length=self.laser_waiting_time)
+        elements_readout    = dict(channels={'PS_Trig':True}, length=self.mw_waiting_time + self.read_out_time)
+        elements_PI2        = dict(channels={'MW_0':True}, length=self.pi_pulse/2)
+        elements_PI2_180    = dict(channels={'MW_0':True}, length=self.pi_pulse/2, phase_0=180)
+        
+        for interval in interval_arr:
+            path_cp = os.path.join(prefix, seqName, 'comp%03d.txt' % N)
+
+            
+            waveform, waveform_length = self.compile_waveform(path_seq, interval)
+
+            # Compensation pulse for non-identity sequence
+            CP, CP_length = self.compile_waveform(path_cp, interval)
+            
+            tau_arr.append(waveform_length*N + CP_length)
+
+            self.ElementAWG(**elements_laser)
+            #Pi/2 pulse
+            self.ElementAWG(**elements_PI2)
+            for elements in waveform*N + CP:
+                self.ElementAWG(**elements)
+            #Pi/2 pulse Phase change cause -pi/2 pulse - done by AWG
+            self.ElementAWG(**elements_PI2_180)
+            self.ElementAWG(**elements_readout)
+        
+            #Alternating run
+            self.ElementAWG(**elements_laser)
+            #Pi/2 pulse
+            self.ElementAWG(**elements_PI2)
+            for elements in waveform*N + CP:
+                self.ElementAWG(**elements)
+            #Pi/2 pulse Phase change cause -pi/2 pulse - done by AWG
+            self.ElementAWG(**elements_PI2)
+            self.ElementAWG(**elements_readout)
+
+        self.tau_arr = np.array(tau_arr)
+        self.sample_load_ready_pulsestreamer(name='read_out_jptr')
+        ensemble_list, sequence_step_list = self.sample_load_ready_AWG(name, self.tau_arr, alternating, freq_sweep, change_freq = True)
+        return ensemble_list, sequence_step_list, name, self.tau_arr, alternating, freq_sweep
+
+    def DDSequence_ZX_sweepN(self, seqName, N_start, dN, N_num, interval, prefix='C:\\Users\\yy3\\saved_pulsed_assets\\DDSequence', name=None, asym=False):
+        
+        seqName = seqName.lower()
+        if name is None:
+            name = '%s-ZX-sweepN-juptr' % seqName
+        
+        alternating = True
+        freq_sweep=False
+
+        #Create pulse sequence for the AWG streamer
+        self.BlockAWG = []
+
+        N_stop = N_start + dN*N_num
+        N_list = np.arange(N_start, N_stop, dN, dtype=np.int32)
+
+        path_seq = os.path.join(prefix, seqName, 'seq_asym.txt' if asym else 'seq.txt')
+
+        waveform, waveform_length = self.compile_waveform(path_seq, interval, mw_id=1)
+        tau_arr = []
+
+        elements_laser      = dict(channels={}, length=self.laser_waiting_time)
+        elements_readout    = dict(channels={'PS_Trig':True}, length=self.mw_waiting_time + self.read_out_time)
+        elementsYZ_PI       = dict(channels={'MW_0':True}, length=self.pi_pulse)
+        elementsZX_PI2      = dict(channels={'MW_1':True}, length=self.pi_pulse_1/2)
+        elementsZX_PI2_180  = dict(channels={'MW_1':True}, length=self.pi_pulse_1/2, phase_1=180)
+
+        for N in N_list:
+            path_cp = os.path.join(prefix, seqName, 'comp%03d.txt' % N)
+
+            # Compensation pulse for non-identity sequence
+            CP, CP_length = self.compile_waveform(path_cp, interval)
+            
+            tau_arr.append(waveform_length*N + CP_length)
+
+            self.ElementAWG(**elements_laser)
+            
+            #Pi/2 pulse
+            self.ElementAWG(**elementsYZ_PI)
+            self.ElementAWG(**elementsZX_PI2)
+
+            for elements in waveform*N + CP:
+                self.ElementAWG(**elements)
+            
+            #Pi/2 pulse Phase change cause -pi/2 pulse - done by AWG
+            self.ElementAWG(**elementsZX_PI2_180)
+            self.ElementAWG(**elementsYZ_PI)
+            self.ElementAWG(**elements_readout)
+        
+            #Alternating run
+            self.ElementAWG(**elements_laser)
+            
+            #Pi/2 pulse
+            self.ElementAWG(**elementsYZ_PI)
+            self.ElementAWG(**elementsZX_PI2)
+
+            for elements in waveform*N + CP:
+                self.ElementAWG(**elements)
+            
+            #Pi/2 pulse Phase change cause -pi/2 pulse - done by AWG
+            self.ElementAWG(**elementsZX_PI2)
+            self.ElementAWG(**elementsYZ_PI)
+            self.ElementAWG(**elements_readout)
+
+        self.tau_arr = np.array(tau_arr)
+        self.sample_load_ready_pulsestreamer(name='read_out_jptr')
+        ensemble_list, sequence_step_list = self.sample_load_ready_AWG(name, self.tau_arr, alternating, freq_sweep, change_freq = True)
+        return ensemble_list, sequence_step_list, name, self.tau_arr, alternating, freq_sweep
+    
+    def DDSequence_ZX_sweepTau(self, seqName, tau_start, tau_stop, tau_num, N, prefix='C:\\Users\\yy3\\saved_pulsed_assets\\DDSequence', name=None, asym=False):
+        
+        seqName = seqName.lower()
+        if name is None:
+            name = '%s-ZX-sweepTau-juptr' % seqName
+        
+        alternating = True
+        freq_sweep=False
+
+        #Create pulse sequence for the AWG streamer
+        self.BlockAWG = []
+
+        interval_arr = np.linspace(tau_start, tau_stop, num=tau_num)
+        tau_arr = []
+
+        path_seq = os.path.join(prefix, seqName, 'seq_asym.txt' if asym else 'seq.txt')
+
+        
+        elements_laser      = dict(channels={}, length=self.laser_waiting_time)
+        elements_readout    = dict(channels={'PS_Trig':True}, length=self.mw_waiting_time + self.read_out_time)
+        elementsYZ_PI       = dict(channels={'MW_0':True}, length=self.pi_pulse)
+        elementsZX_PI2      = dict(channels={'MW_1':True}, length=self.pi_pulse_1/2)
+        elementsZX_PI2_180  = dict(channels={'MW_1':True}, length=self.pi_pulse_1/2, phase_1=180)
+
+        for interval in interval_arr:
+
+            waveform, waveform_length = self.compile_waveform(path_seq, interval, mw_id=1)
+
+            path_cp = os.path.join(prefix, seqName, 'comp%03d.txt' % N)
+
+            # Compensation pulse for non-identity sequence
+            CP, CP_length = self.compile_waveform(path_cp, interval)
+            
+            tau_arr.append(waveform_length*N + CP_length)
+
+            self.ElementAWG(**elements_laser)
+            
+            #Pi/2 pulse
+            self.ElementAWG(**elementsYZ_PI)
+            self.ElementAWG(**elementsZX_PI2)
+
+            for elements in waveform*N + CP:
+                self.ElementAWG(**elements)
+            
+            #Pi/2 pulse Phase change cause -pi/2 pulse - done by AWG
+            self.ElementAWG(**elementsZX_PI2_180)
+            self.ElementAWG(**elementsYZ_PI)
+            self.ElementAWG(**elements_readout)
+        
+            #Alternating run
+            self.ElementAWG(**elements_laser)
+            
+            #Pi/2 pulse
+            self.ElementAWG(**elementsYZ_PI)
+            self.ElementAWG(**elementsZX_PI2)
+
+            for elements in waveform*N + CP:
+                self.ElementAWG(**elements)
+            
+            #Pi/2 pulse Phase change cause -pi/2 pulse - done by AWG
+            self.ElementAWG(**elementsZX_PI2)
+            self.ElementAWG(**elementsYZ_PI)
+            self.ElementAWG(**elements_readout)
+
+        self.tau_arr = np.array(tau_arr)
+        self.sample_load_ready_pulsestreamer(name='read_out_jptr')
+        ensemble_list, sequence_step_list = self.sample_load_ready_AWG(name, self.tau_arr, alternating, freq_sweep, change_freq = True)
+        return ensemble_list, sequence_step_list, name, self.tau_arr, alternating, freq_sweep
+
+
+####################################################################################################################
+## ISC Decay Rate ##
+####################################################################################################################
+
+    def ISC_Decay(self, tau_start, tau_stop, tau_num, readout_delay, name = None, init_idx=1, end_key='A'):
+        '''
+        Laser(532):       ▇▇▇▇▇▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▇▇▇▇▇
+        MW:               ▁▁▁▁▁▁▁▇pi/2▇▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▇pi/2▇▁▁▁▁▁▁▁
+                                       X                t                 X
+        Laser(532):       ▇▇▇▇▇▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▇▇▇▇▇
+        MW:               ▁▁▁▁▁▁▁▇pi/2▇▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▇pi/2▇▁▁▁▁▁▁▁
+                                       X                t                -X
+        '''
+        if name is None:
+            name = 'isc-decay-juptr'
+
+        alternating = True
+        freq_sweep=False
+        self.tau_arr = np.linspace(tau_start, tau_stop, num=tau_num)
+
+        #Create pulse sequence for the AWG streamer
+        self.BlockAWG = []
+        
+        init_kwargs_list = [
+            [dict(channels={                             }, length=self.pi_pulse_1), dict(channels={           }                  , length=self.pi_pulse)  ],
+            [dict(channels={'MW_1':True, 'RF_Switch':True}, length=self.pi_pulse_1), dict(channels={           }                  , length=self.pi_pulse)  ],
+            [dict(channels={                             }, length=self.pi_pulse_1), dict(channels={'MW_0':True}                  , length=self.pi_pulse)  ],
+            [dict(channels={                             }, length=self.pi_pulse_1), dict(channels={'MW_0':True}                  , length=self.pi_pulse)  ],
+            [dict(channels={'MW_1':True, 'RF_Switch':True}, length=self.pi_pulse_1), dict(channels={'MW_0':True                  }, length=self.pi_pulse)  ],
+            [dict(channels={'MW_0':True                  }, length=self.pi_pulse)  , dict(channels={'MW_1':True, 'RF_Switch':True}, length=self.pi_pulse_1)],
+        ]
+        end_kwargs_dict = dict(
+            A    = [],
+            Bxy  = [dict(channels={'MW_1':True, 'RF_Switch':True}, length=self.pi_pulse_1), dict(channels={           }, length=self.pi_pulse), dict(channels={}, length=readout_delay)],
+            Byz  = [dict(channels={                             }, length=self.pi_pulse_1), dict(channels={'MW_0':True}, length=self.pi_pulse), dict(channels={}, length=readout_delay)],
+            Bzx  = [dict(channels={                             }, length=self.pi_pulse_1), dict(channels={'MW_0':True}, length=self.pi_pulse), dict(channels={}, length=readout_delay)],
+        )
+        for tau in self.tau_arr:
+            
+            # Reference (Seq. 1A)
+            self.ElementAWG(channels={}, length=self.laser_waiting_time)
+            for init_kwarg in init_kwargs_list[0]:
+                self.ElementAWG(**init_kwarg)
+            self.ElementAWG(channels={}, length=tau)
+            for init_kwarg in end_kwargs_dict['A']:
+                self.ElementAWG(**init_kwarg)
+            self.ElementAWG(channels={'PS_Trig':True}, length=self.mw_waiting_time + self.read_out_time)
+
+
+            # Other sequence
+            self.ElementAWG(channels={}, length=self.laser_waiting_time)
+            for init_kwarg in init_kwargs_list[init_idx-1]:
+                self.ElementAWG(**init_kwarg)
+            self.ElementAWG(channels={}, length=tau)
+            for init_kwarg in end_kwargs_dict[end_key]:
+                self.ElementAWG(**init_kwarg)
+            self.ElementAWG(channels={'PS_Trig':True}, length=self.mw_waiting_time + self.read_out_time)
+        
+        self.sample_load_ready_pulsestreamer(name='read_out_jptr')
+        
+        ensemble_list, sequence_step_list = self.sample_load_ready_AWG(name, self.tau_arr, alternating, freq_sweep, change_freq = True)
+
+        return ensemble_list, sequence_step_list, name, self.tau_arr, alternating, freq_sweep
+
+
 ####################################################################################################################
 ## Beginning of Measurement methods for gradiometry ##
 ####################################################################################################################
