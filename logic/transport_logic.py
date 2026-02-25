@@ -107,7 +107,7 @@ class TransportLogic(GenericLogic):
 
     """
     sample_smu = Connector(interface='SMUInterface')
-    gate_smu = Connector(interface='SMUInterface')
+    gate_voltage_source = Connector(interface='VolatgeSourceInterface')
     controller = Connector(interface='CryoControllerInterface')
     savelogic = Connector(interface='SaveLogic')
 
@@ -141,7 +141,7 @@ class TransportLogic(GenericLogic):
         """ Initialisation performed during activation of the module.
         """
         self._sample_smu = self.sample_smu()
-        self._gate_smu = self.gate_smu()
+        self._gate_voltage_source = self.gate_voltage_source()
         self._controller = self.controller()
         self._save_logic = self.savelogic()
 
@@ -397,9 +397,9 @@ class TransportLogic(GenericLogic):
                     self.sigScanFinished.emit()
                     return self._transport_2D_array
             self._sample_smu.set_source_function(0)
-            self._sample_smu.set_source_volt_autorange(sample_transport_autorange)
+            autorange = self._sample_smu.set_source_volt_autorange(sample_transport_autorange)
             self._sample_smu.set_source_volt_ramp_speed(sample_voltage_ramp_speed)
-            if not sample_transport_autorange:
+            if not autorange:
                 self._sample_smu.set_source_volt_range(max(abs(x_array[0]), abs(x_array[-1])))
             self._sample_smu.set_source_shape(0)
             self._sample_smu.set_source_mode(0)
@@ -414,9 +414,9 @@ class TransportLogic(GenericLogic):
                     self.sigScanFinished.emit()
                     return self._transport_2D_array
             self._sample_smu.set_source_function(1)
-            self._sample_smu.set_source_curr_autorange(sample_transport_autorange)
+            autorange = self._sample_smu.set_source_curr_autorange(sample_transport_autorange)
             self._sample_smu.set_source_curr_ramp_speed(sample_current_ramp_speed)
-            if not sample_transport_autorange:
+            if not autorange:
                 self._sample_smu.set_source_curr_range(max(abs(x_array[0]), abs(x_array[-1])))
             self._sample_smu.set_source_shape(0)
             self._sample_smu.set_source_mode(0)
@@ -424,22 +424,22 @@ class TransportLogic(GenericLogic):
             x_smu = self._sample_smu
             x_fnc = self._sample_smu.set_current_level
         elif x_axis_sweep_parameter == 'V_G':
-            lower_voltage_limit, upper_voltage_limit = self._gate_smu.get_voltage_limit()
+            lower_voltage_limit, upper_voltage_limit = self._gate_voltage_source.get_voltage_limit()
             for x_value in x_array:
                 if x_value<lower_voltage_limit or x_value>upper_voltage_limit:
                     self.log.error('Backgate voltage sweep is outside the setted voltage limits. 2D DC scan did not started!')
                     self.sigScanFinished.emit()
                     return self._transport_2D_array
-            self._gate_smu.set_source_function(0)
-            self._gate_smu.set_source_volt_autorange(backgate_voltage_autorange)
-            self._gate_smu.set_source_volt_ramp_speed(backgate_voltage_ramp_speed)
-            if not sample_transport_autorange:
-                self._gate_smu.set_source_volt_range(max(abs(x_array[0]), abs(x_array[-1])))
-            self._gate_smu.set_source_shape(0)
-            self._gate_smu.set_source_mode(0)
+            self._gate_voltage_source.set_source_function(0)
+            autorange = self._gate_voltage_source.set_source_volt_autorange(backgate_voltage_autorange)
+            self._gate_voltage_source.set_source_volt_ramp_speed(backgate_voltage_ramp_speed)
+            if not autorange:
+                self._gate_voltage_source.set_source_volt_range(max(abs(x_array[0]), abs(x_array[-1])))
+            self._gate_voltage_source.set_source_shape(0)
+            self._gate_voltage_source.set_source_mode(0)
             x_autorange = backgate_voltage_autorange
-            x_smu = self._gate_smu
-            x_fnc = self._gate_smu.set_voltage_level
+            x_smu = self._gate_voltage_source
+            x_fnc = self._gate_voltage_source.set_voltage_level
         else:
             self.log.error('X axis is not supported for this scan. 2D DC scan did not started!')
             self.sigScanFinished.emit()
@@ -454,9 +454,9 @@ class TransportLogic(GenericLogic):
                     self.sigScanFinished.emit()
                     return self._transport_2D_array
             self._sample_smu.set_source_function(0)
-            self._sample_smu.set_source_volt_autorange(sample_transport_autorange)
+            autorange = self._sample_smu.set_source_volt_autorange(sample_transport_autorange)
             self._sample_smu.set_source_volt_ramp_speed(sample_voltage_ramp_speed)
-            if not sample_transport_autorange:
+            if not autorange:
                 self._sample_smu.set_source_volt_range(max(abs(y_array[0]), abs(y_array[-1])))
             self._sample_smu.set_source_shape(0)
             self._sample_smu.set_source_mode(0)
@@ -471,9 +471,9 @@ class TransportLogic(GenericLogic):
                     self.sigScanFinished.emit()
                     return self._transport_2D_array
             self._sample_smu.set_source_function(1)
-            self._sample_smu.set_source_curr_autorange(sample_transport_autorange)
+            autorange = self._sample_smu.set_source_curr_autorange(sample_transport_autorange)
             self._sample_smu.set_source_curr_ramp_speed(sample_current_ramp_speed)
-            if not sample_transport_autorange:
+            if not autorange:
                 self._sample_smu.set_source_curr_range(max(abs(y_array[0]), abs(y_array[-1])))
             self._sample_smu.set_source_shape(0)
             self._sample_smu.set_source_mode(0)
@@ -481,22 +481,22 @@ class TransportLogic(GenericLogic):
             y_smu = self._sample_smu
             y_fnc = self._sample_smu.set_current_level
         elif y_axis_sweep_parameter == 'V_G':
-            lower_voltage_limit, upper_voltage_limit = self._gate_smu.get_voltage_limit()
+            lower_voltage_limit, upper_voltage_limit = self._gate_voltage_source.get_voltage_limit()
             for y_value in y_array:
                 if y_value<lower_voltage_limit or y_value>upper_voltage_limit:
                     self.log.error('Backgate voltage sweep is outside the setted voltage limits. 2D DC scan did not started!')
                     self.sigScanFinished.emit()
                     return self._transport_2D_array
-            self._gate_smu.set_source_function(0)
-            self._gate_smu.set_source_volt_autorange(backgate_voltage_autorange)
-            self._gate_smu.set_source_volt_ramp_speed(backgate_voltage_ramp_speed)
-            if not sample_transport_autorange:
-                self._gate_smu.set_source_volt_range(max(abs(y_array[0]), abs(y_array[-1])))
-            self._gate_smu.set_source_shape(0)
-            self._gate_smu.set_source_mode(0)
+            self._gate_voltage_source.set_source_function(0)
+            autorange = self._gate_voltage_source.set_source_volt_autorange(backgate_voltage_autorange)
+            self._gate_voltage_source.set_source_volt_ramp_speed(backgate_voltage_ramp_speed)
+            if not autorange:
+                self._gate_voltage_source.set_source_volt_range(max(abs(y_array[0]), abs(y_array[-1])))
+            self._gate_voltage_source.set_source_shape(0)
+            self._gate_voltage_source.set_source_mode(0)
             y_autorange = backgate_voltage_autorange
-            y_smu = self._gate_smu
-            y_fnc = self._gate_smu.set_voltage_level
+            y_smu = self._gate_voltage_source
+            y_fnc = self._gate_voltage_source.set_voltage_level
         else:
             self.log.error('Y axis is not supported for this scan. 2D DC scan did not started!')
             self.sigScanFinished.emit()
@@ -695,13 +695,13 @@ class TransportLogic(GenericLogic):
 
         #setup gate source
         if use_DC_backgate_voltage:
-            self._gate_smu.set_source_volt_ramp_speed(backgate_voltage_ramp_speed)
+            self._gate_voltage_source.set_source_volt_ramp_speed(backgate_voltage_ramp_speed)
             ret_val = self.set_backgate_DC_voltage(DC_backgate_voltage, backgate_voltage_autorange)
             if not ret_val:
                 self.log.error('Backgate voltage was not set. 1D DC scan did not started!')
                 self.sigScanFinished.emit()
                 return self._transport_1D_array
-            self._gate_smu.output_on()
+            self._gate_voltage_source.output_on()
             time.sleep(0.5)
 
         #setup sensing
@@ -786,7 +786,7 @@ class TransportLogic(GenericLogic):
         x_array = np.linspace(x_start, x_stop, x_num, endpoint=True)
         
         for x_value in x_array:
-            lower_voltage_limit, upper_voltage_limit = self._gate_smu.get_voltage_limit()
+            lower_voltage_limit, upper_voltage_limit = self._gate_voltage_source.get_voltage_limit()
             if x_value<lower_voltage_limit or x_value>upper_voltage_limit:
                 self.log.error('Voltage sweep is outside the setted voltage limits. 1D DC scan did not started!')
                 self.sigScanFinished.emit()
@@ -831,13 +831,13 @@ class TransportLogic(GenericLogic):
             return self._transport_1D_array
         
         #setup gate source
-        self._gate_smu.set_source_function(0)
-        self._gate_smu.set_source_volt_autorange(backgate_voltage_autorange)
-        self._gate_smu.set_source_volt_ramp_speed(backgate_voltage_ramp_speed)
-        if not backgate_voltage_autorange:
-            self._gate_smu.set_source_volt_range(max(abs(x_array[0]), abs(x_array[-1])))
-        self._gate_smu.set_source_shape(0)
-        self._gate_smu.set_source_mode(0)
+        self._gate_voltage_source.set_source_function(0)
+        autorange = self._gate_voltage_source.set_source_volt_autorange(backgate_voltage_autorange)
+        self._gate_voltage_source.set_source_volt_ramp_speed(backgate_voltage_ramp_speed)
+        if not autorange:
+            self._gate_voltage_source.set_source_volt_range(max(abs(x_array[0]), abs(x_array[-1])))
+        self._gate_voltage_source.set_source_shape(0)
+        self._gate_voltage_source.set_source_mode(0)
 
 
         #setup sensing
@@ -876,12 +876,12 @@ class TransportLogic(GenericLogic):
             
         #start sensing and outputs
         self._sample_smu.sensing_on()
-        self._gate_smu.output_on()
+        self._gate_voltage_source.output_on()
         self.sig1DScanStarted.emit()
 
         #start measurement
         for idx, x_value in enumerate(x_array):
-            self._gate_smu.set_voltage_level(x_value)
+            self._gate_voltage_source.set_voltage_level(x_value)
 
             self._transport_1D_array[sens_fnc_key]['data'][idx] = self._sample_smu.get_measurement(True)
 
@@ -991,13 +991,13 @@ class TransportLogic(GenericLogic):
         
         #setup gate source
         if use_DC_backgate_voltage:
-            self._gate_smu.set_source_volt_ramp_speed(backgate_voltage_ramp_speed)
+            self._gate_voltage_source.set_source_volt_ramp_speed(backgate_voltage_ramp_speed)
             ret_val = self.set_backgate_DC_voltage(DC_backgate_voltage, backgate_voltage_autorange)
             if not ret_val:
                 self.log.error('Backgate voltage was not set. DC timetrace scan did not started!')
                 self.sigScanFinished.emit()
                 return self._transport_timetrace_array
-            self._gate_smu.output_on()
+            self._gate_voltage_source.output_on()
             time.sleep(0.5)
 
         #setup sensing
@@ -1086,7 +1086,7 @@ class TransportLogic(GenericLogic):
     def set_gate_voltage_limits(self, gate_voltage_lower_limit, gate_voltage_upper_limit):
         self.axis_units['V_G']['upper_limit'] = gate_voltage_upper_limit
         self.axis_units['V_G']['lower_limit'] = gate_voltage_lower_limit
-        self._gate_smu.set_voltage_limit(gate_voltage_lower_limit, gate_voltage_upper_limit)
+        self._gate_voltage_source.set_voltage_limit(gate_voltage_lower_limit, gate_voltage_upper_limit)
 
     def set_sample_voltage_limits(self, sample_voltage_lower_limit, sample_voltage_upper_limit):
         self.axis_units['V_S']['upper_limit'] = sample_voltage_upper_limit
@@ -1102,7 +1102,7 @@ class TransportLogic(GenericLogic):
         return self._sample_smu.get_limits()
     
     def get_gate_source_limits(self):
-        return self._sample_smu.get_limits()
+        return self._gate_voltage_source.get_limits()
     
     def set_sample_DC_current(self, current, autorange = False):
         lower_current_limit, upper_current_limit = self._sample_smu.get_current_limit()
@@ -1121,22 +1121,23 @@ class TransportLogic(GenericLogic):
         return True
 
     def set_backgate_DC_voltage(self, voltage, autorange = False):
-        lower_voltage_limit, upper_voltage_limit = self._gate_smu.get_voltage_limit()
+        lower_voltage_limit, upper_voltage_limit = self._gate_voltage_source.get_voltage_limit()
         if voltage<lower_voltage_limit or voltage>upper_voltage_limit:
             self.log.error('Backgate DC voltage is outside the setted voltage limits. DC voltage is not setted.')
             return False
-        self._gate_smu.set_DC_voltage(voltage, autorange)
+        self._gate_voltage_source.set_DC_voltage(voltage, autorange)
         return True
 
     def outputs_on(self):
         self._sample_smu.output_on()
-        self._gate_smu.output_on()
+        self._gate_voltage_source.output_on()
 
     def reset_outputs(self):
         self._sample_smu.output_off()
+        self._gate_voltage_source.output_off()
         self._sample_smu.set_current_level(0)
         self._sample_smu.set_voltage_level(0)
-        self._gate_smu.set_voltage_level(0)
+        self._gate_voltage_source.set_voltage_level(0)
 
     def check_thread_active(self):
         """ Check whether current worker thread is running. """

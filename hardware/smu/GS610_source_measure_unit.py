@@ -265,7 +265,7 @@ class GS610sourcemeasureunit(Base, SMUInterface):
         self.set_source_function(0)
         self.set_source_shape(0)
         self.set_source_mode(0)
-        self.set_source_volt_autorange(autorange)
+        autorange = self.set_source_volt_autorange(autorange)
         if not autorange:
             self.set_source_volt_range(abs(voltage))
         return self.set_voltage_level(voltage)
@@ -281,7 +281,7 @@ class GS610sourcemeasureunit(Base, SMUInterface):
         self.set_source_function(1)
         self.set_source_shape(0)
         self.set_source_mode(0)
-        self.set_source_curr_autorange(autorange)
+        autorange = self.set_source_curr_autorange(autorange)
         if not autorange:
             self.set_source_curr_range(abs(current))
         return self.set_current_level(current)

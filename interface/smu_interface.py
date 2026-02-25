@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 """
-This file contains the Qudi Interface file to control microwave devices.
+This file contains the Qudi Interface file to control source measurement units.
 
 Qudi is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -26,10 +26,10 @@ from core.util.helpers import in_range
 from enum import Enum
 
 class SMUInterface(metaclass=InterfaceMetaclass):
-    """This is the Interface class to define the controls for the simple microwave hardware.
+    """This is the Interface class to define the controls for the simple source measurement unit hardware.
 
-    This interface is designed to interface microwave generator where the power and frequency of the produced microwave
-    can be set. Is can be operated in CW (continuous wave) or as a sweep system synchronised with a measured device.
+    This interface is designed to interface source measurement units where the voltage and current can be set.
+    The device can also measure voltage and current.
 
     """
 
