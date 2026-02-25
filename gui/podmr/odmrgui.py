@@ -444,6 +444,17 @@ class ODMRGui(GUIBase):
         x_data = np.arange(y_data.size, dtype=float) * bin_width
         mn = x_data.min()
         mx = x_data.max()
+        self._mw.analysis_window_start_DoubleSpinBox.setMaximum(mx)
+        self._mw.analysis_window_start_DoubleSpinBox.setMinimum(mn)
+
+        self._mw.analysis_window_width_DoubleSpinBox.setMaximum(mx)
+        self._mw.analysis_window_width_DoubleSpinBox.setMinimum(mn)
+
+        self._mw.reference_window_start_DoubleSpinBox.setMaximum(mx)
+        self._mw.reference_window_start_DoubleSpinBox.setMinimum(mn)
+
+        self._mw.reference_window_width_DoubleSpinBox.setMaximum(mx)
+        self._mw.reference_window_width_DoubleSpinBox.setMinimum(mn)
         self.sig_start_line.setBounds((mn,mx))
         self.sig_end_line.setBounds((mn,mx))
         self.ref_start_line.setBounds((mn,mx))
