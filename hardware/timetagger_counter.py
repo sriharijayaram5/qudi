@@ -110,7 +110,7 @@ class TimeTaggerCounter(Base, SlowCounterInterface, RecorderInterface):
         self.is_measurement_running = False
         self.force_ready = False
 
-        self._tagger.setTriggerLevel(8,0.02)
+        self._tagger.setTriggerLevel(8,0.01) # setting trigger level for channel 8 - value is obtained by trial
 
         if self._sum_channels and self._channel_apd_1 is None:
             self.log.error('Cannot sum channels when only one apd channel given')

@@ -1239,7 +1239,7 @@ class MagnetGui(GUIBase):
 
         # set the range constraints:
         self._mw.align_2d_axis0_range_DSpinBox.setMinimum(0)
-        self._mw.align_2d_axis0_range_DSpinBox.setMaximum(constraints[axis0_name]['pos_max'])
+        self._mw.align_2d_axis0_range_DSpinBox.setMaximum(np.inf)
         self._mw.align_2d_axis0_range_DSpinBox.setSingleStep(constraints[axis0_name]['pos_step'],
                                                              dynamic_stepping=False)
         self._mw.align_2d_axis0_range_DSpinBox.setSuffix(constraints[axis0_name]['unit'])
@@ -1267,7 +1267,7 @@ class MagnetGui(GUIBase):
         axis1_name = self._mw.align_2d_axis1_name_ComboBox.currentText()
 
         self._mw.align_2d_axis1_range_DSpinBox.setMinimum(0)
-        self._mw.align_2d_axis1_range_DSpinBox.setMaximum(constraints[axis1_name]['pos_max'])
+        self._mw.align_2d_axis1_range_DSpinBox.setMaximum(np.inf)
         self._mw.align_2d_axis1_range_DSpinBox.setSingleStep(constraints[axis1_name]['pos_step'],
                                                              dynamic_stepping=False)
         self._mw.align_2d_axis1_range_DSpinBox.setSuffix(constraints[axis1_name]['unit'])

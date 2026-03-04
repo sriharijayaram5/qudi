@@ -2962,7 +2962,7 @@ class PulsedJupyterLogic(GenericLogic):
         if awg_t_0<0:
             print(f"Minimum t0 is {t_0_overhead*1e6}us!")
             return None
-        actual_t_0 = awg_t_0
+        actual_t_0 = t_0
 
         self.tau_arr = np.array([1,2]) #1 is for the final rotation around X, 2 is the final rotation around Y. Only important if meaurement is run via pulsed Gui to reduce confusion
 
@@ -3083,7 +3083,7 @@ class PulsedJupyterLogic(GenericLogic):
         if awg_t_0<0:
             print(f"Minimum t0 is {t_0_overhead*1e6}us!")
             return None
-        actual_t_0 = awg_t_0
+        actual_t_0 = t_0
 
         
         self.tau_arr = np.array([1,2]) #1 is for the final rotation around X, 2 is the final rotation around Y. Only important if meaurement is run via pulsed Gui to reduce confusion
