@@ -116,8 +116,8 @@ class ODMRCounterInterfuse(GenericLogic, ODMRCounterInterface):
         channels[d_ch(self._pulser._laser_channel)] = 1.0
         channels[a_ch(self._pulser._laser_analog_channel)] = self._pulser._laser_power_voltage
         channels[d_ch(self._pulser._mw_trig)] = 1.0
-        block_1.append(init_length = 1e-6, channels = channels, repetition = 1)
-        # block_1.append(init_length = 100e-6, channels = channels, repetition = 1) #If use smiq for CW ODMR
+        # block_1.append(init_length = 1e-6, channels = channels, repetition = 1)
+        block_1.append(init_length = 100e-6, channels = channels, repetition = 1) #If use smiq for CW ODMR
 
         seq.append([(block_1, 1)])
 
