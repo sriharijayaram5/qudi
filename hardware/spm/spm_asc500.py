@@ -971,8 +971,8 @@ class SPM_ASC500(Base, ScannerInterface):
             this is the case.
 
         """
-        phys_vals = 1
-        return phys_vals
+#        phys_vals = 1
+        return self._polled_data
     
     def check_spm_scan_params_by_plane(self, plane, coord0_start, coord0_stop, coord1_start,coord1_stop):
         return 1
