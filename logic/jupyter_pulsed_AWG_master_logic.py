@@ -467,10 +467,19 @@ class PulsedJupyterLogic(GenericLogic):
                 BlockAWG = segments[key]
 
                 for Element in BlockAWG:
-                    if self.switch_MW:
-                        phase_1, phase_0, duration, user_MW_1_true, user_MW_0_true, freq_1, freq_0, channels = Element
+                    # Element may be an 8-tuple (no per-element amps) or a 10-tuple (includes amp_0, amp_1).
+                    if len(Element) >= 10:
+                        if self.switch_MW:
+                            phase_1, phase_0, duration, user_MW_1_true, user_MW_0_true, freq_1, freq_0, channels, amp_0, amp_1 = Element
+                        else:
+                            phase_0, phase_1, duration, user_MW_0_true, user_MW_1_true, freq_0, freq_1, channels, amp_0, amp_1 = Element
                     else:
-                        phase_0, phase_1, duration, user_MW_0_true, user_MW_1_true, freq_0, freq_1, channels = Element
+                        if self.switch_MW:
+                            phase_1, phase_0, duration, user_MW_1_true, user_MW_0_true, freq_1, freq_0, channels = Element
+                        else:
+                            phase_0, phase_1, duration, user_MW_0_true, user_MW_1_true, freq_0, freq_1, channels = Element
+                        amp_0 = 0.5
+                        amp_1 = 0.5
                     if user_MW_0_true:
                         use_MW_0 = True
                     if user_MW_1_true:
@@ -555,10 +564,19 @@ class PulsedJupyterLogic(GenericLogic):
                 BlockAWG = segments[key]
 
                 for Element in BlockAWG:
-                    if self.switch_MW:
-                        phase_1, phase_0, duration, user_MW_1_true, user_MW_0_true, freq_1, freq_0, channels = Element
+                    # Element may be an 8-tuple (no per-element amps) or a 10-tuple (includes amp_0, amp_1).
+                    if len(Element) >= 10:
+                        if self.switch_MW:
+                            phase_1, phase_0, duration, user_MW_1_true, user_MW_0_true, freq_1, freq_0, channels, amp_0, amp_1 = Element
+                        else:
+                            phase_0, phase_1, duration, user_MW_0_true, user_MW_1_true, freq_0, freq_1, channels, amp_0, amp_1 = Element
                     else:
-                        phase_0, phase_1, duration, user_MW_0_true, user_MW_1_true, freq_0, freq_1, channels = Element
+                        if self.switch_MW:
+                            phase_1, phase_0, duration, user_MW_1_true, user_MW_0_true, freq_1, freq_0, channels = Element
+                        else:
+                            phase_0, phase_1, duration, user_MW_0_true, user_MW_1_true, freq_0, freq_1, channels = Element
+                        amp_0 = 0.5
+                        amp_1 = 0.5
                     if user_MW_0_true:
                         use_MW_0 = True
                     if user_MW_1_true:
@@ -3690,7 +3708,13 @@ class PulsedJupyterLogic(GenericLogic):
             large_seq = []
 
             for Element in self.BlockAWG:
-                phase_0, phase_1, duration, user_MW_0_true, user_MW_1_true, freq_0, freq_1, channels = Element
+                # Element may be an 8-tuple (no per-element amps) or a 10-tuple (includes amp_0, amp_1).
+                if len(Element) >= 10:
+                    phase_0, phase_1, duration, user_MW_0_true, user_MW_1_true, freq_0, freq_1, channels, amp_0, amp_1 = Element
+                else:
+                    phase_0, phase_1, duration, user_MW_0_true, user_MW_1_true, freq_0, freq_1, channels = Element
+                    amp_0 = 0.5
+                    amp_1 = 0.5
                 delta_0 = abs(self.LO_freq_0 - (self.target_freq_0 if freq_0 is None else freq_0))
                 delta_1 = abs(self.LO_freq_1 - (self.target_freq_1 if freq_1 is None else freq_1))
                 
